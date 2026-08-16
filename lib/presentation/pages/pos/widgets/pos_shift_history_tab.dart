@@ -5,8 +5,16 @@ import '../../../bloc/pos_shift/pos_shift_event.dart';
 import '../../../bloc/pos_shift/pos_shift_state.dart';
 import 'package:intl/intl.dart';
 
-class PosShiftHistoryTab extends StatelessWidget {
+class PosShiftHistoryTab extends StatefulWidget {
   const PosShiftHistoryTab({super.key});
+
+  @override
+  State<PosShiftHistoryTab> createState() => _PosShiftHistoryTabState();
+}
+
+class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
+  String _search = '';
+  String _status = 'all';
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +31,21 @@ class PosShiftHistoryTab extends StatelessWidget {
         }
 
         if (state is PosShiftLoaded) {
+          final shifts = state.shiftHistory.where((shift) {
+            final query = _search.trim().toLowerCase();
+            final store = shift['toko']?['nama_toko']?.toString() ?? '';
+            final cashier =
+                shift['user']?['name']?.toString() ??
+                shift['kasir']?['nama']?.toString() ??
+                '';
+            final matchesSearch =
+                query.isEmpty ||
+                store.toLowerCase().contains(query) ||
+                cashier.toLowerCase().contains(query);
+            final rawStatus = shift['status']?.toString().toLowerCase() ?? '';
+            final matchesStatus = _status == 'all' || rawStatus == _status;
+            return matchesSearch && matchesStatus;
+          }).toList();
           if (state.shiftHistory.isEmpty) {
             return _buildEmptyState(context);
           }
@@ -32,16 +55,78 @@ class PosShiftHistoryTab extends StatelessWidget {
             },
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: state.shiftHistory.length,
+              itemCount: shifts.length + 1,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                return _buildHistoryCard(state.shiftHistory[index]);
+                if (index == 0) return _buildFilterToolbar();
+                return _buildHistoryCard(shifts[index - 1]);
               },
             ),
           );
         }
 
         return _buildEmptyState(context);
+      },
+    );
+  }
+
+  Widget _buildFilterToolbar() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final search = SizedBox(
+          height: 48,
+          child: TextField(
+            onChanged: (value) => setState(() => _search = value),
+            decoration: InputDecoration(
+              hintText: 'Cari toko atau kasir...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+          ),
+        );
+        final filter = SizedBox(
+          height: 48,
+          child: DropdownButtonFormField<String>(
+            initialValue: _status,
+            isExpanded: true,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.filter_list_rounded),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('Semua Status')),
+              DropdownMenuItem(value: 'open', child: Text('Buka')),
+              DropdownMenuItem(value: 'closed', child: Text('Tutup')),
+            ],
+            onChanged: (value) => setState(() => _status = value ?? 'all'),
+          ),
+        );
+        if (constraints.maxWidth >= 680) {
+          return Row(
+            children: [
+              Expanded(child: search),
+              const SizedBox(width: 10),
+              SizedBox(width: 190, child: filter),
+            ],
+          );
+        }
+        return Column(children: [search, const SizedBox(height: 8), filter]);
       },
     );
   }

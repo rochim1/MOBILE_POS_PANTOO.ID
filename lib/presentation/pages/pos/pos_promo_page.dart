@@ -93,69 +93,46 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Promo & Voucher',
-          subtitle: 'Program penjualan aktif',
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'add_promo_fab',
-        onPressed: () => _showPromoForm(context),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Tambah Promo',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Column(
+    return ColoredBox(
+      color: AppColors.bgPrimary,
+      child: Column(
         children: [
           // Search & Filter section
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Cari kode atau nama promo...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              _loadWithFilters();
-                            },
-                          )
-                        : null,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  onChanged: (_) => _loadWithFilters(),
-                ),
-                const SizedBox(height: 12),
-                Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final search = _buildSearchField();
+                final filter = _buildStatusFilter();
+                final addButton = _buildAddButton();
+
+                if (constraints.maxWidth >= 680) {
+                  return Row(
+                    children: [
+                      Expanded(child: search),
+                      const SizedBox(width: 10),
+                      SizedBox(width: 180, child: filter),
+                      const SizedBox(width: 10),
+                      addButton,
+                    ],
+                  );
+                }
+
+                return Column(
                   children: [
-                    _buildFilterChip('Semua', _filterIsActive == null),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Aktif', _filterIsActive == true),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Nonaktif', _filterIsActive == false),
+                    search,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: filter),
+                        const SizedBox(width: 8),
+                        addButton,
+                      ],
+                    ),
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
 
@@ -207,37 +184,103 @@ class _PosPromoViewState extends State<_PosPromoView> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (label == 'Semua') {
-            _filterIsActive = null;
-          } else if (label == 'Aktif') {
-            _filterIsActive = true;
-          } else {
-            _filterIsActive = false;
-          }
-        });
-        _loadWithFilters();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.grey.shade300,
+  Widget _buildSearchField() {
+    return SizedBox(
+      height: 48,
+      child: TextField(
+        controller: _searchController,
+        onChanged: (_) {
+          setState(() {});
+          _loadWithFilters();
+        },
+        decoration: _filterDecoration(
+          hintText: 'Cari kode atau nama promo...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {});
+                    _loadWithFilters();
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusFilter() {
+    final value = _filterIsActive == null
+        ? 'all'
+        : (_filterIsActive! ? 'active' : 'inactive');
+    return SizedBox(
+      height: 48,
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: _filterDecoration(
+          prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'all', child: Text('Semua Status')),
+          DropdownMenuItem(value: 'active', child: Text('Aktif')),
+          DropdownMenuItem(value: 'inactive', child: Text('Nonaktif')),
+        ],
+        onChanged: (value) {
+          setState(() {
+            _filterIsActive = switch (value) {
+              'active' => true,
+              'inactive' => false,
+              _ => null,
+            };
+          });
+          _loadWithFilters();
+        },
+      ),
+    );
+  }
+
+  Widget _buildAddButton() {
+    return SizedBox(
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: () => _showPromoForm(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah Promo'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey.shade700,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 13,
-          ),
-        ),
+      ),
+    );
+  }
+
+  InputDecoration _filterDecoration({
+    String? hintText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
     );
   }

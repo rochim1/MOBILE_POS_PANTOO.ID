@@ -7,6 +7,8 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_event.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_state.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_order.dart';
 
@@ -23,7 +25,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    context.read<PosBloc>().add(LoadDashboardData());
+    if (context.read<AppLockCubit>().state.status == AppLockStatus.unlocked) {
+      context.read<PosBloc>().add(LoadDashboardData());
+    }
   }
 
   @override

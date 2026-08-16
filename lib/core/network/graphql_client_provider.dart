@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +19,7 @@ class GraphQLClientProvider {
   String? _sessionToken;
   bool _unauthorizedNotified = false;
   DateTime? _tokenActivatedAt;
+  Future<bool>? _refreshInFlight;
 
   GraphQLClientProvider(
     this.sharedPreferences,
@@ -48,8 +52,12 @@ class GraphQLClientProvider {
         // non-student/non-reseller channel against the internal user model.
         'apps': 'pos',
         'x-iid': sharedPreferences.getString('instansi_id') ?? '',
-        if (_sessionToken != null) 'authorization': 'Bearer $_sessionToken',
       },
+    );
+
+    final authLink = AuthLink(
+      getToken: () async =>
+          _sessionToken == null ? null : 'Bearer $_sessionToken',
     );
 
     final errorLink = ErrorLink(
@@ -61,8 +69,7 @@ class GraphQLClientProvider {
               error.message,
               error.extensions?['code'],
             )) {
-              _notifyUnauthorized();
-              break;
+              return _refreshAndRetry(request, forward);
             }
           }
         }
@@ -79,8 +86,7 @@ class GraphQLClientProvider {
               error.message,
               error.extensions?['code'],
             )) {
-              _notifyUnauthorized();
-              break;
+              return _refreshAndRetry(request, forward);
             }
           }
         }
@@ -88,7 +94,7 @@ class GraphQLClientProvider {
       },
     );
 
-    final link = Link.from([errorLink, httpLink]);
+    final link = Link.from([errorLink, authLink, httpLink]);
 
     client = GraphQLClient(
       cache: GraphQLCache(store: InMemoryStore()),
@@ -110,6 +116,72 @@ class GraphQLClientProvider {
     }
     appLogger.d('[GraphQL] Session token tersedia: ${_sessionToken != null}');
     _initClient();
+  }
+
+  Stream<Response> _refreshAndRetry(Request request, NextLink forward) async* {
+    final refreshed = await refreshAccessToken();
+    if (refreshed) {
+      yield* forward(request);
+    } else {
+      _notifyUnauthorized();
+    }
+  }
+
+  Future<bool> refreshAccessToken() {
+    final active = _refreshInFlight;
+    if (active != null) return active;
+    final future = _performRefresh();
+    _refreshInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_refreshInFlight, future)) _refreshInFlight = null;
+    });
+  }
+
+  Future<bool> _performRefresh() async {
+    final refreshToken = await secureStorage.read(key: 'refresh_token');
+    if (refreshToken == null || refreshToken.trim().isEmpty) return false;
+    try {
+      final response = await http.post(
+        Uri.parse(endpointUrl),
+        headers: {
+          'content-type': 'application/json',
+          'X-API-Key': dotenv.env['MOBILE_API_KEY'] ?? '',
+          'apps': 'pos',
+          'x-iid': sharedPreferences.getString('instansi_id') ?? '',
+        },
+        body: jsonEncode({
+          'query': r'''mutation RefreshMobileSession($refreshToken: String!) {
+            RefreshMobileSession(refresh_token: $refreshToken) {
+              token refresh_token
+            }
+          }''',
+          'variables': {'refreshToken': refreshToken},
+        }),
+      );
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = payload['data']?['RefreshMobileSession'] as Map?;
+      final accessToken = data?['token']?.toString().trim() ?? '';
+      final nextRefreshToken = data?['refresh_token']?.toString().trim() ?? '';
+      if (response.statusCode >= 400 ||
+          accessToken.isEmpty ||
+          nextRefreshToken.isEmpty) {
+        return false;
+      }
+      await secureStorage.write(key: 'auth_token', value: accessToken);
+      await secureStorage.write(key: 'refresh_token', value: nextRefreshToken);
+      _sessionToken = accessToken;
+      _unauthorizedNotified = false;
+      _tokenActivatedAt = DateTime.now();
+      appLogger.i('[Auth] Access token berhasil diperbarui');
+      return true;
+    } catch (error, stackTrace) {
+      appLogger.w(
+        '[Auth] Refresh token gagal',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
   }
 
   bool _shouldInvalidateSession(String rawMessage, dynamic code) {

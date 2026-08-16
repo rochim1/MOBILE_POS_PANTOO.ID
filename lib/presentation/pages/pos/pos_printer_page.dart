@@ -7,7 +7,6 @@ import '../../bloc/pos_receipt/pos_receipt_bloc.dart';
 import '../../bloc/pos_receipt/pos_receipt_event.dart';
 import '../../bloc/pos_receipt/pos_receipt_state.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/pos_ui.dart';
 import '../../widgets/loading_indicator_widget.dart';
 
 class PosPrinterPage extends StatelessWidget {
@@ -120,17 +119,9 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Pengaturan Struk',
-          subtitle: 'Format dan informasi cetak',
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: BlocConsumer<PosReceiptBloc, PosReceiptState>(
+    return Material(
+      color: AppColors.bgPrimary,
+      child: BlocConsumer<PosReceiptBloc, PosReceiptState>(
         listener: (context, state) {
           if (state.status == PosReceiptStatus.loaded) {
             _initFields(state);

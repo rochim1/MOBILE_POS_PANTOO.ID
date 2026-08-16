@@ -13,6 +13,7 @@ import 'pos_outlet_page.dart';
 import 'pos_shift_page.dart';
 import 'pos_return_page.dart';
 import 'pos_printer_page.dart';
+import 'pos_offline_queue_page.dart';
 import 'pos_promo_page.dart';
 import 'pos_settings_page.dart';
 import 'pos_report_page.dart';
@@ -42,6 +43,7 @@ class _PosShellPageState extends State<PosShellPage> {
   bool _stockGridView = true;
   bool _historyGridView = true;
   bool _posDataRequested = false;
+  bool _showUnlockLoading = false;
 
   bool get _railExpanded => _sidebarMode == 0;
 
@@ -54,6 +56,14 @@ class _PosShellPageState extends State<PosShellPage> {
     (label: 'Table Order', icon: Icons.table_restaurant_outlined),
     (label: 'Manajemen Meja', icon: Icons.chair_alt_outlined),
     (label: 'Stok Toko', icon: Icons.warehouse_outlined),
+    (label: 'Promo & Voucher', icon: Icons.discount_outlined),
+    (label: 'Pelanggan', icon: Icons.people_outline),
+    (label: 'Toko', icon: Icons.storefront_outlined),
+    (label: 'Shift Kasir', icon: Icons.schedule_outlined),
+    (label: 'Laporan Penjualan', icon: Icons.bar_chart_outlined),
+    (label: 'Retur Penjualan', icon: Icons.keyboard_return_outlined),
+    (label: 'Pengaturan Printer', icon: Icons.print_outlined),
+    (label: 'Antrean & Sinkronisasi', icon: Icons.cloud_sync_outlined),
   ];
 
   @override
@@ -64,24 +74,47 @@ class _PosShellPageState extends State<PosShellPage> {
   void _loadPOSAfterUnlock(BuildContext context) {
     if (_posDataRequested) return;
     _posDataRequested = true;
+    setState(() => _showUnlockLoading = true);
     context.read<PosBloc>().add(LoadPosData());
     sl<SyncService>().syncOfflineTransactions();
+  }
+
+  void _finishUnlockLoading(PosState state) {
+    if (!_showUnlockLoading) return;
+    final dashboardReady =
+        state.status == PosStatus.success && state.dashboardData != null;
+    if (dashboardReady || state.status == PosStatus.failure) {
+      setState(() => _showUnlockLoading = false);
+    }
   }
 
   List<Widget> get _pages => [
     HomePage(
       onNavigate: (index) {
-        if (!mounted || index < 0 || index > 7) return;
+        if (!mounted || index < 0 || index >= _destinations.length) return;
         setState(() => _selectedIndex = index);
       },
     ),
     const PosPage(),
     PosProductPage(isGridView: _productGridView),
     PosOrderPage(isGridView: _historyGridView),
-    const PosMoreMenuPage(),
+    PosMoreMenuPage(
+      onNavigate: (index) {
+        if (!mounted || index < 0 || index >= _destinations.length) return;
+        setState(() => _selectedIndex = index);
+      },
+    ),
     const PosTableOrderPage(),
     const PosTableManagementPage(),
     PosStockPage(isGridView: _stockGridView),
+    const PosPromoPage(),
+    const PosCustomerPage(),
+    const PosOutletPage(),
+    const PosShiftPage(),
+    const PosReportPage(),
+    const PosReturnPage(),
+    const PosPrinterPage(),
+    const PosOfflineQueuePage(),
   ];
 
   @override
@@ -93,337 +126,415 @@ class _PosShellPageState extends State<PosShellPage> {
     return BlocProvider(
       create: (_) => sl<PosBloc>(),
       child: BlocListener<AppLockCubit, AppLockState>(
-        listenWhen: (previous, current) =>
-            previous.status != current.status &&
-            current.status == AppLockStatus.unlocked,
-        listener: (context, state) => _loadPOSAfterUnlock(context),
-        child: Scaffold(
-          resizeToAvoidBottomInset: false,
-          backgroundColor: const Color(0xFFF3F6FB),
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: AppColors.primary,
-            titleSpacing: 0,
-            leading: isMobile
-                ? Builder(
-                    builder: (context) => IconButton(
-                      tooltip: 'Buka menu',
-                      icon: const Icon(Icons.menu, color: Colors.white),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                    ),
-                  )
-                : IconButton(
-                    tooltip: switch (_sidebarMode) {
-                      0 => 'Ringkas sidebar',
-                      1 => 'Sembunyikan sidebar',
-                      _ => 'Tampilkan sidebar',
-                    },
-                    icon: Icon(switch (_sidebarMode) {
-                      0 => Icons.menu_open,
-                      1 => Icons.menu,
-                      _ => Icons.keyboard_double_arrow_right,
-                    }, color: Colors.white),
-                    onPressed: () {
-                      setState(() => _sidebarMode = (_sidebarMode + 1) % 3);
-                    },
-                  ),
-            title: BlocBuilder<AppLockCubit, AppLockState>(
-              builder: (context, lockState) {
-                return BlocBuilder<PosBloc, PosState>(
-                  builder: (context, state) {
-                    final activeStoreId = state.activeShift?['toko_id']
-                        ?.toString();
-                    final matchingStores = state.stores.where(
-                      (store) => store.id == activeStoreId,
-                    );
-                    final storeName =
-                        state.activeShift?['toko']?['nama_toko']?.toString() ??
-                        (matchingStores.isNotEmpty
-                            ? matchingStores.first.name
-                            : (state.stores.length == 1
-                                  ? state.stores.first.name
-                                  : 'Belum ada toko aktif'));
-
-                    final activeEmployeeName = lockState.activeEmployeeName;
-                    final username =
-                        activeEmployeeName ??
-                        context.watch<AuthCubit>().state.username ??
-                        'Pengguna';
-                    final initial = username.isNotEmpty
-                        ? username
-                              .substring(0, username.length >= 2 ? 2 : 1)
-                              .toUpperCase()
-                        : 'US';
-
-                    return Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.orange.shade300,
-                          child: Text(
-                            initial,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+        listenWhen: (previous, current) => previous.status != current.status,
+        listener: (context, state) {
+          if (state.status == AppLockStatus.unlocked) {
+            _loadPOSAfterUnlock(context);
+          } else {
+            _posDataRequested = false;
+            if (_showUnlockLoading) {
+              setState(() => _showUnlockLoading = false);
+            }
+          }
+        },
+        child: BlocListener<PosBloc, PosState>(
+          listener: (context, state) => _finishUnlockLoading(state),
+          child: Stack(
+            children: [
+              Scaffold(
+                resizeToAvoidBottomInset: false,
+                backgroundColor: const Color(0xFFF3F6FB),
+                appBar: AppBar(
+                  elevation: 0,
+                  backgroundColor: AppColors.primary,
+                  titleSpacing: 0,
+                  leading: isMobile
+                      ? Builder(
+                          builder: (context) => IconButton(
+                            tooltip: 'Buka menu',
+                            icon: const Icon(Icons.menu, color: Colors.white),
+                            onPressed: () => Scaffold.of(context).openDrawer(),
                           ),
+                        )
+                      : IconButton(
+                          tooltip: switch (_sidebarMode) {
+                            0 => 'Ringkas sidebar',
+                            1 => 'Sembunyikan sidebar',
+                            _ => 'Tampilkan sidebar',
+                          },
+                          icon: Icon(switch (_sidebarMode) {
+                            0 => Icons.menu_open,
+                            1 => Icons.menu,
+                            _ => Icons.keyboard_double_arrow_right,
+                          }, color: Colors.white),
+                          onPressed: () {
+                            setState(
+                              () => _sidebarMode = (_sidebarMode + 1) % 3,
+                            );
+                          },
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  title: BlocBuilder<AppLockCubit, AppLockState>(
+                    builder: (context, lockState) {
+                      return BlocBuilder<PosBloc, PosState>(
+                        builder: (context, state) {
+                          final activeStoreId = state.activeShift?['toko_id']
+                              ?.toString();
+                          final matchingStores = state.stores.where(
+                            (store) => store.id == activeStoreId,
+                          );
+                          final storeName =
+                              state.activeShift?['toko']?['nama_toko']
+                                  ?.toString() ??
+                              (matchingStores.isNotEmpty
+                                  ? matchingStores.first.name
+                                  : (state.stores.length == 1
+                                        ? state.stores.first.name
+                                        : 'Belum ada toko aktif'));
+
+                          final activeEmployeeName =
+                              lockState.activeEmployeeName;
+                          final username =
+                              activeEmployeeName ??
+                              context.watch<AuthCubit>().state.username ??
+                              'Pengguna';
+                          final initial = username.isNotEmpty
+                              ? username
+                                    .substring(0, username.length >= 2 ? 2 : 1)
+                                    .toUpperCase()
+                              : 'US';
+
+                          return Row(
                             children: [
-                              Text(
-                                isMobile
-                                    ? storeName.toString()
-                                    : _destinations[_selectedIndex].label,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Colors.orange.shade300,
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 2),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.green,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
                                     Text(
                                       isMobile
-                                          ? username
-                                          : '$storeName • $username',
+                                          ? storeName.toString()
+                                          : _destinations[_selectedIndex].label,
                                       style: const TextStyle(
-                                        color: Colors.black87,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: const BoxDecoration(
+                                              color: Colors.green,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            isMobile
+                                                ? username
+                                                : '$storeName • $username',
+                                            style: const TextStyle(
+                                              color: Colors.black87,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Kunci POS',
+                      icon: const Icon(Icons.lock_outline, color: Colors.white),
+                      onPressed: () => context.read<AppLockCubit>().lock(),
+                    ),
+                    if (_selectedIndex == 1) ...[
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.white,
+                        ),
+                        offset: const Offset(0, 50),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'notif1',
+                            child: Text('Belum ada notifikasi baru'),
+                          ),
+                        ],
+                      ),
+                      BlocBuilder<PosBloc, PosState>(
+                        builder: (context, state) {
+                          return IconButton(
+                            icon: Icon(
+                              state.isGridView ? Icons.list : Icons.grid_view,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              context.read<PosBloc>().add(ToggleGridView());
+                            },
+                          );
+                        },
+                      ),
+                      if (!isSmallScreen)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10.0,
+                            horizontal: 8.0,
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedIndex =
+                                    3; // Index for Transaksi (PosOrderPage)
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors
+                                  .teal
+                                  .shade600, // A darker green for the button
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Daftar Order'),
+                                SizedBox(width: 4),
+                                Icon(Icons.chevron_right, size: 16),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
-                    );
-                  },
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Kunci POS',
-                icon: const Icon(Icons.lock_outline, color: Colors.white),
-                onPressed: () => context.read<AppLockCubit>().lock(),
-              ),
-              if (_selectedIndex == 1) ...[
-                PopupMenuButton<String>(
-                  icon: const Icon(
-                    Icons.notifications_none,
-                    color: Colors.white,
-                  ),
-                  offset: const Offset(0, 50),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'notif1',
-                      child: Text('Belum ada notifikasi baru'),
-                    ),
+                    ],
+                    if (_selectedIndex == 2)
+                      IconButton(
+                        tooltip: _productGridView
+                            ? 'Tampilkan sebagai tabel'
+                            : 'Tampilkan sebagai grid',
+                        icon: Icon(
+                          _productGridView ? Icons.table_rows : Icons.grid_view,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() => _productGridView = !_productGridView);
+                        },
+                      ),
+                    if (_selectedIndex == 7)
+                      IconButton(
+                        tooltip: _stockGridView
+                            ? 'Tampilkan sebagai tabel'
+                            : 'Tampilkan sebagai grid',
+                        icon: Icon(
+                          _stockGridView ? Icons.table_rows : Icons.grid_view,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() => _stockGridView = !_stockGridView);
+                        },
+                      ),
+                    if (_selectedIndex == 3)
+                      IconButton(
+                        tooltip: _historyGridView
+                            ? 'Tampilkan sebagai tabel'
+                            : 'Tampilkan sebagai kartu',
+                        icon: Icon(
+                          _historyGridView
+                              ? Icons.table_rows
+                              : Icons.view_agenda,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() => _historyGridView = !_historyGridView);
+                        },
+                      ),
+                    const SizedBox(width: 8),
                   ],
                 ),
-                BlocBuilder<PosBloc, PosState>(
-                  builder: (context, state) {
-                    return IconButton(
-                      icon: Icon(
-                        state.isGridView ? Icons.list : Icons.grid_view,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        context.read<PosBloc>().add(ToggleGridView());
-                      },
-                    );
-                  },
+                drawer: isMobile
+                    ? PosDrawer(
+                        selectedIndex: _selectedIndex,
+                        onIndexChanged: (index) {
+                          setState(() => _selectedIndex = index);
+                        },
+                      )
+                    : null,
+                body: SafeArea(
+                  child: isMobile
+                      ? _pages[_selectedIndex]
+                      : Row(
+                          children: [
+                            if (_sidebarMode != 2) ...[
+                              _buildDesktopSidebar(),
+                              const VerticalDivider(width: 1, thickness: 1),
+                            ],
+                            Expanded(child: _pages[_selectedIndex]),
+                          ],
+                        ),
                 ),
-                if (!isSmallScreen)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10.0,
-                      horizontal: 8.0,
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedIndex =
-                              3; // Index for Transaksi (PosOrderPage)
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors
-                            .teal
-                            .shade600, // A darker green for the button
+                floatingActionButton:
+                    isMobile && MediaQuery.of(context).viewInsets.bottom == 0
+                    ? FloatingActionButton(
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
+                        shape: const CircleBorder(),
+                        elevation: 4,
+                        onPressed: () {
+                          setState(() {
+                            _selectedIndex = 1;
+                          });
+                        },
+                        child: const Icon(Icons.point_of_sale, size: 28),
+                      )
+                    : null,
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.centerDocked,
+                bottomNavigationBar: isMobile
+                    ? BottomAppBar(
+                        shape: const CircularNotchedRectangle(),
+                        notchMargin: 8.0,
+                        color: Colors.white,
+                        padding: EdgeInsets.zero,
+                        height: 60,
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildBottomNavItem(
+                                      icon: Icons.home_outlined,
+                                      selectedIcon: Icons.home,
+                                      label: 'Beranda',
+                                      index: 0,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _buildBottomNavItem(
+                                      icon: Icons.inventory_2_outlined,
+                                      selectedIcon: Icons.inventory_2,
+                                      label: 'Produk',
+                                      index: 2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 72),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildBottomNavItem(
+                                      icon: Icons.receipt_long_outlined,
+                                      selectedIcon: Icons.receipt_long,
+                                      label: 'Transaksi',
+                                      index: 3,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _buildBottomNavItem(
+                                      icon: Icons.menu_outlined,
+                                      selectedIcon: Icons.menu,
+                                      label: 'Lainnya',
+                                      index: 4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : null,
+              ),
+              if (_showUnlockLoading)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.white,
+                    child: SafeArea(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 112,
+                              height: 112,
+                              child: ClipRect(
+                                child: Image.asset(
+                                  'assets/images/pantoo_loading.gif',
+                                  fit: BoxFit.contain,
+                                  gaplessPlayback: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Menyiapkan dashboard...',
+                              textScaler: TextScaler.noScaling,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Mohon tunggu sebentar',
+                              textScaler: TextScaler.noScaling,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.black54,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Daftar Order'),
-                          SizedBox(width: 4),
-                          Icon(Icons.chevron_right, size: 16),
-                        ],
-                      ),
                     ),
                   ),
-              ],
-              if (_selectedIndex == 2)
-                IconButton(
-                  tooltip: _productGridView
-                      ? 'Tampilkan sebagai tabel'
-                      : 'Tampilkan sebagai grid',
-                  icon: Icon(
-                    _productGridView ? Icons.table_rows : Icons.grid_view,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    setState(() => _productGridView = !_productGridView);
-                  },
                 ),
-              if (_selectedIndex == 7)
-                IconButton(
-                  tooltip: _stockGridView
-                      ? 'Tampilkan sebagai tabel'
-                      : 'Tampilkan sebagai grid',
-                  icon: Icon(
-                    _stockGridView ? Icons.table_rows : Icons.grid_view,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    setState(() => _stockGridView = !_stockGridView);
-                  },
-                ),
-              if (_selectedIndex == 3)
-                IconButton(
-                  tooltip: _historyGridView
-                      ? 'Tampilkan sebagai tabel'
-                      : 'Tampilkan sebagai kartu',
-                  icon: Icon(
-                    _historyGridView ? Icons.table_rows : Icons.view_agenda,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    setState(() => _historyGridView = !_historyGridView);
-                  },
-                ),
-              const SizedBox(width: 8),
             ],
           ),
-          drawer: isMobile
-              ? PosDrawer(
-                  selectedIndex: _selectedIndex,
-                  onIndexChanged: (index) {
-                    setState(() => _selectedIndex = index);
-                  },
-                )
-              : null,
-          body: SafeArea(
-            child: isMobile
-                ? _pages[_selectedIndex]
-                : Row(
-                    children: [
-                      if (_sidebarMode != 2) ...[
-                        _buildDesktopSidebar(),
-                        const VerticalDivider(width: 1, thickness: 1),
-                      ],
-                      Expanded(child: _pages[_selectedIndex]),
-                    ],
-                  ),
-          ),
-          floatingActionButton:
-              isMobile && MediaQuery.of(context).viewInsets.bottom == 0
-              ? FloatingActionButton(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 4,
-                  onPressed: () {
-                    setState(() {
-                      _selectedIndex = 1;
-                    });
-                  },
-                  child: const Icon(Icons.point_of_sale, size: 28),
-                )
-              : null,
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: isMobile
-              ? BottomAppBar(
-                  shape: const CircularNotchedRectangle(),
-                  notchMargin: 8.0,
-                  color: Colors.white,
-                  padding: EdgeInsets.zero,
-                  height: 60,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildBottomNavItem(
-                            icon: Icons.home_outlined,
-                            selectedIcon: Icons.home,
-                            label: 'Beranda',
-                            index: 0,
-                          ),
-                          _buildBottomNavItem(
-                            icon: Icons.inventory_2_outlined,
-                            selectedIcon: Icons.inventory_2,
-                            label: 'Produk',
-                            index: 2,
-                          ),
-                        ],
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildBottomNavItem(
-                            icon: Icons.receipt_long_outlined,
-                            selectedIcon: Icons.receipt_long,
-                            label: 'Transaksi',
-                            index: 3,
-                          ),
-                          _buildBottomNavItem(
-                            icon: Icons.menu_outlined,
-                            selectedIcon: Icons.menu,
-                            label: 'Lainnya',
-                            index: 4,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-              : null,
         ),
       ),
     );
@@ -537,54 +648,15 @@ class _PosShellPageState extends State<PosShellPage> {
       if (can('view_products')) _sidebarItem(2),
       if (useTables && manageTables) _sidebarItem(6),
       if (trackStock && canViewStock) _sidebarItem(7),
-      if (can('view_promos'))
-        _sidebarRouteItem(
-          Icons.discount_outlined,
-          'Promo & Voucher',
-          const PosPromoPage(),
-          menuContext: menuContext,
-        ),
-      if (can('view_customers'))
-        _sidebarRouteItem(
-          Icons.people_outline,
-          'Pelanggan',
-          const PosCustomerPage(),
-          menuContext: menuContext,
-          needsBloc: true,
-        ),
-      if (can('view_stores'))
-        _sidebarRouteItem(
-          Icons.storefront_outlined,
-          'Toko',
-          const PosOutletPage(),
-          menuContext: menuContext,
-          needsBloc: true,
-        ),
-      if (can('view_shifts'))
-        _sidebarRouteItem(
-          Icons.schedule_outlined,
-          'Shift Kasir',
-          const PosShiftPage(),
-          menuContext: menuContext,
-          needsBloc: true,
-        ),
+      if (can('view_promos')) _sidebarItem(8),
+      if (can('view_customers')) _sidebarItem(9),
+      if (can('view_stores')) _sidebarItem(10),
+      if (can('view_shifts')) _sidebarItem(11),
       _sidebarItem(4),
       _sidebarSection('LAPORAN'),
       if (can('view_transactions')) _sidebarItem(3),
-      if (can('view_reports'))
-        _sidebarRouteItem(
-          Icons.bar_chart_outlined,
-          'Laporan Penjualan',
-          const PosReportPage(),
-          menuContext: menuContext,
-        ),
-      if (can('view_returns'))
-        _sidebarRouteItem(
-          Icons.keyboard_return_outlined,
-          'Retur Penjualan',
-          const PosReturnPage(),
-          menuContext: menuContext,
-        ),
+      if (can('view_reports')) _sidebarItem(12),
+      if (can('view_returns')) _sidebarItem(13),
       _sidebarSection('PENGATURAN'),
       if (can('view_settings'))
         _sidebarRouteItem(
@@ -593,14 +665,7 @@ class _PosShellPageState extends State<PosShellPage> {
           const PosSettingsPage(),
           menuContext: menuContext,
         ),
-      if (can('view_receipt'))
-        _sidebarRouteItem(
-          Icons.print_outlined,
-          'Pengaturan Struk',
-          const PosPrinterPage(),
-          menuContext: menuContext,
-          needsBloc: true,
-        ),
+      if (can('view_receipt')) _sidebarItem(14),
     ];
   }
 
@@ -716,11 +781,13 @@ class _PosShellPageState extends State<PosShellPage> {
     required String label,
     required int index,
   }) {
-    final isSelected = _selectedIndex == index;
+    final isSelected = index == 4
+        ? _selectedIndex == 4 || _selectedIndex >= 5
+        : _selectedIndex == index;
     final color = isSelected ? AppColors.primary : Colors.black54;
     return MaterialButton(
-      minWidth: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      minWidth: 0,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       onPressed: () {
         setState(() {
           _selectedIndex = index;

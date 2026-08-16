@@ -7,14 +7,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_cubit.dart';
 
 import '../../common/feature_placeholder_page.dart';
 import '../../login/login_page.dart';
-import '../pos_customer_page.dart';
-import '../pos_outlet_page.dart';
-import '../pos_shift_page.dart';
-import '../pos_return_page.dart';
-import '../pos_printer_page.dart';
-import '../pos_promo_page.dart';
 import '../pos_settings_page.dart';
-import '../pos_report_page.dart';
 
 class PosDrawer extends StatefulWidget {
   final int selectedIndex;
@@ -221,48 +214,25 @@ class _PosDrawerState extends State<PosDrawer> {
           ),
         ],
         if (can('view_promos'))
-          _buildNavItem(
-            Icons.discount_outlined,
-            'Promo & Voucher',
-            const PosPromoPage(),
-          ),
+          _buildShellItem(Icons.discount_outlined, 'Promo & Voucher', 8),
         if (can('view_customers'))
-          _buildNavItem(
-            Icons.people_outline,
-            'Pelanggan',
-            const PosCustomerPage(),
-            needsBloc: true,
-          ),
+          _buildShellItem(Icons.people_outline, 'Pelanggan', 9),
         if (can('view_stores'))
-          _buildNavItem(
-            Icons.storefront_outlined,
-            'Toko',
-            const PosOutletPage(),
-            needsBloc: true,
-          ),
+          _buildShellItem(Icons.storefront_outlined, 'Toko', 10),
         if (can('view_shifts'))
-          _buildNavItem(
-            Icons.schedule_outlined,
-            'Shift Kasir',
-            const PosShiftPage(),
-            needsBloc: true,
-          ),
+          _buildShellItem(Icons.schedule_outlined, 'Shift Kasir', 11),
 
         // ---- Laporan ----
         _buildSectionHeader('LAPORAN'),
         if (can('view_transactions'))
           _buildShellItem(Icons.receipt_long_outlined, 'Riwayat Transaksi', 3),
         if (can('view_reports'))
-          _buildNavItem(
-            Icons.bar_chart_outlined,
-            'Laporan Penjualan',
-            const PosReportPage(),
-          ),
+          _buildShellItem(Icons.bar_chart_outlined, 'Laporan Penjualan', 12),
         if (can('view_returns'))
-          _buildNavItem(
+          _buildShellItem(
             Icons.keyboard_return_outlined,
             'Retur Penjualan',
-            const PosReturnPage(),
+            13,
           ),
 
         // ---- Pengaturan ----
@@ -274,12 +244,7 @@ class _PosDrawerState extends State<PosDrawer> {
             const PosSettingsPage(),
           ),
         if (can('view_receipt'))
-          _buildNavItem(
-            Icons.print_outlined,
-            'Pengaturan Struk',
-            const PosPrinterPage(),
-            needsBloc: true,
-          ),
+          _buildShellItem(Icons.print_outlined, 'Pengaturan Struk', 14),
       ],
     );
   }

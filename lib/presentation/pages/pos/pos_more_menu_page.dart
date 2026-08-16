@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
-import '../../bloc/pos/pos_bloc.dart';
-import 'pos_outlet_page.dart';
-import 'pos_shift_page.dart';
-import 'pos_customer_page.dart';
-import 'pos_printer_page.dart';
-import 'pos_return_page.dart';
-import 'pos_offline_queue_page.dart';
 
 class PosMoreMenuPage extends StatelessWidget {
-  const PosMoreMenuPage({super.key});
+  final ValueChanged<int> onNavigate;
+
+  const PosMoreMenuPage({super.key, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -31,18 +25,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   title: 'Manajemen Outlet',
                   subtitle: 'Atur detail outlet dan informasi cabang',
                   color: AppColors.primary,
-                  onTap: () {
-                    final posBloc = context.read<PosBloc>();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider.value(
-                          value: posBloc,
-                          child: const PosOutletPage(),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => onNavigate(10),
                 ),
                 _buildMenuItem(
                   context,
@@ -50,10 +33,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   title: 'Retur Penjualan',
                   subtitle: 'Riwayat dan pengajuan retur barang',
                   color: Colors.redAccent,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PosReturnPage()),
-                  ),
+                  onTap: () => onNavigate(13),
                 ),
                 _buildMenuItem(
                   context,
@@ -61,18 +41,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   title: 'Kas & Shift',
                   subtitle: 'Kelola kas masuk/keluar dan rekap shift',
                   color: Colors.orange,
-                  onTap: () {
-                    final posBloc = context.read<PosBloc>();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider.value(
-                          value: posBloc,
-                          child: const PosShiftPage(),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => onNavigate(11),
                 ),
               ]),
               const SizedBox(height: 24),
@@ -85,18 +54,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   title: 'Pelanggan',
                   subtitle: 'Daftar pelanggan dan riwayat loyalitas',
                   color: Colors.purple,
-                  onTap: () {
-                    final posBloc = context.read<PosBloc>();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider.value(
-                          value: posBloc,
-                          child: const PosCustomerPage(),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => onNavigate(9),
                 ),
                 _buildMenuItem(
                   context,
@@ -104,18 +62,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   title: 'Pengaturan Printer',
                   subtitle: 'Atur format dan tampilan struk kasir',
                   color: Colors.blue,
-                  onTap: () {
-                    final posBloc = context.read<PosBloc>();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider.value(
-                          value: posBloc,
-                          child: const PosPrinterPage(),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => onNavigate(14),
                 ),
                 _buildMenuItem(
                   context,
@@ -123,12 +70,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   title: 'Antrean & Sinkronisasi',
                   subtitle: 'Periksa, audit, dan kirim transaksi offline',
                   color: Colors.teal,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PosOfflineQueuePage(),
-                    ),
-                  ),
+                  onTap: () => onNavigate(15),
                 ),
               ]),
             ],

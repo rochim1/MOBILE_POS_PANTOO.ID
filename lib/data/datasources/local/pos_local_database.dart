@@ -30,7 +30,7 @@ class PosLocalDatabase {
 
     return await openDatabase(
       path,
-      version: 10,
+      version: 12,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -117,6 +117,22 @@ WHERE client_transaction_id = ''
         'ALTER TABLE products ADD COLUMN tracks_stock INTEGER NOT NULL DEFAULT 1',
       );
     }
+    if (oldVersion < 11) {
+      await db.execute(
+        'ALTER TABLE products ADD COLUMN base_unit TEXT NOT NULL DEFAULT "unit"',
+      );
+      await db.execute(
+        'ALTER TABLE products ADD COLUMN unit_conversions TEXT NOT NULL DEFAULT "[]"',
+      );
+      // Cache versi lama tidak menyimpan satuan asli. Menghapusnya lebih aman
+      // daripada mengirim "unit" dan menghasilkan harga/stok yang keliru.
+      await db.delete('products');
+    }
+    if (oldVersion < 12) {
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN email TEXT NOT NULL DEFAULT ""',
+      );
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -139,6 +155,8 @@ CREATE TABLE products (
   ,product_type TEXT NOT NULL DEFAULT 'product'
   ,promo_eligible INTEGER NOT NULL DEFAULT 0
   ,tracks_stock INTEGER NOT NULL DEFAULT 1
+  ,base_unit TEXT NOT NULL DEFAULT 'unit'
+  ,unit_conversions TEXT NOT NULL DEFAULT '[]'
 )
 ''');
 
@@ -146,7 +164,8 @@ CREATE TABLE products (
 CREATE TABLE customers (
   id $idType,
   name $textType,
-  phone $textType
+  phone $textType,
+  email TEXT NOT NULL DEFAULT ''
 )
 ''');
 

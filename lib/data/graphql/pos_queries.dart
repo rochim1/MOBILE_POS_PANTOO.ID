@@ -124,6 +124,7 @@ class PosQueries {
     mutation Login($input: LoginInput!) {
       Login(input: $input) {
         token
+        refresh_token
         user {
           _id
           username
@@ -132,6 +133,15 @@ class PosQueries {
             _id
           }
         }
+      }
+    }
+  ''';
+
+  static const String revokeMobileSession = r'''
+    mutation RevokeMobileSession($refreshToken: String!) {
+      RevokeMobileSession(refresh_token: $refreshToken) {
+        is_successed
+        message
       }
     }
   ''';
@@ -226,7 +236,11 @@ class PosQueries {
           harga_jual
           stok
           sku
+          barcode
           foto
+          base_unit
+          unit
+          unit_conversions { unit factor }
           status
         }
       }
@@ -271,6 +285,7 @@ class PosQueries {
           total_transaksi
           total_belanja
         }
+        info_page { count }
       }
     }
   ''';
@@ -349,6 +364,7 @@ class PosQueries {
           diskon
           pajak
           total
+          catatan
           items {
             inventaris_id
             kode_inventaris

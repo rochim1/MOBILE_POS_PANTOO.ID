@@ -7,7 +7,6 @@ import 'widgets/pos_active_shift_tab.dart';
 import 'widgets/pos_shift_history_tab.dart';
 import '../../../../core/_core.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/pos_ui.dart';
 
 class PosShiftPage extends StatelessWidget {
   const PosShiftPage({super.key});
@@ -26,34 +25,33 @@ class PosShiftPage extends StatelessWidget {
               AppToast.error(context, state.message);
             }
           },
-          child: Scaffold(
-            appBar: AppBar(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              title: const PosAppBarTitle(
-                title: 'Shift Kasir',
-                subtitle: 'Kelola kas kerja harian',
-              ),
-              bottom: TabBar(
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
+          child: ColoredBox(
+            color: AppColors.bgPrimary,
+            child: Column(
+              children: [
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: const TabBar(
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: Colors.black54,
+                    indicatorColor: AppColors.primary,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    tabs: [
+                      Tab(
+                        icon: Icon(Icons.point_of_sale, size: 19),
+                        text: 'Aktif',
+                      ),
+                      Tab(icon: Icon(Icons.history, size: 19), text: 'Riwayat'),
+                    ],
                   ),
                 ),
-                tabs: const [
-                  Tab(icon: Icon(Icons.point_of_sale, size: 19), text: 'Aktif'),
-                  Tab(icon: Icon(Icons.history, size: 19), text: 'Riwayat'),
-                ],
-              ),
-            ),
-            backgroundColor: AppColors.bgPrimary,
-            body: const TabBarView(
-              children: [PosActiveShiftTab(), PosShiftHistoryTab()],
+                const Expanded(
+                  child: TabBarView(
+                    children: [PosActiveShiftTab(), PosShiftHistoryTab()],
+                  ),
+                ),
+              ],
             ),
           ),
         ),

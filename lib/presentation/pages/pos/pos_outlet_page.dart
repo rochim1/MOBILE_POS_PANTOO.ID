@@ -19,46 +19,99 @@ class PosOutletPage extends StatefulWidget {
 class _PosOutletPageState extends State<PosOutletPage> {
   final PosRepository _repository = sl<PosRepository>();
   String _search = '';
+  String _statusFilter = 'all';
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const PosAppBarTitle(
-        title: 'Outlet',
-        subtitle: 'Toko dan lokasi penjualan',
-      ),
-    ),
-    backgroundColor: AppColors.bgPrimary,
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => _form(),
-      icon: const Icon(Icons.add_business),
-      label: const Text('Tambah'),
-    ),
-    body: BlocBuilder<PosBloc, PosState>(
+  Widget build(BuildContext context) => Material(
+    color: AppColors.bgPrimary,
+    child: BlocBuilder<PosBloc, PosState>(
       builder: (context, state) {
         final stores = state.stores.where((item) {
           final q = _search.toLowerCase();
-          return q.isEmpty ||
-              item.name.toLowerCase().contains(q) ||
-              item.code.toLowerCase().contains(q);
+          return (q.isEmpty ||
+                  item.name.toLowerCase().contains(q) ||
+                  item.code.toLowerCase().contains(q)) &&
+              (_statusFilter == 'all' || item.status == _statusFilter);
         }).toList();
         return RefreshIndicator(
           onRefresh: () async => context.read<PosBloc>().add(LoadPosData()),
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              TextField(
-                onChanged: (v) => setState(() => _search = v),
-                decoration: InputDecoration(
-                  hintText: 'Cari nama atau kode outlet...',
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final search = SizedBox(
+                    height: 48,
+                    child: TextField(
+                      onChanged: (v) => setState(() => _search = v),
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama atau kode toko...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                    ),
+                  );
+                  final filter = PopupMenuButton<String>(
+                    tooltip: 'Filter status toko',
+                    initialValue: _statusFilter,
+                    onSelected: (value) =>
+                        setState(() => _statusFilter = value),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'all', child: Text('Semua Status')),
+                      PopupMenuItem(value: 'active', child: Text('Aktif')),
+                      PopupMenuItem(value: 'inactive', child: Text('Nonaktif')),
+                    ],
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: _statusFilter == 'all'
+                            ? Colors.white
+                            : AppColors.primary.withValues(alpha: 0.1),
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.filter_list_rounded),
+                    ),
+                  );
+                  final add = SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _form(),
+                      icon: const Icon(Icons.add_business),
+                      label: const Text('Tambah'),
+                    ),
+                  );
+                  if (constraints.maxWidth < 420) {
+                    return Column(
+                      children: [
+                        search,
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [filter, const SizedBox(width: 8), add],
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: search),
+                      const SizedBox(width: 8),
+                      filter,
+                      const SizedBox(width: 8),
+                      add,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
               if (stores.isEmpty)
@@ -95,7 +148,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 80),
+              const SizedBox(height: 24),
             ],
           ),
         );

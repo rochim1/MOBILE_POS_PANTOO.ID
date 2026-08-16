@@ -56,7 +56,9 @@ class PosOrder {
       id: json['_id'] ?? '',
       invoice: json['invoice'] ?? '-',
       date: (json['tanggal'] ?? json['createdAt'] ?? '-').toString(),
-      customer: json['pelanggan'] ?? 'Retail',
+      customer: (json['pelanggan']?.toString().trim().isNotEmpty ?? false)
+          ? json['pelanggan'].toString()
+          : 'Retail',
       cashierName: json['kasir_name'] ?? 'Kasir',
       paymentMethod: json['metode_pembayaran']?.toString() ?? '-',
       total: double.tryParse(json['total']?.toString() ?? '0') ?? 0.0,

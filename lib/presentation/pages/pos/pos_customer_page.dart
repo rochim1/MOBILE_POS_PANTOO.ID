@@ -7,9 +7,7 @@ import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
 
 class PosCustomerPage extends StatefulWidget {
-  final bool selectionMode;
-
-  const PosCustomerPage({super.key, this.selectionMode = false});
+  const PosCustomerPage({super.key});
 
   @override
   State<PosCustomerPage> createState() => _PosCustomerPageState();
@@ -20,6 +18,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
   final _searchController = TextEditingController();
   List<PosCustomer> _customers = const [];
   bool _loading = true;
+  String _priceLevelFilter = 'all';
 
   @override
   void initState() {
@@ -45,49 +44,95 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
 
   List<PosCustomer> get _filtered {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _customers;
     return _customers
         .where(
           (item) =>
-              item.name.toLowerCase().contains(query) ||
-              item.phone.toLowerCase().contains(query),
+              (query.isEmpty ||
+                  item.name.toLowerCase().contains(query) ||
+                  item.phone.toLowerCase().contains(query)) &&
+              (_priceLevelFilter == 'all' ||
+                  item.priceLevel == _priceLevelFilter),
         )
         .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Pelanggan',
-          subtitle: 'Pilih atau kelola pelanggan POS',
-        ),
-      ),
-      backgroundColor: AppColors.bgPrimary,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _loading ? null : () => _showForm(),
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Tambah'),
-      ),
-      body: RefreshIndicator(
+    final content = ColoredBox(
+      color: AppColors.bgPrimary,
+      child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextField(
-              controller: _searchController,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Cari nama atau nomor telepon...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama atau telepon...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  tooltip: 'Filter pelanggan',
+                  initialValue: _priceLevelFilter,
+                  onSelected: (value) =>
+                      setState(() => _priceLevelFilter = value),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'all',
+                      child: Text('Semua Level Harga'),
+                    ),
+                    ..._customers
+                        .map((item) => item.priceLevel)
+                        .where((level) => level.isNotEmpty)
+                        .toSet()
+                        .map(
+                          (level) =>
+                              PopupMenuItem(value: level, child: Text(level)),
+                        ),
+                  ],
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: _priceLevelFilter == 'all'
+                          ? Colors.white
+                          : AppColors.primary.withValues(alpha: 0.1),
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.filter_list_rounded),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : () => _showForm(),
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Tambah'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             if (_loading)
@@ -103,19 +148,17 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
               )
             else
               ..._filtered.map(_customerCard),
-            const SizedBox(height: 80),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
+    return content;
   }
 
   Widget _customerCard(PosCustomer customer) => Card(
     margin: const EdgeInsets.only(bottom: 10),
     child: ListTile(
-      onTap: widget.selectionMode
-          ? () => Navigator.pop(context, customer)
-          : null,
       leading: CircleAvatar(
         child: Text(
           customer.name.isEmpty ? '?' : customer.name[0].toUpperCase(),
@@ -128,16 +171,14 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
       subtitle: Text(
         customer.phone.isEmpty ? 'Tanpa nomor telepon' : customer.phone,
       ),
-      trailing: widget.selectionMode
-          ? const Icon(Icons.chevron_right)
-          : PopupMenuButton<String>(
-              onSelected: (action) =>
-                  action == 'edit' ? _showForm(customer) : _delete(customer),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(value: 'delete', child: Text('Hapus')),
-              ],
-            ),
+      trailing: PopupMenuButton<String>(
+        onSelected: (action) =>
+            action == 'edit' ? _showForm(customer) : _delete(customer),
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'edit', child: Text('Edit')),
+          PopupMenuItem(value: 'delete', child: Text('Hapus')),
+        ],
+      ),
     ),
   );
 

@@ -377,6 +377,13 @@ class PosRepository {
               sku: e['sku']?.toString() ?? '',
               barcode: e['barcode']?.toString() ?? '',
               imageUrl: e['foto']?.toString() ?? '',
+              baseUnit:
+                  e['base_unit']?.toString() ?? e['unit']?.toString() ?? 'unit',
+              unitConversions: e['unit_conversions'] is List
+                  ? (e['unit_conversions'] as List)
+                        .map((row) => Map<String, dynamic>.from(row as Map))
+                        .toList()
+                  : const [],
             ),
           )
           .toList();
@@ -407,6 +414,10 @@ class PosRepository {
               sku: e['sku']?.toString() ?? '',
               barcode: e['barcode']?.toString() ?? '',
               imageUrl: e['image_url']?.toString() ?? '',
+              baseUnit: e['base_unit']?.toString() ?? 'unit',
+              unitConversions: _decodeUnitConversions(
+                e['unit_conversions']?.toString(),
+              ),
             ),
           )
           .toList();
@@ -434,6 +445,8 @@ class PosRepository {
           'sku': product.sku,
           'barcode': product.barcode,
           'image_url': product.imageUrl,
+          'base_unit': product.saleUnit,
+          'unit_conversions': jsonEncode(product.unitConversions),
         });
       }
       await batch.commit(noResult: true);
@@ -441,11 +454,26 @@ class PosRepository {
   }
 
   Future<List<PosCustomer>> getCustomers() async {
+    final result = await getCustomersPage(page: 1, limit: 100);
+    return result.items;
+  }
+
+  Future<PosCustomerPageResult> getCustomersPage({
+    int page = 1,
+    int limit = 20,
+    String search = '',
+  }) async {
+    final safePage = page < 1 ? 1 : page;
+    final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final QueryOptions options = QueryOptions(
         document: gql(PosQueries.getAllPOSPelanggan),
         variables: {
-          'pagination': {'page': 0, 'limit': 500},
+          'filter': {
+            'type': 'CUSTOMER',
+            if (search.trim().isNotEmpty) 'keyword': search.trim(),
+          },
+          'pagination': {'page': safePage, 'limit': safeLimit},
         },
         fetchPolicy: FetchPolicy.networkOnly,
       );
@@ -453,7 +481,24 @@ class PosRepository {
       final QueryResult result = await _clientProvider.client.query(options);
 
       if (result.hasException || result.data == null) {
-        return _getLocalCustomers();
+        final local = await _getLocalCustomers();
+        final filtered = search.trim().isEmpty
+            ? local
+            : local.where((customer) {
+                final query = search.trim().toLowerCase();
+                return customer.name.toLowerCase().contains(query) ||
+                    customer.phone.toLowerCase().contains(query);
+              }).toList();
+        final start = ((safePage - 1) * safeLimit)
+            .clamp(0, filtered.length)
+            .toInt();
+        final end = (start + safeLimit).clamp(start, filtered.length).toInt();
+        return PosCustomerPageResult(
+          items: filtered.sublist(start, end),
+          totalCount: filtered.length,
+          page: safePage,
+          limit: safeLimit,
+        );
       }
 
       final items =
@@ -464,15 +509,33 @@ class PosRepository {
               id: e['_id']?.toString() ?? '',
               name: e['name']?.toString() ?? 'Unknown',
               phone: e['phone']?.toString() ?? '',
+              email: e['email']?.toString() ?? '',
               priceLevel: e['price_level']?.toString() ?? 'retail',
             ),
           )
           .toList();
 
-      _saveCustomersToLocal(customers);
-      return customers;
+      if (search.trim().isEmpty) {
+        _saveCustomersToLocal(customers, replace: safePage == 1);
+      }
+      final info = result.data?['getAllCrmContacts']?['info_page'] as List?;
+      final totalCount = info?.isNotEmpty == true
+          ? (info!.first['count'] as num?)?.toInt() ?? customers.length
+          : customers.length;
+      return PosCustomerPageResult(
+        items: customers,
+        totalCount: totalCount,
+        page: safePage,
+        limit: safeLimit,
+      );
     } catch (e) {
-      return _getLocalCustomers();
+      final local = await _getLocalCustomers();
+      return PosCustomerPageResult(
+        items: local.take(safeLimit).toList(),
+        totalCount: local.length,
+        page: safePage,
+        limit: safeLimit,
+      );
     }
   }
 
@@ -550,6 +613,7 @@ class PosRepository {
               id: e['id'] as String,
               name: e['name'] as String,
               phone: e['phone'] as String,
+              email: e['email']?.toString() ?? '',
               priceLevel: 'retail',
             ),
           )
@@ -559,17 +623,21 @@ class PosRepository {
     }
   }
 
-  Future<void> _saveCustomersToLocal(List<PosCustomer> customers) async {
+  Future<void> _saveCustomersToLocal(
+    List<PosCustomer> customers, {
+    bool replace = true,
+  }) async {
     try {
       final db = await PosLocalDatabase.instance.database;
       final batch = db.batch();
-      batch.delete('customers');
+      if (replace) batch.delete('customers');
       for (var customer in customers) {
         batch.insert('customers', {
           'id': customer.id,
           'name': customer.name,
           'phone': customer.phone,
-        });
+          'email': customer.email,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit(noResult: true);
     } catch (_) {}
@@ -965,6 +1033,9 @@ class PosRepository {
     required double cashReceived,
     List<Map<String, dynamic>> payments = const [],
     String? pelangganId,
+    String? pelangganName,
+    String? pelangganPhone,
+    String? pelangganEmail,
     String? promoCode,
     String? discountPolicy,
     double? diskon,
@@ -983,7 +1054,7 @@ class PosRepository {
         .map(
           (e) => {
             'inventaris_id': e.key.id,
-            'unit': 'unit',
+            'unit': e.key.saleUnit,
             'qty': e.value.toDouble(),
           },
         )
@@ -993,7 +1064,7 @@ class PosRepository {
       'client_transaction_id': const Uuid().v4(),
       'tanggal': DateTime.now().toIso8601String(),
       'toko_id': tokoId,
-      'pelanggan': '',
+      'pelanggan': pelangganName?.trim() ?? '',
       'pelanggan_id': pelangganId,
       'channel_penjualan': salesChannel,
       'customer_segment': customerSegment,
@@ -1036,6 +1107,9 @@ class PosRepository {
         return Right(
           PosTransactionResult.fromJson(
             Map<String, dynamic>.from(result.data!['ProcessPOSPenjualan']),
+            customerName: pelangganName ?? '',
+            customerPhone: pelangganPhone ?? '',
+            customerEmail: pelangganEmail ?? '',
           ),
         );
       }
@@ -1062,6 +1136,9 @@ class PosRepository {
             change: cashReceived > total ? cashReceived - total : 0,
             paymentMethod: paymentMethod,
             pendingSync: true,
+            customerName: pelangganName ?? '',
+            customerPhone: pelangganPhone ?? '',
+            customerEmail: pelangganEmail ?? '',
           ),
         );
       }
@@ -1096,6 +1173,9 @@ class PosRepository {
           change: cashReceived > total ? cashReceived - total : 0,
           paymentMethod: paymentMethod,
           pendingSync: true,
+          customerName: pelangganName ?? '',
+          customerPhone: pelangganPhone ?? '',
+          customerEmail: pelangganEmail ?? '',
         ),
       );
     } catch (e) {
@@ -1145,7 +1225,7 @@ class PosRepository {
                       'nama': entry.key.name,
                       'kode': entry.key.code,
                       'qty': entry.value.toDouble(),
-                      'unit': 'unit',
+                      'unit': entry.key.saleUnit,
                       'harga_satuan':
                           itemPrices[entry.key.id] ?? entry.key.price,
                     },
@@ -1177,6 +1257,7 @@ class PosRepository {
     required String salesChannel,
     required String customerSegment,
     required String priceLevel,
+    String? customerId,
   }) async {
     try {
       final result = await _clientProvider.client.query(
@@ -1189,6 +1270,8 @@ class PosRepository {
               'channel_penjualan': salesChannel,
               'customer_segment': customerSegment,
               'price_level': priceLevel,
+              if (customerId != null && customerId.isNotEmpty)
+                'pelanggan': customerId,
               'promo_code': promoCode,
               'discount_policy': discountPolicy,
               'diskon': manualDiscount,
@@ -1197,7 +1280,7 @@ class PosRepository {
                   .map(
                     (entry) => {
                       'inventaris_id': entry.key.id,
-                      'unit': 'unit',
+                      'unit': entry.key.saleUnit,
                       'qty': entry.value.toDouble(),
                     },
                   )
@@ -1222,6 +1305,20 @@ class PosRepository {
   bool _isRetryableNetworkFailure(OperationException? exception) {
     return exception?.linkException != null &&
         exception?.graphqlErrors.isEmpty == true;
+  }
+
+  static List<Map<String, dynamic>> _decodeUnitConversions(String? value) {
+    if (value == null || value.trim().isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> _saveTransactionToOfflineQueue(

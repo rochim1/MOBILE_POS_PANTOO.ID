@@ -96,13 +96,41 @@ class PosTopProduct extends Equatable {
   List<Object?> get props => [id, nama, kode, qtySold, revenue, percentage];
 }
 
+class PosDailySales extends Equatable {
+  final String? date;
+  final String? label;
+  final double revenue;
+  final int transactions;
+
+  const PosDailySales({
+    this.date,
+    this.label,
+    this.revenue = 0,
+    this.transactions = 0,
+  });
+
+  factory PosDailySales.fromJson(Map<String, dynamic> json) {
+    return PosDailySales(
+      date: json['date'] as String?,
+      label: json['label'] as String?,
+      revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
+      transactions: (json['transactions'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  @override
+  List<Object?> get props => [date, label, revenue, transactions];
+}
+
 class PosReportData extends Equatable {
   final PosReportStats? stats;
+  final List<PosDailySales> dailySales;
   final List<PosPaymentBreakdown> paymentBreakdown;
   final List<PosTopProduct> topProducts;
 
   const PosReportData({
     this.stats,
+    this.dailySales = const [],
     this.paymentBreakdown = const [],
     this.topProducts = const [],
   });
@@ -112,6 +140,11 @@ class PosReportData extends Equatable {
       stats: json['stats'] != null
           ? PosReportStats.fromJson(json['stats'])
           : null,
+      dailySales:
+          (json['daily_sales'] as List<dynamic>?)
+              ?.map((e) => PosDailySales.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       paymentBreakdown:
           (json['payment_breakdown'] as List<dynamic>?)
               ?.map(
@@ -128,5 +161,5 @@ class PosReportData extends Equatable {
   }
 
   @override
-  List<Object?> get props => [stats, paymentBreakdown, topProducts];
+  List<Object?> get props => [stats, dailySales, paymentBreakdown, topProducts];
 }

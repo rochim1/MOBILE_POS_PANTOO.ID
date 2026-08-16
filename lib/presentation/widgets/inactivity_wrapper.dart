@@ -69,24 +69,20 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
           }
         },
         builder: (context, state) {
+          final isLocked = state.status == AppLockStatus.locked;
           return Stack(
             children: [
               widget.child,
-              Positioned.fill(
-                child: Offstage(
-                  offstage: state.status != AppLockStatus.locked,
-                  child: IgnorePointer(
-                    ignoring: state.status != AppLockStatus.locked,
-                    child: HeroControllerScope.none(
-                      child: Navigator(
-                        onGenerateRoute: (_) => MaterialPageRoute<void>(
-                          builder: (_) => const PinLockScreen(),
-                        ),
+              if (isLocked)
+                Positioned.fill(
+                  child: HeroControllerScope.none(
+                    child: Navigator(
+                      onGenerateRoute: (_) => MaterialPageRoute<void>(
+                        builder: (_) => const PinLockScreen(),
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           );
         },

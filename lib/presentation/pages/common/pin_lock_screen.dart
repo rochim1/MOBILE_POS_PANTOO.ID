@@ -90,6 +90,13 @@ class _PinLockScreenState extends State<PinLockScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+
+    // Tunggu route dialog benar-benar selesai dibongkar sebelum AuthCubit
+    // mengganti seluruh pohon aplikasi. Tanpa ini, focus traversal dialog bisa
+    // membaca RenderBox milik overlay PIN yang sudah dalam proses deaktifasi.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(kThemeAnimationDuration);
+    if (!mounted) return;
     setState(() => _isLoggingOut = true);
     await context.read<AuthCubit>().logout();
   }

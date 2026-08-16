@@ -81,9 +81,22 @@ class AuthRepository {
         if (token.isEmpty) {
           return const Left(ServerFailure('Token login tidak valid'));
         }
+        final refreshToken = data['refresh_token']?.toString().trim() ?? '';
+        if (refreshToken.isEmpty) {
+          return const Left(
+            ServerFailure('Server tidak memberikan refresh token mobile'),
+          );
+        }
         await _secureStorage.write(key: 'auth_token', value: token);
+        await _secureStorage.write(key: 'refresh_token', value: refreshToken);
         final persistedToken = await _secureStorage.read(key: 'auth_token');
-        if (persistedToken == null || persistedToken.trim().isEmpty) {
+        final persistedRefreshToken = await _secureStorage.read(
+          key: 'refresh_token',
+        );
+        if (persistedToken == null ||
+            persistedToken.trim().isEmpty ||
+            persistedRefreshToken == null ||
+            persistedRefreshToken.trim().isEmpty) {
           return const Left(
             ServerFailure('Sesi login gagal disimpan dengan aman'),
           );
@@ -109,6 +122,7 @@ class AuthRepository {
             sessionCheck.data?['GetPOSRuntimeConfig'] == null) {
           _clientProvider.setAccessToken(null);
           await _secureStorage.delete(key: 'auth_token');
+          await _secureStorage.delete(key: 'refresh_token');
           await _prefs.remove('username');
           await _prefs.remove('instansi_id');
           return Left(
@@ -145,8 +159,24 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    final refreshToken = await _secureStorage.read(key: 'refresh_token');
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _clientProvider.client
+            .mutate(
+              MutationOptions(
+                document: gql(PosQueries.revokeMobileSession),
+                variables: {'refreshToken': refreshToken},
+              ),
+            )
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        // Kredensial lokal tetap wajib dihapus walaupun server tidak terjangkau.
+      }
+    }
     _clientProvider.setAccessToken(null);
     await _secureStorage.delete(key: 'auth_token');
+    await _secureStorage.delete(key: 'refresh_token');
     await _prefs.remove('username');
     await _prefs.remove('user_id');
     await _prefs.remove('instansi_id');
@@ -173,8 +203,12 @@ class AuthRepository {
   }
 
   Future<bool> checkSession() async {
-    final token = await _secureStorage.read(key: 'auth_token');
-    if (token == null || token.trim().isEmpty) return false;
+    var token = await _secureStorage.read(key: 'auth_token');
+    if (token == null || token.trim().isEmpty) {
+      if (!await _clientProvider.refreshAccessToken()) return false;
+      token = await _secureStorage.read(key: 'auth_token');
+      if (token == null || token.trim().isEmpty) return false;
+    }
     final restoredUserId = _userIdFromToken(token);
     if (restoredUserId != null) {
       await _prefs.setString('user_id', restoredUserId);
@@ -210,6 +244,7 @@ class AuthRepository {
     }
     _clientProvider.setAccessToken(null);
     await _secureStorage.delete(key: 'auth_token');
+    await _secureStorage.delete(key: 'refresh_token');
     await _prefs.remove('username');
     await _prefs.remove('user_id');
     await _prefs.remove('instansi_id');

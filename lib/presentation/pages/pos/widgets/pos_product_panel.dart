@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../pos_customer_page.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../bloc/pos/pos_bloc.dart';
@@ -703,15 +702,145 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }
 
   Future<void> _selectCustomer(BuildContext context) async {
-    final customer = await Navigator.push<PosCustomer>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PosCustomerPage(selectionMode: true),
-      ),
-    );
-    if (!context.mounted || customer == null) return;
-    context.read<PosBloc>().add(SelectCustomer(customer));
-    AppToast.success(context, '${customer.name} dipilih');
+    final posBloc = context.read<PosBloc>();
+    final customers = posBloc.state.customers;
+    final result =
+        await showModalBottomSheet<({bool clear, PosCustomer? customer})>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          showDragHandle: true,
+          backgroundColor: Colors.white,
+          builder: (sheetContext) {
+            var query = '';
+            return StatefulBuilder(
+              builder: (context, setSheetState) {
+                final filtered = customers.where((item) {
+                  final normalized = query.trim().toLowerCase();
+                  return normalized.isEmpty ||
+                      item.name.toLowerCase().contains(normalized) ||
+                      item.phone.toLowerCase().contains(normalized);
+                }).toList();
+                return FractionallySizedBox(
+                  heightFactor: 0.72,
+                  child: Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Pilih Pelanggan',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: TextField(
+                          autofocus: true,
+                          onChanged: (value) =>
+                              setSheetState(() => query = value),
+                          decoration: InputDecoration(
+                            hintText: 'Cari nama atau nomor telepon...',
+                            prefixIcon: const Icon(Icons.search),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                        ),
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.person_off_outlined),
+                        ),
+                        title: const Text('Tanpa pelanggan'),
+                        subtitle: const Text('Gunakan pelanggan umum'),
+                        onTap: () => Navigator.pop(sheetContext, (
+                          clear: true,
+                          customer: null,
+                        )),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? const Center(
+                                child: Text('Pelanggan tidak ditemukan'),
+                              )
+                            : ListView.separated(
+                                keyboardDismissBehavior:
+                                    ScrollViewKeyboardDismissBehavior.onDrag,
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1, indent: 76),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  final selected =
+                                      posBloc.state.selectedCustomer?.id ==
+                                      item.id;
+                                  return ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 3,
+                                    ),
+                                    leading: CircleAvatar(
+                                      child: Text(
+                                        item.name.isEmpty
+                                            ? '?'
+                                            : item.name[0].toUpperCase(),
+                                      ),
+                                    ),
+                                    title: Text(item.name),
+                                    subtitle: Text(
+                                      item.phone.isEmpty
+                                          ? 'Tanpa nomor telepon'
+                                          : item.phone,
+                                    ),
+                                    trailing: selected
+                                        ? const Icon(
+                                            Icons.check_circle,
+                                            color: AppColors.primary,
+                                          )
+                                        : null,
+                                    onTap: () => Navigator.pop(sheetContext, (
+                                      clear: false,
+                                      customer: item,
+                                    )),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+    if (!context.mounted || result == null) return;
+    if (result.clear) {
+      posBloc.add(const SelectCustomer(null));
+      AppToast.success(context, 'Pelanggan umum dipilih');
+      return;
+    }
+    final selected = result.customer!;
+    posBloc.add(SelectCustomer(selected));
+    AppToast.success(context, '${selected.name} dipilih');
   }
 }
 

@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/pos/pos_bloc.dart';
@@ -11,6 +14,10 @@ import '../../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import 'pos_payment_page.dart';
 import '../../widgets/pos_ui.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class PosOrderPage extends StatefulWidget {
   final bool isGridView;
@@ -385,6 +392,12 @@ class _PosOrderPageState extends State<PosOrderPage> {
                           ),
                         ),
                       ),
+                      PopupMenuButton<String>(
+                        tooltip: 'Aksi transaksi',
+                        onSelected: (action) =>
+                            _handleOrderAction(action, order, true),
+                        itemBuilder: (_) => _orderActionItems(),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -531,14 +544,14 @@ class _PosOrderPageState extends State<PosOrderPage> {
                                     ),
                                     label: const Text('Bayar'),
                                   )
-                                : IconButton(
-                                    tooltip: 'Lihat detail',
-                                    onPressed: () => _showOrderDetailsDialog(
-                                      context,
+                                : PopupMenuButton<String>(
+                                    tooltip: 'Aksi transaksi',
+                                    onSelected: (action) => _handleOrderAction(
+                                      action,
                                       order,
                                       false,
                                     ),
-                                    icon: const Icon(Icons.visibility_outlined),
+                                    itemBuilder: (_) => _orderActionItems(),
                                   ),
                           ),
                         ],
@@ -906,6 +919,24 @@ class _PosOrderPageState extends State<PosOrderPage> {
             ],
           ),
           const SizedBox(height: 24),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _printReceipt(order),
+                icon: const Icon(Icons.print_outlined),
+                label: const Text('Print Nota'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _downloadInvoice(order),
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Download Invoice'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -937,6 +968,167 @@ class _PosOrderPageState extends State<PosOrderPage> {
           child: SizedBox(width: 400, child: content),
         ),
       );
+    }
+  }
+
+  List<PopupMenuEntry<String>> _orderActionItems() => const [
+    PopupMenuItem(
+      value: 'detail',
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.visibility_outlined),
+        title: Text('Lihat Detail'),
+      ),
+    ),
+    PopupMenuItem(
+      value: 'print',
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.print_outlined),
+        title: Text('Print Nota'),
+      ),
+    ),
+    PopupMenuItem(
+      value: 'download',
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.download_outlined),
+        title: Text('Download Invoice'),
+      ),
+    ),
+  ];
+
+  void _handleOrderAction(String action, PosOrder order, bool isMobile) {
+    switch (action) {
+      case 'print':
+        _printReceipt(order);
+        return;
+      case 'download':
+        _downloadInvoice(order);
+        return;
+      default:
+        _showOrderDetailsDialog(context, order, isMobile);
+    }
+  }
+
+  Future<Uint8List> _buildInvoicePdf(PosOrder order) async {
+    final document = pw.Document(
+      title: 'Invoice ${order.invoice}',
+      author: 'Pantoo POS',
+    );
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (_) => [
+          pw.Text(
+            'PANTOO POS',
+            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text('Invoice ${order.invoice}'),
+          pw.Divider(),
+          pw.SizedBox(height: 8),
+          pw.Text('Tanggal: ${_formatDate(order.date)}'),
+          pw.Text('Pelanggan: ${order.customer}'),
+          pw.Text('Kasir: ${order.cashierName}'),
+          pw.Text('Metode pembayaran: ${order.paymentMethod}'),
+          if (order.note.trim().isNotEmpty) pw.Text('Catatan: ${order.note}'),
+          pw.SizedBox(height: 18),
+          if (order.items.isNotEmpty)
+            pw.TableHelper.fromTextArray(
+              headers: const ['Item', 'Qty', 'Harga', 'Subtotal'],
+              data: order.items.map((item) {
+                final name =
+                    item['nama_inventaris']?.toString() ??
+                    item['nama']?.toString() ??
+                    '-';
+                final qty = item['qty']?.toString() ?? '0';
+                final price =
+                    double.tryParse(
+                      (item['harga_jual'] ?? item['harga_satuan'] ?? 0)
+                          .toString(),
+                    ) ??
+                    0;
+                final subtotal =
+                    double.tryParse((item['subtotal'] ?? 0).toString()) ?? 0;
+                return [
+                  name,
+                  qty,
+                  currency.format(price),
+                  currency.format(subtotal),
+                ];
+              }).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey300,
+              ),
+              cellAlignment: pw.Alignment.centerLeft,
+            ),
+          pw.SizedBox(height: 18),
+          _pdfTotalRow('Subtotal', currency.format(order.subtotal)),
+          if (order.discountAmount > 0)
+            _pdfTotalRow('Diskon', '-${currency.format(order.discountAmount)}'),
+          if (order.taxAmount > 0)
+            _pdfTotalRow('Pajak', currency.format(order.taxAmount)),
+          pw.Divider(),
+          _pdfTotalRow('Total', currency.format(order.total), bold: true),
+          pw.SizedBox(height: 28),
+          pw.Center(child: pw.Text('Terima kasih atas kunjungan Anda')),
+        ],
+      ),
+    );
+    return document.save();
+  }
+
+  pw.Widget _pdfTotalRow(String label, String value, {bool bold = false}) {
+    final style = bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null;
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: style),
+          pw.Text(value, style: style),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printReceipt(PosOrder order) async {
+    try {
+      final bytes = await _buildInvoicePdf(order);
+      await Printing.layoutPdf(
+        name: 'Nota-${order.invoice}',
+        onLayout: (_) async => bytes,
+      );
+    } catch (_) {
+      if (mounted) AppToast.error(context, 'Gagal membuka layanan print');
+    }
+  }
+
+  Future<void> _downloadInvoice(PosOrder order) async {
+    try {
+      final bytes = await _buildInvoicePdf(order);
+      final directory =
+          await getDownloadsDirectory() ??
+          await getApplicationDocumentsDirectory();
+      final safeInvoice = order.invoice.replaceAll(
+        RegExp(r'[^A-Za-z0-9_-]'),
+        '_',
+      );
+      final file = File('${directory.path}/Invoice-$safeInvoice.pdf');
+      await file.writeAsBytes(bytes, flush: true);
+      if (mounted) {
+        AppToast.success(context, 'Invoice tersimpan: ${file.path}');
+      }
+    } catch (_) {
+      if (mounted) AppToast.error(context, 'Gagal mengunduh invoice');
     }
   }
 

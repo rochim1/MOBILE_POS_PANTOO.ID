@@ -59,23 +59,9 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        title: const PosAppBarTitle(
-          title: 'Antrean Offline',
-          subtitle: 'Audit dan sinkronisasi transaksi',
-        ),
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: Column(
+    return Material(
+      color: AppColors.bgPrimary,
+      child: Column(
         children: [
           Container(
             color: Colors.white,

@@ -11,6 +11,8 @@ class PosProduct {
   final String sku;
   final String barcode;
   final String imageUrl;
+  final String baseUnit;
+  final List<Map<String, dynamic>> unitConversions;
 
   const PosProduct({
     required this.id,
@@ -25,7 +27,16 @@ class PosProduct {
     this.sku = '',
     this.barcode = '',
     this.imageUrl = '',
+    this.baseUnit = 'unit',
+    this.unitConversions = const [
+      {'unit': 'unit', 'factor': 1.0},
+    ],
   });
+
+  String get saleUnit {
+    final normalizedBaseUnit = baseUnit.trim().toLowerCase();
+    return normalizedBaseUnit.isEmpty ? 'unit' : normalizedBaseUnit;
+  }
 
   factory PosProduct.fromJson(Map<String, dynamic> json) {
     return PosProduct(
@@ -53,6 +64,19 @@ class PosProduct {
       sku: json['sku']?.toString() ?? '',
       barcode: json['barcode']?.toString() ?? '',
       imageUrl: json['imageUrl']?.toString() ?? json['foto']?.toString() ?? '',
+      baseUnit:
+          json['baseUnit']?.toString() ??
+          json['base_unit']?.toString() ??
+          json['unit']?.toString() ??
+          'unit',
+      unitConversions:
+          (json['unitConversions'] ?? json['unit_conversions']) is List
+          ? List<Map<String, dynamic>>.from(
+              (json['unitConversions'] ?? json['unit_conversions']).map(
+                (row) => Map<String, dynamic>.from(row as Map),
+              ),
+            )
+          : const [],
     );
   }
 
@@ -70,6 +94,8 @@ class PosProduct {
       'sku': sku,
       'barcode': barcode,
       'imageUrl': imageUrl,
+      'baseUnit': baseUnit,
+      'unitConversions': unitConversions,
     };
   }
 

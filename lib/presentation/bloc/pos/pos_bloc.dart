@@ -383,6 +383,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       salesChannel: state.salesChannel,
       customerSegment: state.customerSegment,
       priceLevel: state.priceLevel,
+      customerId: state.selectedCustomer?.id,
     );
     result.fold(
       (failure) => emit(
@@ -499,6 +500,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         priceLevel: state.priceLevel,
         pajak: state.taxAmount,
         pelangganId: state.selectedCustomer?.id,
+        pelangganName: state.selectedCustomer?.name,
+        pelangganPhone: state.selectedCustomer?.phone,
+        pelangganEmail: state.selectedCustomer?.email,
       );
 
       result.fold(

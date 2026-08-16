@@ -58,48 +58,18 @@ class _PosReturnViewState extends State<PosReturnView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Retur Penjualan',
-          subtitle: 'Pengembalian dan refund',
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'add_return_fab',
-        onPressed: () async {
-          final bloc = context.read<PosReturnBloc>();
-          bloc.add(ClearReturnForm());
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: bloc,
-                child: const PosAddReturnPage(),
-              ),
-            ),
-          );
-          if (result == true) {
-            bloc.add(const LoadReturns());
-          }
-        },
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Tambah Retur',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Column(
+    return ColoredBox(
+      color: AppColors.bgPrimary,
+      child: Column(
         children: [
           // Filter section
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final search = SizedBox(
+                  height: 48,
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
@@ -123,42 +93,78 @@ class _PosReturnViewState extends State<PosReturnView> {
                       );
                     },
                   ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedStatus,
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Semua')),
-                        DropdownMenuItem(value: 'draft', child: Text('Draft')),
-                        DropdownMenuItem(
-                          value: 'approved',
-                          child: Text('Approved'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'completed',
-                          child: Text('Completed'),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        setState(() => _selectedStatus = val ?? '');
-                        context.read<PosReturnBloc>().add(
-                          LoadReturns(
-                            search: _searchController.text,
-                            status: _selectedStatus,
-                          ),
-                        );
-                      },
+                );
+                final filter = SizedBox(
+                  height: 48,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedStatus,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.filter_list_rounded),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
                     ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Semua Status')),
+                      DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                      DropdownMenuItem(
+                        value: 'approved',
+                        child: Text('Approved'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'completed',
+                        child: Text('Completed'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      setState(() => _selectedStatus = val ?? '');
+                      context.read<PosReturnBloc>().add(
+                        LoadReturns(
+                          search: _searchController.text,
+                          status: _selectedStatus,
+                        ),
+                      );
+                    },
                   ),
-                ),
-              ],
+                );
+                final addButton = SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _openAddReturn,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah Retur'),
+                  ),
+                );
+                if (constraints.maxWidth >= 680) {
+                  return Row(
+                    children: [
+                      Expanded(child: search),
+                      const SizedBox(width: 10),
+                      SizedBox(width: 190, child: filter),
+                      const SizedBox(width: 10),
+                      addButton,
+                    ],
+                  );
+                }
+                return Column(
+                  children: [
+                    search,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: filter),
+                        const SizedBox(width: 8),
+                        addButton,
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
 
@@ -335,5 +341,18 @@ class _PosReturnViewState extends State<PosReturnView> {
         ],
       ),
     );
+  }
+
+  Future<void> _openAddReturn() async {
+    final bloc = context.read<PosReturnBloc>();
+    bloc.add(ClearReturnForm());
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            BlocProvider.value(value: bloc, child: const PosAddReturnPage()),
+      ),
+    );
+    if (result == true) bloc.add(const LoadReturns());
   }
 }

@@ -6,6 +6,7 @@ import '../../../domain/models/pos_transaction_result.dart';
 import 'package:intl/intl.dart';
 import 'pos_printer_page.dart';
 import '../../widgets/pos_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PosSuccessPage extends StatelessWidget {
   final PosTransactionResult transaction;
@@ -119,27 +120,15 @@ class PosSuccessPage extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: OutlinedButton.icon(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text:
-                                                'Invoice ${transaction.invoice}\nTotal ${_currency(transaction.total)}\nPembayaran ${transaction.paymentMethod}\nKembalian ${_currency(transaction.change)}',
-                                          ),
-                                        );
-                                        if (context.mounted) {
-                                          AppToast.success(
-                                            context,
-                                            'Ringkasan struk disalin',
-                                          );
-                                        }
-                                      },
+                                      onPressed: () =>
+                                          _showShareOptions(context),
                                       icon: const Icon(
                                         Icons.share,
                                         color: AppColors.primary,
                                         size: 18,
                                       ),
                                       label: const Text(
-                                        'Salin Struk',
+                                        'Bagikan Struk',
                                         style: TextStyle(
                                           color: AppColors.primary,
                                         ),
@@ -263,4 +252,153 @@ class PosSuccessPage extends StatelessWidget {
     symbol: 'Rp',
     decimalDigits: 0,
   ).format(value);
+
+  String get _receiptText =>
+      'Struk ${transaction.invoice}\n'
+      '${transaction.customerName.isEmpty ? '' : 'Pelanggan: ${transaction.customerName}\n'}'
+      'Total: ${_currency(transaction.total)}\n'
+      'Pembayaran: ${transaction.paymentMethod.toUpperCase()}\n'
+      '${transaction.change > 0 ? 'Kembalian: ${_currency(transaction.change)}\n' : ''}'
+      'Terima kasih.';
+
+  Future<void> _showShareOptions(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Bagikan struk melalui',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              if (transaction.customerName.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  transaction.customerName,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+              ],
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
+                title: const Text('WhatsApp'),
+                subtitle: Text(
+                  transaction.customerPhone.isEmpty
+                      ? 'Masukkan nomor tujuan'
+                      : transaction.customerPhone,
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _shareWhatsApp(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.email_outlined,
+                  color: AppColors.primary,
+                ),
+                title: const Text('Email'),
+                subtitle: Text(
+                  transaction.customerEmail.isEmpty
+                      ? 'Masukkan email tujuan'
+                      : transaction.customerEmail,
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _shareEmail(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _requestDestination(
+    BuildContext context, {
+    required String title,
+    required String initialValue,
+    required TextInputType keyboardType,
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          autofocus: initialValue.isEmpty,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _shareWhatsApp(BuildContext context) async {
+    final rawPhone = await _requestDestination(
+      context,
+      title: 'Nomor WhatsApp',
+      initialValue: transaction.customerPhone,
+      keyboardType: TextInputType.phone,
+    );
+    if (rawPhone == null || rawPhone.isEmpty) return;
+    var phone = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.startsWith('0')) phone = '62${phone.substring(1)}';
+    final uri = Uri.parse(
+      'https://wa.me/$phone?text=${Uri.encodeComponent(_receiptText)}',
+    );
+    if (!context.mounted) return;
+    await _launchOrCopy(context, uri);
+  }
+
+  Future<void> _shareEmail(BuildContext context) async {
+    final email = await _requestDestination(
+      context,
+      title: 'Email pelanggan',
+      initialValue: transaction.customerEmail,
+      keyboardType: TextInputType.emailAddress,
+    );
+    if (email == null || email.isEmpty) return;
+    final uri = Uri(
+      scheme: 'mailto',
+      path: email,
+      queryParameters: {
+        'subject': 'Struk ${transaction.invoice}',
+        'body': _receiptText,
+      },
+    );
+    if (!context.mounted) return;
+    await _launchOrCopy(context, uri);
+  }
+
+  Future<void> _launchOrCopy(BuildContext context, Uri uri) async {
+    if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    await Clipboard.setData(ClipboardData(text: _receiptText));
+    if (context.mounted) {
+      AppToast.success(
+        context,
+        'Aplikasi tujuan tidak tersedia. Struk disalin.',
+      );
+    }
+  }
 }
