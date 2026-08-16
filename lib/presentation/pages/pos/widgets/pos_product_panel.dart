@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -8,8 +10,11 @@ import '../../../bloc/pos/pos_state.dart';
 import '../../../widgets/app_toast.dart';
 import '../../../../domain/models/pos_product.dart';
 import '../../../../domain/models/pos_customer.dart';
+import '../../../../domain/repositories/pos_repository.dart';
+import '../../../../injections.dart';
 import '../pos_barcode_scanner_page.dart';
 import '../pos_table_order_page.dart';
+import 'pos_quick_customer_dialog.dart';
 
 class PosProductPanel extends StatefulWidget {
   final bool isMobile;
@@ -31,10 +36,15 @@ class PosProductPanel extends StatefulWidget {
 
 class _PosProductPanelState extends State<PosProductPanel> {
   String _searchQuery = '';
+  List<PosProduct> _remoteProducts = const [];
+  Timer? _searchDebounce;
+  int _searchVersion = 0;
+  bool _remoteSearching = false;
   final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchFocusNode.dispose();
     super.dispose();
   }
@@ -43,27 +53,37 @@ class _PosProductPanelState extends State<PosProductPanel> {
   Widget build(BuildContext context) {
     return BlocBuilder<PosBloc, PosState>(
       builder: (context, state) {
-        final filteredProducts = state.products.where((p) {
-          final catMatch =
-              widget.selectedCategory == 'Semua Kategori' ||
-              (widget.selectedCategory == 'Favorit' &&
-                  state.favoriteProductIds.contains(p.id)) ||
-              (widget.selectedCategory == 'Produk Paket' &&
-                  p.productType == 'package') ||
-              (widget.selectedCategory == 'Produk Layanan' &&
-                  p.productType == 'service') ||
-              (widget.selectedCategory == 'Promo' && p.promoEligible) ||
-              (widget.selectedCategory == 'Deposit' &&
-                  p.productType == 'deposit') ||
-              p.category == widget.selectedCategory;
-          final searchMatch =
-              _searchQuery.isEmpty ||
-              p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              p.code.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              p.sku.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              p.barcode.toLowerCase().contains(_searchQuery.toLowerCase());
-          return catMatch && searchMatch;
-        }).toList();
+        final merged = <String, PosProduct>{
+          for (final product in state.products) product.id: product,
+          for (final product in _remoteProducts) product.id: product,
+        }.values;
+        final filteredProducts =
+            merged.where((p) {
+              final catMatch =
+                  widget.selectedCategory == 'Semua Kategori' ||
+                  (widget.selectedCategory == 'Favorit' &&
+                      state.favoriteProductIds.contains(p.id)) ||
+                  (widget.selectedCategory == 'Produk Paket' &&
+                      p.productType == 'package') ||
+                  (widget.selectedCategory == 'Produk Layanan' &&
+                      p.productType == 'service') ||
+                  (widget.selectedCategory == 'Promo' && p.promoEligible) ||
+                  (widget.selectedCategory == 'Deposit' &&
+                      p.productType == 'deposit') ||
+                  p.category == widget.selectedCategory;
+              final searchMatch =
+                  _searchQuery.isEmpty ||
+                  p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  p.code.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  p.sku.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  p.barcode.toLowerCase().contains(_searchQuery.toLowerCase());
+              return catMatch && searchMatch;
+            }).toList()..sort(
+              (a, b) => _searchRank(
+                a,
+                _searchQuery,
+              ).compareTo(_searchRank(b, _searchQuery)),
+            );
 
         return CallbackShortcuts(
           bindings: <ShortcutActivator, VoidCallback>{
@@ -170,6 +190,57 @@ class _PosProductPanelState extends State<PosProductPanel> {
     );
   }
 
+  void _onSearchChanged(String value, PosState state) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    final version = ++_searchVersion;
+    setState(() {
+      _searchQuery = value;
+      if (query.length < 2) {
+        _remoteProducts = const [];
+        _remoteSearching = false;
+      }
+    });
+    if (query.length < 2) return;
+
+    final exactIdentifier = RegExp(r'^[A-Za-z0-9._-]{6,}$').hasMatch(query);
+    _searchDebounce = Timer(
+      Duration(milliseconds: exactIdentifier ? 80 : 300),
+      () async {
+        if (!mounted || version != _searchVersion) return;
+        setState(() => _remoteSearching = true);
+        final storeId = state.activeShift?['toko_id']?.toString();
+        final stores = state.stores.where((store) => store.id == storeId);
+        final branchId = stores.isNotEmpty ? stores.first.branchId : null;
+        final results = await sl<PosRepository>().searchProductsRemote(
+          search: query,
+          branchId: branchId,
+        );
+        if (!mounted || version != _searchVersion) return;
+        setState(() {
+          _remoteProducts = results;
+          _remoteSearching = false;
+        });
+      },
+    );
+  }
+
+  int _searchRank(PosProduct product, String rawQuery) {
+    final query = rawQuery.trim().toLowerCase();
+    if (query.isEmpty) return 0;
+    final barcode = product.barcode.toLowerCase();
+    final sku = product.sku.toLowerCase();
+    final code = product.code.toLowerCase();
+    final name = product.name.toLowerCase();
+    if (barcode == query) return 0;
+    if (sku == query || code == query) return 1;
+    if (name == query) return 2;
+    if (name.startsWith(query)) return 3;
+    if (sku.startsWith(query) || code.startsWith(query)) return 4;
+    if (name.contains(query)) return 5;
+    return 6;
+  }
+
   Widget _buildSearchAndFilter(BuildContext context, PosState state) {
     final orderTypes = _availableOrderTypes(state);
     final selectedOrderType =
@@ -189,19 +260,27 @@ class _PosProductPanelState extends State<PosProductPanel> {
             child: TextField(
               focusNode: _searchFocusNode,
               decoration: InputDecoration(
-                hintText: 'Ketik minimal 3 karakter untuk mulai mencari...',
+                hintText: 'Cari nama, kode, SKU, atau barcode...',
                 hintStyle: const TextStyle(fontSize: 14, color: Colors.black38),
                 filled: true,
                 fillColor: Colors.white,
                 prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                suffixIcon: IconButton(
-                  tooltip: 'Scan barcode',
-                  onPressed: () => _scanBarcode(context, state),
-                  icon: const Icon(
-                    Icons.qr_code_scanner,
-                    color: Colors.black54,
-                  ),
-                ),
+                suffixIcon: _remoteSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(13),
+                        child: SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        tooltip: 'Scan barcode',
+                        onPressed: () => _scanBarcode(context, state),
+                        icon: const Icon(
+                          Icons.qr_code_scanner,
+                          color: Colors.black54,
+                        ),
+                      ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -212,7 +291,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   borderSide: const BorderSide(color: AppColors.primary),
                 ),
               ),
-              onChanged: (value) => setState(() => _searchQuery = value),
+              onChanged: (value) => _onSearchChanged(value, state),
             ),
           ),
           if (widget.isMobile) ...[
@@ -762,6 +841,29 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         ),
                       ),
                       const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () async {
+                              final customer = await showPosQuickCustomerDialog(
+                                context,
+                              );
+                              if (!sheetContext.mounted || customer == null) {
+                                return;
+                              }
+                              Navigator.pop(sheetContext, (
+                                clear: false,
+                                customer: customer,
+                              ));
+                            },
+                            icon: const Icon(Icons.person_add_alt_1),
+                            label: const Text('Tambah pelanggan baru'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20,

@@ -9,6 +9,7 @@ import '../../../bloc/pos/pos_state.dart';
 import '../../../../domain/models/pos_customer.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import '../../../../injections.dart';
+import 'pos_quick_customer_dialog.dart';
 
 class PosInfoPanel extends StatefulWidget {
   final bool isMobile;
@@ -124,6 +125,22 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
             ),
           ),
           const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  final customer = await showPosQuickCustomerDialog(context);
+                  if (!context.mounted || customer == null) return;
+                  Navigator.pop(context, customer);
+                },
+                icon: const Icon(Icons.person_add_alt_1),
+                label: const Text('Tambah pelanggan baru'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -674,13 +691,9 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           description: 'Asal transaksi, misalnya toko atau marketplace',
           value: state.salesChannel,
           width: widget.isMobile ? double.infinity : 220,
-          items: const {
-            'retail': 'Retail',
-            'member': 'Member',
-            'non_member': 'Non Member',
-            'reseller': 'Reseller',
-            'marketplace': 'Marketplace',
-            'offline': 'Offline',
+          items: {
+            for (final value in state.salesChannelOptions)
+              value: _labelForChannel(value),
           },
           onChanged: (value) => _updateContext(state, salesChannel: value),
         ),
@@ -689,27 +702,15 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           description: 'Daftar harga yang diterapkan pada produk',
           value: state.priceLevel,
           width: widget.isMobile ? double.infinity : 220,
-          items: const {
-            'retail': 'Retail (Eceran)',
-            'member': 'Member',
-            'reseller': 'Reseller',
-            'grosir': 'Grosir',
-            'vip': 'VIP',
-            'corporate': 'Corporate',
-            'distributor': 'Distributor',
+          items: {
+            for (final value in state.priceLevelOptions)
+              value: _labelForPrice(value),
           },
-          onChanged: (value) {
-            final segment = switch (value) {
-              'grosir' || 'distributor' => 'reseller',
-              'retail' => 'regular',
-              _ => value,
-            };
-            _updateContext(state, priceLevel: value, customerSegment: segment);
-          },
+          onChanged: (value) => _updateContext(state, priceLevel: value),
         ),
         _pricingDropdown(
-          label: 'Segmen Pelanggan',
-          description: 'Kelompok pelanggan untuk aturan harga dan promo',
+          label: 'Segmen Harga (Kompatibilitas)',
+          description: 'Nilai transaksi lama; profil pelanggan tetap terpisah',
           value: state.customerSegment,
           width: widget.isMobile ? double.infinity : 220,
           items: const {

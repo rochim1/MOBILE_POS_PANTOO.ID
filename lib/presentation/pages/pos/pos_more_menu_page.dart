@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../bloc/pos/pos_bloc.dart';
 
 class PosMoreMenuPage extends StatelessWidget {
   final ValueChanged<int> onNavigate;
@@ -8,6 +10,12 @@ class PosMoreMenuPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canViewPurchaseReturns = context.select<PosBloc, bool>(
+      (bloc) =>
+          (bloc.state.runtimeConfig['permissions']
+              as Map?)?['view_purchase_returns'] ==
+          true,
+    );
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
@@ -35,6 +43,15 @@ class PosMoreMenuPage extends StatelessWidget {
                   color: Colors.redAccent,
                   onTap: () => onNavigate(13),
                 ),
+                if (canViewPurchaseReturns)
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.assignment_return_outlined,
+                    title: 'Retur ke Supplier',
+                    subtitle: 'Kembalikan barang pembelian ke pemasok',
+                    color: Colors.deepOrange,
+                    onTap: () => onNavigate(16),
+                  ),
                 _buildMenuItem(
                   context,
                   icon: Icons.point_of_sale,

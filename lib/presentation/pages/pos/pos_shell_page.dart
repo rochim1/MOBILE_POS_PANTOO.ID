@@ -17,6 +17,7 @@ import 'pos_offline_queue_page.dart';
 import 'pos_promo_page.dart';
 import 'pos_settings_page.dart';
 import 'pos_report_page.dart';
+import 'pos_purchase_return_page.dart';
 import 'widgets/pos_drawer.dart';
 import '../home/home_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -64,6 +65,7 @@ class _PosShellPageState extends State<PosShellPage> {
     (label: 'Retur Penjualan', icon: Icons.keyboard_return_outlined),
     (label: 'Pengaturan Printer', icon: Icons.print_outlined),
     (label: 'Antrean & Sinkronisasi', icon: Icons.cloud_sync_outlined),
+    (label: 'Retur ke Supplier', icon: Icons.assignment_return_outlined),
   ];
 
   @override
@@ -115,6 +117,7 @@ class _PosShellPageState extends State<PosShellPage> {
     const PosReturnPage(),
     const PosPrinterPage(),
     const PosOfflineQueuePage(),
+    const PosPurchaseReturnPage(),
   ];
 
   @override
@@ -652,7 +655,6 @@ class _PosShellPageState extends State<PosShellPage> {
       if (can('view_customers')) _sidebarItem(9),
       if (can('view_stores')) _sidebarItem(10),
       if (can('view_shifts')) _sidebarItem(11),
-      _sidebarItem(4),
       _sidebarSection('LAPORAN'),
       if (can('view_transactions')) _sidebarItem(3),
       if (can('view_reports')) _sidebarItem(12),
@@ -666,6 +668,7 @@ class _PosShellPageState extends State<PosShellPage> {
           menuContext: menuContext,
         ),
       if (can('view_receipt')) _sidebarItem(14),
+      _sidebarItem(15),
     ];
   }
 

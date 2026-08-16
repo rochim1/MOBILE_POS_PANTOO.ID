@@ -7,12 +7,24 @@ import '../../core/network/graphql_client_provider.dart';
 import '../../data/graphql/pos_receipt_queries.dart';
 import '../models/pos_receipt_template.dart';
 
+class PosReceiptPrintData {
+  final PosReceiptTemplate template;
+  final Map<String, String> company;
+
+  const PosReceiptPrintData({required this.template, required this.company});
+}
+
 class PosReceiptRepository {
   final GraphQLClientProvider _clientProvider;
 
   PosReceiptRepository(this._clientProvider);
 
   Future<Either<Failure, PosReceiptTemplate>> getReceiptTemplate() async {
+    final result = await getReceiptPrintData();
+    return result.map((data) => data.template);
+  }
+
+  Future<Either<Failure, PosReceiptPrintData>> getReceiptPrintData() async {
     try {
       final options = QueryOptions(
         document: gql(PosReceiptQueries.getReceipt),
@@ -25,12 +37,22 @@ class PosReceiptRepository {
         return Left(AppErrorHandler.handle(result.exception!));
       }
 
-      final data = result.data?['GetPOSReceiptData']?['template'];
-      if (data == null) {
+      final receiptData = result.data?['GetPOSReceiptData'];
+      final templateData = receiptData?['template'];
+      if (templateData == null) {
         return const Left(ServerFailure('Data tidak ditemukan'));
       }
-
-      return Right(PosReceiptTemplate.fromJson(data));
+      final rawCompany = Map<String, dynamic>.from(
+        receiptData?['instansi'] as Map? ?? const {},
+      );
+      return Right(
+        PosReceiptPrintData(
+          template: PosReceiptTemplate.fromJson(templateData),
+          company: rawCompany.map(
+            (key, value) => MapEntry(key, value?.toString() ?? ''),
+          ),
+        ),
+      );
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
     }

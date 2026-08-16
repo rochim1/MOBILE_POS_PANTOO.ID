@@ -30,7 +30,7 @@ class PosLocalDatabase {
 
     return await openDatabase(
       path,
-      version: 12,
+      version: 13,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -133,6 +133,14 @@ WHERE client_transaction_id = ''
         'ALTER TABLE customers ADD COLUMN email TEXT NOT NULL DEFAULT ""',
       );
     }
+    if (oldVersion < 13) {
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN price_level TEXT NOT NULL DEFAULT "retail"',
+      );
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN customer_segment TEXT NOT NULL DEFAULT "regular"',
+      );
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -165,7 +173,9 @@ CREATE TABLE customers (
   id $idType,
   name $textType,
   phone $textType,
-  email TEXT NOT NULL DEFAULT ''
+  email TEXT NOT NULL DEFAULT '',
+  price_level TEXT NOT NULL DEFAULT 'retail',
+  customer_segment TEXT NOT NULL DEFAULT 'regular'
 )
 ''');
 

@@ -23,6 +23,17 @@ class PosReceiptQueries {
         font_size
         custom_css
        }
+       instansi {
+        nama_instansi
+        nama_resmi
+        email
+        website
+        alamat
+        telpon_number
+        provinsi
+        kabupaten
+        NPWP
+       }
       }
     }
   ''';

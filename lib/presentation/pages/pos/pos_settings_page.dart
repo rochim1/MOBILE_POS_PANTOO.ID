@@ -70,15 +70,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     _pembulatanHarga = s.pembulatanHarga ?? 'none';
     _metodePembayaran = s.defaultMetodePembayaran ?? 'tunai';
     final channel = s.defaultChannelPenjualan ?? 'retail';
-    _channel =
-        const {
-          'retail',
-          'member',
-          'non_member',
-          'reseller',
-          'marketplace',
-          'offline',
-        }.contains(channel)
+    _channel = const {'retail', 'marketplace', 'offline'}.contains(channel)
         ? channel
         : 'retail';
     final customerSegment = s.defaultCustomerSegment ?? 'regular';
@@ -209,18 +201,11 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                     _buildDropdown(
                       label: 'Channel Penjualan',
                       value: _channel,
-                      items: const [
-                        'retail',
-                        'member',
-                        'non_member',
-                        'reseller',
-                        'marketplace',
-                        'offline',
-                      ],
+                      items: const ['retail', 'marketplace', 'offline'],
                       onChanged: (val) => setState(() => _channel = val!),
                     ),
                     _buildDropdown(
-                      label: 'Customer Segment',
+                      label: 'Segmen Harga Default (Kompatibilitas)',
                       value: _customerSegment,
                       items: const [
                         'regular',

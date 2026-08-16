@@ -18,6 +18,7 @@ import '../models/pos_order.dart';
 import '../models/pos_transaction_result.dart';
 import '../models/hold_order.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class PosRepository {
   final GraphQLClientProvider _clientProvider;
@@ -90,6 +91,12 @@ class PosRepository {
       'adjust_stock': false,
       'manage_tables': false,
       'manage_settings': false,
+      'view_purchase_returns': false,
+      'create_purchase_returns': false,
+      'submit_purchase_returns': false,
+      'approve_purchase_returns': false,
+      'reject_purchase_returns': false,
+      'process_purchase_returns': false,
     };
     final fallback = <String, dynamic>{
       'business_profile': 'retail',
@@ -332,7 +339,7 @@ class PosRepository {
               : PosQueries.getAllInventarisUmum,
         ),
         variables: branchId != null && branchId.isNotEmpty
-            ? {'cabang_id': branchId}
+            ? {'cabang_id': branchId, 'limit': 1000}
             : const {
                 'filter': {'kategori': 'barang_dagangan'},
                 'pagination': {'page': 0, 'limit': 1000},
@@ -392,6 +399,86 @@ class PosRepository {
       return products;
     } catch (e) {
       return _getLocalProducts();
+    }
+  }
+
+  Future<List<PosProduct>> searchProductsRemote({
+    required String search,
+    String? branchId,
+    int limit = 30,
+  }) async {
+    final query = search.trim();
+    if (query.length < 2) return const [];
+    try {
+      final hasBranch = branchId != null && branchId.isNotEmpty;
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(
+            hasBranch
+                ? PosQueries.getInventarisAvailableInLocation
+                : PosQueries.getAllInventarisUmum,
+          ),
+          variables: hasBranch
+              ? {'cabang_id': branchId, 'search': query, 'limit': limit}
+              : {
+                  'filter': {'kategori': 'barang_dagangan', 'search': query},
+                  'pagination': {'page': 0, 'limit': limit},
+                },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException || result.data == null) return const [];
+      final List rows = hasBranch
+          ? (result.data?['GetInventarisAvailableInLocation'] as List? ??
+                const [])
+          : (result.data?['GetAllInventarisUmum']?['items'] as List? ??
+                const []);
+      return rows
+          .map((raw) {
+            final row = Map<String, dynamic>.from(raw as Map);
+            return PosProduct(
+              id:
+                  row['inventaris_id']?.toString() ??
+                  row['_id']?.toString() ??
+                  '',
+              code:
+                  row['kode_inventaris']?.toString() ??
+                  row['_id']?.toString() ??
+                  '',
+              name: row['nama_inventaris']?.toString() ?? 'Unknown',
+              category: row['brand']?.toString().trim().isNotEmpty == true
+                  ? row['brand'].toString()
+                  : row['kategori']?.toString() ?? 'Umum',
+              productType: row['pos_product_type']?.toString() ?? 'product',
+              promoEligible: row['promo_eligible'] == true,
+              tracksStock:
+                  row['tracks_stock'] != false &&
+                  row['pos_product_type']?.toString() != 'package',
+              price: double.tryParse(row['harga_jual']?.toString() ?? '0') ?? 0,
+              stock:
+                  double.tryParse(
+                    (row['qty'] ?? row['stok'] ?? 0).toString(),
+                  ) ??
+                  0,
+              sku: row['sku']?.toString() ?? '',
+              barcode: row['barcode']?.toString() ?? '',
+              imageUrl: row['foto']?.toString() ?? '',
+              baseUnit:
+                  row['base_unit']?.toString() ??
+                  row['unit']?.toString() ??
+                  'unit',
+              unitConversions: row['unit_conversions'] is List
+                  ? (row['unit_conversions'] as List)
+                        .whereType<Map>()
+                        .map((value) => Map<String, dynamic>.from(value))
+                        .toList()
+                  : const [],
+            );
+          })
+          .where((product) => product.id.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -511,6 +598,17 @@ class PosRepository {
               phone: e['phone']?.toString() ?? '',
               email: e['email']?.toString() ?? '',
               priceLevel: e['price_level']?.toString() ?? 'retail',
+              customerSegment:
+                  e['customer_segment']?.toString() ??
+                  switch (e['price_level']?.toString()) {
+                    'grosir' || 'distributor' => 'reseller',
+                    'retail' || null => 'regular',
+                    final level => level,
+                  },
+              membershipStatus:
+                  e['membership_status']?.toString() ?? 'non_member',
+              membershipTier: e['membership_tier']?.toString() ?? 'regular',
+              customerType: e['customer_type']?.toString() ?? 'personal',
             ),
           )
           .toList();
@@ -614,7 +712,8 @@ class PosRepository {
               name: e['name'] as String,
               phone: e['phone'] as String,
               email: e['email']?.toString() ?? '',
-              priceLevel: 'retail',
+              priceLevel: e['price_level']?.toString() ?? 'retail',
+              customerSegment: e['customer_segment']?.toString() ?? 'regular',
             ),
           )
           .toList();
@@ -637,6 +736,8 @@ class PosRepository {
           'name': customer.name,
           'phone': customer.phone,
           'email': customer.email,
+          'price_level': customer.priceLevel,
+          'customer_segment': customer.customerSegment,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit(noResult: true);
@@ -1095,6 +1196,30 @@ class PosRepository {
       'items': items,
     };
 
+    if (supportsOfflineDatabase) {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        await _saveTransactionToOfflineQueue(
+          payload,
+          tokoId: tokoId,
+          shiftId: shiftId,
+        );
+        return Right(
+          _pendingOfflineResult(
+            payload: payload,
+            total: total,
+            discount: diskon ?? 0,
+            tax: pajak ?? 0,
+            cashReceived: cashReceived,
+            paymentMethod: paymentMethod,
+            customerName: pelangganName ?? '',
+            customerPhone: pelangganPhone ?? '',
+            customerEmail: pelangganEmail ?? '',
+          ),
+        );
+      }
+    }
+
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PosQueries.processPOSPenjualan),
@@ -1303,9 +1428,41 @@ class PosRepository {
   }
 
   bool _isRetryableNetworkFailure(OperationException? exception) {
-    return exception?.linkException != null &&
-        exception?.graphqlErrors.isEmpty == true;
+    final linkException = exception?.linkException;
+    if (linkException == null) return false;
+    if (linkException is HttpLinkServerException) {
+      final status = linkException.response.statusCode;
+      return status >= 500 || status == 408 || status == 429;
+    }
+    return true;
   }
+
+  PosTransactionResult _pendingOfflineResult({
+    required Map<String, dynamic> payload,
+    required double total,
+    required double discount,
+    required double tax,
+    required double cashReceived,
+    required String paymentMethod,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+  }) => PosTransactionResult(
+    id: payload['client_transaction_id'].toString(),
+    invoice: 'OFF-${DateTime.now().millisecondsSinceEpoch}',
+    subtotal: total,
+    discount: discount,
+    promoDiscount: 0,
+    tax: tax,
+    total: total,
+    cashReceived: cashReceived,
+    change: cashReceived > total ? cashReceived - total : 0,
+    paymentMethod: paymentMethod,
+    pendingSync: true,
+    customerName: customerName,
+    customerPhone: customerPhone,
+    customerEmail: customerEmail,
+  );
 
   static List<Map<String, dynamic>> _decodeUnitConversions(String? value) {
     if (value == null || value.trim().isEmpty) return const [];

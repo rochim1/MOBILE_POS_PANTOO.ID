@@ -15,6 +15,7 @@ import 'domain/repositories/pos_settings_repository.dart';
 import 'domain/repositories/pos_receipt_repository.dart';
 import 'domain/repositories/pos_report_repository.dart';
 import 'domain/repositories/pos_order_repository.dart';
+import 'domain/repositories/purchase_return_repository.dart';
 import 'presentation/bloc/app/app_cubit.dart';
 import 'presentation/bloc/auth/auth_cubit.dart';
 import 'presentation/bloc/pos/pos_bloc.dart';
@@ -71,6 +72,9 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
     () => PosReportRepository(sl()),
   );
   sl.registerLazySingleton<PosOrderRepository>(() => PosOrderRepository(sl()));
+  sl.registerLazySingleton<PurchaseReturnRepository>(
+    () => PurchaseReturnRepository(sl()),
+  );
 
   // Blocs
   sl.registerLazySingleton<AppCubit>(() => AppCubit());

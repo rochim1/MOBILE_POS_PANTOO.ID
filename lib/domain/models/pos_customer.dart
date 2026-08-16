@@ -4,6 +4,10 @@ class PosCustomer {
   final String phone;
   final String email;
   final String priceLevel;
+  final String customerSegment;
+  final String membershipStatus;
+  final String membershipTier;
+  final String customerType;
 
   const PosCustomer({
     required this.id,
@@ -11,6 +15,10 @@ class PosCustomer {
     required this.phone,
     this.email = '',
     required this.priceLevel,
+    this.customerSegment = 'regular',
+    this.membershipStatus = 'non_member',
+    this.membershipTier = 'regular',
+    this.customerType = 'personal',
   });
 
   factory PosCustomer.fromJson(Map<String, dynamic> json) {
@@ -20,6 +28,10 @@ class PosCustomer {
       phone: json['phone'] as String,
       email: json['email']?.toString() ?? '',
       priceLevel: json['priceLevel'] as String,
+      customerSegment: json['customerSegment']?.toString() ?? 'regular',
+      membershipStatus: json['membershipStatus']?.toString() ?? 'non_member',
+      membershipTier: json['membershipTier']?.toString() ?? 'regular',
+      customerType: json['customerType']?.toString() ?? 'personal',
     );
   }
 
@@ -30,6 +42,10 @@ class PosCustomer {
       'phone': phone,
       'email': email,
       'priceLevel': priceLevel,
+      'customerSegment': customerSegment,
+      'membershipStatus': membershipStatus,
+      'membershipTier': membershipTier,
+      'customerType': customerType,
     };
   }
 }

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -10,11 +9,12 @@ import '../../../../domain/models/pos_order.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:intl/intl.dart';
 import '../../../../domain/repositories/pos_repository.dart';
+import '../../../../domain/repositories/pos_receipt_repository.dart';
+import '../../../../domain/models/pos_receipt_template.dart';
 import '../../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import 'pos_payment_page.dart';
 import '../../widgets/pos_ui.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -33,6 +33,8 @@ class _PosOrderPageState extends State<PosOrderPage> {
   String _selectedStatus = 'Semua';
   String _selectedCashier = 'Semua';
   String _selectedPeriod = 'Semua';
+  Set<String>? _selectedOrderKeys;
+  Set<String> get _selection => _selectedOrderKeys ??= <String>{};
 
   @override
   void initState() {
@@ -89,63 +91,68 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
         return Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final paid = state.orders
-                      .where(
-                        (order) => order.paymentStatus.toLowerCase() == 'lunas',
-                      )
-                      .toList();
-                  final cards = [
-                    PosStatCard(
-                      label: 'Total Penjualan',
-                      value:
-                          'Rp ${formatRupiahInput(paid.fold<double>(0, (sum, order) => sum + order.total))}',
-                      icon: Icons.payments_outlined,
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final paid = state.orders
+                            .where(
+                              (order) =>
+                                  order.paymentStatus.toLowerCase() == 'lunas',
+                            )
+                            .toList();
+                        final cards = [
+                          PosStatCard(
+                            label: 'Total Penjualan',
+                            value:
+                                'Rp ${formatRupiahInput(paid.fold<double>(0, (sum, order) => sum + order.total))}',
+                            icon: Icons.payments_outlined,
+                          ),
+                          PosStatCard(
+                            label: 'Total Transaksi',
+                            value: '${paid.length}',
+                            icon: Icons.receipt_long_outlined,
+                            color: Colors.blue,
+                          ),
+                        ];
+                        return constraints.maxWidth >= 620
+                            ? Row(
+                                children: [
+                                  Expanded(child: cards[0]),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: cards[1]),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  cards[0],
+                                  const SizedBox(height: 10),
+                                  cards[1],
+                                ],
+                              );
+                      },
                     ),
-                    PosStatCard(
-                      label: 'Total Transaksi',
-                      value: '${paid.length}',
-                      icon: Icons.receipt_long_outlined,
-                      color: Colors.blue,
-                    ),
-                  ];
-                  return constraints.maxWidth >= 620
-                      ? Row(
-                          children: [
-                            Expanded(child: cards[0]),
-                            const SizedBox(width: 12),
-                            Expanded(child: cards[1]),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            cards[0],
-                            const SizedBox(height: 10),
-                            cards[1],
-                          ],
-                        );
-                },
-              ),
-              const SizedBox(height: 14),
-              _buildFilterPanel(cashiers),
-              const SizedBox(height: 16),
-              Expanded(
-                child: widget.isGridView
-                    ? _buildOrderCards(
-                        filteredOrders,
-                        hasMore: state.ordersHasMore,
-                        loadingMore: state.ordersLoadingMore,
-                      )
-                    : _buildOrderTable(
-                        filteredOrders,
-                        hasMore: state.ordersHasMore,
-                        loadingMore: state.ordersLoadingMore,
-                      ),
+                    const SizedBox(height: 14),
+                    _buildFilterPanel(cashiers),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ],
+            body: widget.isGridView
+                ? _buildOrderCards(
+                    filteredOrders,
+                    hasMore: state.ordersHasMore,
+                    loadingMore: state.ordersLoadingMore,
+                  )
+                : _buildOrderTable(
+                    filteredOrders,
+                    hasMore: state.ordersHasMore,
+                    loadingMore: state.ordersLoadingMore,
+                  ),
           ),
         );
       },
@@ -475,6 +482,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
             'Transaksi dan invoice yang dibuat dari kasir akan tampil di halaman ini.',
       );
     }
+    final selectedOrders = orders
+        .where((order) => _selection.contains(_selectionKey(order)))
+        .toList();
     return RefreshIndicator(
       onRefresh: () async {
         context.read<PosBloc>().add(RefreshOrders());
@@ -483,6 +493,53 @@ class _PosOrderPageState extends State<PosOrderPage> {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          if (selectedOrders.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: .18),
+                ),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${selectedOrders.length} transaksi dipilih',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: () => setState(_selection.clear),
+                    child: const Text('Batalkan'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: selectedOrders.length == 1
+                        ? () => _printReceipt(selectedOrders.single)
+                        : null,
+                    icon: const Icon(Icons.print_outlined, size: 18),
+                    label: const Text('Print Struk'),
+                  ),
+                ],
+              ),
+            ),
+          ],
           Card(
             clipBehavior: Clip.antiAlias,
             margin: EdgeInsets.zero,
@@ -506,9 +563,18 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     ],
                     rows: orders.map((order) {
                       final status = _displayStatus(order);
+                      final key = _selectionKey(order);
                       return DataRow(
-                        onSelectChanged: (_) =>
-                            _showOrderDetailsDialog(context, order, false),
+                        selected: _selection.contains(key),
+                        onSelectChanged: (selected) {
+                          setState(() {
+                            if (selected == true) {
+                              _selection.add(key);
+                            } else {
+                              _selection.remove(key);
+                            }
+                          });
+                        },
                         cells: [
                           DataCell(Text(order.invoice)),
                           DataCell(Text(_formatDate(order.date))),
@@ -586,6 +652,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
       ),
     );
   }
+
+  String _selectionKey(PosOrder order) =>
+      order.id.isNotEmpty ? order.id : order.invoice;
 
   String _displayStatus(PosOrder order) {
     if (order.status.toLowerCase() == 'batal') return 'Batal';
@@ -844,119 +913,129 @@ class _PosOrderPageState extends State<PosOrderPage> {
     PosOrder order,
     bool isMobile,
   ) {
-    final content = Padding(
-      padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Invoice: ${order.invoice}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: _badgeBackgroundColor(_displayStatus(order)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _displayStatus(order),
-                  style: TextStyle(
-                    color: _badgeColor(_displayStatus(order)),
-                    fontWeight: FontWeight.bold,
+    final content = SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Invoice: ${order.invoice}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Pelanggan: ${order.customer}',
-            style: const TextStyle(fontSize: 15),
-          ),
-          Text(
-            'Waktu: ${order.date}',
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 8),
-          const Text(
-            'Item Pembelian',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          _buildReceiptItem('Metode pembayaran', '', order.paymentMethod),
-          _buildReceiptItem('Kasir', '', order.cashierName),
-          const SizedBox(height: 8),
-          const Divider(),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total Pembayaran',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              Text(
-                'Rp ${order.total.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppColors.primary,
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _badgeBackgroundColor(_displayStatus(order)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _displayStatus(order),
+                    style: TextStyle(
+                      color: _badgeColor(_displayStatus(order)),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _printReceipt(order),
-                icon: const Icon(Icons.print_outlined),
-                label: const Text('Print Nota'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _downloadInvoice(order),
-                icon: const Icon(Icons.download_outlined),
-                label: const Text('Download Invoice'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Tutup'),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Pelanggan: ${order.customer}',
+              style: const TextStyle(fontSize: 15),
+            ),
+            Text(
+              'Waktu: ${order.date}',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            const Text(
+              'Item Pembelian',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _buildReceiptItem('Metode pembayaran', '', order.paymentMethod),
+            _buildReceiptItem('Kasir', '', order.cashierName),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total Pembayaran',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  'Rp ${order.total.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _printReceipt(order),
+                  icon: const Icon(Icons.print_outlined),
+                  label: const Text('Print Struk'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _printInvoice(order),
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Print Invoice'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Tutup'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
 
     if (isMobile) {
       showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        builder: (_) => content,
+        builder: (_) => SafeArea(
+          child: FractionallySizedBox(heightFactor: .85, child: content),
+        ),
       );
     } else {
       showDialog(
@@ -965,7 +1044,13 @@ class _PosOrderPageState extends State<PosOrderPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: SizedBox(width: 400, child: content),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              maxHeight: MediaQuery.sizeOf(context).height * .85,
+            ),
+            child: content,
+          ),
         ),
       );
     }
@@ -985,15 +1070,15 @@ class _PosOrderPageState extends State<PosOrderPage> {
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.print_outlined),
-        title: Text('Print Nota'),
+        title: Text('Print Struk'),
       ),
     ),
     PopupMenuItem(
-      value: 'download',
+      value: 'invoice',
       child: ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: Icon(Icons.download_outlined),
-        title: Text('Download Invoice'),
+        leading: Icon(Icons.description_outlined),
+        title: Text('Print Invoice'),
       ),
     ),
   ];
@@ -1003,12 +1088,138 @@ class _PosOrderPageState extends State<PosOrderPage> {
       case 'print':
         _printReceipt(order);
         return;
-      case 'download':
-        _downloadInvoice(order);
+      case 'invoice':
+        _printInvoice(order);
         return;
       default:
         _showOrderDetailsDialog(context, order, isMobile);
     }
+  }
+
+  Future<Uint8List> _buildReceiptPdf(
+    PosOrder order,
+    PosReceiptTemplate template,
+    Map<String, String> company,
+  ) async {
+    final document = pw.Document(
+      title: 'Struk ${order.invoice}',
+      author: 'Pantoo POS',
+    );
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    final paperWidth = template.paperWidth == 80 ? 80.0 : 58.0;
+    final estimatedHeight = (120.0 + (order.items.length * 13)).clamp(
+      140.0,
+      1000.0,
+    );
+    final pageFormat = PdfPageFormat(
+      paperWidth * PdfPageFormat.mm,
+      estimatedHeight * PdfPageFormat.mm,
+      marginAll: 4 * PdfPageFormat.mm,
+    );
+    final fontSize = (template.fontSize ?? 10).clamp(8, 13).toDouble();
+    final headerTitle = _resolveReceiptVariables(template.headerTitle, company);
+    final headerLines =
+        [template.headerSubtitle, template.headerLine3, template.headerLine4]
+            .map((line) => _resolveReceiptVariables(line, company))
+            .where((line) => line.isNotEmpty);
+    final footerLines =
+        [template.footerLine1, template.footerLine2, template.footerLine3]
+            .map((line) => _resolveReceiptVariables(line, company))
+            .where((line) => line.isNotEmpty);
+
+    document.addPage(
+      pw.Page(
+        pageFormat: pageFormat,
+        build: (_) => pw.DefaultTextStyle(
+          style: pw.TextStyle(fontSize: fontSize),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.Text(
+                headerTitle.isNotEmpty ? headerTitle : 'PANTOO POS',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: fontSize + 3,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              ...headerLines.map(
+                (line) => pw.Text(line, textAlign: pw.TextAlign.center),
+              ),
+              pw.SizedBox(height: 5),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              if (template.showInvoice != false)
+                pw.Text('No: ${order.invoice}'),
+              if (template.showTanggal != false)
+                pw.Text('Tanggal: ${_formatDate(order.date)}'),
+              if (template.showKasir != false)
+                pw.Text('Kasir: ${order.cashierName}'),
+              if (template.showPelanggan != false)
+                pw.Text('Pelanggan: ${order.customer}'),
+              pw.Text('Bayar: ${order.paymentMethod.toUpperCase()}'),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              ...order.items.expand((item) {
+                final name =
+                    item['nama_inventaris']?.toString() ??
+                    item['nama']?.toString() ??
+                    '-';
+                final qty = item['qty']?.toString() ?? '0';
+                final price =
+                    double.tryParse(
+                      (item['harga_jual'] ?? item['harga_satuan'] ?? 0)
+                          .toString(),
+                    ) ??
+                    0;
+                final subtotal =
+                    double.tryParse((item['subtotal'] ?? 0).toString()) ?? 0;
+                return [
+                  pw.Text(
+                    name,
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  ),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('$qty x ${currency.format(price)}'),
+                      pw.Text(currency.format(subtotal)),
+                    ],
+                  ),
+                  pw.SizedBox(height: 4),
+                ];
+              }),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              _pdfTotalRow('Subtotal', currency.format(order.subtotal)),
+              if (order.discountAmount > 0)
+                _pdfTotalRow(
+                  'Diskon',
+                  '-${currency.format(order.discountAmount)}',
+                ),
+              if (order.taxAmount > 0)
+                _pdfTotalRow('Pajak', currency.format(order.taxAmount)),
+              _pdfTotalRow('TOTAL', currency.format(order.total), bold: true),
+              if (order.note.trim().isNotEmpty) ...[
+                pw.SizedBox(height: 5),
+                pw.Text('Catatan: ${order.note}'),
+              ],
+              pw.SizedBox(height: 8),
+              ...footerLines.map(
+                (line) => pw.Text(line, textAlign: pw.TextAlign.center),
+              ),
+              if (footerLines.isEmpty)
+                pw.Text(
+                  'Terima kasih atas kunjungan Anda',
+                  textAlign: pw.TextAlign.center,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return document.save();
   }
 
   Future<Uint8List> _buildInvoicePdf(PosOrder order) async {
@@ -1027,49 +1238,42 @@ class _PosOrderPageState extends State<PosOrderPage> {
         margin: const pw.EdgeInsets.all(32),
         build: (_) => [
           pw.Text(
-            'PANTOO POS',
-            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+            'INVOICE',
+            style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
           ),
-          pw.SizedBox(height: 4),
-          pw.Text('Invoice ${order.invoice}'),
+          pw.Text(order.invoice),
           pw.Divider(),
-          pw.SizedBox(height: 8),
           pw.Text('Tanggal: ${_formatDate(order.date)}'),
           pw.Text('Pelanggan: ${order.customer}'),
           pw.Text('Kasir: ${order.cashierName}'),
           pw.Text('Metode pembayaran: ${order.paymentMethod}'),
-          if (order.note.trim().isNotEmpty) pw.Text('Catatan: ${order.note}'),
           pw.SizedBox(height: 18),
-          if (order.items.isNotEmpty)
-            pw.TableHelper.fromTextArray(
-              headers: const ['Item', 'Qty', 'Harga', 'Subtotal'],
-              data: order.items.map((item) {
-                final name =
-                    item['nama_inventaris']?.toString() ??
-                    item['nama']?.toString() ??
-                    '-';
-                final qty = item['qty']?.toString() ?? '0';
-                final price =
-                    double.tryParse(
-                      (item['harga_jual'] ?? item['harga_satuan'] ?? 0)
-                          .toString(),
-                    ) ??
-                    0;
-                final subtotal =
-                    double.tryParse((item['subtotal'] ?? 0).toString()) ?? 0;
-                return [
-                  name,
-                  qty,
-                  currency.format(price),
-                  currency.format(subtotal),
-                ];
-              }).toList(),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColors.grey300,
-              ),
-              cellAlignment: pw.Alignment.centerLeft,
-            ),
+          pw.TableHelper.fromTextArray(
+            headers: const ['Item', 'Qty', 'Harga', 'Subtotal'],
+            data: order.items.map((item) {
+              final name =
+                  item['nama_inventaris']?.toString() ??
+                  item['nama']?.toString() ??
+                  '-';
+              final qty = item['qty']?.toString() ?? '0';
+              final price =
+                  double.tryParse(
+                    (item['harga_jual'] ?? item['harga_satuan'] ?? 0)
+                        .toString(),
+                  ) ??
+                  0;
+              final subtotal =
+                  double.tryParse((item['subtotal'] ?? 0).toString()) ?? 0;
+              return [
+                name,
+                qty,
+                currency.format(price),
+                currency.format(subtotal),
+              ];
+            }).toList(),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          ),
           pw.SizedBox(height: 18),
           _pdfTotalRow('Subtotal', currency.format(order.subtotal)),
           if (order.discountAmount > 0)
@@ -1078,8 +1282,10 @@ class _PosOrderPageState extends State<PosOrderPage> {
             _pdfTotalRow('Pajak', currency.format(order.taxAmount)),
           pw.Divider(),
           _pdfTotalRow('Total', currency.format(order.total), bold: true),
-          pw.SizedBox(height: 28),
-          pw.Center(child: pw.Text('Terima kasih atas kunjungan Anda')),
+          if (order.note.trim().isNotEmpty) ...[
+            pw.SizedBox(height: 12),
+            pw.Text('Catatan: ${order.note}'),
+          ],
         ],
       ),
     );
@@ -1102,34 +1308,61 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Future<void> _printReceipt(PosOrder order) async {
     try {
-      final bytes = await _buildInvoicePdf(order);
+      final templateResult = await sl<PosReceiptRepository>()
+          .getReceiptPrintData();
+      final printData = templateResult.fold(
+        (_) => const PosReceiptPrintData(
+          template: PosReceiptTemplate(),
+          company: {},
+        ),
+        (value) => value,
+      );
+      final bytes = await _buildReceiptPdf(
+        order,
+        printData.template,
+        printData.company,
+      );
       await Printing.layoutPdf(
-        name: 'Nota-${order.invoice}',
+        name: 'Struk-${order.invoice}',
         onLayout: (_) async => bytes,
       );
     } catch (_) {
-      if (mounted) AppToast.error(context, 'Gagal membuka layanan print');
+      if (mounted) AppToast.error(context, 'Gagal membuka layanan print struk');
     }
   }
 
-  Future<void> _downloadInvoice(PosOrder order) async {
+  Future<void> _printInvoice(PosOrder order) async {
     try {
       final bytes = await _buildInvoicePdf(order);
-      final directory =
-          await getDownloadsDirectory() ??
-          await getApplicationDocumentsDirectory();
-      final safeInvoice = order.invoice.replaceAll(
-        RegExp(r'[^A-Za-z0-9_-]'),
-        '_',
+      await Printing.layoutPdf(
+        name: 'Invoice-${order.invoice}',
+        onLayout: (_) async => bytes,
       );
-      final file = File('${directory.path}/Invoice-$safeInvoice.pdf');
-      await file.writeAsBytes(bytes, flush: true);
-      if (mounted) {
-        AppToast.success(context, 'Invoice tersimpan: ${file.path}');
-      }
     } catch (_) {
-      if (mounted) AppToast.error(context, 'Gagal mengunduh invoice');
+      if (mounted) {
+        AppToast.error(context, 'Gagal membuka layanan print invoice');
+      }
     }
+  }
+
+  String _resolveReceiptVariables(String? raw, Map<String, String> company) {
+    var value = raw?.trim() ?? '';
+    final replacements = <String, String>{
+      'nama_instansi': company['nama_instansi'] ?? '',
+      'nama_resmi': company['nama_resmi'] ?? '',
+      'alamat': company['alamat'] ?? '',
+      'telpon_nomor': company['telpon_number'] ?? '',
+      'telpon_number': company['telpon_number'] ?? '',
+      'email': company['email'] ?? '',
+      'website': company['website'] ?? '',
+      'provinsi': company['provinsi'] ?? '',
+      'kabupaten': company['kabupaten'] ?? '',
+      'npwp': company['NPWP'] ?? '',
+    };
+    replacements.forEach((key, replacement) {
+      value = value.replaceAll('{{$key}}', replacement);
+    });
+    return value.replaceAll(RegExp(r'\{\{[^}]+\}\}'), '').trim();
   }
 
   Widget _buildReceiptItem(String name, String qty, String price) {

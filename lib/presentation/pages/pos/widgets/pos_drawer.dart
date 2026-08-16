@@ -180,6 +180,7 @@ class _PosDrawerState extends State<PosDrawer> {
     final canViewStock =
         permissions['view_stock'] == true ||
         permissions['adjust_stock'] == true;
+    final canViewPurchaseReturns = permissions['view_purchase_returns'] == true;
     final manageTables = permissions['manage_tables'] == true;
     // Fail-safe: menu hanya muncul setelah server memberi izin eksplisit.
     bool can(String key) => permissions[key] == true;
@@ -205,10 +206,16 @@ class _PosDrawerState extends State<PosDrawer> {
           _buildShellItem(Icons.table_bar_outlined, 'Manajemen Meja', 6),
         if (trackStock && canViewStock) ...[
           _buildShellItem(Icons.store_outlined, 'Stok Toko', 7),
+          if (canViewPurchaseReturns)
+            _buildShellItem(
+              Icons.assignment_return_outlined,
+              'Retur ke Supplier',
+              16,
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
             child: Text(
-              'Profil inventory: ${_profileLabel(inventoryProfile)}. Pengelolaan gudang, pembelian, transfer, dan opname dilakukan melalui Web Admin.',
+              'Profil inventory: ${_profileLabel(inventoryProfile)}. Retur supplier tersedia di Mobile; pengelolaan gudang lanjutan tetap melalui Web Admin.',
               style: const TextStyle(fontSize: 11, color: Colors.black54),
             ),
           ),
@@ -245,6 +252,11 @@ class _PosDrawerState extends State<PosDrawer> {
           ),
         if (can('view_receipt'))
           _buildShellItem(Icons.print_outlined, 'Pengaturan Struk', 14),
+        _buildShellItem(
+          Icons.cloud_sync_outlined,
+          'Antrean & Sinkronisasi',
+          15,
+        ),
       ],
     );
   }

@@ -201,6 +201,26 @@ class PosState extends Equatable {
       runtimeConfig['default_customer_segment']?.toString() ?? 'regular';
   String get defaultPriceLevel =>
       runtimeConfig['default_price_level']?.toString() ?? 'retail';
+  List<String> get salesChannelOptions =>
+      <dynamic>[
+            ...((runtimeConfig['sales_channel_options'] as List?) ??
+                const ['retail']),
+            salesChannel,
+          ]
+          .map((value) => value.toString())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList();
+  List<String> get priceLevelOptions =>
+      <dynamic>[
+            ...((runtimeConfig['price_level_options'] as List?) ??
+                const ['retail']),
+            priceLevel,
+          ]
+          .map((value) => value.toString())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList();
   double get configuredTaxPercent =>
       (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0;
 

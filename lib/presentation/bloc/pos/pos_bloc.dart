@@ -388,8 +388,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     result.fold(
       (failure) => emit(
         state.copyWith(
-          status: PosStatus.failure,
-          errorMessage: failure.message,
+          // Preview harga membutuhkan server, tetapi kegagalannya tidak boleh
+          // memblokir transaksi offline. Harga cache/produk tetap digunakan.
+          status: PosStatus.success,
+          errorMessage: '',
           clearPricingPreview: true,
         ),
       ),
@@ -566,7 +568,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final level = customerLevel != null && customerLevel.isNotEmpty
         ? customerLevel
         : state.defaultPriceLevel;
-    final segment = _segmentForPriceLevel(level);
+    final savedSegment = event.customer?.customerSegment.trim();
+    final segment = savedSegment != null && savedSegment.isNotEmpty
+        ? savedSegment
+        : _segmentForPriceLevel(level);
     emit(
       state.copyWith(
         selectedCustomer: event.customer,

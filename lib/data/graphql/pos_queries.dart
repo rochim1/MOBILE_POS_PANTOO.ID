@@ -46,6 +46,8 @@ class PosQueries {
         default_sales_channel
         default_customer_segment
         default_price_level
+        sales_channel_options
+        price_level_options
         tax_percent
         expired_sale_policy
         features {
@@ -78,6 +80,12 @@ class PosQueries {
           adjust_stock
           manage_tables
           manage_settings
+          view_purchase_returns
+          create_purchase_returns
+          submit_purchase_returns
+          approve_purchase_returns
+          reject_purchase_returns
+          process_purchase_returns
         }
       }
     }
@@ -248,8 +256,8 @@ class PosQueries {
   ''';
 
   static const String getInventarisAvailableInLocation = r'''
-    query GetInventarisAvailableInLocation($cabang_id: ID!) {
-      GetInventarisAvailableInLocation(cabang_id: $cabang_id) {
+    query GetInventarisAvailableInLocation($cabang_id: ID!, $search: String, $limit: Int) {
+      GetInventarisAvailableInLocation(cabang_id: $cabang_id, search: $search, limit: $limit) {
         inventaris_id
         _id
         kode_inventaris
@@ -282,6 +290,10 @@ class PosQueries {
           email
           address
           price_level
+          customer_segment
+          membership_status
+          membership_tier
+          customer_type
           total_transaksi
           total_belanja
         }
@@ -292,13 +304,13 @@ class PosQueries {
 
   static const String createPOSPelanggan = r'''
     mutation CreateCrmContact($input: CrmContactInput!) {
-      createCrmContact(input: $input) { _id name phone email address price_level total_transaksi total_belanja }
+      createCrmContact(input: $input) { _id name phone email address price_level customer_segment membership_status membership_tier customer_type total_transaksi total_belanja }
     }
   ''';
 
   static const String updatePOSPelanggan = r'''
     mutation UpdateCrmContact($_id: ID!, $input: CrmContactUpdateInput!) {
-      updateCrmContact(_id: $_id, input: $input) { _id name phone email address price_level total_transaksi total_belanja }
+      updateCrmContact(_id: $_id, input: $input) { _id name phone email address price_level customer_segment membership_status membership_tier customer_type total_transaksi total_belanja }
     }
   ''';
 
