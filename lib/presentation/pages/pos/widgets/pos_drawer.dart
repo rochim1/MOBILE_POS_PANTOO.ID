@@ -180,7 +180,13 @@ class _PosDrawerState extends State<PosDrawer> {
     final canViewStock =
         permissions['view_stock'] == true ||
         permissions['adjust_stock'] == true;
-    final canViewPurchaseReturns = permissions['view_purchase_returns'] == true;
+    final canViewInventory =
+        (trackStock && canViewStock) ||
+        permissions['view_inventory_purchases'] == true ||
+        permissions['view_inventory_opnames'] == true ||
+        permissions['view_inventory_transfers'] == true ||
+        permissions['view_inventory_scraps'] == true ||
+        permissions['view_purchase_returns'] == true;
     final manageTables = permissions['manage_tables'] == true;
     // Fail-safe: menu hanya muncul setelah server memberi izin eksplisit.
     bool can(String key) => permissions[key] == true;
@@ -204,18 +210,12 @@ class _PosDrawerState extends State<PosDrawer> {
           _buildShellItem(Icons.inventory_2_outlined, 'Katalog POS', 2),
         if (useTables && manageTables)
           _buildShellItem(Icons.table_bar_outlined, 'Manajemen Meja', 6),
-        if (trackStock && canViewStock) ...[
-          _buildShellItem(Icons.store_outlined, 'Stok Toko', 7),
-          if (canViewPurchaseReturns)
-            _buildShellItem(
-              Icons.assignment_return_outlined,
-              'Retur ke Supplier',
-              16,
-            ),
+        if (canViewInventory) ...[
+          _buildShellItem(Icons.inventory_2_outlined, 'Inventori', 7),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
             child: Text(
-              'Profil inventory: ${_profileLabel(inventoryProfile)}. Retur supplier tersedia di Mobile; pengelolaan gudang lanjutan tetap melalui Web Admin.',
+              'Profil inventory: ${_profileLabel(inventoryProfile)}. Stok, pembelian, opname, mutasi, barang terbuang, dan retur tersedia sesuai izin akun.',
               style: const TextStyle(fontSize: 11, color: Colors.black54),
             ),
           ),

@@ -16,6 +16,15 @@ class PosMoreMenuPage extends StatelessWidget {
               as Map?)?['view_purchase_returns'] ==
           true,
     );
+    final canViewInventory = context.select<PosBloc, bool>((bloc) {
+      final permissions = bloc.state.runtimeConfig['permissions'] as Map?;
+      return permissions?['view_stock'] == true ||
+          permissions?['view_inventory_purchases'] == true ||
+          permissions?['view_inventory_opnames'] == true ||
+          permissions?['view_inventory_transfers'] == true ||
+          permissions?['view_inventory_scraps'] == true ||
+          permissions?['view_purchase_returns'] == true;
+    });
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
@@ -27,6 +36,15 @@ class PosMoreMenuPage extends StatelessWidget {
               _buildSectionTitle('Manajemen Toko'),
               const SizedBox(height: 12),
               _buildMenuGrid([
+                if (canViewInventory)
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Inventori',
+                    subtitle: 'Stok, pembelian, opname, mutasi, dan retur',
+                    color: Colors.teal,
+                    onTap: () => onNavigate(7),
+                  ),
                 _buildMenuItem(
                   context,
                   icon: Icons.storefront,

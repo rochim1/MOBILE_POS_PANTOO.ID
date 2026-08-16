@@ -142,6 +142,31 @@ class PurchaseReturnRepository {
       _mutateOne(PurchaseReturnQueries.retryJournal, {
         '_id': id,
       }, 'RetryPurchaseReturnJournal');
+  Future<Either<Failure, Map<String, dynamic>>> update(
+    String id,
+    Map<String, dynamic> input,
+  ) => _mutateOne(
+    PurchaseReturnQueries.update,
+    {'_id': id, 'input': input},
+    'UpdatePurchaseReturn',
+  );
+
+  Future<Either<Failure, bool>> delete(String id, String reason) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PurchaseReturnQueries.delete),
+          variables: {'_id': id, 'reason': reason},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(result.data?['DeletePurchaseReturn'] == true);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
 
   Future<Either<Failure, Map<String, dynamic>>> _queryOne(
     String document,

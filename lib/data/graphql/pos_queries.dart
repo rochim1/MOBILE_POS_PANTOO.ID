@@ -86,6 +86,42 @@ class PosQueries {
           approve_purchase_returns
           reject_purchase_returns
           process_purchase_returns
+          update_purchase_returns
+          delete_purchase_returns
+          view_inventory_purchases
+          view_inventory_opnames
+          view_inventory_transfers
+          receive_inventory_transfers
+          view_inventory_scraps
+          create_inventory_purchases
+          update_inventory_purchases
+          submit_inventory_purchases
+          approve_inventory_purchases
+          reject_inventory_purchases
+          receive_inventory_purchases
+          delete_inventory_purchases
+          create_inventory_opnames
+          update_inventory_opnames
+          submit_inventory_opnames
+          approve_inventory_opnames
+          post_inventory_opnames
+          reject_inventory_opnames
+          cancel_inventory_opnames
+          delete_inventory_opnames
+          create_inventory_transfers
+          update_inventory_transfers
+          submit_inventory_transfers
+          approve_inventory_transfers
+          reject_inventory_transfers
+          post_inventory_transfers
+          cancel_inventory_transfers
+          delete_inventory_transfers
+          create_inventory_scraps
+          update_inventory_scraps
+          approve_inventory_scraps
+          reject_inventory_scraps
+          process_inventory_scraps
+          delete_inventory_scraps
         }
       }
     }

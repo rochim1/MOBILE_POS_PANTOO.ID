@@ -817,6 +817,159 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
     );
   }
 
+  Future<void> _editMetadata() async {
+    final data = _data;
+    if (data == null) return;
+    var reason = data['return_reason']?.toString() ?? 'barang_rusak';
+    var method = data['return_method']?.toString() ?? 'credit_note';
+    final notes = TextEditingController(
+      text: data['catatan']?.toString() ?? '',
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Ubah retur pembelian'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: reason,
+                  decoration: const InputDecoration(labelText: 'Alasan'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'barang_rusak',
+                      child: Text('Barang rusak'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'kualitas_tidak_sesuai',
+                      child: Text('Kualitas tidak sesuai'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'salah_kirim',
+                      child: Text('Salah kirim'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'kelebihan_qty',
+                      child: Text('Kelebihan jumlah'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'kadaluarsa',
+                      child: Text('Kedaluwarsa'),
+                    ),
+                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => reason = value ?? reason),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: method,
+                  decoration: const InputDecoration(labelText: 'Penyelesaian'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'credit_note',
+                      child: Text('Kurangi utang / kredit'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'refund',
+                      child: Text('Refund uang'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'replacement',
+                      child: Text('Penggantian barang'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => method = value ?? method),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: notes,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Catatan'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final noteValue = notes.text.trim();
+    notes.dispose();
+    if (confirmed != true) return;
+    setState(() => _loading = true);
+    final result = await _repository.update(widget.id, {
+      'return_reason': reason,
+      'return_method': method,
+      'catatan': noteValue,
+    });
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        AppToast.error(context, failure.message);
+        setState(() => _loading = false);
+      },
+      (_) {
+        _changed = true;
+        AppToast.success(context, 'Retur berhasil diperbarui');
+        _load();
+      },
+    );
+  }
+
+  Future<void> _deleteReturn() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus retur pembelian?'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Alasan penghapusan'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    final reason = controller.text.trim();
+    controller.dispose();
+    if (confirmed != true) return;
+    setState(() => _loading = true);
+    final result = await _repository.delete(widget.id, reason);
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        AppToast.error(context, failure.message);
+        setState(() => _loading = false);
+      },
+      (_) {
+        AppToast.success(context, 'Retur berhasil dihapus');
+        Navigator.pop(context, true);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = _data;
@@ -935,6 +1088,13 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
     bool can(String key) => widget.permissions[key] == true;
     return [
       if ((status == 'draft' || status == 'rejected') &&
+          can('update_purchase_returns'))
+        OutlinedButton.icon(
+          onPressed: _loading ? null : _editMetadata,
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Ubah'),
+        ),
+      if ((status == 'draft' || status == 'rejected') &&
           can('submit_purchase_returns'))
         FilledButton.icon(
           onPressed: _loading ? null : () => _action('submit'),
@@ -964,6 +1124,13 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           onPressed: _loading ? null : () => _action('retry'),
           icon: const Icon(Icons.refresh),
           label: const Text('Coba Jurnal Lagi'),
+        ),
+      if ((status == 'draft' || status == 'rejected') &&
+          can('delete_purchase_returns'))
+        OutlinedButton.icon(
+          onPressed: _loading ? null : _deleteReturn,
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Hapus'),
         ),
     ];
   }

@@ -57,6 +57,8 @@ void main() {
           contains('ApprovePurchaseReturn'),
         );
         expect(PurchaseReturnQueries.reject, contains('RejectPurchaseReturn'));
+        expect(PurchaseReturnQueries.update, contains('UpdatePurchaseReturn'));
+        expect(PurchaseReturnQueries.delete, contains('DeletePurchaseReturn'));
         expect(
           PurchaseReturnQueries.process,
           contains('ProcessPurchaseReturn'),

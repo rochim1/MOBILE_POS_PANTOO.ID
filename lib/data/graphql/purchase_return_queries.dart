@@ -83,4 +83,14 @@ class PurchaseReturnQueries {
       RetryPurchaseReturnJournal(_id: $_id) { _id journal_id journal_status journal_error }
     }
   ''';
+  static const update = r'''
+    mutation UpdatePurchaseReturn($_id: ID!, $input: UpdatePurchaseReturnInput!) {
+      UpdatePurchaseReturn(_id: $_id, input: $input) { _id approval_status return_reason return_method catatan }
+    }
+  ''';
+  static const delete = r'''
+    mutation DeletePurchaseReturn($_id: ID!, $reason: String) {
+      DeletePurchaseReturn(_id: $_id, reason: $reason)
+    }
+  ''';
 }

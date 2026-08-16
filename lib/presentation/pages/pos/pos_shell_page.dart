@@ -7,7 +7,7 @@ import 'pos_order_page.dart';
 import 'pos_more_menu_page.dart';
 import 'pos_table_order_page.dart';
 import 'pos_table_management_page.dart';
-import 'pos_stock_page.dart';
+import 'pos_inventory_page.dart';
 import 'pos_customer_page.dart';
 import 'pos_outlet_page.dart';
 import 'pos_shift_page.dart';
@@ -56,7 +56,7 @@ class _PosShellPageState extends State<PosShellPage> {
     (label: 'Menu', icon: Icons.apps_outlined),
     (label: 'Table Order', icon: Icons.table_restaurant_outlined),
     (label: 'Manajemen Meja', icon: Icons.chair_alt_outlined),
-    (label: 'Stok Toko', icon: Icons.warehouse_outlined),
+    (label: 'Inventori', icon: Icons.warehouse_outlined),
     (label: 'Promo & Voucher', icon: Icons.discount_outlined),
     (label: 'Pelanggan', icon: Icons.people_outline),
     (label: 'Toko', icon: Icons.storefront_outlined),
@@ -108,7 +108,7 @@ class _PosShellPageState extends State<PosShellPage> {
     ),
     const PosTableOrderPage(),
     const PosTableManagementPage(),
-    PosStockPage(isGridView: _stockGridView),
+    PosInventoryPage(isGridView: _stockGridView),
     const PosPromoPage(),
     const PosCustomerPage(),
     const PosOutletPage(),
@@ -641,6 +641,13 @@ class _PosShellPageState extends State<PosShellPage> {
     final canViewStock =
         permissions['view_stock'] == true ||
         permissions['adjust_stock'] == true;
+    final canViewInventory =
+        (trackStock && canViewStock) ||
+        permissions['view_inventory_purchases'] == true ||
+        permissions['view_inventory_opnames'] == true ||
+        permissions['view_inventory_transfers'] == true ||
+        permissions['view_inventory_scraps'] == true ||
+        permissions['view_purchase_returns'] == true;
 
     return [
       _sidebarSection('POINT OF SALE'),
@@ -650,7 +657,7 @@ class _PosShellPageState extends State<PosShellPage> {
       _sidebarSection('MANAJEMEN'),
       if (can('view_products')) _sidebarItem(2),
       if (useTables && manageTables) _sidebarItem(6),
-      if (trackStock && canViewStock) _sidebarItem(7),
+      if (canViewInventory) _sidebarItem(7),
       if (can('view_promos')) _sidebarItem(8),
       if (can('view_customers')) _sidebarItem(9),
       if (can('view_stores')) _sidebarItem(10),
