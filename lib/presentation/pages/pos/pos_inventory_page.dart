@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../injections.dart';
@@ -9,10 +10,12 @@ import '../../../core/_core.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_category_navigation.dart';
 import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
 import 'pos_purchase_receiving_page.dart';
+import 'utils/pos_inventory_action_policy.dart';
 
 enum _InventorySection {
   stock,
@@ -94,38 +97,28 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       _selected = sections.first.section;
     }
     final content = _content(permissions);
+    final categoryItems = sections
+        .map(
+          (item) => PosCategoryItem<_InventorySection>(
+            value: item.section,
+            icon: item.icon,
+            label: item.label,
+          ),
+        )
+        .toList();
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
         if (wide) {
           return Row(
             children: [
-              SizedBox(
-                width: 230,
-                child: Material(
-                  color: Colors.white,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(18, 18, 18, 10),
-                        child: Text(
-                          'Kategori Inventori',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: ListView(
-                          children: sections.map(_sideItem).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              PosCategorySidebar<_InventorySection>(
+                title: 'Kategori Inventori',
+                items: categoryItems,
+                selected: _selected,
+                onSelected: (value) => setState(() => _selected = value),
+                expandedWidth: 230,
+                footer: 'Data inventori mengikuti akses gudang akun kasir.',
               ),
               const VerticalDivider(width: 1),
               Expanded(child: content),
@@ -135,25 +128,13 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
         return Column(
           children: [
             Container(
-              height: 58,
               color: Colors.white,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-                scrollDirection: Axis.horizontal,
-                itemCount: sections.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, index) {
-                  final item = sections[index];
-                  return ChoiceChip(
-                    selected: item.section == _selected,
-                    avatar: Icon(item.icon, size: 18),
-                    label: Text(item.label),
-                    onSelected: (_) => setState(() => _selected = item.section),
-                  );
-                },
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: PosCategoryDropdown<_InventorySection>(
+                label: 'Kategori inventori',
+                items: categoryItems,
+                selected: _selected,
+                onSelected: (value) => setState(() => _selected = value),
               ),
             ),
             Expanded(child: content),
@@ -163,44 +144,26 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     );
   }
 
-  Widget _sideItem(_InventoryMenu item) => Material(
-    color: Colors.transparent,
-    child: ListTile(
-      dense: true,
-      minLeadingWidth: 24,
-      horizontalTitleGap: 10,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      selected: item.section == _selected,
-      selectedColor: AppColors.primary,
-      selectedTileColor: AppColors.primary.withValues(alpha: .09),
-      leading: Icon(item.icon),
-      title: Text(
-        item.label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 14),
-      ),
-      trailing: const Icon(Icons.chevron_right, size: 16),
-      onTap: () => setState(() => _selected = item.section),
-    ),
-  );
-
   Widget _content(Map<String, dynamic> permissions) => switch (_selected) {
     _InventorySection.stock => PosStockPage(isGridView: widget.isGridView),
     _InventorySection.purchase => _InventoryDocumentPage(
+      key: const ValueKey(PosInventoryDocumentType.purchase),
       type: PosInventoryDocumentType.purchase,
       permissions: permissions,
     ),
     _InventorySection.opname => _InventoryDocumentPage(
+      key: const ValueKey(PosInventoryDocumentType.opname),
       type: PosInventoryDocumentType.opname,
       permissions: permissions,
     ),
     _InventorySection.transfer => _InventoryDocumentPage(
+      key: const ValueKey(PosInventoryDocumentType.transfer),
       type: PosInventoryDocumentType.transfer,
       permissions: permissions,
       canReceiveTransfer: permissions['receive_inventory_transfers'] == true,
     ),
     _InventorySection.scrap => _InventoryDocumentPage(
+      key: const ValueKey(PosInventoryDocumentType.scrap),
       type: PosInventoryDocumentType.scrap,
       permissions: permissions,
     ),
@@ -220,6 +183,7 @@ class _InventoryDocumentPage extends StatefulWidget {
   final bool canReceiveTransfer;
   final Map<String, dynamic> permissions;
   const _InventoryDocumentPage({
+    super.key,
     required this.type,
     required this.permissions,
     this.canReceiveTransfer = false,
@@ -300,28 +264,37 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   Future<void> _runAction(Map<String, dynamic> item, String action) async {
-    final requiresReason = const {
-      'reject',
-      'cancel',
-      'delete',
-    }.contains(action);
+    final requiresReason =
+        const {'reject', 'cancel'}.contains(action) ||
+        (action == 'delete' &&
+            widget.type == PosInventoryDocumentType.purchase);
     final controller = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('${_actionLabel(action)} ${_number(item)}?'),
         content: requiresReason
-            ? TextField(
-                controller: controller,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Alasan',
-                  border: OutlineInputBorder(),
-                ),
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_actionWarning(item, action)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: switch (action) {
+                        'reject' => 'Alasan penolakan',
+                        'cancel' => 'Alasan pembatalan',
+                        _ => 'Alasan penghapusan',
+                      },
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               )
-            : const Text(
-                'Pastikan rincian dokumen sudah benar sebelum melanjutkan.',
-              ),
+            : Text(_actionWarning(item, action)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -337,7 +310,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final reason = controller.text.trim();
     controller.dispose();
     if (confirmed != true) return;
-    if ((action == 'reject' || action == 'cancel') && reason.length < 3) {
+    if (requiresReason && reason.length < 3) {
       if (mounted) AppToast.error(context, 'Alasan minimal 3 karakter');
       return;
     }
@@ -349,12 +322,40 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       reason: reason,
     );
     if (!mounted) return;
+    var succeeded = false;
     result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      succeeded = true;
       AppToast.success(context, 'Status dokumen berhasil diperbarui');
-      Navigator.maybePop(context);
-      _load(page: 1);
     });
-    if (mounted) setState(() => _loading = false);
+    if (succeeded) {
+      await _load(page: 1);
+    } else if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
+
+  String _actionWarning(Map<String, dynamic> item, String action) {
+    final status = item['status']?.toString() ?? '';
+    if (action == 'delete') {
+      return widget.type == PosInventoryDocumentType.purchase
+          ? 'Dokumen akan dihapus dan tidak dapat dipulihkan. Tuliskan alasan untuk jejak audit.'
+          : 'Dokumen akan dihapus dan tidak dapat dipulihkan.';
+    }
+    if (action == 'cancel' &&
+        widget.type == PosInventoryDocumentType.transfer &&
+        (status == 'in_transit' || status == 'posted')) {
+      return 'Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau transit masih mencukupi.';
+    }
+    if (action == 'post' || action == 'process') {
+      return 'Aksi ini mengubah saldo stok dan dapat membuat jurnal otomatis. Pastikan rincian barang sudah benar.';
+    }
+    if (action == 'approve') {
+      return 'Dokumen akan disetujui untuk melanjutkan proses inventori.';
+    }
+    if (action == 'reject') {
+      return 'Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.';
+    }
+    return 'Pastikan rincian dokumen sudah benar sebelum melanjutkan.';
   }
 
   Future<void> _receive(Map<String, dynamic> item) async {
@@ -381,11 +382,16 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     setState(() => _loading = true);
     final result = await _repository.receiveTransfer(item['_id'].toString());
     if (!mounted) return;
+    var succeeded = false;
     result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      succeeded = true;
       AppToast.success(context, 'Mutasi stok berhasil diterima');
-      _load(page: 1);
     });
-    if (mounted) setState(() => _loading = false);
+    if (succeeded) {
+      await _load(page: 1);
+    } else if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -592,6 +598,35 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   icon: const Icon(Icons.download_done, size: 16),
                   label: const Text('Terima'),
                 ),
+              PopupMenuButton<String>(
+                tooltip: 'Aksi dokumen',
+                icon: const Icon(Icons.more_vert),
+                onSelected: (action) => _handleCardAction(item, action),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'detail',
+                    child: _ActionMenuItem(Icons.visibility_outlined, 'Detail'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'copy_number',
+                    child: _ActionMenuItem(Icons.copy_outlined, 'Salin nomor'),
+                  ),
+                  ..._availableActions(item).map(
+                    (action) => PopupMenuItem(
+                      value: action,
+                      child: _ActionMenuItem(
+                        _actionIcon(action),
+                        _actionLabel(action),
+                        destructive: const {
+                          'reject',
+                          'cancel',
+                          'delete',
+                        }.contains(action),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ];
             final leading = CircleAvatar(
               backgroundColor: AppColors.primary.withValues(alpha: .1),
@@ -656,6 +691,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     showDragHandle: true,
     builder: (context) {
       final rows = (item['items'] as List? ?? const []).cast<Map>();
+      final totalQty = rows.fold<double>(0, (sum, row) {
+        final value = row['qty_ordered'] ?? row['qty'] ?? row['qty_fisik'] ?? 0;
+        return sum + ((value as num?)?.toDouble() ?? 0);
+      });
       return SafeArea(
         child: DraggableScrollableSheet(
           expand: false,
@@ -685,6 +724,38 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   Text(_date(_dateValue(item))),
                 ],
               ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _DetailMetric(
+                    icon: Icons.inventory_2_outlined,
+                    label: '${rows.length} jenis barang',
+                  ),
+                  _DetailMetric(
+                    icon: Icons.numbers_outlined,
+                    label: '${_compactNumber(totalQty)} total jumlah',
+                  ),
+                  if (widget.type == PosInventoryDocumentType.purchase)
+                    _DetailMetric(
+                      icon: Icons.payments_outlined,
+                      label: _money(item['grand_total']),
+                    ),
+                ],
+              ),
+              if ((item['catatan']?.toString().trim() ?? '').isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('Catatan: ${item['catatan']}'),
+                ),
+              ],
               const Divider(height: 28),
               const Text(
                 'Daftar barang',
@@ -718,19 +789,6 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 const Divider(height: 28),
                 Wrap(spacing: 8, runSpacing: 8, children: _detailActions(item)),
               ],
-              if (widget.type == PosInventoryDocumentType.transfer &&
-                  item['status'] == 'in_transit' &&
-                  widget.canReceiveTransfer) ...[
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _receive(item);
-                  },
-                  icon: const Icon(Icons.download_done),
-                  label: const Text('Terima Mutasi Stok'),
-                ),
-              ],
             ],
           ),
         ),
@@ -739,97 +797,100 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   );
 
   List<Widget> _detailActions(Map<String, dynamic> item) {
-    final status = item['status']?.toString() ?? '';
-    final actions = <String>[];
-    if ((status == 'draft' || status == 'rejected') && _can('update')) {
-      actions.add('edit');
-    }
-    if ((status == 'draft' || status == 'rejected') &&
-        _can('submit') &&
-        widget.type != PosInventoryDocumentType.scrap) {
-      actions.add('submit');
-    }
-    if ((status == 'pending' || status == 'submitted') && _can('approve')) {
-      actions.add('approve');
-    }
-    if ((status == 'pending' || status == 'submitted') && _can('reject')) {
-      actions.add('reject');
-    }
-    if (widget.type == PosInventoryDocumentType.purchase &&
-        (status == 'approved' || status == 'partially_received') &&
-        _can('receive')) {
-      actions.add('receive');
-    }
-    if (widget.type == PosInventoryDocumentType.opname &&
-        status == 'approved' &&
-        _can('post')) {
-      actions.add('post');
-    }
-    if (widget.type == PosInventoryDocumentType.transfer &&
-        status == 'approved' &&
-        _can('post')) {
-      actions.add('post');
-    }
-    if (widget.type == PosInventoryDocumentType.scrap &&
-        status == 'draft' &&
-        _can('approve')) {
-      actions.add('approve');
-    }
-    if (widget.type == PosInventoryDocumentType.scrap &&
-        status == 'approved' &&
-        _can('process')) {
-      actions.add('process');
-    }
-    if (const {'draft', 'submitted', 'approved', 'rejected'}.contains(status) &&
-        _can('cancel') &&
-        widget.type != PosInventoryDocumentType.purchase &&
-        widget.type != PosInventoryDocumentType.scrap) {
-      actions.add('cancel');
-    }
-    if ((status == 'draft' || status == 'rejected') && _can('delete')) {
-      actions.add('delete');
-    }
-    return actions.map((action) {
+    return _availableActions(item).map((action) {
       if (action == 'edit') {
         return OutlinedButton.icon(
-          onPressed: () {
-            Navigator.pop(context);
-            _openEditor(item);
-          },
+          onPressed: () => _handleDetailAction(item, action),
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Ubah'),
         );
       }
-      if (action == 'receive') {
+      if (action == 'receive_purchase') {
         return FilledButton.icon(
-          onPressed: () async {
-            Navigator.pop(context);
-            final changed = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PosPurchaseReceivingPage(purchase: item),
-              ),
-            );
-            if (changed == true) _load(page: 1);
-          },
+          onPressed: () => _handleDetailAction(item, action),
           icon: const Icon(Icons.inventory),
           label: const Text('Terima Barang'),
         );
       }
-      final destructive =
-          action == 'delete' || action == 'reject' || action == 'cancel';
+      if (action == 'receive_transfer') {
+        return FilledButton.icon(
+          onPressed: () => _handleDetailAction(item, action),
+          icon: const Icon(Icons.download_done),
+          label: const Text('Terima Mutasi'),
+        );
+      }
+      final destructive = const {'delete', 'reject', 'cancel'}.contains(action);
       return destructive
           ? OutlinedButton.icon(
-              onPressed: () => _runAction(item, action),
+              onPressed: () => _handleDetailAction(item, action),
               icon: Icon(_actionIcon(action)),
               label: Text(_actionLabel(action)),
             )
           : FilledButton.icon(
-              onPressed: () => _runAction(item, action),
+              onPressed: () => _handleDetailAction(item, action),
               icon: Icon(_actionIcon(action)),
               label: Text(_actionLabel(action)),
             );
     }).toList();
+  }
+
+  List<String> _availableActions(Map<String, dynamic> item) {
+    final status = item['status']?.toString() ?? '';
+    return PosInventoryActionPolicy.available(
+      type: widget.type,
+      status: status,
+      can: _can,
+      canReceiveTransfer: widget.canReceiveTransfer,
+    );
+  }
+
+  Future<void> _handleCardAction(
+    Map<String, dynamic> item,
+    String action,
+  ) async {
+    if (action == 'detail') {
+      await _showDetail(item);
+      return;
+    }
+    if (action == 'copy_number') {
+      await Clipboard.setData(ClipboardData(text: _number(item)));
+      if (mounted) AppToast.success(context, 'Nomor dokumen disalin');
+      return;
+    }
+    await _executeItemAction(item, action);
+  }
+
+  Future<void> _handleDetailAction(
+    Map<String, dynamic> item,
+    String action,
+  ) async {
+    Navigator.pop(context);
+    await _executeItemAction(item, action);
+  }
+
+  Future<void> _executeItemAction(
+    Map<String, dynamic> item,
+    String action,
+  ) async {
+    if (action == 'edit') {
+      await _openEditor(item);
+      return;
+    }
+    if (action == 'receive_purchase') {
+      final changed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PosPurchaseReceivingPage(purchase: item),
+        ),
+      );
+      if (changed == true) _load(page: 1);
+      return;
+    }
+    if (action == 'receive_transfer') {
+      await _receive(item);
+      return;
+    }
+    await _runAction(item, action);
   }
 
   String get _searchLabel => switch (widget.type) {
@@ -933,13 +994,18 @@ class _InventoryStatus extends StatelessWidget {
 
 String _location(dynamic raw) {
   final value = raw is Map ? raw : const {};
-  return [
+  final label = [
     value['cabang_nama'],
     value['gedung_nama'],
     value['ruangan_nama'],
     value['rak_nama'],
   ].where((part) => (part?.toString() ?? '').isNotEmpty).join(' / ');
+  return label.isEmpty ? 'Lokasi belum tercatat' : label;
 }
+
+String _compactNumber(double value) => value == value.roundToDouble()
+    ? value.toInt().toString()
+    : value.toStringAsFixed(2);
 
 String _money(dynamic value) => NumberFormat.currency(
   locale: 'id_ID',
@@ -973,6 +1039,7 @@ Color _statusColor(String value) => switch (value) {
 };
 
 String _actionLabel(String action) => switch (action) {
+  'edit' => 'Ubah',
   'submit' => 'Ajukan',
   'approve' => 'Setujui',
   'reject' => 'Tolak',
@@ -980,14 +1047,60 @@ String _actionLabel(String action) => switch (action) {
   'process' => 'Proses',
   'cancel' => 'Batalkan',
   'delete' => 'Hapus',
+  'receive_purchase' => 'Terima Barang',
+  'receive_transfer' => 'Terima Mutasi',
   _ => action,
 };
 IconData _actionIcon(String action) => switch (action) {
+  'edit' => Icons.edit_outlined,
   'submit' => Icons.send_outlined,
   'approve' => Icons.check_circle_outline,
   'reject' => Icons.cancel_outlined,
   'post' || 'process' => Icons.play_circle_outline,
   'cancel' => Icons.block,
   'delete' => Icons.delete_outline,
+  'receive_purchase' => Icons.inventory_2_outlined,
+  'receive_transfer' => Icons.download_done,
   _ => Icons.more_horiz,
 };
+
+class _ActionMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  const _ActionMenuItem(this.icon, this.label, {this.destructive = false});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 19, color: destructive ? Colors.red : null),
+      const SizedBox(width: 10),
+      Text(label, style: TextStyle(color: destructive ? Colors.red : null)),
+    ],
+  );
+}
+
+class _DetailMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _DetailMetric({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: AppColors.primary.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: AppColors.primary),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    ),
+  );
+}

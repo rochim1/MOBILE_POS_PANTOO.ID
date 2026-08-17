@@ -8,12 +8,16 @@ import 'package:chucker_flutter/chucker_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../flavor/flavor_config.dart';
 import '../utils/logger.dart';
 
 class GraphQLClientProvider {
+  static const productionEndpoint = 'https://graphql.pantoo.id/';
+
   final SharedPreferences sharedPreferences;
   final void Function()? onUnauthorized;
   final FlutterSecureStorage secureStorage;
+  final FlavorEnvironment environment;
   late GraphQLClient client;
   late String endpointUrl;
   String? _sessionToken;
@@ -24,15 +28,12 @@ class GraphQLClientProvider {
   GraphQLClientProvider(
     this.sharedPreferences,
     this.secureStorage, {
+    required this.environment,
     this.onUnauthorized,
   }) {
-    final customEndpoint = kDebugMode
-        ? sharedPreferences.getString('custom_endpoint')
-        : null;
+    final customEndpoint = _developmentOverride;
     final envUrl = dotenv.env['API_URL'];
-    endpointUrl = (customEndpoint != null && customEndpoint.isNotEmpty)
-        ? customEndpoint
-        : (envUrl ?? 'http://10.0.2.2:4000/graphql');
+    endpointUrl = _resolveEndpoint(customEndpoint, envUrl);
 
     appLogger.d('[GraphQL] custom_endpoint from prefs: "$customEndpoint"');
     appLogger.d('[GraphQL] API_URL from .env: "$envUrl"');
@@ -221,14 +222,26 @@ class GraphQLClientProvider {
 
   /// Rebuild the client (e.g. after changing custom endpoint)
   void rebuild() {
-    final customEndpoint = kDebugMode
-        ? sharedPreferences.getString('custom_endpoint')
-        : null;
+    final customEndpoint = _developmentOverride;
     final envUrl = dotenv.env['API_URL'];
-    endpointUrl = (customEndpoint != null && customEndpoint.isNotEmpty)
-        ? customEndpoint
-        : (envUrl ?? 'http://10.0.2.2:4000/graphql');
+    endpointUrl = _resolveEndpoint(customEndpoint, envUrl);
     appLogger.i('[GraphQL] Rebuilding client with endpoint: "$endpointUrl"');
     _initClient();
+  }
+
+  String? get _developmentOverride =>
+      kDebugMode && environment != FlavorEnvironment.production
+      ? sharedPreferences.getString('custom_endpoint')
+      : null;
+
+  String _resolveEndpoint(String? customEndpoint, String? envUrl) {
+    if (environment == FlavorEnvironment.production) {
+      return productionEndpoint;
+    }
+    if (customEndpoint != null && customEndpoint.trim().isNotEmpty) {
+      return customEndpoint.trim();
+    }
+    if (envUrl != null && envUrl.trim().isNotEmpty) return envUrl.trim();
+    return 'http://10.0.2.2:4000/graphql';
   }
 }

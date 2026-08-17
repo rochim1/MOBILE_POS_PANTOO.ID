@@ -30,7 +30,7 @@ class PosInventoryQueries {
     query GetAllInventoryScraps($filter: ScrapFilterInput, $pagination: PaginationInput) {
       GetAllInventoryScraps(filter: $filter, pagination: $pagination) {
         totalCount
-        items { _id no_scrap tanggal_scrap status alasan alasan_detail jenis_insiden lokasi_kejadian catatan total_nilai_scrap items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty unit nilai_per_unit no_batch tindakan jumlah_hasil_recycle } }
+        items { _id no_scrap tanggal_scrap status alasan alasan_detail jenis_insiden lokasi_kejadian catatan total_nilai_scrap createdAt updatedAt items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty unit nilai_per_unit no_batch catatan_item lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama tindakan jumlah_hasil_recycle } }
       }
     }
   ''';

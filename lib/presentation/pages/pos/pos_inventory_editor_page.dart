@@ -38,12 +38,21 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _sourceId =
         (widget.existing?['lokasi'] as Map?)?['cabang_id']?.toString() ??
         (widget.existing?['dari'] as Map?)?['cabang_id']?.toString() ??
+        _existingScrapLocationId() ??
         '';
     _destinationId =
         (widget.existing?['ke'] as Map?)?['cabang_id']?.toString() ?? '';
     _scrapReason = widget.existing?['alasan']?.toString() ?? 'rusak';
     _incidentType = widget.existing?['jenis_insiden']?.toString() ?? 'disposal';
     _load();
+  }
+
+  String? _existingScrapLocationId() {
+    if (widget.type != PosInventoryDocumentType.scrap) return null;
+    final items = widget.existing?['items'] as List? ?? const [];
+    if (items.isEmpty || items.first is! Map) return null;
+    final value = (items.first as Map)['lokasi_cabang_id']?.toString();
+    return value == null || value.isEmpty ? null : value;
   }
 
   @override
@@ -320,6 +329,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 'qty': item['input_qty'],
                 'nilai_per_unit': item['input_price'],
                 'no_batch': item['no_batch'],
+                'catatan_item': item['catatan_item'],
                 'tindakan': item['tindakan'] ?? 'kurangi_stok',
                 'jumlah_hasil_recycle': item['jumlah_hasil_recycle'],
               },

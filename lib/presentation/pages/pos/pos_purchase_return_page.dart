@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -234,19 +235,64 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                               '${_date(item['tanggal_return'])} • ${item['lokasi_cabang_nama'] ?? '-'}',
                             ),
                             isThreeLine: true,
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  _money(item['grand_total_return']),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      _money(item['grand_total_return']),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _StatusChip(
+                                      item['approval_status']?.toString() ?? '',
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
-                                _StatusChip(
-                                  item['approval_status']?.toString() ?? '',
+                                PopupMenuButton<String>(
+                                  tooltip: 'Aksi retur',
+                                  onSelected: (action) async {
+                                    if (action == 'detail') {
+                                      await _openDetail(item['_id'].toString());
+                                      return;
+                                    }
+                                    final number =
+                                        item['no_return']?.toString() ?? '';
+                                    await Clipboard.setData(
+                                      ClipboardData(text: number),
+                                    );
+                                    if (context.mounted) {
+                                      AppToast.success(
+                                        context,
+                                        'Nomor retur disalin',
+                                      );
+                                    }
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'detail',
+                                      child: ListTile(
+                                        dense: true,
+                                        leading: Icon(
+                                          Icons.visibility_outlined,
+                                        ),
+                                        title: Text('Detail & aksi'),
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'copy',
+                                      child: ListTile(
+                                        dense: true,
+                                        leading: Icon(Icons.copy_outlined),
+                                        title: Text('Salin nomor'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

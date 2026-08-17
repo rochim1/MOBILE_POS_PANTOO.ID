@@ -42,6 +42,7 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
     () => GraphQLClientProvider(
       sl(),
       sl(),
+      environment: flavorConfig.environment,
       onUnauthorized: () {
         sl<AuthCubit>().logout();
       },

@@ -9,6 +9,19 @@ import '../../bloc/pos_settings/pos_settings_state.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/loading_indicator_widget.dart';
+import '../../widgets/pos_category_navigation.dart';
+import 'pos_offline_queue_page.dart';
+import 'pos_outlet_page.dart';
+import 'pos_printer_page.dart';
+
+enum _SettingsSection {
+  transaction,
+  finance,
+  cashier,
+  outlet,
+  receipt,
+  synchronization,
+}
 
 class PosSettingsPage extends StatelessWidget {
   const PosSettingsPage({super.key});
@@ -46,6 +59,46 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   bool _allowOutOfShift = false;
 
   bool _isInitialized = false;
+  _SettingsSection _selectedSection = _SettingsSection.transaction;
+
+  static const _sections = <PosCategoryItem<_SettingsSection>>[
+    PosCategoryItem(
+      value: _SettingsSection.transaction,
+      icon: Icons.tune_outlined,
+      label: 'Transaksi & Penjualan',
+      group: 'Operasional',
+    ),
+    PosCategoryItem(
+      value: _SettingsSection.finance,
+      icon: Icons.account_balance_wallet_outlined,
+      label: 'Pajak & Keuangan',
+      group: 'Operasional',
+    ),
+    PosCategoryItem(
+      value: _SettingsSection.cashier,
+      icon: Icons.point_of_sale_outlined,
+      label: 'Kasir & Keamanan',
+      group: 'Operasional',
+    ),
+    PosCategoryItem(
+      value: _SettingsSection.outlet,
+      icon: Icons.storefront_outlined,
+      label: 'Info Outlet',
+      group: 'Akun & Akses',
+    ),
+    PosCategoryItem(
+      value: _SettingsSection.receipt,
+      icon: Icons.receipt_long_outlined,
+      label: 'Struk & Printer',
+      group: 'Aplikasi',
+    ),
+    PosCategoryItem(
+      value: _SettingsSection.synchronization,
+      icon: Icons.sync_outlined,
+      label: 'Sinkronisasi',
+      group: 'Aplikasi',
+    ),
+  ];
 
   @override
   void dispose() {
@@ -150,151 +203,201 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             return const Center(child: LoadingIndicatorWidget());
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSection(
-                  title: 'Pajak & Keuangan',
-                  icon: Icons.account_balance_wallet_outlined,
+          final content = _settingsContent(state);
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= 760) {
+                return Row(
                   children: [
-                    _buildTextField(
-                      'Pajak (%)',
-                      _pajakController,
-                      isNumber: true,
+                    PosCategorySidebar<_SettingsSection>(
+                      title: 'Kategori Pengaturan',
+                      items: _sections,
+                      selected: _selectedSection,
+                      onSelected: (value) =>
+                          setState(() => _selectedSection = value),
+                      expandedWidth: 230,
+                      footer:
+                          'Pengaturan berlaku sebagai default operasional POS.',
                     ),
-                    _buildTextField(
-                      'Minimal Transaksi Tunai (Rp)',
-                      _minTransaksiTunaiController,
-                      isNumber: true,
-                      isCurrency: true,
-                    ),
-                    _buildDropdown(
-                      label: 'Pembulatan Harga',
-                      value: _pembulatanHarga,
-                      items: const ['none', '100', '500', '1000'],
-                      onChanged: (val) =>
-                          setState(() => _pembulatanHarga = val!),
-                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: content),
                   ],
-                ),
-                const SizedBox(height: 16),
-                _buildSection(
-                  title: 'Default Transaksi',
-                  icon: Icons.receipt_long_outlined,
-                  children: [
-                    _buildDropdown(
-                      label: 'Metode Pembayaran',
-                      value: _metodePembayaran,
-                      items: const [
-                        'tunai',
-                        'transfer',
-                        'qris',
-                        'kartu_debit',
-                        'kartu_kredit',
-                        'e_wallet',
-                      ],
-                      onChanged: (val) =>
-                          setState(() => _metodePembayaran = val!),
-                    ),
-                    _buildDropdown(
-                      label: 'Channel Penjualan',
-                      value: _channel,
-                      items: const ['retail', 'marketplace', 'offline'],
-                      onChanged: (val) => setState(() => _channel = val!),
-                    ),
-                    _buildDropdown(
-                      label: 'Segmen Harga Default (Kompatibilitas)',
-                      value: _customerSegment,
-                      items: const [
-                        'regular',
-                        'member',
-                        'non_member',
-                        'reseller',
-                        'vip',
-                        'corporate',
-                      ],
-                      onChanged: (val) =>
-                          setState(() => _customerSegment = val!),
-                    ),
-                    _buildDropdown(
-                      label: 'Discount Policy',
-                      value: _discountPolicy,
-                      items: const [
-                        'stack',
-                        'promo_only',
-                        'manual_only',
-                        'best_of_manual_or_promo',
-                      ],
-                      onChanged: (val) =>
-                          setState(() => _discountPolicy = val!),
-                    ),
-                    _buildTextField('Prefix Invoice', _invoicePrefixController),
-                    _buildTextField(
-                      'Default Catatan',
-                      _defaultCatatanController,
-                      maxLines: 3,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildSection(
-                  title: 'Perilaku Kasir',
-                  icon: Icons.point_of_sale_outlined,
-                  children: [
-                    _buildSwitch(
-                      'Cetak Struk Otomatis',
-                      _autoPrintReceipt,
-                      (v) => setState(() => _autoPrintReceipt = v),
-                    ),
-                    _buildSwitch(
-                      'Izinkan Kasir Edit Harga',
-                      _allowKasirPriceEdit,
-                      (v) => setState(() => _allowKasirPriceEdit = v),
-                    ),
-                    _buildSwitch(
-                      'Izinkan Penjualan Tanpa Shift Aktif',
-                      _allowOutOfShift,
-                      (v) => setState(() => _allowOutOfShift = v),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: state.status == PosSettingsStatus.saving
-                      ? null
-                      : _saveSettings,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                );
+              }
+              return Column(
+                children: [
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+                    child: PosCategoryDropdown<_SettingsSection>(
+                      label: 'Kategori pengaturan',
+                      items: _sections,
+                      selected: _selectedSection,
+                      onSelected: (value) =>
+                          setState(() => _selectedSection = value),
                     ),
                   ),
-                  child: state.status == PosSettingsStatus.saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Simpan Pengaturan',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+                  Expanded(child: content),
+                ],
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+  Widget _settingsContent(PosSettingsState state) {
+    if (_selectedSection == _SettingsSection.outlet) {
+      return const PosOutletPage();
+    }
+    if (_selectedSection == _SettingsSection.receipt) {
+      return const PosPrinterPage();
+    }
+    if (_selectedSection == _SettingsSection.synchronization) {
+      return const PosOfflineQueuePage();
+    }
+    final section = switch (_selectedSection) {
+      _SettingsSection.finance => _buildSection(
+        title: 'Pajak & Keuangan',
+        icon: Icons.account_balance_wallet_outlined,
+        children: [
+          _buildTextField('Pajak (%)', _pajakController, isNumber: true),
+          _buildTextField(
+            'Minimal Transaksi Tunai (Rp)',
+            _minTransaksiTunaiController,
+            isNumber: true,
+            isCurrency: true,
+          ),
+          _buildDropdown(
+            label: 'Pembulatan Harga',
+            value: _pembulatanHarga,
+            items: const ['none', '100', '500', '1000'],
+            onChanged: (val) => setState(() => _pembulatanHarga = val!),
+          ),
+        ],
+      ),
+      _SettingsSection.transaction => _buildSection(
+        title: 'Transaksi & Penjualan',
+        icon: Icons.tune_outlined,
+        children: [
+          _buildDropdown(
+            label: 'Metode Pembayaran',
+            value: _metodePembayaran,
+            items: const [
+              'tunai',
+              'transfer',
+              'qris',
+              'kartu_debit',
+              'kartu_kredit',
+              'e_wallet',
+            ],
+            onChanged: (val) => setState(() => _metodePembayaran = val!),
+          ),
+          _buildDropdown(
+            label: 'Channel Penjualan',
+            value: _channel,
+            items: const ['retail', 'marketplace', 'offline'],
+            onChanged: (val) => setState(() => _channel = val!),
+          ),
+          _buildDropdown(
+            label: 'Segmen Harga Default (Kompatibilitas)',
+            value: _customerSegment,
+            items: const [
+              'regular',
+              'member',
+              'non_member',
+              'reseller',
+              'vip',
+              'corporate',
+            ],
+            onChanged: (val) => setState(() => _customerSegment = val!),
+          ),
+          _buildDropdown(
+            label: 'Discount Policy',
+            value: _discountPolicy,
+            items: const [
+              'stack',
+              'promo_only',
+              'manual_only',
+              'best_of_manual_or_promo',
+            ],
+            onChanged: (val) => setState(() => _discountPolicy = val!),
+          ),
+          _buildTextField('Prefix Invoice', _invoicePrefixController),
+          _buildTextField(
+            'Default Catatan',
+            _defaultCatatanController,
+            maxLines: 3,
+          ),
+        ],
+      ),
+      _SettingsSection.cashier => _buildSection(
+        title: 'Kasir & Keamanan',
+        icon: Icons.point_of_sale_outlined,
+        children: [
+          _buildSwitch(
+            'Cetak Struk Otomatis',
+            _autoPrintReceipt,
+            (v) => setState(() => _autoPrintReceipt = v),
+          ),
+          _buildSwitch(
+            'Izinkan Kasir Edit Harga',
+            _allowKasirPriceEdit,
+            (v) => setState(() => _allowKasirPriceEdit = v),
+          ),
+          _buildSwitch(
+            'Izinkan Penjualan Tanpa Shift Aktif',
+            _allowOutOfShift,
+            (v) => setState(() => _allowOutOfShift = v),
+          ),
+        ],
+      ),
+      _SettingsSection.outlet ||
+      _SettingsSection.receipt ||
+      _SettingsSection.synchronization => const SizedBox.shrink(),
+    };
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 960),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            section,
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: state.status == PosSettingsStatus.saving
+                  ? null
+                  : _saveSettings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: state.status == PosSettingsStatus.saving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Simpan Pengaturan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import '../../bloc/pos_report/pos_report_bloc.dart';
 import '../../bloc/pos_report/pos_report_event.dart';
 import '../../bloc/pos_report/pos_report_state.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_category_navigation.dart';
 import '../../widgets/pos_ui.dart';
 
 class PosReportPage extends StatelessWidget {
@@ -83,7 +84,7 @@ class _ReportViewState extends State<_ReportView> {
           child: wide
               ? Row(
                   children: [
-                    SizedBox(width: 220, child: _categories()),
+                    _categories(),
                     Expanded(child: content),
                   ],
                 )
@@ -734,100 +735,30 @@ class _ReportViewState extends State<_ReportView> {
     ),
   );
 
-  Widget _categories() => Material(
-    color: Colors.white,
-    elevation: 1,
-    child: ListView(
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(18, 20, 18, 12),
-          child: Text(
-            'Kategori Laporan',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-        const Divider(height: 1),
-        const SizedBox(height: 8),
-        _category(
-          _Section.summary,
-          Icons.dashboard_outlined,
-          'Ringkasan Penjualan',
-        ),
-        _category(
-          _Section.topReports,
-          Icons.leaderboard_outlined,
-          '10 Laporan Teratas',
-        ),
-        _category(_Section.commission, Icons.percent_rounded, 'Komisi'),
-        _category(_Section.voidSales, Icons.block_outlined, 'Void'),
-        _category(_Section.cashier, Icons.person_outline_rounded, 'Kasir'),
-        _category(_Section.cash, Icons.point_of_sale_outlined, 'Kas Kasir'),
-        _category(
-          _Section.products,
-          Icons.inventory_2_outlined,
-          'Produk Terjual',
-        ),
-        _category(_Section.payments, Icons.wallet_outlined, 'Jenis Pembayaran'),
-        _category(
-          _Section.satisfaction,
-          Icons.sentiment_satisfied_alt_outlined,
-          'Kepuasan Pelanggan',
-        ),
-        _category(_Section.others, Icons.more_horiz_rounded, 'Lainnya'),
-        _category(
-          _Section.deposits,
-          Icons.savings_outlined,
-          'Penjualan Deposit',
-        ),
-        const Padding(
-          padding: EdgeInsets.all(18),
-          child: Text(
-            'Laporan diperbarui langsung dari transaksi POS.',
-            style: TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-        ),
-      ],
-    ),
+  Widget _categories() => PosCategorySidebar<_Section>(
+    title: 'Kategori Laporan',
+    items: _categoryItems,
+    selected: _section,
+    onSelected: (value) => setState(() => _section = value),
+    footer: 'Laporan diperbarui langsung dari transaksi POS.',
   );
 
-  Widget _category(_Section value, IconData icon, String label) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    child: ListTile(
-      selected: _section == value,
-      selectedColor: AppColors.primary,
-      selectedTileColor: AppColors.primary.withValues(alpha: .09),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      leading: Icon(icon, size: 20),
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-      ),
-      onTap: () => setState(() => _section = value),
-    ),
+  Widget _mobileCategories() => PosCategoryDropdown<_Section>(
+    label: 'Kategori laporan',
+    items: _categoryItems,
+    selected: _section,
+    onSelected: (value) => setState(() => _section = value),
   );
 
-  Widget _mobileCategories() => DropdownButtonFormField<_Section>(
-    initialValue: _section,
-    isExpanded: true,
-    decoration: _decoration('Kategori laporan', Icons.list_alt_outlined),
-    items: _sectionOptions
-        .map(
-          (item) => DropdownMenuItem(
-            value: item.$1,
-            child: Row(
-              children: [
-                Icon(item.$2, size: 18),
-                const SizedBox(width: 10),
-                Text(item.$3),
-              ],
-            ),
-          ),
-        )
-        .toList(),
-    onChanged: (value) {
-      if (value != null) setState(() => _section = value);
-    },
-  );
+  List<PosCategoryItem<_Section>> get _categoryItems => _sectionOptions
+      .map(
+        (item) => PosCategoryItem<_Section>(
+          value: item.$1,
+          icon: item.$2,
+          label: item.$3,
+        ),
+      )
+      .toList();
 
   List<(_Section, IconData, String)> get _sectionOptions => const [
     (_Section.summary, Icons.dashboard_outlined, 'Ringkasan Penjualan'),
