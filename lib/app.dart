@@ -33,8 +33,11 @@ class App extends StatelessWidget {
             listener: (context, state) async {
               if (state.status == AuthStatus.authenticated) {
                 await context.read<AppLockCubit>().lock();
+                final prefs = sl<SharedPreferences>();
                 navigatorKey.currentState?.pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const PosShellPage()),
+                  MaterialPageRoute(
+                    builder: (_) => PosOnboardingPage.initialDestination(prefs),
+                  ),
                   (route) => false,
                 );
               } else if (state.status == AuthStatus.unauthenticated) {
@@ -66,7 +69,9 @@ class App extends StatelessWidget {
             }
 
             if (state.isAuthenticated) {
-              return const PosShellPage();
+              return PosOnboardingPage.initialDestination(
+                sl<SharedPreferences>(),
+              );
             }
             return const LoginPage();
           },

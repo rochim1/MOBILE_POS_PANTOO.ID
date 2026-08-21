@@ -51,7 +51,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   String _pembulatanHarga = 'none';
   String _metodePembayaran = 'tunai';
   String _channel = 'retail';
-  String _customerSegment = 'regular';
+  String _priceLevel = 'retail';
+  List<String> _channelOptions = const ['retail'];
+  List<String> _priceLevelOptions = const ['retail'];
   String _discountPolicy = 'stack';
 
   bool _autoPrintReceipt = false;
@@ -122,22 +124,14 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
 
     _pembulatanHarga = s.pembulatanHarga ?? 'none';
     _metodePembayaran = s.defaultMetodePembayaran ?? 'tunai';
+    _channelOptions = <String>{'retail', ...s.salesChannelOptions}.toList();
     final channel = s.defaultChannelPenjualan ?? 'retail';
-    _channel = const {'retail', 'marketplace', 'offline'}.contains(channel)
-        ? channel
+    _channel = _channelOptions.contains(channel) ? channel : 'retail';
+    _priceLevelOptions = <String>{'retail', ...s.priceLevelOptions}.toList();
+    final priceLevel = s.defaultPriceLevel ?? 'retail';
+    _priceLevel = _priceLevelOptions.contains(priceLevel)
+        ? priceLevel
         : 'retail';
-    final customerSegment = s.defaultCustomerSegment ?? 'regular';
-    _customerSegment =
-        const {
-          'regular',
-          'member',
-          'non_member',
-          'reseller',
-          'vip',
-          'corporate',
-        }.contains(customerSegment)
-        ? customerSegment
-        : 'regular';
     final discountPolicy = s.defaultDiscountPolicy ?? 'stack';
     _discountPolicy =
         const {
@@ -163,7 +157,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       'pembulatan_harga': _pembulatanHarga,
       'default_metode_pembayaran': _metodePembayaran,
       'default_channel_penjualan': _channel,
-      'default_customer_segment': _customerSegment,
+      'default_price_level': _priceLevel,
       'default_discount_policy': _discountPolicy,
       'invoice_prefix': _invoicePrefixController.text,
       'default_catatan': _defaultCatatanController.text,
@@ -297,21 +291,14 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           _buildDropdown(
             label: 'Channel Penjualan',
             value: _channel,
-            items: const ['retail', 'marketplace', 'offline'],
+            items: _channelOptions,
             onChanged: (val) => setState(() => _channel = val!),
           ),
           _buildDropdown(
-            label: 'Segmen Harga Default (Kompatibilitas)',
-            value: _customerSegment,
-            items: const [
-              'regular',
-              'member',
-              'non_member',
-              'reseller',
-              'vip',
-              'corporate',
-            ],
-            onChanged: (val) => setState(() => _customerSegment = val!),
+            label: 'Level Harga Default',
+            value: _priceLevel,
+            items: _priceLevelOptions,
+            onChanged: (val) => setState(() => _priceLevel = val!),
           ),
           _buildDropdown(
             label: 'Discount Policy',

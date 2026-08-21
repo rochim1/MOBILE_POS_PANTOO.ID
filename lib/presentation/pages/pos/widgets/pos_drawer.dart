@@ -285,7 +285,6 @@ class _PosDrawerState extends State<PosDrawer> {
         _buildPlaceholderItem(Icons.compare_arrows, 'Transfer Stok'),
         _buildPlaceholderItem(Icons.assignment_outlined, 'Stock Opname'),
         _buildPlaceholderItem(Icons.timer_outlined, 'Batch & Kadaluarsa'),
-        _buildPlaceholderItem(Icons.business_outlined, 'Gudang'),
 
         // ---- Pembelian ----
         _buildSectionHeader('PEMBELIAN'),

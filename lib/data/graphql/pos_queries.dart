@@ -80,6 +80,10 @@ class PosQueries {
           adjust_stock
           manage_tables
           manage_settings
+          view_warehouses
+          create_warehouses
+          update_warehouses
+          delete_warehouses
           view_purchase_returns
           create_purchase_returns
           submit_purchase_returns
@@ -149,9 +153,16 @@ class PosQueries {
       VerifyMyPOSPin(pin: $pin) { success message locked_until }
     }
   ''';
+  static const String setMyPOSPin = r'''
+    mutation SetMyPOSPin($password: String!, $pin: String!) {
+      SetMyPOSPin(password: $password, pin: $pin) {
+        success message locked_until
+      }
+    }
+  ''';
   static const String getPOSPinUsers = r'''
-    query GetPOSPinUsers($search: String, $pagination: pagination) {
-      GetPOSPinUsers(search: $search, pagination: $pagination) {
+    query GetPOSPinUsers($search: String, $hasPin: Boolean, $pagination: pagination) {
+      GetPOSPinUsers(search: $search, has_pin: $hasPin, pagination: $pagination) {
         items { _id name username has_pin failed_attempts locked_until }
       }
     }
@@ -203,6 +214,17 @@ class PosQueries {
           lokasi_cabang_id
           status
         }
+      }
+    }
+  ''';
+
+  static const String getPOSWarehouseOptions = r'''
+    query GetPOSWarehouseOptions {
+      getAllCabangs(
+        filter: { status: "active", has_warehouse: true }
+        pagination: { page: 0, limit: 200 }
+      ) {
+        cabang { _id nama_cabang }
       }
     }
   ''';

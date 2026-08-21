@@ -77,6 +77,15 @@ class _PosProductPageState extends State<PosProductPage> {
         listener: (context, mgmtState) {
           if (mgmtState.status == PosProductManagementStatus.success) {
             AppToast.success(context, mgmtState.successMessage);
+            if (mgmtState.operation == 'delete') {
+              context.read<PosBloc>().add(
+                RemoveProductLocally(mgmtState.affectedProductId),
+              );
+            } else if (mgmtState.product != null) {
+              context.read<PosBloc>().add(
+                UpsertProductLocally(mgmtState.product!),
+              );
+            }
             context.read<PosBloc>().add(LoadPosData());
           } else if (mgmtState.status == PosProductManagementStatus.failure) {
             AppToast.error(context, mgmtState.errorMessage);

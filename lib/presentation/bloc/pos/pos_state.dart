@@ -197,8 +197,9 @@ class PosState extends Equatable {
 
   String get defaultSalesChannel =>
       runtimeConfig['default_sales_channel']?.toString() ?? 'retail';
-  String get defaultCustomerSegment =>
-      runtimeConfig['default_customer_segment']?.toString() ?? 'regular';
+  // Field legacy tetap ada pada snapshot/order lama, tetapi tidak lagi menjadi
+  // konteks harga yang dapat dikonfigurasi.
+  String get defaultCustomerSegment => 'regular';
   String get defaultPriceLevel =>
       runtimeConfig['default_price_level']?.toString() ?? 'retail';
   List<String> get salesChannelOptions =>

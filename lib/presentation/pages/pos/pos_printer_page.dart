@@ -44,7 +44,6 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   bool _showToko = true;
   bool _showPelanggan = true;
   bool _showChannel = false;
-  bool _showSegment = false;
   bool _showPromo = true;
 
   int _paperWidth = 58;
@@ -83,7 +82,6 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
     _showToko = t.showToko ?? true;
     _showPelanggan = t.showPelanggan ?? true;
     _showChannel = t.showChannel ?? false;
-    _showSegment = t.showSegment ?? false;
     _showPromo = t.showPromo ?? true;
 
     _paperWidth = t.paperWidth ?? 58;
@@ -105,7 +103,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       'show_toko': _showToko,
       'show_pelanggan': _showPelanggan,
       'show_channel': _showChannel,
-      'show_segment': _showSegment,
+      'show_segment': false,
       'show_promo': _showPromo,
       'footer_line1': _footerLine1Controller.text,
       'footer_line2': _footerLine2Controller.text,
@@ -194,11 +192,6 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                       'Channel Penjualan',
                       _showChannel,
                       (v) => setState(() => _showChannel = v),
-                    ),
-                    _buildSwitch(
-                      'Customer Segment',
-                      _showSegment,
-                      (v) => setState(() => _showSegment = v),
                     ),
                     _buildSwitch(
                       'Informasi Promo',

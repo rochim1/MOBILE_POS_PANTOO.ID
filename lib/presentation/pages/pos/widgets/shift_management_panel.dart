@@ -23,20 +23,23 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
     setState(() => _isLoading = true);
 
     final repo = sl<PosRepository>();
-    final success = await repo.openShift(tokoId, amount);
+    final result = await repo.openShift(tokoId, amount);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success && context.mounted) {
-      ScaffoldMessenger.of(
+    if (!context.mounted) return;
+    result.fold(
+      (failure) => ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Shift berhasil dibuka')));
-      context.read<PosBloc>().add(LoadPosData());
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Gagal membuka shift')));
-    }
+      ).showSnackBar(SnackBar(content: Text(failure.message))),
+      (_) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Shift berhasil dibuka')));
+        context.read<PosBloc>().add(LoadPosData());
+      },
+    );
   }
 
   @override

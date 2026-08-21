@@ -22,15 +22,30 @@ class PosProductManagementRepository {
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
-      if (!shiftResult.hasException) {
-        final toko = shiftResult.data?['GetMyActiveKasirShift']?['toko'];
-        final branchId = toko?['lokasi_cabang_id']?.toString();
-        if (branchId != null && branchId.isNotEmpty) {
-          productInput['lokasi_cabang_id'] = branchId;
-          productInput['lokasi_cabang_nama'] =
-              toko?['lokasi_cabang_nama']?.toString() ?? '';
-        }
+      if (shiftResult.hasException) {
+        return Left(AppErrorHandler.handle(shiftResult.exception!));
       }
+      final activeShift = shiftResult.data?['GetMyActiveKasirShift'];
+      final toko = activeShift?['toko'];
+      final branchId = toko?['lokasi_cabang_id']?.toString();
+      if (activeShift == null) {
+        return const Left(
+          ServerFailure('Buka shift kasir sebelum menambahkan produk'),
+        );
+      }
+      if (branchId == null || branchId.isEmpty) {
+        return const Left(
+          ServerFailure(
+            'Outlet aktif belum terhubung ke warehouse. Atur lokasi outlet terlebih dahulu.',
+          ),
+        );
+      }
+      productInput['lokasi_cabang_id'] = branchId;
+      productInput['lokasi_cabang_nama'] =
+          toko?['lokasi_cabang_nama']?.toString() ?? '';
+      productInput['sellable_in_pos'] = true;
+      productInput['pos_product_type'] ??= 'product';
+      productInput['tracks_stock'] ??= true;
       final MutationOptions options = MutationOptions(
         document: gql(PosQueries.createInventarisUmum),
         variables: {'input': productInput},

@@ -161,101 +161,157 @@ class _PosOutletPageState extends State<PosOutletPage> {
     final code = TextEditingController(text: store?.code ?? '');
     final address = TextEditingController(text: store?.address ?? '');
     final phone = TextEditingController(text: store?.phone ?? '');
+    final warehouseResult = await _repository.getStoreWarehouseOptions();
+    if (!mounted) return;
+    final warehouses = warehouseResult.fold<List<Map<String, dynamic>>>((
+      failure,
+    ) {
+      AppToast.error(context, failure.message);
+      return const [];
+    }, (items) => items);
+    if (warehouses.isEmpty) {
+      AppToast.error(
+        context,
+        'Belum ada warehouse aktif. Buka Inventori > Warehouse & Lokasi untuk membuatnya.',
+      );
+      name.dispose();
+      code.dispose();
+      address.dispose();
+      phone.dispose();
+      return;
+    }
+    String? selectedWarehouseId = store?.branchId.isNotEmpty == true
+        ? store!.branchId
+        : null;
+    if (selectedWarehouseId != null &&
+        !warehouses.any(
+          (item) => item['_id']?.toString() == selectedWarehouseId,
+        )) {
+      selectedWarehouseId = null;
+    }
     var saving = false;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            MediaQuery.viewInsetsOf(context).bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                store == null ? 'Tambah Outlet' : 'Edit Outlet',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Nama outlet'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: code,
-                decoration: const InputDecoration(labelText: 'Kode outlet'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: address,
-                decoration: const InputDecoration(labelText: 'Alamat'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phone,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Telepon'),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          if (name.text.trim().isEmpty ||
-                              code.text.trim().isEmpty) {
-                            AppToast.error(
-                              sheetContext,
-                              'Nama dan kode outlet wajib diisi',
-                            );
-                            return;
-                          }
-                          setSheetState(() => saving = true);
-                          final input = {
-                            'kode_toko': code.text.trim().toUpperCase(),
-                            'nama_toko': name.text.trim(),
-                            'alamat': address.text.trim(),
-                            'telepon': phone.text.trim(),
-                            'status': store?.status ?? 'active',
-                            'mode_stok': 'stok_sendiri',
-                            if (store != null && store.branchId.isNotEmpty)
-                              'lokasi_cabang_id': store.branchId,
-                            if (store != null && store.branchName.isNotEmpty)
-                              'lokasi_cabang_nama': store.branchName,
-                          };
-                          final result = store == null
-                              ? await _repository.createStore(input)
-                              : await _repository.updateStore(store.id, input);
-                          if (!sheetContext.mounted) return;
-                          result.fold(
-                            (failure) {
-                              setSheetState(() => saving = false);
-                              AppToast.error(sheetContext, failure.message);
-                            },
-                            (_) {
-                              Navigator.pop(sheetContext);
-                              AppToast.success(
-                                this.context,
-                                'Outlet berhasil disimpan',
-                              );
-                              this.context.read<PosBloc>().add(LoadPosData());
-                            },
-                          );
-                        },
-                  child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+        builder: (context, setSheetState) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              MediaQuery.viewInsetsOf(context).bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  store == null ? 'Tambah Outlet' : 'Edit Outlet',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Nama outlet'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: code,
+                  decoration: const InputDecoration(labelText: 'Kode outlet'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: address,
+                  decoration: const InputDecoration(labelText: 'Alamat'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Telepon'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedWarehouseId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Lokasi stok / warehouse',
+                    helperText:
+                        'Seluruh stok dan transaksi outlet memakai lokasi ini',
+                  ),
+                  items: warehouses
+                      .map(
+                        (warehouse) => DropdownMenuItem<String>(
+                          value: warehouse['_id']?.toString(),
+                          child: Text(
+                            warehouse['nama_cabang']?.toString() ?? 'Warehouse',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => selectedWarehouseId = value,
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            if (name.text.trim().isEmpty ||
+                                code.text.trim().isEmpty ||
+                                selectedWarehouseId == null) {
+                              AppToast.error(
+                                sheetContext,
+                                'Nama, kode, dan lokasi warehouse wajib diisi',
+                              );
+                              return;
+                            }
+                            setSheetState(() => saving = true);
+                            final input = {
+                              'kode_toko': code.text.trim().toUpperCase(),
+                              'nama_toko': name.text.trim(),
+                              'alamat': address.text.trim(),
+                              'telepon': phone.text.trim(),
+                              'status': store?.status ?? 'active',
+                              'lokasi_cabang_id': selectedWarehouseId,
+                            };
+                            final result = store == null
+                                ? await _repository.createStore(input)
+                                : await _repository.updateStore(
+                                    store.id,
+                                    input,
+                                  );
+                            if (!sheetContext.mounted) return;
+                            result.fold(
+                              (failure) {
+                                setSheetState(() => saving = false);
+                                AppToast.error(sheetContext, failure.message);
+                              },
+                              (_) {
+                                Navigator.pop(sheetContext);
+                                AppToast.success(
+                                  this.context,
+                                  'Outlet berhasil disimpan',
+                                );
+                                this.context.read<PosBloc>().add(LoadPosData());
+                              },
+                            );
+                          },
+                    child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+    // Navigator menyelesaikan future sebelum seluruh overlay bottom-sheet selesai
+    // dilepas. Beri waktu transisi selesai agar TextField tidak membaca controller
+    // yang sudah disposed pada frame penutup.
+    await Future<void>.delayed(const Duration(milliseconds: 400));
     name.dispose();
     code.dispose();
     address.dispose();

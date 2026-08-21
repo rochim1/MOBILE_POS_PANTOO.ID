@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,21 +33,25 @@ import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 
 class PosShellPage extends StatefulWidget {
-  const PosShellPage({super.key});
+  final bool prepareDashboard;
+
+  const PosShellPage({super.key, this.prepareDashboard = false});
 
   @override
   State<PosShellPage> createState() => _PosShellPageState();
 }
 
-class _PosShellPageState extends State<PosShellPage> {
+class _PosShellPageState extends State<PosShellPage>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   // 0 = expanded, 1 = icons only, 2 = completely hidden.
   int _sidebarMode = 1;
   bool _productGridView = true;
   bool _stockGridView = true;
-  bool _historyGridView = true;
+  bool _historyGridView = false;
   bool _posDataRequested = false;
   bool _showUnlockLoading = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   bool get _railExpanded => _sidebarMode == 0;
 
@@ -71,6 +78,32 @@ class _PosShellPageState extends State<PosShellPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.prepareDashboard) {
+      _posDataRequested = true;
+      _showUnlockLoading = true;
+    }
+    WidgetsBinding.instance.addObserver(this);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
+      if (!results.contains(ConnectivityResult.none)) {
+        sl<SyncService>().syncOfflineTransactions();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      sl<SyncService>().syncOfflineTransactions();
+    }
   }
 
   void _loadPOSAfterUnlock(BuildContext context) {
@@ -127,7 +160,14 @@ class _PosShellPageState extends State<PosShellPage> {
     final isSmallScreen = width < 600;
 
     return BlocProvider(
-      create: (_) => sl<PosBloc>(),
+      create: (_) {
+        final bloc = sl<PosBloc>();
+        if (widget.prepareDashboard) {
+          bloc.add(LoadPosData());
+          sl<SyncService>().syncOfflineTransactions();
+        }
+        return bloc;
+      },
       child: BlocListener<AppLockCubit, AppLockState>(
         listenWhen: (previous, current) => previous.status != current.status,
         listener: (context, state) {
@@ -510,7 +550,7 @@ class _PosShellPageState extends State<PosShellPage> {
                             ),
                             const SizedBox(height: 14),
                             const Text(
-                              'Menyiapkan dashboard...',
+                              'Mempersiapkan dashboard...',
                               textScaler: TextScaler.noScaling,
                               style: TextStyle(
                                 fontSize: 14,

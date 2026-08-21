@@ -31,6 +31,78 @@ class PosInventoryRepository {
   final GraphQLClientProvider _provider;
   PosInventoryRepository(this._provider);
 
+  Future<Either<Failure, List<Map<String, dynamic>>>> getWarehouses({
+    String search = '',
+  }) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.warehouses),
+          variables: {'search': search.trim().isEmpty ? null : search.trim()},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['getAllCabangs'] as Map?;
+      return Right(
+        (root?['cabang'] as List? ?? const [])
+            .map((value) => Map<String, dynamic>.from(value as Map))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> saveWarehouse(
+    Map<String, dynamic> input, {
+    String? id,
+  }) async {
+    try {
+      final updating = id != null && id.isNotEmpty;
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(
+            updating
+                ? PosInventoryQueries.updateWarehouse
+                : PosInventoryQueries.createWarehouse,
+          ),
+          variables: {if (updating) 'id': id, 'input': input},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final key = updating ? 'updateCabang' : 'createCabang';
+      return result.data?[key] != null
+          ? const Right(true)
+          : const Left(ServerFailure('Warehouse gagal disimpan'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> deleteWarehouse(String id) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PosInventoryQueries.deleteWarehouse),
+          variables: {'id': id},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['deleteCabang'] != null
+          ? const Right(true)
+          : const Left(ServerFailure('Warehouse gagal dihapus'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, PosInventoryDocumentPage>> getDocuments({
     required PosInventoryDocumentType type,
     String search = '',

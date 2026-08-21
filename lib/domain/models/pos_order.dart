@@ -13,6 +13,9 @@ class PosOrder {
   final String status;
   final String paymentStatus;
   final bool isInvoice;
+  // Nullable untuk kompatibilitas transaksi lama/cache yang belum menyimpan
+  // sumber order. Data baru tetap selalu mengisi fallback dari factory.
+  final String? source;
   final List<Map<String, dynamic>> items;
 
   const PosOrder({
@@ -30,6 +33,7 @@ class PosOrder {
     required this.status,
     this.paymentStatus = 'lunas',
     this.isInvoice = false,
+    this.source = 'kasir',
     this.items = const [],
   }) : subtotal = subtotal ?? total;
 
@@ -72,6 +76,7 @@ class PosOrder {
       status: json['status']?.toString() ?? 'Selesai',
       paymentStatus: json['status_pembayaran']?.toString() ?? 'lunas',
       isInvoice: false,
+      source: json['source']?.toString() ?? 'kasir',
       items: (json['items'] as List? ?? const [])
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList(),
@@ -100,6 +105,7 @@ class PosOrder {
       status: json['status']?.toString() ?? 'Baru',
       paymentStatus: json['status_pembayaran']?.toString() ?? 'belum_bayar',
       isInvoice: true,
+      source: json['source']?.toString() ?? 'kasir_mobile_invoice',
       items: (json['items'] as List? ?? const [])
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList(),

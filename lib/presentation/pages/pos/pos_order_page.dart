@@ -15,9 +15,12 @@ import '../../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import 'pos_payment_page.dart';
 import '../../widgets/pos_ui.dart';
+import '../../widgets/pos_category_navigation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
+enum _OrderCategory { all, cashier, online, invoice }
 
 class PosOrderPage extends StatefulWidget {
   final bool isGridView;
@@ -33,6 +36,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
   String _selectedStatus = 'Semua';
   String _selectedCashier = 'Semua';
   String _selectedPeriod = 'Semua';
+  _OrderCategory _selectedCategory = _OrderCategory.all;
   Set<String>? _selectedOrderKeys;
   Set<String> get _selection => _selectedOrderKeys ??= <String>{};
 
@@ -71,8 +75,18 @@ class _PosOrderPageState extends State<PosOrderPage> {
         ),
         _ => true,
       };
+      final matchesCategory = switch (_selectedCategory) {
+        _OrderCategory.all => true,
+        _OrderCategory.cashier => !order.isInvoice && !_isOnline(order),
+        _OrderCategory.online => _isOnline(order),
+        _OrderCategory.invoice => order.isInvoice,
+      };
 
-      return matchesText && matchesStatus && matchesCashier && matchesPeriod;
+      return matchesText &&
+          matchesStatus &&
+          matchesCashier &&
+          matchesPeriod &&
+          matchesCategory;
     }).toList();
   }
 
@@ -89,74 +103,106 @@ class _PosOrderPageState extends State<PosOrderPage> {
                 .toList()
               ..sort();
 
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final paid = state.orders
-                            .where(
-                              (order) =>
-                                  order.paymentStatus.toLowerCase() == 'lunas',
-                            )
-                            .toList();
-                        final cards = [
-                          PosStatCard(
-                            label: 'Total Penjualan',
-                            value:
-                                'Rp ${formatRupiahInput(paid.fold<double>(0, (sum, order) => sum + order.total))}',
-                            icon: Icons.payments_outlined,
-                          ),
-                          PosStatCard(
-                            label: 'Total Transaksi',
-                            value: '${paid.length}',
-                            icon: Icons.receipt_long_outlined,
-                            color: Colors.blue,
-                          ),
-                        ];
-                        return constraints.maxWidth >= 620
-                            ? Row(
-                                children: [
-                                  Expanded(child: cards[0]),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: cards[1]),
-                                ],
-                              )
-                            : Column(
-                                children: [
-                                  cards[0],
-                                  const SizedBox(height: 10),
-                                  cards[1],
-                                ],
-                              );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildFilterPanel(cashiers),
-                    const SizedBox(height: 16),
-                  ],
-                ),
+        final categories = _categoryItems(state.orders);
+        final content = Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: _buildFilterPanel(cashiers),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: widget.isGridView
+                    ? _buildOrderCards(
+                        filteredOrders,
+                        hasMore: state.ordersHasMore,
+                        loadingMore: state.ordersLoadingMore,
+                      )
+                    : _buildOrderTable(
+                        filteredOrders,
+                        hasMore: state.ordersHasMore,
+                        loadingMore: state.ordersLoadingMore,
+                      ),
               ),
-            ],
-            body: widget.isGridView
-                ? _buildOrderCards(
-                    filteredOrders,
-                    hasMore: state.ordersHasMore,
-                    loadingMore: state.ordersLoadingMore,
-                  )
-                : _buildOrderTable(
-                    filteredOrders,
-                    hasMore: state.ordersHasMore,
-                    loadingMore: state.ordersLoadingMore,
+            ),
+          ],
+        );
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth >= 760) {
+              return Row(
+                children: [
+                  PosCategorySidebar<_OrderCategory>(
+                    title: 'Kategori Order',
+                    items: categories,
+                    selected: _selectedCategory,
+                    onSelected: (value) =>
+                        setState(() => _selectedCategory = value),
+                    expandedWidth: 230,
                   ),
-          ),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: content),
+                ],
+              );
+            }
+            return Column(
+              children: [
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+                  child: PosCategoryDropdown<_OrderCategory>(
+                    label: 'Kategori order',
+                    items: categories,
+                    selected: _selectedCategory,
+                    onSelected: (value) =>
+                        setState(() => _selectedCategory = value),
+                  ),
+                ),
+                Expanded(child: content),
+              ],
+            );
+          },
         );
       },
     );
+  }
+
+  List<PosCategoryItem<_OrderCategory>> _categoryItems(List<PosOrder> orders) {
+    final cashier = orders.where((item) => !item.isInvoice && !_isOnline(item));
+    final online = orders.where(_isOnline);
+    final invoices = orders.where((item) => item.isInvoice);
+    return [
+      PosCategoryItem(
+        value: _OrderCategory.all,
+        icon: Icons.list_alt_outlined,
+        label: 'Semua (${orders.length})',
+      ),
+      PosCategoryItem(
+        value: _OrderCategory.cashier,
+        icon: Icons.point_of_sale_outlined,
+        label: 'Kasir (${cashier.length})',
+      ),
+      PosCategoryItem(
+        value: _OrderCategory.online,
+        icon: Icons.language_outlined,
+        label: 'Order Online (${online.length})',
+      ),
+      PosCategoryItem(
+        value: _OrderCategory.invoice,
+        icon: Icons.request_quote_outlined,
+        label: 'Faktur Penjualan (${invoices.length})',
+      ),
+    ];
+  }
+
+  bool _isOnline(PosOrder order) {
+    final source = (order.source ?? '').toLowerCase();
+    return source.contains('online') ||
+        source.contains('marketplace') ||
+        source.contains('ecommerce');
   }
 
   Widget _buildFilterPanel(List<String> cashiers) {
@@ -553,12 +599,13 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       Colors.grey.shade100,
                     ),
                     columns: const [
-                      DataColumn(label: Text('Invoice')),
+                      DataColumn(label: Text('Jenis')),
+                      DataColumn(label: Text('Nama')),
+                      DataColumn(label: Text('No Transaksi')),
                       DataColumn(label: Text('Tanggal')),
-                      DataColumn(label: Text('Pelanggan')),
                       DataColumn(label: Text('Kasir')),
-                      DataColumn(label: Text('Total'), numeric: true),
                       DataColumn(label: Text('Status')),
+                      DataColumn(label: Text('Tagihan'), numeric: true),
                       DataColumn(label: Text('Aksi')),
                     ],
                     rows: orders.map((order) {
@@ -576,19 +623,11 @@ class _PosOrderPageState extends State<PosOrderPage> {
                           });
                         },
                         cells: [
+                          DataCell(Text(_orderKind(order))),
+                          DataCell(Text(order.customer)),
                           DataCell(Text(order.invoice)),
                           DataCell(Text(_formatDate(order.date))),
-                          DataCell(Text(order.customer)),
                           DataCell(Text(order.cashierName)),
-                          DataCell(
-                            Text(
-                              NumberFormat.currency(
-                                locale: 'id_ID',
-                                symbol: 'Rp ',
-                                decimalDigits: 0,
-                              ).format(order.total),
-                            ),
-                          ),
                           DataCell(
                             Text(
                               status,
@@ -596,6 +635,15 @@ class _PosOrderPageState extends State<PosOrderPage> {
                                 color: _badgeColor(status),
                                 fontWeight: FontWeight.w700,
                               ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              NumberFormat.currency(
+                                locale: 'id_ID',
+                                symbol: 'Rp ',
+                                decimalDigits: 0,
+                              ).format(order.total),
                             ),
                           ),
                           DataCell(
@@ -655,6 +703,12 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   String _selectionKey(PosOrder order) =>
       order.id.isNotEmpty ? order.id : order.invoice;
+
+  String _orderKind(PosOrder order) {
+    if (order.isInvoice) return 'Faktur';
+    if (_isOnline(order)) return 'Online';
+    return 'Kasir';
+  }
 
   String _displayStatus(PosOrder order) {
     if (order.status.toLowerCase() == 'batal') return 'Batal';

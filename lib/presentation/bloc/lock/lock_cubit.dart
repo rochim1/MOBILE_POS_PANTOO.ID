@@ -27,40 +27,113 @@ class AppLockCubit extends Cubit<AppLockState> {
 
   Future<void> loadEmployees({String search = ''}) async {
     emit(state.copyWith(loadingEmployees: true, errorMessage: ''));
-    final result = await sl<PosRepository>().getPOSPinUsers(search: search);
+    final repository = sl<PosRepository>();
+    final result = await repository.getPOSPinUsers(
+      search: search,
+      hasPin: true,
+    );
+    final lockStatusResult = await repository.getMyPOSLockStatus();
+    final myHasPin = lockStatusResult.fold(
+      (_) => true,
+      (status) => status['has_pin'] == true,
+    );
     result.fold(
       (failure) => emit(
         state.copyWith(errorMessage: failure.message, loadingEmployees: false),
       ),
       (employees) {
+        // Pertahanan tambahan untuk kompatibilitas dengan server lama/cache:
+        // modal PIN tidak pernah menampilkan operator tanpa PIN.
+        final eligibleEmployees = employees
+            .where((row) => row['has_pin'] == true)
+            .toList();
+        final prefs = sl<SharedPreferences>();
+        final loginUserId = prefs.getString('user_id') ?? '';
+        final loginUserName = prefs.getString('username')?.trim() ?? '';
+        final normalizedSearch = search.trim().toLowerCase();
+        final loginMatchesSearch =
+            normalizedSearch.isEmpty ||
+            loginUserName.toLowerCase().contains(normalizedSearch);
+        if (!myHasPin && loginUserId.isNotEmpty && loginMatchesSearch) {
+          eligibleEmployees.insert(0, {
+            '_id': loginUserId,
+            'name': loginUserName.isEmpty ? 'Akun login' : loginUserName,
+            'username': loginUserName,
+            'has_pin': false,
+            'is_login_user': true,
+          });
+        } else {
+          for (final employee in eligibleEmployees) {
+            if (employee['_id']?.toString() == loginUserId) {
+              employee['is_login_user'] = true;
+            }
+          }
+        }
+        final currentSelection = state.selectedEmployeeId;
         final selected =
-            state.selectedEmployeeId ??
-            (employees.any(
-                  (row) => row['_id']?.toString() == state.activeEmployeeId,
-                )
-                ? state.activeEmployeeId
-                : (employees
-                              .where((row) => row['has_pin'] == true)
-                              .firstOrNull ??
-                          employees.firstOrNull)?['_id']
-                      ?.toString());
-        final selectedRow = employees
+            eligibleEmployees.any(
+              (row) => row['_id']?.toString() == currentSelection,
+            )
+            ? currentSelection
+            : (eligibleEmployees.any(
+                    (row) => row['_id']?.toString() == state.activeEmployeeId,
+                  )
+                  ? state.activeEmployeeId
+                  : eligibleEmployees.firstOrNull?['_id']?.toString());
+        final selectedRow = eligibleEmployees
             .where((row) => row['_id']?.toString() == selected)
             .firstOrNull;
         emit(
           state.copyWith(
             status: AppLockStatus.locked,
-            employees: employees,
+            employees: eligibleEmployees,
             selectedEmployeeId: selected,
             hasPinConfigured: selectedRow == null
                 ? state.hasPinConfigured
                 : selectedRow['has_pin'] == true,
-            errorMessage: employees.isEmpty
-                ? 'Belum ada karyawan POS yang dapat dipilih.'
+            errorMessage: eligibleEmployees.isEmpty
+                ? 'Belum ada karyawan POS yang memiliki PIN.'
                 : '',
             loadingEmployees: false,
           ),
         );
+      },
+    );
+  }
+
+  Future<bool> createLoginUserPin({
+    required String password,
+    required String pin,
+  }) async {
+    final loginUserId = sl<SharedPreferences>().getString('user_id');
+    if (loginUserId == null || state.selectedEmployeeId != loginUserId) {
+      emit(
+        state.copyWith(errorMessage: 'PIN hanya dapat dibuat untuk akun login'),
+      );
+      return false;
+    }
+    final result = await sl<PosRepository>().setMyPOSPin(
+      password: password,
+      pin: pin,
+    );
+    return result.fold(
+      (failure) {
+        emit(state.copyWith(errorMessage: failure.message));
+        return false;
+      },
+      (_) {
+        final employees = state.employees.map((employee) {
+          if (employee['_id']?.toString() != loginUserId) return employee;
+          return {...employee, 'has_pin': true};
+        }).toList();
+        emit(
+          state.copyWith(
+            employees: employees,
+            hasPinConfigured: true,
+            errorMessage: '',
+          ),
+        );
+        return true;
       },
     );
   }

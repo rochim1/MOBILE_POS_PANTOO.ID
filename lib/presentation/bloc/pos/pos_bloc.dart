@@ -5,12 +5,30 @@ import 'pos_state.dart';
 import '../../../domain/repositories/pos_repository.dart';
 import '../../../domain/models/hold_order.dart';
 import '../../../domain/models/pos_order.dart';
+import '../../../domain/models/pos_product.dart';
+
+String _defaultOrderType(Map<String, dynamic> config) {
+  var value = config['default_order_type']?.toString() ?? 'take_away';
+  if (value == 'online_delivery') value = 'delivery';
+  final profile = config['business_profile']?.toString() ?? 'retail';
+  final features = config['features'] as Map? ?? const {};
+  final supported = <String>{'take_away'};
+  if (profile == 'restoran') {
+    supported.addAll({'free_table', 'quick_service'});
+    if (features['use_tables'] == true) supported.add('dine_in');
+  }
+  if (features['use_delivery'] == true) supported.add('delivery');
+  if (features['use_appointments'] == true) supported.add('reservation');
+  return supported.contains(value) ? value : 'take_away';
+}
 
 class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository posRepository;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
+    on<UpsertProductLocally>(_onUpsertProductLocally);
+    on<RemoveProductLocally>(_onRemoveProductLocally);
     on<RefreshOrders>(_onRefreshOrders);
     on<LoadMoreOrders>(_onLoadMoreOrders);
     on<AddToCart>(_onAddToCart);
@@ -30,6 +48,54 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<UpdateOrderType>(_onUpdateOrderType);
     on<UpdateSalesContext>(_onUpdateSalesContext);
     on<ToggleFavoriteProduct>(_onToggleFavoriteProduct);
+  }
+
+  void _onUpsertProductLocally(
+    UpsertProductLocally event,
+    Emitter<PosState> emit,
+  ) {
+    final products = [...state.products];
+    final index = products.indexWhere((item) => item.id == event.product.id);
+    if (index >= 0) {
+      final current = products[index];
+      // Mutation update inventaris hanya mengembalikan field master dasar. Jangan
+      // menimpa stok outlet dan metadata POS yang berasal dari query katalog.
+      products[index] = PosProduct(
+        id: event.product.id,
+        code: event.product.code,
+        name: event.product.name,
+        category: event.product.category,
+        productType: current.productType,
+        promoEligible: current.promoEligible,
+        tracksStock: current.tracksStock,
+        price: event.product.price,
+        stock: current.stock,
+        sku: current.sku,
+        barcode: current.barcode,
+        imageUrl: current.imageUrl,
+        baseUnit: current.baseUnit,
+        unitConversions: current.unitConversions,
+      );
+    } else {
+      products.insert(0, event.product);
+    }
+    emit(state.copyWith(products: products));
+  }
+
+  void _onRemoveProductLocally(
+    RemoveProductLocally event,
+    Emitter<PosState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        products: state.products
+            .where((item) => item.id != event.productId)
+            .toList(),
+        cart: Map<PosProduct, int>.fromEntries(
+          state.cart.entries.where((entry) => entry.key.id != event.productId),
+        ),
+      ),
+    );
   }
 
   Future<void> _onRefreshOrders(
@@ -158,13 +224,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           ordersHasMore: ordersPage.hasMore,
           activeShift: activeShift,
           runtimeConfig: runtimeConfig,
-          orderType:
-              runtimeConfig['default_order_type']?.toString() ?? 'take_away',
+          orderType: _defaultOrderType(runtimeConfig),
           salesChannel:
               runtimeConfig['default_sales_channel']?.toString() ?? 'retail',
-          customerSegment:
-              runtimeConfig['default_customer_segment']?.toString() ??
-              'regular',
+          customerSegment: 'regular',
           priceLevel:
               runtimeConfig['default_price_level']?.toString() ?? 'retail',
           taxPercent: (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
@@ -280,9 +343,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         manualDiscountPercent: 0,
         promoCode: '',
         discountPolicy: 'stack',
-        orderType:
-            state.runtimeConfig['default_order_type']?.toString() ??
-            'take_away',
+        orderType: _defaultOrderType(state.runtimeConfig),
         salesChannel: state.defaultSalesChannel,
         customerSegment: state.defaultCustomerSegment,
         priceLevel: state.defaultPriceLevel,
@@ -351,9 +412,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         manualDiscountPercent: 0,
         promoCode: '',
         discountPolicy: 'stack',
-        orderType:
-            state.runtimeConfig['default_order_type']?.toString() ??
-            'take_away',
+        orderType: _defaultOrderType(state.runtimeConfig),
         salesChannel: state.defaultSalesChannel,
         customerSegment: state.defaultCustomerSegment,
         priceLevel: state.defaultPriceLevel,
@@ -521,9 +580,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
             manualDiscountPercent: 0,
             promoCode: '',
             discountPolicy: 'stack',
-            orderType:
-                state.runtimeConfig['default_order_type']?.toString() ??
-                'take_away',
+            orderType: _defaultOrderType(state.runtimeConfig),
             salesChannel: state.defaultSalesChannel,
             customerSegment: state.defaultCustomerSegment,
             priceLevel: state.defaultPriceLevel,
@@ -568,16 +625,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final level = customerLevel != null && customerLevel.isNotEmpty
         ? customerLevel
         : state.defaultPriceLevel;
-    final savedSegment = event.customer?.customerSegment.trim();
-    final segment = savedSegment != null && savedSegment.isNotEmpty
-        ? savedSegment
-        : _segmentForPriceLevel(level);
     emit(
       state.copyWith(
         selectedCustomer: event.customer,
         clearSelectedCustomer: event.customer == null,
         priceLevel: level,
-        customerSegment: segment,
+        customerSegment: 'regular',
         clearPricingPreview: true,
       ),
     );
@@ -595,11 +648,6 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       ),
     );
     add(RefreshPricingPreview());
-  }
-
-  String _segmentForPriceLevel(String level) {
-    if (level == 'grosir' || level == 'distributor') return 'reseller';
-    return level == 'retail' ? 'regular' : level;
   }
 
   Future<void> _onToggleFavoriteProduct(

@@ -27,10 +27,13 @@ class PosProductManagementBloc
           errorMessage: failure.message,
         ),
       ),
-      (_) => emit(
+      (product) => emit(
         state.copyWith(
           status: PosProductManagementStatus.success,
           successMessage: 'Produk berhasil dibuat',
+          operation: 'create',
+          product: product,
+          affectedProductId: product.id,
         ),
       ),
     );
@@ -49,10 +52,13 @@ class PosProductManagementBloc
           errorMessage: failure.message,
         ),
       ),
-      (_) => emit(
+      (product) => emit(
         state.copyWith(
           status: PosProductManagementStatus.success,
           successMessage: 'Produk berhasil diubah',
+          operation: 'update',
+          product: product,
+          affectedProductId: product.id,
         ),
       ),
     );
@@ -75,6 +81,9 @@ class PosProductManagementBloc
         state.copyWith(
           status: PosProductManagementStatus.success,
           successMessage: 'Produk berhasil dihapus',
+          operation: 'delete',
+          clearProduct: true,
+          affectedProductId: event.id,
         ),
       ),
     );

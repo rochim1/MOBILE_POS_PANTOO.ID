@@ -1,4 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 import 'package:path/path.dart';
 import '../../../core/database/database_platform_initializer.dart';
 
@@ -6,6 +12,9 @@ class PosLocalDatabase {
   static final PosLocalDatabase instance = PosLocalDatabase._init();
   static Database? _database;
   static Future<Database>? _databaseFuture;
+  static const _databaseKeyName = 'pos_database_key_v1';
+  static const _schemaVersion = 16;
+  static const _secureStorage = FlutterSecureStorage();
 
   PosLocalDatabase._init();
 
@@ -28,12 +37,151 @@ class PosLocalDatabase {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return openDatabase(
+        path,
+        version: _schemaVersion,
+        onCreate: _createDB,
+        onUpgrade: _upgradeDB,
+      );
+    }
+
+    final password = await _databasePassword();
+    if (await _isPlaintextDatabase(path)) {
+      await _migratePlaintextDatabase(path, password);
+    }
+    return _openEncryptedDatabase(path, password);
+  }
+
+  Future<String> _databasePassword() async {
+    final existing = await _secureStorage.read(key: _databaseKeyName);
+    if (existing != null && existing.length >= 32) return existing;
+    final random = Random.secure();
+    final key = base64UrlEncode(
+      List<int>.generate(48, (_) => random.nextInt(256)),
+    );
+    await _secureStorage.write(key: _databaseKeyName, value: key);
+    return key;
+  }
+
+  Future<bool> _isPlaintextDatabase(String path) async {
+    final file = File(path);
+    if (!await file.exists()) return false;
+    final handle = await file.open();
+    try {
+      final header = await handle.read(16);
+      return utf8.decode(header, allowMalformed: true) ==
+          'SQLite format 3\u0000';
+    } finally {
+      await handle.close();
+    }
+  }
+
+  Future<Database> _openEncryptedDatabase(String path, String password) {
+    return sqlcipher.openDatabase(
       path,
-      version: 13,
+      password: password,
+      version: _schemaVersion,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
+  }
+
+  Future<void> _migratePlaintextDatabase(String path, String password) async {
+    final backupPath = '$path.plaintext-backup';
+    final backup = File(backupPath);
+    if (await backup.exists()) {
+      throw StateError(
+        'Backup database plaintext masih tersedia. Pemulihan manual diperlukan.',
+      );
+    }
+
+    final legacy = await openDatabase(
+      path,
+      version: _schemaVersion,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
+    const tables = <String>[
+      'products',
+      'customers',
+      'stores',
+      'employees',
+      'offline_transactions',
+      'held_orders',
+    ];
+    final rows = <String, List<Map<String, Object?>>>{};
+    try {
+      await legacy.execute('PRAGMA wal_checkpoint(FULL)');
+      for (final table in tables) {
+        rows[table] = await legacy.query(table);
+      }
+    } finally {
+      await legacy.close();
+    }
+
+    await File(path).rename(backupPath);
+    const sidecarSuffixes = ['-wal', '-shm', '-journal'];
+    final movedSidecars = <({String original, String backup})>[];
+    try {
+      for (final suffix in sidecarSuffixes) {
+        final originalSidecar = File('$path$suffix');
+        if (!await originalSidecar.exists()) continue;
+        final backupSidecarPath = '$backupPath$suffix';
+        await originalSidecar.rename(backupSidecarPath);
+        movedSidecars.add((
+          original: '$path$suffix',
+          backup: backupSidecarPath,
+        ));
+      }
+    } catch (_) {
+      for (final sidecar in movedSidecars.reversed) {
+        final file = File(sidecar.backup);
+        if (await file.exists()) await file.rename(sidecar.original);
+      }
+      if (await backup.exists()) await backup.rename(path);
+      rethrow;
+    }
+    Database? encrypted;
+    try {
+      encrypted = await _openEncryptedDatabase(path, password);
+      await encrypted.transaction((txn) async {
+        for (final table in tables) {
+          for (final row in rows[table] ?? const []) {
+            await txn.insert(
+              table,
+              row,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+      });
+      for (final table in tables) {
+        final count = Sqflite.firstIntValue(
+          await encrypted.rawQuery('SELECT COUNT(*) FROM $table'),
+        );
+        if (count != (rows[table]?.length ?? 0)) {
+          throw StateError('Verifikasi migrasi database gagal pada $table');
+        }
+      }
+      await encrypted.close();
+      encrypted = null;
+      await backup.delete();
+      for (final sidecar in movedSidecars) {
+        final file = File(sidecar.backup);
+        if (await file.exists()) await file.delete();
+      }
+    } catch (_) {
+      await encrypted?.close();
+      final failedEncrypted = File(path);
+      if (await failedEncrypted.exists()) await failedEncrypted.delete();
+      if (await backup.exists()) await backup.rename(path);
+      for (final sidecar in movedSidecars) {
+        final file = File(sidecar.backup);
+        if (await file.exists()) await file.rename(sidecar.original);
+      }
+      rethrow;
+    }
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -141,6 +289,42 @@ WHERE client_transaction_id = ''
         'ALTER TABLE customers ADD COLUMN customer_segment TEXT NOT NULL DEFAULT "regular"',
       );
     }
+    if (oldVersion < 14) {
+      await db.execute(
+        'ALTER TABLE offline_transactions ADD COLUMN server_response TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE offline_transactions ADD COLUMN resolution TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE offline_transactions ADD COLUMN resolved_at TEXT',
+      );
+      await db.execute('''
+UPDATE offline_transactions
+SET status = 'rejected'
+WHERE status = 'failed_permanent'
+''');
+    }
+    if (oldVersion < 15) {
+      await db.execute(
+        'ALTER TABLE offline_transactions ADD COLUMN client_snapshot TEXT',
+      );
+    }
+    if (oldVersion < 16) {
+      await db.execute('''
+CREATE TABLE employees_secure (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL
+)
+''');
+      await db.execute('''
+INSERT INTO employees_secure (id, name, role)
+SELECT id, name, role FROM employees
+''');
+      await db.execute('DROP TABLE employees');
+      await db.execute('ALTER TABLE employees_secure RENAME TO employees');
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -195,8 +379,7 @@ CREATE TABLE stores (
 CREATE TABLE employees (
   id $idType,
   name $textType,
-  role $textType,
-  pin $textType
+  role $textType
 )
 ''');
 
@@ -212,6 +395,10 @@ CREATE TABLE offline_transactions (
   ,toko_id TEXT NOT NULL DEFAULT ''
   ,shift_id TEXT NOT NULL DEFAULT ''
   ,client_transaction_id TEXT NOT NULL DEFAULT ''
+  ,server_response TEXT
+  ,resolution TEXT
+  ,resolved_at TEXT
+  ,client_snapshot TEXT
 )
 ''');
     await db.execute(

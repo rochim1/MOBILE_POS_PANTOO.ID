@@ -6,7 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../widgets/login/login_form.dart';
-import '../pos/pos_shell_page.dart';
+import '../pos/pos_onboarding_page.dart';
 import '../../widgets/intro/feature_item.dart';
 
 class IntroPage extends StatefulWidget {
@@ -244,7 +244,8 @@ class _IntroPageState extends State<IntroPage> {
                             prefs.setBool('has_seen_intro', true);
                             Navigator.of(context).pushAndRemoveUntil(
                               MaterialPageRoute(
-                                builder: (_) => const PosShellPage(),
+                                builder: (_) =>
+                                    PosOnboardingPage.initialDestination(prefs),
                               ),
                               (route) => false,
                             );

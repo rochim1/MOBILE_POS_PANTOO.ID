@@ -4,6 +4,7 @@ import 'package:mobile_pos_pantoo/data/graphql/pos_inventory_queries.dart';
 void main() {
   group('Kontrak hub Inventori Mobile', () {
     test('menyediakan dokumen inventori inti', () {
+      expect(PosInventoryQueries.warehouses, contains('getAllCabangs'));
       expect(
         PosInventoryQueries.purchases,
         contains('GetAllInventoryPurchases'),
@@ -28,6 +29,9 @@ void main() {
     });
 
     test('CRUD dan lifecycle setiap dokumen tersedia', () {
+      expect(PosInventoryQueries.createWarehouse, contains('createCabang'));
+      expect(PosInventoryQueries.updateWarehouse, contains('updateCabang'));
+      expect(PosInventoryQueries.deleteWarehouse, contains('deleteCabang'));
       expect(
         PosInventoryQueries.createPurchase,
         contains('AddInventoryPurchase'),

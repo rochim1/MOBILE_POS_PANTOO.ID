@@ -91,6 +91,10 @@ class PosRepository {
       'adjust_stock': false,
       'manage_tables': false,
       'manage_settings': false,
+      'view_warehouses': false,
+      'create_warehouses': false,
+      'update_warehouses': false,
+      'delete_warehouses': false,
       'view_purchase_returns': false,
       'create_purchase_returns': false,
       'submit_purchase_returns': false,
@@ -141,6 +145,26 @@ class PosRepository {
       'default_sales_channel': 'retail',
       'default_customer_segment': 'regular',
       'default_price_level': 'retail',
+      'sales_channel_options': <String>[
+        'retail',
+        'marketplace',
+        'whatsapp',
+        'sales',
+        'website',
+        'social_commerce',
+        'delivery_app',
+      ],
+      'price_level_options': <String>[
+        'retail',
+        'member',
+        'grosir',
+        'reseller',
+        'corporate',
+        'distributor',
+        'agen',
+        'horeca',
+        'proyek',
+      ],
       'tax_percent': 0.0,
       'features': <String, dynamic>{'track_stock': true},
       'configuration_health': <String, dynamic>{
@@ -315,8 +339,33 @@ class PosRepository {
     }
   }
 
+  Future<Either<Failure, Map<String, dynamic>>> setMyPOSPin({
+    required String password,
+    required String pin,
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosQueries.setMyPOSPin),
+          variables: {'password': password, 'pin': pin},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final data = result.data?['SetMyPOSPin'];
+      if (data is! Map) {
+        return const Left(ServerFailure('Pembuatan PIN tidak tersedia'));
+      }
+      return Right(Map<String, dynamic>.from(data));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, List<Map<String, dynamic>>>> getPOSPinUsers({
     String search = '',
+    bool? hasPin,
   }) async {
     try {
       final result = await _clientProvider.client.query(
@@ -324,6 +373,7 @@ class PosRepository {
           document: gql(PosQueries.getPOSPinUsers),
           variables: {
             'search': search.trim().isEmpty ? null : search.trim(),
+            'hasPin': hasPin,
             'pagination': {'page': 0, 'limit': 100},
           },
           fetchPolicy: FetchPolicy.networkOnly,
@@ -634,13 +684,7 @@ class PosRepository {
               phone: e['phone']?.toString() ?? '',
               email: e['email']?.toString() ?? '',
               priceLevel: e['price_level']?.toString() ?? 'retail',
-              customerSegment:
-                  e['customer_segment']?.toString() ??
-                  switch (e['price_level']?.toString()) {
-                    'grosir' || 'distributor' => 'reseller',
-                    'retail' || null => 'regular',
-                    final level => level,
-                  },
+              customerSegment: 'regular',
               membershipStatus:
                   e['membership_status']?.toString() ?? 'non_member',
               membershipTier: e['membership_tier']?.toString() ?? 'regular',
@@ -749,7 +793,7 @@ class PosRepository {
               phone: e['phone'] as String,
               email: e['email']?.toString() ?? '',
               priceLevel: e['price_level']?.toString() ?? 'retail',
-              customerSegment: e['customer_segment']?.toString() ?? 'regular',
+              customerSegment: 'regular',
             ),
           )
           .toList();
@@ -833,6 +877,29 @@ class PosRepository {
           : const Left(ServerFailure('Gagal menambahkan outlet'));
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  getStoreWarehouseOptions() async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.getPOSWarehouseOptions),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['getAllCabangs'] as Map?;
+      return Right(
+        (root?['cabang'] as List? ?? const [])
+            .map((value) => Map<String, dynamic>.from(value as Map))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
     }
   }
 
@@ -1037,7 +1104,7 @@ class PosRepository {
     }
   }
 
-  Future<bool> openShift(
+  Future<Either<Failure, bool>> openShift(
     String tokoId,
     double amount, [
     String notes = '',
@@ -1055,9 +1122,14 @@ class PosRepository {
       );
 
       final QueryResult result = await _clientProvider.client.mutate(options);
-      return !result.hasException && result.data != null;
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['OpenPOSKasirShift'] != null
+          ? const Right(true)
+          : const Left(ServerFailure('Gagal membuka shift'));
     } catch (e) {
-      return false;
+      return Left(AppErrorHandler.handle(e));
     }
   }
 
@@ -1071,7 +1143,7 @@ class PosRepository {
       final pending =
           Sqflite.firstIntValue(
             await db.rawQuery(
-              "SELECT COUNT(*) FROM offline_transactions WHERE shift_id = ? AND status IN ('pending','syncing','failed_permanent')",
+              "SELECT COUNT(*) FROM offline_transactions WHERE shift_id = ? AND status IN ('pending','syncing','needs_review')",
               [shiftId],
             ),
           ) ??
@@ -1231,14 +1303,52 @@ class PosRepository {
             : _operatorSessionToken,
       'items': items,
     };
+    final clientSnapshot = <String, dynamic>{
+      'subtotal': cart.entries.fold<double>(
+        0,
+        (sum, entry) => sum + (entry.key.price * entry.value),
+      ),
+      'manual_discount': diskon ?? 0,
+      'tax': pajak ?? 0,
+      'total': total,
+      'cash_received': cashReceived,
+      'payment_method': paymentMethod,
+      'payments': paymentMethod == 'split' ? payments : const [],
+      'promo_code': promoCode ?? '',
+      'discount_policy': discountPolicy ?? 'stack',
+      'sales_channel': salesChannel,
+      'customer_segment': customerSegment,
+      'price_level': priceLevel,
+      'customer_name': pelangganName ?? '',
+      'items': cart.entries
+          .map(
+            (entry) => {
+              'inventaris_id': entry.key.id,
+              'name': entry.key.name,
+              'unit': entry.key.saleUnit,
+              'qty': entry.value,
+              'unit_price': entry.key.price,
+              'subtotal': entry.key.price * entry.value,
+            },
+          )
+          .toList(),
+    };
 
     if (supportsOfflineDatabase) {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
+        if (expiredSaleAuthorizerPin.trim().isNotEmpty) {
+          return const Left(
+            NetworkFailure(
+              'Otorisasi PIN supervisor memerlukan koneksi server. Sambungkan perangkat lalu ulangi transaksi.',
+            ),
+          );
+        }
         await _saveTransactionToOfflineQueue(
           payload,
           tokoId: tokoId,
           shiftId: shiftId,
+          clientSnapshot: clientSnapshot,
         );
         return Right(
           _pendingOfflineResult(
@@ -1283,6 +1393,7 @@ class PosRepository {
           payload,
           tokoId: tokoId,
           shiftId: shiftId,
+          clientSnapshot: clientSnapshot,
         );
         return Right(
           PosTransactionResult(
@@ -1320,6 +1431,7 @@ class PosRepository {
         payload,
         tokoId: tokoId,
         shiftId: shiftId,
+        clientSnapshot: clientSnapshot,
       );
       return Right(
         PosTransactionResult(
@@ -1518,10 +1630,16 @@ class PosRepository {
     Map<String, dynamic> payload, {
     required String tokoId,
     required String shiftId,
+    required Map<String, dynamic> clientSnapshot,
   }) async {
     final clientTransactionId = payload['client_transaction_id']?.toString();
     if (clientTransactionId == null || clientTransactionId.isEmpty) {
       throw StateError('Client transaction ID wajib tersedia');
+    }
+    if ((payload['expired_sale_authorizer_pin']?.toString() ?? '').isNotEmpty) {
+      throw StateError(
+        'Transaksi dengan otorisasi PIN supervisor harus diproses saat online',
+      );
     }
     final db = await PosLocalDatabase.instance.database;
     await db.transaction((txn) async {
@@ -1533,6 +1651,7 @@ class PosRepository {
         'toko_id': tokoId,
         'shift_id': shiftId,
         'client_transaction_id': clientTransactionId,
+        'client_snapshot': jsonEncode(clientSnapshot),
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
       // Baris sudah ada berarti payload ini pernah disimpan. Jangan kurangi
       // cache stok untuk kedua kalinya.

@@ -12,6 +12,20 @@ abstract class PosEvent extends Equatable {
 
 class LoadPosData extends PosEvent {}
 
+class UpsertProductLocally extends PosEvent {
+  final PosProduct product;
+  const UpsertProductLocally(this.product);
+  @override
+  List<Object> get props => [product];
+}
+
+class RemoveProductLocally extends PosEvent {
+  final String productId;
+  const RemoveProductLocally(this.productId);
+  @override
+  List<Object> get props => [productId];
+}
+
 class RefreshOrders extends PosEvent {}
 
 class LoadMoreOrders extends PosEvent {}

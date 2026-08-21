@@ -269,7 +269,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                       style: TextStyle(fontSize: 11, color: Colors.black54),
                     ),
                     Text(
-                      '${_labelForChannel(state.salesChannel)} · ${_labelForPrice(state.priceLevel)} · ${_labelForSegment(state.customerSegment)}',
+                      '${_labelForChannel(state.salesChannel)} · ${_labelForPrice(state.priceLevel)}',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -526,12 +526,12 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Override Konteks Harga',
+                'Konteks Transaksi & Harga',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
               const Text(
-                'Hanya gunakan untuk transaksi khusus yang terotorisasi.',
+                'Channel mencatat asal transaksi; level harga menentukan daftar harga produk.',
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 16),
@@ -563,17 +563,6 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
         'vip': 'Harga VIP',
         'corporate': 'Harga Corporate',
         'distributor': 'Harga Distributor',
-      }[value] ??
-      value;
-
-  String _labelForSegment(String value) =>
-      const {
-        'regular': 'Reguler',
-        'member': 'Member',
-        'non_member': 'Non Member',
-        'reseller': 'Reseller',
-        'vip': 'VIP',
-        'corporate': 'Corporate',
       }[value] ??
       value;
 
@@ -687,8 +676,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
       runSpacing: 12,
       children: [
         _pricingDropdown(
-          label: 'Kanal Penjualan',
-          description: 'Asal transaksi, misalnya toko atau marketplace',
+          label: 'Channel Penjualan',
+          description: 'Asal transaksi; tidak menentukan cara pesanan dipenuhi',
           value: state.salesChannel,
           width: widget.isMobile ? double.infinity : 220,
           items: {
@@ -707,21 +696,6 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               value: _labelForPrice(value),
           },
           onChanged: (value) => _updateContext(state, priceLevel: value),
-        ),
-        _pricingDropdown(
-          label: 'Segmen Harga (Kompatibilitas)',
-          description: 'Nilai transaksi lama; profil pelanggan tetap terpisah',
-          value: state.customerSegment,
-          width: widget.isMobile ? double.infinity : 220,
-          items: const {
-            'regular': 'Reguler',
-            'member': 'Member',
-            'non_member': 'Non Member',
-            'reseller': 'Reseller',
-            'vip': 'VIP',
-            'corporate': 'Corporate',
-          },
-          onChanged: (value) => _updateContext(state, customerSegment: value),
         ),
       ],
     );

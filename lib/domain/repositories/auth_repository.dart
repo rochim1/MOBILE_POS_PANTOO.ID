@@ -159,6 +159,7 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    final previousInstansiId = _prefs.getString('instansi_id') ?? '';
     final refreshToken = await _secureStorage.read(key: 'refresh_token');
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
@@ -190,6 +191,15 @@ class AuthRepository {
         await txn.delete('stores');
         await txn.delete('employees');
         await txn.delete('held_orders');
+        if (previousInstansiId.isNotEmpty) {
+          await txn.delete(
+            'offline_transactions',
+            where:
+                'instansi_id = ? AND '
+                "(status = 'synced' OR (status = 'rejected' AND resolution = 'rejected_by_operator'))",
+            whereArgs: [previousInstansiId],
+          );
+        }
       });
     } catch (error, stackTrace) {
       // A database/cache failure must never trap the user in an expired

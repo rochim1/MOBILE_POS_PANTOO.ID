@@ -1,4 +1,38 @@
 class PosInventoryQueries {
+  static const warehouses = r'''
+    query GetPOSWarehouses($search: String) {
+      getAllCabangs(
+        filter: { nama_cabang: $search, status: "active", has_warehouse: true }
+        sorting: { nama_cabang: asc }
+        pagination: { page: 0, limit: 200 }
+      ) {
+        cabang {
+          _id branch_code nama_cabang alamat_cabang no_telp status
+          is_warehouse warehouse_type is_sellable_location
+          is_receiving_location is_transfer_source is_transfer_destination
+        }
+      }
+    }
+  ''';
+
+  static const createWarehouse = r'''
+    mutation CreatePOSWarehouse($input: CabangInput) {
+      createCabang(input: $input) { _id nama_cabang }
+    }
+  ''';
+
+  static const updateWarehouse = r'''
+    mutation UpdatePOSWarehouse($id: ID!, $input: CabangInput) {
+      updateCabang(id: $id, input: $input) { _id nama_cabang }
+    }
+  ''';
+
+  static const deleteWarehouse = r'''
+    mutation DeletePOSWarehouse($id: ID!) {
+      deleteCabang(id: $id) { _id }
+    }
+  ''';
+
   static const purchases = r'''
     query GetAllInventoryPurchases($filter: InventoryPurchaseFilter, $pagination: pagination) {
       GetAllInventoryPurchases(filter: $filter, pagination: $pagination) {

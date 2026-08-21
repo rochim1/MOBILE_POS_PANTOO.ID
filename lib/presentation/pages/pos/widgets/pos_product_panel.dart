@@ -392,7 +392,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }) {
     final orderTypes = _availableOrderTypes(state);
     return PopupMenuButton<String>(
-      tooltip: 'Jenis order: ${_orderTypeLabel(selectedOrderType)}',
+      tooltip: 'Tipe pemenuhan: ${_orderTypeLabel(selectedOrderType)}',
       initialValue: selectedOrderType,
       onSelected: (value) {
         if (value == '__table') {
@@ -413,11 +413,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
           return;
         }
         if (value == '__reset') {
-          final defaultType =
-              state.runtimeConfig['default_order_type']?.toString() ??
-              'take_away';
           context.read<PosBloc>()
-            ..add(UpdateOrderType(defaultType))
+            ..add(const UpdateOrderType('take_away'))
             ..add(const SelectCustomer(null));
           return;
         }
@@ -426,6 +423,14 @@ class _PosProductPanelState extends State<PosProductPanel> {
       itemBuilder: (_) {
         final features = state.runtimeConfig['features'] as Map? ?? const {};
         return [
+          const PopupMenuItem<String>(
+            enabled: false,
+            height: 34,
+            child: Text(
+              'TIPE PEMENUHAN',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
           if (features['use_tables'] == true)
             const PopupMenuItem<String>(
               value: '__table',
@@ -445,6 +450,14 @@ class _PosProductPanelState extends State<PosProductPanel> {
             ),
           ),
           const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            enabled: false,
+            height: 34,
+            child: Text(
+              'AKSI TRANSAKSI',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
           const PopupMenuItem<String>(
             value: '__served_by',
             child: _OrderMenuRow(
@@ -495,42 +508,46 @@ class _PosProductPanelState extends State<PosProductPanel> {
   List<({String value, String label, IconData icon})> _availableOrderTypes(
     PosState state,
   ) {
-    return const [
-      (
-        value: 'dine_in',
-        label: 'Makan di Tempat',
-        icon: Icons.restaurant_outlined,
-      ),
-      (
-        value: 'free_table',
-        label: 'Free Table',
-        icon: Icons.chair_alt_outlined,
-      ),
-      (
+    final profile =
+        state.runtimeConfig['business_profile']?.toString() ?? 'retail';
+    final features = state.runtimeConfig['features'] as Map? ?? const {};
+    final isRestaurant = profile == 'restoran';
+    return [
+      if (isRestaurant && features['use_tables'] == true)
+        (
+          value: 'dine_in',
+          label: 'Makan di Tempat',
+          icon: Icons.restaurant_outlined,
+        ),
+      if (isRestaurant)
+        const (
+          value: 'free_table',
+          label: 'Makan di Tempat (Tanpa Meja)',
+          icon: Icons.chair_alt_outlined,
+        ),
+      const (
         value: 'take_away',
         label: 'Bawa Pulang',
         icon: Icons.shopping_bag_outlined,
       ),
-      (
-        value: 'delivery',
-        label: 'Pengiriman',
-        icon: Icons.local_shipping_outlined,
-      ),
-      (
-        value: 'online_delivery',
-        label: 'Ojek Online',
-        icon: Icons.two_wheeler_outlined,
-      ),
-      (
-        value: 'quick_service',
-        label: 'Quick Service',
-        icon: Icons.timer_outlined,
-      ),
-      (
-        value: 'reservation',
-        label: 'Reservasi',
-        icon: Icons.event_available_outlined,
-      ),
+      if (features['use_delivery'] == true)
+        const (
+          value: 'delivery',
+          label: 'Pesan Antar',
+          icon: Icons.local_shipping_outlined,
+        ),
+      if (isRestaurant)
+        const (
+          value: 'quick_service',
+          label: 'Layanan Cepat',
+          icon: Icons.timer_outlined,
+        ),
+      if (features['use_appointments'] == true)
+        const (
+          value: 'reservation',
+          label: 'Reservasi',
+          icon: Icons.event_available_outlined,
+        ),
     ];
   }
 
@@ -542,10 +559,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
 
   String _orderTypeLabel(String value) => switch (value) {
     'dine_in' => 'Makan di Tempat',
-    'free_table' => 'Free Table',
-    'delivery' => 'Pengiriman',
-    'online_delivery' => 'Ojek Online',
-    'quick_service' => 'Quick Service',
+    'free_table' => 'Makan di Tempat (Tanpa Meja)',
+    'delivery' || 'online_delivery' => 'Pesan Antar',
+    'quick_service' => 'Layanan Cepat',
     'reservation' => 'Reservasi',
     _ => 'Bawa Pulang',
   };

@@ -56,18 +56,21 @@ class PosShiftBloc extends Bloc<PosShiftEvent, PosShiftState> {
     final currentState = state;
     emit(PosShiftLoading());
 
-    final success = await posRepository.openShift(
+    final result = await posRepository.openShift(
       event.tokoId,
       event.amount,
       event.notes,
     );
-    if (success) {
-      emit(const PosShiftActionSuccess('Shift berhasil dibuka!'));
-      add(LoadShiftData(event.tokoId));
-    } else {
-      emit(const PosShiftError('Gagal membuka shift.'));
-      if (currentState is PosShiftLoaded) emit(currentState); // fallback
-    }
+    result.fold(
+      (failure) {
+        emit(PosShiftError(failure.message));
+        if (currentState is PosShiftLoaded) emit(currentState);
+      },
+      (_) {
+        emit(const PosShiftActionSuccess('Shift berhasil dibuka!'));
+        add(LoadShiftData(event.tokoId));
+      },
+    );
   }
 
   Future<void> _onCloseShift(

@@ -31,6 +31,22 @@ class TestLockCubit extends AppLockCubit {
 
   void seedUnlocked() => emit(state.copyWith(status: AppLockStatus.unlocked));
 
+  void seedLoginWithoutPin() => emit(
+    const AppLockState(
+      status: AppLockStatus.locked,
+      selectedEmployeeId: 'login-user',
+      employees: [
+        {
+          '_id': 'login-user',
+          'name': 'Akun Login',
+          'username': 'login',
+          'has_pin': false,
+          'is_login_user': true,
+        },
+      ],
+    ),
+  );
+
   @override
   Future<void> loadEmployees({String search = ''}) async {}
 }
@@ -55,7 +71,9 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Masukkan PIN'), findsOneWidget);
+    expect(find.text('Pantoo POS'), findsOneWidget);
+    expect(find.text('Aplikasi Kasir Online'), findsOneWidget);
+    expect(find.text('Akses Kasir'), findsOneWidget);
     expect(find.text('Logout akun'), findsOneWidget);
   });
 
@@ -92,5 +110,34 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Dashboard'), findsOneWidget);
+  });
+
+  testWidgets('akun login tanpa PIN mendapat aksi buat PIN', (tester) async {
+    final cubit = TestLockCubit()..seedLoginWithoutPin();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(
+      BlocProvider<AppLockCubit>.value(
+        value: cubit,
+        child: const MaterialApp(home: PinLockScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Buat PIN Akun Ini'), findsOneWidget);
+    await tester.tap(find.text('Buat PIN Akun Ini'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Buat PIN Kasir'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Password akun'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'PIN baru'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Ulangi PIN'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    cubit.seedUnlocked();
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }

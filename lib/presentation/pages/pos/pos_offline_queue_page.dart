@@ -46,13 +46,13 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   }
 
   Future<void> _retryAll() async {
-    final count = await _syncService.retryAllFailed();
+    final count = await _syncService.retryAllRejected();
     if (count > 0) await _syncService.syncOfflineTransactions();
     await _load();
     if (mounted) {
       AppToast.info(
         context,
-        '$count transaksi gagal dimasukkan kembali ke antrean',
+        '$count transaksi ditolak dimasukkan kembali ke antrean',
       );
     }
   }
@@ -75,7 +75,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                       _filterChip(null, 'Semua'),
                       _filterChip('pending', 'Menunggu'),
                       _filterChip('syncing', 'Diproses'),
-                      _filterChip('failed_permanent', 'Gagal'),
+                      _filterChip('needs_review', 'Perlu ditinjau'),
+                      _filterChip('rejected', 'Ditolak'),
                       _filterChip('synced', 'Terkirim'),
                     ],
                   ),
@@ -87,7 +88,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                       child: OutlinedButton.icon(
                         onPressed: _loading ? null : _retryAll,
                         icon: const Icon(Icons.replay),
-                        label: const Text('Coba ulang semua gagal'),
+                        label: const Text('Coba ulang yang ditolak'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -154,7 +155,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   Widget _transactionCard(Map<String, dynamic> transaction) {
     final status = transaction['status']?.toString() ?? 'pending';
     final payload = _decodePayload(transaction['payload']);
-    final total = _findValue(payload, const [
+    final clientSnapshot = _decodePayload(transaction['client_snapshot']);
+    final total = _findValue(clientSnapshot, const [
       'total',
       'grand_total',
       'total_bayar',
@@ -164,11 +166,15 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       'invoice_number',
       'client_transaction_id',
     ]);
-    final canRetry = status != 'synced' && status != 'syncing';
+    final rejectedByOperator =
+        transaction['resolution']?.toString() == 'rejected_by_operator';
+    final canRetry =
+        status == 'pending' || (status == 'rejected' && !rejectedByOperator);
+    final needsReview = status == 'needs_review';
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: () => _showDetails(transaction, payload),
+        onTap: () => _showDetails(transaction, payload, clientSnapshot),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -213,6 +219,24 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     label: const Text('Coba ulang'),
                   ),
                 ),
+              if (needsReview)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: () => _rejectAfterReview(transaction),
+                        child: const Text('Tolak transaksi'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => _retryAfterReview(transaction),
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: const Text('Tinjau & kirim ulang'),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -224,7 +248,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     final (label, color) = switch (status) {
       'synced' => ('Terkirim', Colors.green),
       'syncing' => ('Diproses', Colors.blue),
-      'failed_permanent' => ('Gagal', Colors.red),
+      'needs_review' => ('Perlu ditinjau', Colors.deepOrange),
+      'rejected' => ('Ditolak', Colors.red),
       _ => ('Menunggu', Colors.orange),
     };
     return Container(
@@ -240,7 +265,11 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     );
   }
 
-  void _showDetails(Map<String, dynamic> transaction, dynamic payload) {
+  void _showDetails(
+    Map<String, dynamic> transaction,
+    dynamic payload,
+    dynamic clientSnapshot,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -261,6 +290,10 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             Text('Outlet: ${transaction['toko_id'] ?? '-'}'),
             Text('Shift: ${transaction['shift_id'] ?? '-'}'),
             Text('Percobaan: ${transaction['attempts'] ?? 0}'),
+            if ((transaction['resolution']?.toString() ?? '').isNotEmpty)
+              Text('Keputusan: ${transaction['resolution']}'),
+            if ((transaction['server_response']?.toString() ?? '').isNotEmpty)
+              Text('Respons server: ${transaction['server_response']}'),
             if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text(
@@ -274,6 +307,15 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             ],
             const SizedBox(height: 16),
             const Text(
+              'Snapshot saat pembayaran',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            SelectableText(
+              const JsonEncoder.withIndent('  ').convert(clientSnapshot),
+            ),
+            const SizedBox(height: 16),
+            const Text(
               'Payload lokal',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
@@ -283,6 +325,59 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _retryAfterReview(Map<String, dynamic> transaction) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Kirim ulang transaksi?'),
+        content: const Text(
+          'Pastikan harga, stok, promo, pelanggan, dan shift sudah diperbaiki. '
+          'Server akan menghitung dan memvalidasi ulang transaksi ini.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Kirim ulang'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _syncService.retryTransaction(transaction['id'] as int);
+    await _load();
+  }
+
+  Future<void> _rejectAfterReview(Map<String, dynamic> transaction) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tolak transaksi lokal?'),
+        content: const Text(
+          'Transaksi tidak akan dikirim ke server, tetapi tetap disimpan sebagai '
+          'jejak audit pada perangkat.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Kembali'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Tolak'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _syncService.rejectTransaction(transaction['id'] as int);
+    await _load();
   }
 
   dynamic _decodePayload(dynamic raw) {

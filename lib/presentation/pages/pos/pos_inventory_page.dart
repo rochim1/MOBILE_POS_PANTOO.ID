@@ -15,9 +15,11 @@ import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
 import 'pos_purchase_receiving_page.dart';
+import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
 
 enum _InventorySection {
+  warehouse,
   stock,
   purchase,
   opname,
@@ -49,6 +51,12 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     );
     final trackStock = features['track_stock'] != false;
     final sections = <_InventoryMenu>[
+      if (permissions['view_warehouses'] == true)
+        const _InventoryMenu(
+          _InventorySection.warehouse,
+          'Warehouse & Lokasi',
+          Icons.warehouse_outlined,
+        ),
       if (trackStock &&
           (permissions['view_stock'] == true ||
               permissions['adjust_stock'] == true))
@@ -145,6 +153,11 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
   }
 
   Widget _content(Map<String, dynamic> permissions) => switch (_selected) {
+    _InventorySection.warehouse => PosWarehousePage(
+      canCreate: permissions['create_warehouses'] == true,
+      canUpdate: permissions['update_warehouses'] == true,
+      canDelete: permissions['delete_warehouses'] == true,
+    ),
     _InventorySection.stock => PosStockPage(isGridView: widget.isGridView),
     _InventorySection.purchase => _InventoryDocumentPage(
       key: const ValueKey(PosInventoryDocumentType.purchase),

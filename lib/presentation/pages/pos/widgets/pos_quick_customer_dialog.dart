@@ -7,6 +7,20 @@ import '../../../widgets/app_toast.dart';
 
 Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
   final repository = sl<PosRepository>();
+  final runtimeConfig = await repository.getRuntimeConfig();
+  if (!context.mounted) return null;
+  final priceLevelOptions =
+      <dynamic>[
+            ...((runtimeConfig['price_level_options'] as List?) ??
+                const ['retail']),
+          ]
+          .map((value) => value.toString())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList();
+  if (!priceLevelOptions.contains('retail')) {
+    priceLevelOptions.insert(0, 'retail');
+  }
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
   final emailController = TextEditingController();
@@ -20,6 +34,9 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
       var membershipStatus = 'non_member';
       var membershipTier = 'regular';
       var customerType = 'personal';
+      var priceLevel =
+          runtimeConfig['default_price_level']?.toString() ?? 'retail';
+      if (!priceLevelOptions.contains(priceLevel)) priceLevel = 'retail';
       return StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           titlePadding: const EdgeInsets.fromLTRB(24, 22, 16, 8),
@@ -97,6 +114,38 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
                               }
                             }),
                     ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: priceLevel,
+                      decoration: const InputDecoration(
+                        labelText: 'Level harga',
+                        helperText:
+                            'Menentukan daftar harga produk pelanggan ini',
+                        prefixIcon: Icon(Icons.price_change_outlined),
+                      ),
+                      items: priceLevelOptions
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(
+                                value
+                                    .split('_')
+                                    .map(
+                                      (part) => part.isEmpty
+                                          ? part
+                                          : '${part[0].toUpperCase()}${part.substring(1)}',
+                                    )
+                                    .join(' '),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: saving
+                          ? null
+                          : (value) => setDialogState(
+                              () => priceLevel = value ?? 'retail',
+                            ),
+                    ),
                     if (membershipStatus == 'member') ...[
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -172,20 +221,6 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
                       final name = nameController.text.trim();
                       final phone = phoneController.text.trim();
                       final email = emailController.text.trim();
-                      final customerSegment = switch (customerType) {
-                        'reseller' => 'reseller',
-                        'corporate' => 'corporate',
-                        _ when membershipStatus == 'non_member' => 'non_member',
-                        _ when membershipTier == 'vip' => 'vip',
-                        _ => 'member',
-                      };
-                      final priceLevel = switch (customerType) {
-                        'reseller' => 'reseller',
-                        'corporate' => 'corporate',
-                        _ when membershipStatus == 'non_member' => 'retail',
-                        _ when membershipTier == 'vip' => 'vip',
-                        _ => 'member',
-                      };
                       final result = await repository.createCustomer({
                         'name': name,
                         'phone': phone,
@@ -193,7 +228,9 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
                         'type': 'customer',
                         'sumber_kontak': 'mobile_pos',
                         'price_level': priceLevel,
-                        'customer_segment': customerSegment,
+                        // Dipertahankan hanya untuk kompatibilitas API lama;
+                        // seluruh resolusi harga menggunakan price_level.
+                        'customer_segment': 'regular',
                         'membership_status': membershipStatus,
                         'membership_tier': membershipTier,
                         'customer_type': customerType,
@@ -214,7 +251,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
                                 data['price_level']?.toString() ?? priceLevel,
                             customerSegment:
                                 data['customer_segment']?.toString() ??
-                                customerSegment,
+                                'regular',
                             membershipStatus:
                                 data['membership_status']?.toString() ??
                                 membershipStatus,

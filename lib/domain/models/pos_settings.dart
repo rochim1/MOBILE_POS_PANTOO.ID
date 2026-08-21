@@ -4,7 +4,9 @@ class PosSettings extends Equatable {
   final double? pajakPersen;
   final String? defaultMetodePembayaran;
   final String? defaultChannelPenjualan;
-  final String? defaultCustomerSegment;
+  final List<String> salesChannelOptions;
+  final String? defaultPriceLevel;
+  final List<String> priceLevelOptions;
   final String? defaultDiscountPolicy;
   final String? invoicePrefix;
   final bool? autoPrintReceipt;
@@ -18,7 +20,9 @@ class PosSettings extends Equatable {
     this.pajakPersen,
     this.defaultMetodePembayaran,
     this.defaultChannelPenjualan,
-    this.defaultCustomerSegment,
+    this.salesChannelOptions = const [],
+    this.defaultPriceLevel,
+    this.priceLevelOptions = const [],
     this.defaultDiscountPolicy,
     this.invoicePrefix,
     this.autoPrintReceipt,
@@ -34,7 +38,17 @@ class PosSettings extends Equatable {
       pajakPersen: (json['pajak_persen'] as num?)?.toDouble(),
       defaultMetodePembayaran: json['default_metode_pembayaran'] as String?,
       defaultChannelPenjualan: json['default_channel_penjualan'] as String?,
-      defaultCustomerSegment: json['default_customer_segment'] as String?,
+      salesChannelOptions:
+          (json['sales_channel_options'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      defaultPriceLevel: json['default_price_level'] as String?,
+      priceLevelOptions:
+          (json['price_level_options'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       defaultDiscountPolicy: json['default_discount_policy'] as String?,
       invoicePrefix: json['invoice_prefix'] as String?,
       autoPrintReceipt: json['auto_print_receipt'] as bool?,
@@ -51,7 +65,9 @@ class PosSettings extends Equatable {
       'pajak_persen': pajakPersen,
       'default_metode_pembayaran': defaultMetodePembayaran,
       'default_channel_penjualan': defaultChannelPenjualan,
-      'default_customer_segment': defaultCustomerSegment,
+      'sales_channel_options': salesChannelOptions,
+      'default_price_level': defaultPriceLevel,
+      'price_level_options': priceLevelOptions,
       'default_discount_policy': defaultDiscountPolicy,
       'invoice_prefix': invoicePrefix,
       'auto_print_receipt': autoPrintReceipt,
@@ -67,7 +83,9 @@ class PosSettings extends Equatable {
     double? pajakPersen,
     String? defaultMetodePembayaran,
     String? defaultChannelPenjualan,
-    String? defaultCustomerSegment,
+    List<String>? salesChannelOptions,
+    String? defaultPriceLevel,
+    List<String>? priceLevelOptions,
     String? defaultDiscountPolicy,
     String? invoicePrefix,
     bool? autoPrintReceipt,
@@ -83,8 +101,9 @@ class PosSettings extends Equatable {
           defaultMetodePembayaran ?? this.defaultMetodePembayaran,
       defaultChannelPenjualan:
           defaultChannelPenjualan ?? this.defaultChannelPenjualan,
-      defaultCustomerSegment:
-          defaultCustomerSegment ?? this.defaultCustomerSegment,
+      salesChannelOptions: salesChannelOptions ?? this.salesChannelOptions,
+      defaultPriceLevel: defaultPriceLevel ?? this.defaultPriceLevel,
+      priceLevelOptions: priceLevelOptions ?? this.priceLevelOptions,
       defaultDiscountPolicy:
           defaultDiscountPolicy ?? this.defaultDiscountPolicy,
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
@@ -102,7 +121,9 @@ class PosSettings extends Equatable {
     pajakPersen,
     defaultMetodePembayaran,
     defaultChannelPenjualan,
-    defaultCustomerSegment,
+    salesChannelOptions,
+    defaultPriceLevel,
+    priceLevelOptions,
     defaultDiscountPolicy,
     invoicePrefix,
     autoPrintReceipt,
