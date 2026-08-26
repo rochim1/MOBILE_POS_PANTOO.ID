@@ -3,15 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/_core.dart';
+import '../../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../../injections.dart';
 import '../../bloc/lock/lock_cubit.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_state.dart';
+import 'pos_onboarding_page.dart';
 
 class PosSetupReadiness {
   final bool hasStore;
   final bool hasStockLocation;
   final bool hasProducts;
+  final bool hasInitialStock;
   final bool hasPin;
   final bool hasShift;
   final bool configurationHealthy;
@@ -20,6 +23,7 @@ class PosSetupReadiness {
     required this.hasStore,
     required this.hasStockLocation,
     required this.hasProducts,
+    required this.hasInitialStock,
     required this.hasPin,
     required this.hasShift,
     required this.configurationHealthy,
@@ -29,13 +33,14 @@ class PosSetupReadiness {
       hasStore &&
       hasStockLocation &&
       hasProducts &&
+      hasInitialStock &&
       hasPin &&
       hasShift &&
       configurationHealthy;
 }
 
-class PosSetupGuidePage extends StatelessWidget {
-  final ValueChanged<int> onNavigate;
+class PosSetupGuidePage extends StatefulWidget {
+  final void Function(int destination, String? section) onNavigate;
   final VoidCallback onStartCashier;
 
   const PosSetupGuidePage({
@@ -51,247 +56,305 @@ class PosSetupGuidePage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<PosBloc, PosState>(
-      builder: (context, state) {
-        final lock = context.watch<AppLockCubit>().state;
-        final features = Map<String, dynamic>.from(
-          state.runtimeConfig['features'] as Map? ?? const {},
-        );
-        final permissions = Map<String, dynamic>.from(
-          state.runtimeConfig['permissions'] as Map? ?? const {},
-        );
-        final health = Map<String, dynamic>.from(
-          state.runtimeConfig['configuration_health'] as Map? ?? const {},
-        );
-        final trackStock = features['track_stock'] != false;
-        final activeStores = state.stores
-            .where((store) => store.status.toLowerCase() == 'active')
-            .toList();
-        final hasStore = activeStores.isNotEmpty;
-        final hasStockLocation =
-            !trackStock ||
-            activeStores.any((store) => store.branchId.trim().isNotEmpty);
-        final hasProducts = state.products.isNotEmpty;
-        final hasPin =
-            lock.hasPinConfigured ||
-            (lock.activeEmployeeId?.isNotEmpty == true &&
-                lock.operatorSessionToken.isNotEmpty);
-        final hasShift = state.activeShift != null;
-        final healthy = health['valid'] != false;
-        final readiness = PosSetupReadiness(
-          hasStore: hasStore,
-          hasStockLocation: hasStockLocation,
-          hasProducts: hasProducts,
-          hasPin: hasPin,
-          hasShift: hasShift,
-          configurationHealthy: healthy,
-        );
-        final ready = readiness.ready;
+  State<PosSetupGuidePage> createState() => _PosSetupGuidePageState();
+}
 
-        final steps = <_SetupStep>[
-          if (trackStock)
+class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
+  late Future<List<Map<String, dynamic>>> _warehouses;
+
+  @override
+  void initState() {
+    super.initState();
+    _warehouses = _loadWarehouses();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadWarehouses() async {
+    final result = await sl<PosInventoryRepository>().getWarehouses();
+    return result.fold((_) => const [], (items) => items);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _warehouses,
+      builder: (context, warehouseSnapshot) => BlocBuilder<PosBloc, PosState>(
+        builder: (context, state) {
+          final lock = context.watch<AppLockCubit>().state;
+          final features = Map<String, dynamic>.from(
+            state.runtimeConfig['features'] as Map? ?? const {},
+          );
+          final permissions = Map<String, dynamic>.from(
+            state.runtimeConfig['permissions'] as Map? ?? const {},
+          );
+          final health = Map<String, dynamic>.from(
+            state.runtimeConfig['configuration_health'] as Map? ?? const {},
+          );
+          final trackStock = features['track_stock'] != false;
+          final activeStores = state.stores
+              .where((store) => store.status.toLowerCase() == 'active')
+              .toList();
+          final hasStore = activeStores.isNotEmpty;
+          final warehouses = warehouseSnapshot.data ?? const [];
+          final hasStockLocation = !trackStock || warehouses.isNotEmpty;
+          final hasProducts = state.products.isNotEmpty;
+          final stockTrackedProducts = state.products
+              .where((product) => product.tracksStock)
+              .toList();
+          final hasInitialStock =
+              !trackStock ||
+              stockTrackedProducts.isEmpty ||
+              stockTrackedProducts.any((product) => product.stock > 0);
+          final hasPin =
+              lock.hasPinConfigured ||
+              (lock.activeEmployeeId?.isNotEmpty == true &&
+                  lock.operatorSessionToken.isNotEmpty);
+          final hasShift = state.activeShift != null;
+          final healthy = health['valid'] != false;
+          final readiness = PosSetupReadiness(
+            hasStore: hasStore,
+            hasStockLocation: hasStockLocation,
+            hasProducts: hasProducts,
+            hasInitialStock: hasInitialStock,
+            hasPin: hasPin,
+            hasShift: hasShift,
+            configurationHealthy: healthy,
+          );
+          final ready = readiness.ready;
+          final setupCompleted = PosOnboardingPage.isOperationalSetupCompleted(
+            sl<SharedPreferences>(),
+          );
+
+          final steps = <_SetupStep>[
             _SetupStep(
               title: 'Lokasi stok siap',
-              description: hasStockLocation
-                  ? 'Toko aktif sudah terhubung ke lokasi inventori.'
+              description: !trackStock
+                  ? 'Tracking stok tidak digunakan oleh profil usaha ini.'
+                  : hasStockLocation
+                  ? '${warehouses.length} warehouse/lokasi aktif tersedia.'
                   : 'Buat warehouse/lokasi dan pastikan dapat digunakan untuk stok.',
               complete: hasStockLocation,
               icon: Icons.warehouse_outlined,
-              actionLabel: permissions['view_warehouses'] == true
+              actionLabel: trackStock && permissions['view_warehouses'] == true
                   ? 'Kelola lokasi'
                   : null,
               destination: 7,
+              section: 'warehouse',
             ),
-          _SetupStep(
-            title: 'Toko POS aktif',
-            description: hasStore
-                ? '${activeStores.length} toko aktif tersedia.'
-                : 'Buat toko POS dan hubungkan dengan lokasi stok.',
-            complete: hasStore,
-            icon: Icons.storefront_outlined,
-            actionLabel: permissions['view_stores'] == true
-                ? 'Kelola toko'
-                : null,
-            destination: 10,
-          ),
-          _SetupStep(
-            title: 'Katalog penjualan',
-            description: hasProducts
-                ? '${state.products.length} produk/layanan siap dijual.'
-                : 'Tambahkan minimal satu produk, layanan, atau paket aktif.',
-            complete: hasProducts,
-            icon: Icons.inventory_2_outlined,
-            actionLabel: permissions['view_products'] == true
-                ? 'Kelola katalog'
-                : null,
-            destination: 2,
-          ),
-          _SetupStep(
-            title: 'PIN operator kasir',
-            description: hasPin
-                ? 'Operator kasir sudah terverifikasi.'
-                : 'Pilih operator dan buat/masukkan PIN kasir.',
-            complete: hasPin,
-            icon: Icons.pin_outlined,
-            actionLabel: 'Atur PIN',
-            onAction: () => context.read<AppLockCubit>().lock(),
-          ),
-          _SetupStep(
-            title: 'Konfigurasi inventory valid',
-            description: healthy
-                ? 'Profil inventory dan tracking stok sudah selaras.'
-                : ((health['issues'] as List? ?? const [])
-                      .map((value) => value.toString())
-                      .join(' · ')),
-            complete: healthy,
-            icon: Icons.rule_folder_outlined,
-            actionLabel: permissions['manage_settings'] == true
-                ? 'Periksa pengaturan'
-                : null,
-            destination: 7,
-          ),
-          _SetupStep(
-            title: 'Shift kasir dibuka',
-            description: hasShift
-                ? 'Shift aktif dan transaksi dapat dimulai.'
-                : 'Pilih toko, masukkan modal awal, lalu buka shift.',
-            complete: hasShift,
-            icon: Icons.schedule_outlined,
-            actionLabel: permissions['view_shifts'] == true
-                ? 'Buka shift'
-                : null,
-            destination: 11,
-          ),
-        ];
+            _SetupStep(
+              title: 'Toko POS aktif',
+              description: hasStore
+                  ? '${activeStores.length} toko aktif tersedia.'
+                  : 'Buat toko POS dan hubungkan dengan lokasi stok.',
+              complete: hasStore,
+              icon: Icons.storefront_outlined,
+              actionLabel: permissions['view_stores'] == true
+                  ? 'Kelola toko'
+                  : null,
+              destination: 10,
+            ),
+            _SetupStep(
+              title: 'Katalog penjualan',
+              description: hasProducts
+                  ? '${state.products.length} produk/layanan siap dijual.'
+                  : 'Tambahkan minimal satu produk, layanan, atau paket aktif.',
+              complete: hasProducts,
+              icon: Icons.inventory_2_outlined,
+              actionLabel: permissions['view_products'] == true
+                  ? 'Kelola katalog'
+                  : null,
+              destination: 2,
+            ),
+            _SetupStep(
+              title: 'Stok awal produk',
+              description: !healthy
+                  ? ((health['issues'] as List? ?? const [])
+                        .map((value) => value.toString())
+                        .join(' · '))
+                  : hasInitialStock
+                  ? 'Stok awal produk sudah tersedia untuk mulai berjualan.'
+                  : 'Isi stok awal setelah produk selesai dibuat.',
+              complete: healthy && hasInitialStock,
+              icon: Icons.inventory_outlined,
+              actionLabel: !healthy
+                  ? (permissions['manage_settings'] == true
+                        ? 'Periksa pengaturan'
+                        : null)
+                  : (permissions['view_stock'] == true ||
+                        permissions['adjust_stock'] == true)
+                  ? 'Isi stok awal'
+                  : null,
+              destination: healthy ? 7 : 17,
+              section: healthy ? 'stock' : null,
+            ),
+            _SetupStep(
+              title: 'PIN operator kasir',
+              description: hasPin
+                  ? 'Operator kasir sudah terverifikasi.'
+                  : 'Pilih operator dan buat/masukkan PIN kasir.',
+              complete: hasPin,
+              icon: Icons.pin_outlined,
+              actionLabel: 'Atur PIN',
+              onAction: () => context.read<AppLockCubit>().lock(),
+            ),
+            _SetupStep(
+              title: 'Shift kasir dibuka',
+              description: hasShift
+                  ? 'Shift aktif dan transaksi dapat dimulai.'
+                  : 'Pilih toko, masukkan modal awal, lalu buka shift.',
+              complete: hasShift,
+              icon: Icons.schedule_outlined,
+              actionLabel: permissions['view_shifts'] == true
+                  ? 'Buka shift'
+                  : null,
+              destination: 11,
+            ),
+            _SetupStep(
+              title: 'Panduan transaksi kasir',
+              description: setupCompleted
+                  ? 'Panduan kasir sudah dijalankan dan POS siap digunakan.'
+                  : ready
+                  ? 'Semua prasyarat siap. Ikuti highlight interaktif di halaman kasir.'
+                  : 'Selesaikan enam langkah sebelumnya terlebih dahulu.',
+              complete: setupCompleted,
+              icon: Icons.explore_outlined,
+              actionLabel: ready ? 'Mulai panduan kasir' : null,
+              onAction: ready ? widget.onStartCashier : null,
+            ),
+          ];
 
-        return ColoredBox(
-          color: AppColors.bgPrimary,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 920),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(
-                                      alpha: .1,
+          return ColoredBox(
+            color: AppColors.bgPrimary,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 920),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(
+                                        alpha: .1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    borderRadius: BorderRadius.circular(12),
+                                    child: Icon(
+                                      ready
+                                          ? Icons.task_alt_rounded
+                                          : Icons.fact_check_outlined,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    ready
-                                        ? Icons.task_alt_rounded
-                                        : Icons.fact_check_outlined,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        ready
-                                            ? 'POS siap digunakan'
-                                            : 'Selesaikan setup POS',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        ready
-                                            ? 'Semua kebutuhan utama sudah tersedia. Anda dapat mulai melayani transaksi.'
-                                            : 'Selesaikan secara berurutan agar stok, toko, kasir, dan shift tetap selaras.',
-                                        style: const TextStyle(
-                                          color: Colors.black54,
-                                          height: 1.35,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          ready
+                                              ? 'POS siap digunakan'
+                                              : 'Selesaikan setup POS',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w800,
+                                              ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          ready
+                                              ? 'Semua kebutuhan utama sudah tersedia. Anda dapat mulai melayani transaksi.'
+                                              : 'Selesaikan secara berurutan agar stok, toko, kasir, dan shift tetap selaras.',
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            LinearProgressIndicator(
-                              value:
-                                  steps.where((step) => step.complete).length /
-                                  steps.length,
-                              minHeight: 7,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${steps.where((step) => step.complete).length} dari ${steps.length} langkah selesai',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      ...steps.indexed.map(
-                        (entry) => _SetupStepCard(
-                          number: entry.$1 + 1,
-                          step: entry.$2,
-                          onNavigate: onNavigate,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: ready ? onStartCashier : null,
-                          icon: const Icon(Icons.point_of_sale_outlined),
-                          label: const Text('Mulai Berjualan'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
+                              const SizedBox(height: 16),
+                              LinearProgressIndicator(
+                                value:
+                                    steps
+                                        .where((step) => step.complete)
+                                        .length /
+                                    steps.length,
+                                minHeight: 7,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${steps.where((step) => step.complete).length} dari ${steps.length} langkah selesai',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      if (!ready) ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Tombol aktif setelah semua kebutuhan wajib selesai. Langkah tanpa akses harus diselesaikan admin POS.',
-                          style: TextStyle(color: Colors.black54, fontSize: 12),
+                        const SizedBox(height: 18),
+                        ...steps.indexed.map(
+                          (entry) => _SetupStepCard(
+                            number: entry.$1 + 1,
+                            step: entry.$2,
+                            onNavigate: widget.onNavigate,
+                          ),
                         ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: ready ? widget.onStartCashier : null,
+                            icon: const Icon(Icons.point_of_sale_outlined),
+                            label: const Text('Mulai Berjualan'),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(52),
+                            ),
+                          ),
+                        ),
+                        if (!ready) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Tombol aktif setelah semua kebutuhan wajib selesai. Langkah tanpa akses harus diselesaikan admin POS.',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -303,6 +366,7 @@ class _SetupStep {
   final IconData icon;
   final String? actionLabel;
   final int? destination;
+  final String? section;
   final VoidCallback? onAction;
 
   const _SetupStep({
@@ -312,6 +376,7 @@ class _SetupStep {
     required this.icon,
     this.actionLabel,
     this.destination,
+    this.section,
     this.onAction,
   });
 }
@@ -319,7 +384,7 @@ class _SetupStep {
 class _SetupStepCard extends StatelessWidget {
   final int number;
   final _SetupStep step;
-  final ValueChanged<int> onNavigate;
+  final void Function(int destination, String? section) onNavigate;
 
   const _SetupStepCard({
     required this.number,
@@ -412,7 +477,7 @@ class _SetupStepCard extends StatelessWidget {
                     step.onAction ??
                     (step.destination == null
                         ? null
-                        : () => onNavigate(step.destination!)),
+                        : () => onNavigate(step.destination!, step.section)),
                 icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                 label: Text(step.actionLabel!),
               )

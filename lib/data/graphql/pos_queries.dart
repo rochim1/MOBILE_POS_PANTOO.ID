@@ -221,10 +221,14 @@ class PosQueries {
   static const String getPOSWarehouseOptions = r'''
     query GetPOSWarehouseOptions {
       getAllCabangs(
-        filter: { status: "active", has_warehouse: true }
+        filter: {
+          status: "active"
+          has_warehouse: true
+          is_sellable_location: true
+        }
         pagination: { page: 0, limit: 200 }
       ) {
-        cabang { _id nama_cabang }
+        cabang { _id nama_cabang status is_sellable_location }
       }
     }
   ''';

@@ -157,6 +157,14 @@ void main() {
     expect(find.widgetWithText(TextField, 'Password akun'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'PIN baru'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Ulangi PIN'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'PIN baru'),
+      '12ab34567',
+    );
+    final pinField = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'PIN baru'),
+    );
+    expect(pinField.controller?.text, '123456');
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('Batal'));

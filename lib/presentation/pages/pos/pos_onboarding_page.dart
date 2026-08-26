@@ -30,12 +30,74 @@ class PosOnboardingPage extends StatefulWidget {
       prefs.getBool(setupPreferenceKey(prefs)) ?? false;
 
   static Widget initialDestination(SharedPreferences prefs) =>
-      isCompleted(prefs)
-      ? PosShellPage(showSetupGuide: !isOperationalSetupCompleted(prefs))
-      : const PosOnboardingPage();
+      const PosOnboardingGate();
 
   @override
   State<PosOnboardingPage> createState() => _PosOnboardingPageState();
+}
+
+class PosOnboardingGate extends StatefulWidget {
+  const PosOnboardingGate({super.key});
+
+  @override
+  State<PosOnboardingGate> createState() => _PosOnboardingGateState();
+}
+
+class _PosOnboardingGateState extends State<PosOnboardingGate> {
+  Widget? _destination;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveDestination();
+  }
+
+  Future<void> _resolveDestination() async {
+    final prefs = sl<SharedPreferences>();
+    final result = await sl<PosSettingsRepository>().getSettings();
+    final destination = await result.fold<Future<Widget>>(
+      (_) async {
+        // Saat server tidak dapat dijangkau, cache lokal hanya dipakai sebagai
+        // fallback agar kasir yang sudah pernah setup tetap dapat bekerja.
+        return PosOnboardingPage.isCompleted(prefs)
+            ? PosShellPage(
+                showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(
+                  prefs,
+                ),
+              )
+            : const PosOnboardingPage();
+      },
+      (settings) async {
+        final completed = settings.onboardingCompleted == true;
+        await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), completed);
+        if (!completed) {
+          // Reset dari Web Admin/database harus menang terhadap cache perangkat.
+          await prefs.remove(PosOnboardingPage.setupPreferenceKey(prefs));
+          return const PosOnboardingPage();
+        }
+        return PosShellPage(
+          showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(prefs),
+        );
+      },
+    );
+    if (!mounted) return;
+    setState(() => _destination = destination);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _destination ??
+      const Scaffold(
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/geometric_bg.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
 }
 
 class _PosOnboardingPageState extends State<PosOnboardingPage> {
@@ -337,14 +399,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       'reservation',
     ];
     return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
+      backgroundColor: AppColors.primary,
       body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/geometric_bg.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
+        color: AppColors.primary,
         child: SafeArea(
           child: Column(
             children: [
@@ -356,6 +413,10 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                     const Spacer(),
                     TextButton(
                       onPressed: _saving ? null : _openPos,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white38,
+                      ),
                       child: const Text('Lewati'),
                     ),
                   ],
@@ -367,7 +428,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                   child: Text(
                     'Mode lihat saja. Perubahan memerlukan izin Kelola Pengaturan POS.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.orange),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               Expanded(
@@ -530,8 +591,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                           margin: const EdgeInsets.symmetric(horizontal: 3),
                           decoration: BoxDecoration(
                             color: value == _index
-                                ? AppColors.primary
-                                : Colors.black12,
+                                ? Colors.white
+                                : Colors.white38,
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
@@ -543,13 +604,13 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         Icon(
                           Icons.swipe_left_outlined,
                           size: 18,
-                          color: Colors.grey.shade500,
+                          color: Colors.white70,
                         ),
                         const SizedBox(width: 5),
                         Text(
                           'Geser card',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
+                          style: const TextStyle(
+                            color: Colors.white70,
                             fontSize: 12,
                           ),
                         ),
@@ -572,6 +633,10 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                                 ),
                           label: Text(_index == 3 ? 'Simpan' : 'Lanjut'),
                           style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.primary,
+                            disabledBackgroundColor: Colors.white38,
+                            disabledForegroundColor: Colors.white70,
                             minimumSize: const Size(112, 40),
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                           ),

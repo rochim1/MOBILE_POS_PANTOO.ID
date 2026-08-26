@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import '../../bloc/lock/lock_cubit.dart';
@@ -135,6 +136,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                   obscureText: true,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'PIN baru',
                     prefixIcon: Icon(Icons.pin_outlined),
@@ -148,6 +150,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                   obscureText: true,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'Ulangi PIN',
                     prefixIcon: Icon(Icons.verified_user_outlined),

@@ -30,14 +30,43 @@ enum _InventorySection {
 
 class PosInventoryPage extends StatefulWidget {
   final bool isGridView;
-  const PosInventoryPage({super.key, this.isGridView = true});
+  final String initialSection;
+  const PosInventoryPage({
+    super.key,
+    this.isGridView = true,
+    this.initialSection = 'stock',
+  });
 
   @override
   State<PosInventoryPage> createState() => _PosInventoryPageState();
 }
 
 class _PosInventoryPageState extends State<PosInventoryPage> {
-  _InventorySection _selected = _InventorySection.stock;
+  late _InventorySection _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = _sectionFromName(widget.initialSection);
+  }
+
+  @override
+  void didUpdateWidget(covariant PosInventoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSection != widget.initialSection) {
+      _selected = _sectionFromName(widget.initialSection);
+    }
+  }
+
+  _InventorySection _sectionFromName(String value) => switch (value) {
+    'warehouse' => _InventorySection.warehouse,
+    'purchase' => _InventorySection.purchase,
+    'opname' => _InventorySection.opname,
+    'transfer' => _InventorySection.transfer,
+    'scrap' => _InventorySection.scrap,
+    'purchaseReturn' => _InventorySection.purchaseReturn,
+    _ => _InventorySection.stock,
+  };
 
   @override
   Widget build(BuildContext context) {

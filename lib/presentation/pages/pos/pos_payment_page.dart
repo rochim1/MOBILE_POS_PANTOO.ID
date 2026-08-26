@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/pos/pos_bloc.dart';
@@ -695,6 +696,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               obscureText: true,
               keyboardType: TextInputType.number,
               maxLength: 6,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(labelText: 'PIN supervisor'),
             ),
             TextField(

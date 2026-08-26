@@ -35,6 +35,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_inventory_repository.dart';
 
 class PosShellPage extends StatefulWidget {
   final bool prepareDashboard;
@@ -61,6 +62,8 @@ class _PosShellPageState extends State<PosShellPage>
   bool _posDataRequested = false;
   bool _showUnlockLoading = false;
   late bool _showSetupGuide;
+  bool _setupCompleted = false;
+  String _inventoryInitialSection = 'stock';
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
 
@@ -84,12 +87,16 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Pengaturan Printer', icon: Icons.print_outlined),
     (label: 'Antrean & Sinkronisasi', icon: Icons.cloud_sync_outlined),
     (label: 'Retur ke Supplier', icon: Icons.assignment_return_outlined),
+    (label: 'Pengaturan POS', icon: Icons.settings_outlined),
   ];
 
   @override
   void initState() {
     super.initState();
     _showSetupGuide = widget.showSetupGuide;
+    _setupCompleted = PosOnboardingPage.isOperationalSetupCompleted(
+      sl<SharedPreferences>(),
+    );
     if (widget.prepareDashboard) {
       _posDataRequested = true;
       _showUnlockLoading = true;
@@ -137,17 +144,16 @@ class _PosShellPageState extends State<PosShellPage>
 
   Future<void> _completeSetupAndStartCashier() async {
     final prefs = sl<SharedPreferences>();
-    await prefs.setBool(PosOnboardingPage.setupPreferenceKey(prefs), true);
-    if (!mounted) return;
     setState(() {
       _showSetupGuide = false;
       _selectedIndex = 1;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        showInteractivePosCashierTour(context, _cashierTourTargets);
-      }
-    });
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await showInteractivePosCashierTour(context, _cashierTourTargets);
+    await prefs.setBool(PosOnboardingPage.setupPreferenceKey(prefs), true);
+    if (!mounted) return;
+    setState(() => _setupCompleted = true);
   }
 
   List<Widget> get _pages => [
@@ -168,7 +174,11 @@ class _PosShellPageState extends State<PosShellPage>
     ),
     const PosTableOrderPage(),
     const PosTableManagementPage(),
-    PosInventoryPage(isGridView: _stockGridView),
+    PosInventoryPage(
+      key: ValueKey('inventory-$_inventoryInitialSection'),
+      isGridView: _stockGridView,
+      initialSection: _inventoryInitialSection,
+    ),
     const PosPromoPage(),
     const PosCustomerPage(),
     const PosOutletPage(),
@@ -178,7 +188,160 @@ class _PosShellPageState extends State<PosShellPage>
     const PosPrinterPage(),
     const PosOfflineQueuePage(),
     const PosPurchaseReturnPage(),
+    const PosSettingsPage(),
   ];
+
+  void _openSetupGuide(BuildContext blocContext) {
+    blocContext.read<PosBloc>().add(LoadPosData());
+    setState(() => _showSetupGuide = true);
+  }
+
+  void _navigateSetupTarget(int index, [String? section]) {
+    if (index < 0 || index >= _destinations.length) return;
+    setState(() {
+      if (index == 7 && section != null) {
+        _inventoryInitialSection = section;
+      }
+      _showSetupGuide = false;
+      _selectedIndex = index;
+    });
+  }
+
+  Future<void> _continueSetup(BuildContext blocContext) async {
+    final posBloc = blocContext.read<PosBloc>();
+    final lockCubit = blocContext.read<AppLockCubit>();
+    posBloc.add(LoadPosData());
+    try {
+      await posBloc.stream
+          .firstWhere(
+            (state) =>
+                state.status == PosStatus.success ||
+                state.status == PosStatus.failure,
+          )
+          .timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      // Tetap lanjut menggunakan cache terakhir saat jaringan sedang lambat.
+    }
+    if (!mounted) return;
+    final pos = posBloc.state;
+    final features = Map<String, dynamic>.from(
+      pos.runtimeConfig['features'] as Map? ?? const {},
+    );
+    final health = Map<String, dynamic>.from(
+      pos.runtimeConfig['configuration_health'] as Map? ?? const {},
+    );
+    final warehouseResult = await sl<PosInventoryRepository>().getWarehouses();
+    final warehouses = warehouseResult.fold(
+      (_) => <Map<String, dynamic>>[],
+      (items) => items,
+    );
+    if (!mounted) return;
+    if (features['track_stock'] != false && warehouses.isEmpty) {
+      _navigateSetupTarget(7, 'warehouse');
+      return;
+    }
+    if (!pos.stores.any((store) => store.status.toLowerCase() == 'active')) {
+      _navigateSetupTarget(10);
+      return;
+    }
+    if (pos.products.isEmpty) {
+      _navigateSetupTarget(2);
+      return;
+    }
+    if (health['valid'] == false) {
+      _navigateSetupTarget(17);
+      return;
+    }
+    final stockTrackedProducts = pos.products
+        .where((product) => product.tracksStock)
+        .toList();
+    final hasInitialStock =
+        features['track_stock'] == false ||
+        stockTrackedProducts.isEmpty ||
+        stockTrackedProducts.any((product) => product.stock > 0);
+    if (!hasInitialStock) {
+      _navigateSetupTarget(7, 'stock');
+      return;
+    }
+    final lock = lockCubit.state;
+    final hasPin =
+        lock.hasPinConfigured ||
+        (lock.activeEmployeeId?.isNotEmpty == true &&
+            lock.operatorSessionToken.isNotEmpty);
+    if (!hasPin) {
+      await lockCubit.lock();
+      return;
+    }
+    if (pos.activeShift == null) {
+      _navigateSetupTarget(11);
+      return;
+    }
+    await _completeSetupAndStartCashier();
+  }
+
+  Widget _buildShellBody(bool isMobile) {
+    if (_showSetupGuide) {
+      return PosSetupGuidePage(
+        onNavigate: _navigateSetupTarget,
+        onStartCashier: _completeSetupAndStartCashier,
+      );
+    }
+
+    final page = isMobile
+        ? _pages[_selectedIndex]
+        : Row(
+            children: [
+              if (_sidebarMode != 2) ...[
+                _buildDesktopSidebar(),
+                const VerticalDivider(width: 1, thickness: 1),
+              ],
+              Expanded(child: _pages[_selectedIndex]),
+            ],
+          );
+    if (_setupCompleted) return page;
+
+    return Column(
+      children: [
+        Expanded(child: page),
+        Builder(
+          builder: (bannerContext) => Material(
+            color: const Color(0xFFFFF7E6),
+            child: InkWell(
+              onTap: () => _openSetupGuide(bannerContext),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 9,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.route_outlined, color: Colors.orange.shade800),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Setup POS belum selesai. Simpan langkah ini, lalu kembali ke panduan.',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _openSetupGuide(bannerContext),
+                      child: const Text('Ringkasan'),
+                    ),
+                    const SizedBox(width: 4),
+                    FilledButton.icon(
+                      onPressed: () => _continueSetup(bannerContext),
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                      label: const Text('Selanjutnya'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +362,16 @@ class _PosShellPageState extends State<PosShellPage>
         listenWhen: (previous, current) => previous.status != current.status,
         listener: (context, state) {
           if (state.status == AppLockStatus.unlocked) {
+            final setupCompleted =
+                PosOnboardingPage.isOperationalSetupCompleted(
+                  sl<SharedPreferences>(),
+                );
+            if (!setupCompleted) {
+              setState(() {
+                _setupCompleted = false;
+                _showSetupGuide = true;
+              });
+            }
             _loadPOSAfterUnlock(context);
           } else {
             _posDataRequested = false;
@@ -477,27 +650,7 @@ class _PosShellPageState extends State<PosShellPage>
                         },
                       )
                     : null,
-                body: SafeArea(
-                  child: _showSetupGuide
-                      ? PosSetupGuidePage(
-                          onNavigate: (index) => setState(() {
-                            _showSetupGuide = false;
-                            _selectedIndex = index;
-                          }),
-                          onStartCashier: _completeSetupAndStartCashier,
-                        )
-                      : isMobile
-                      ? _pages[_selectedIndex]
-                      : Row(
-                          children: [
-                            if (_sidebarMode != 2) ...[
-                              _buildDesktopSidebar(),
-                              const VerticalDivider(width: 1, thickness: 1),
-                            ],
-                            Expanded(child: _pages[_selectedIndex]),
-                          ],
-                        ),
-                ),
+                body: SafeArea(child: _buildShellBody(isMobile)),
                 floatingActionButton:
                     isMobile && MediaQuery.of(context).viewInsets.bottom == 0
                     ? FloatingActionButton(

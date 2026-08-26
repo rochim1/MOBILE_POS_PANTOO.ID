@@ -172,7 +172,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
     if (warehouses.isEmpty) {
       AppToast.error(
         context,
-        'Belum ada warehouse aktif. Buka Inventori > Warehouse & Lokasi untuk membuatnya.',
+        'Belum ada warehouse aktif dengan capability Lokasi Penjualan. Aktifkan melalui Inventori > Warehouse & Lokasi.',
       );
       name.dispose();
       code.dispose();
@@ -235,9 +235,9 @@ class _PosOutletPageState extends State<PosOutletPage> {
                   initialValue: selectedWarehouseId,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Lokasi stok / warehouse',
+                    labelText: 'Lokasi penjualan / warehouse',
                     helperText:
-                        'Seluruh stok dan transaksi outlet memakai lokasi ini',
+                        'Hanya warehouse aktif dengan capability Lokasi Penjualan',
                   ),
                   items: warehouses
                       .map(
@@ -264,7 +264,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                                 selectedWarehouseId == null) {
                               AppToast.error(
                                 sheetContext,
-                                'Nama, kode, dan lokasi warehouse wajib diisi',
+                                'Nama, kode, dan lokasi penjualan wajib diisi',
                               );
                               return;
                             }

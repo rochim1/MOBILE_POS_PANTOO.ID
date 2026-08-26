@@ -56,4 +56,18 @@ void main() {
     await prefs.setBool(key, true);
     expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isTrue);
   });
+
+  test('routing awal selalu melewati gate database onboarding', () async {
+    SharedPreferences.setMockInitialValues({
+      'instansi_id': 'tenant-gate',
+      'user_id': 'cashier-gate',
+      'pos_onboarding_completed_v2:tenant-gate:cashier-gate': true,
+    });
+    final prefs = await SharedPreferences.getInstance();
+
+    expect(
+      PosOnboardingPage.initialDestination(prefs),
+      isA<PosOnboardingGate>(),
+    );
+  });
 }

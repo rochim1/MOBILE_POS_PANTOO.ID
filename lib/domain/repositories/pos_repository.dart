@@ -896,6 +896,11 @@ class PosRepository {
       return Right(
         (root?['cabang'] as List? ?? const [])
             .map((value) => Map<String, dynamic>.from(value as Map))
+            .where(
+              (warehouse) =>
+                  warehouse['status']?.toString() == 'active' &&
+                  warehouse['is_sellable_location'] == true,
+            )
             .toList(),
       );
     } catch (error) {
