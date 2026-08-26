@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'pos_page.dart';
 import 'pos_product_page.dart';
 import 'pos_order_page.dart';
@@ -21,6 +22,9 @@ import 'pos_promo_page.dart';
 import 'pos_settings_page.dart';
 import 'pos_report_page.dart';
 import 'pos_purchase_return_page.dart';
+import 'pos_setup_guide_page.dart';
+import 'pos_onboarding_page.dart';
+import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_drawer.dart';
 import '../home/home_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -34,8 +38,13 @@ import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 
 class PosShellPage extends StatefulWidget {
   final bool prepareDashboard;
+  final bool showSetupGuide;
 
-  const PosShellPage({super.key, this.prepareDashboard = false});
+  const PosShellPage({
+    super.key,
+    this.prepareDashboard = false,
+    this.showSetupGuide = false,
+  });
 
   @override
   State<PosShellPage> createState() => _PosShellPageState();
@@ -51,14 +60,16 @@ class _PosShellPageState extends State<PosShellPage>
   bool _historyGridView = false;
   bool _posDataRequested = false;
   bool _showUnlockLoading = false;
+  late bool _showSetupGuide;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
 
   bool get _railExpanded => _sidebarMode == 0;
 
   static const _destinations = <({String label, IconData icon})>[
     (label: 'Dashboard', icon: Icons.dashboard_outlined),
     (label: 'Kasir', icon: Icons.point_of_sale_outlined),
-    (label: 'Produk', icon: Icons.inventory_2_outlined),
+    (label: 'Katalog Penjualan', icon: Icons.inventory_2_outlined),
     (label: 'Riwayat', icon: Icons.receipt_long_outlined),
     (label: 'Menu', icon: Icons.apps_outlined),
     (label: 'Table Order', icon: Icons.table_restaurant_outlined),
@@ -78,6 +89,7 @@ class _PosShellPageState extends State<PosShellPage>
   @override
   void initState() {
     super.initState();
+    _showSetupGuide = widget.showSetupGuide;
     if (widget.prepareDashboard) {
       _posDataRequested = true;
       _showUnlockLoading = true;
@@ -123,6 +135,21 @@ class _PosShellPageState extends State<PosShellPage>
     }
   }
 
+  Future<void> _completeSetupAndStartCashier() async {
+    final prefs = sl<SharedPreferences>();
+    await prefs.setBool(PosOnboardingPage.setupPreferenceKey(prefs), true);
+    if (!mounted) return;
+    setState(() {
+      _showSetupGuide = false;
+      _selectedIndex = 1;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        showInteractivePosCashierTour(context, _cashierTourTargets);
+      }
+    });
+  }
+
   List<Widget> get _pages => [
     HomePage(
       onNavigate: (index) {
@@ -130,7 +157,7 @@ class _PosShellPageState extends State<PosShellPage>
         setState(() => _selectedIndex = index);
       },
     ),
-    const PosPage(),
+    PosPage(tourTargets: _cashierTourTargets),
     PosProductPage(isGridView: _productGridView),
     PosOrderPage(isGridView: _historyGridView),
     PosMoreMenuPage(
@@ -322,6 +349,17 @@ class _PosShellPageState extends State<PosShellPage>
                   ),
                   actions: [
                     IconButton(
+                      tooltip: 'Checklist kesiapan POS',
+                      icon: Icon(
+                        _showSetupGuide
+                            ? Icons.checklist_rounded
+                            : Icons.fact_check_outlined,
+                        color: Colors.white,
+                      ),
+                      onPressed: () =>
+                          setState(() => _showSetupGuide = !_showSetupGuide),
+                    ),
+                    IconButton(
                       tooltip: 'Kunci POS',
                       icon: const Icon(Icons.lock_outline, color: Colors.white),
                       onPressed: () => context.read<AppLockCubit>().lock(),
@@ -440,7 +478,15 @@ class _PosShellPageState extends State<PosShellPage>
                       )
                     : null,
                 body: SafeArea(
-                  child: isMobile
+                  child: _showSetupGuide
+                      ? PosSetupGuidePage(
+                          onNavigate: (index) => setState(() {
+                            _showSetupGuide = false;
+                            _selectedIndex = index;
+                          }),
+                          onStartCashier: _completeSetupAndStartCashier,
+                        )
+                      : isMobile
                       ? _pages[_selectedIndex]
                       : Row(
                           children: [
@@ -493,7 +539,7 @@ class _PosShellPageState extends State<PosShellPage>
                                     child: _buildBottomNavItem(
                                       icon: Icons.inventory_2_outlined,
                                       selectedIcon: Icons.inventory_2,
-                                      label: 'Produk',
+                                      label: 'Katalog',
                                       index: 2,
                                     ),
                                   ),

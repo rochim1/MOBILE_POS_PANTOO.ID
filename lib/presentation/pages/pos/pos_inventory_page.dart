@@ -50,6 +50,15 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
           const {},
     );
     final trackStock = features['track_stock'] != false;
+    final inventoryPolicy = Map<String, dynamic>.from(
+      context.watch<PosBloc>().state.runtimeConfig['inventory_policy']
+              as Map? ??
+          const {},
+    );
+    final transferEnabled =
+        inventoryPolicy['use_transfer_request'] == true ||
+        inventoryPolicy['inventory_profile'] == 'centralized' ||
+        inventoryPolicy['inventory_profile'] == 'advanced';
     final sections = <_InventoryMenu>[
       if (permissions['view_warehouses'] == true)
         const _InventoryMenu(
@@ -65,31 +74,33 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
           'Stok Inventori',
           Icons.inventory_2_outlined,
         ),
-      if (permissions['view_inventory_purchases'] == true)
+      if (trackStock && permissions['view_inventory_purchases'] == true)
         const _InventoryMenu(
           _InventorySection.purchase,
           'Faktur Pembelian',
           Icons.receipt_long_outlined,
         ),
-      if (permissions['view_inventory_opnames'] == true)
+      if (trackStock && permissions['view_inventory_opnames'] == true)
         const _InventoryMenu(
           _InventorySection.opname,
           'Stok Opname',
           Icons.fact_check_outlined,
         ),
-      if (permissions['view_inventory_transfers'] == true)
+      if (trackStock &&
+          transferEnabled &&
+          permissions['view_inventory_transfers'] == true)
         const _InventoryMenu(
           _InventorySection.transfer,
-          'Terima Mutasi Stok',
+          'Mutasi Stok',
           Icons.move_to_inbox_outlined,
         ),
-      if (permissions['view_inventory_scraps'] == true)
+      if (trackStock && permissions['view_inventory_scraps'] == true)
         const _InventoryMenu(
           _InventorySection.scrap,
           'Stok Terbuang',
           Icons.delete_sweep_outlined,
         ),
-      if (permissions['view_purchase_returns'] == true)
+      if (trackStock && permissions['view_purchase_returns'] == true)
         const _InventoryMenu(
           _InventorySection.purchaseReturn,
           'Retur Pembelian',

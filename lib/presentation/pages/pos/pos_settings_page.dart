@@ -13,6 +13,7 @@ import '../../widgets/pos_category_navigation.dart';
 import 'pos_offline_queue_page.dart';
 import 'pos_outlet_page.dart';
 import 'pos_printer_page.dart';
+import 'pos_setup_guide_page.dart';
 
 enum _SettingsSection {
   transaction,
@@ -337,6 +338,19 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             'Izinkan Penjualan Tanpa Shift Aktif',
             _allowOutOfShift,
             (v) => setState(() => _allowOutOfShift = v),
+          ),
+          Material(
+            type: MaterialType.transparency,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.explore_outlined),
+              title: const Text('Ulangi Panduan Kasir'),
+              subtitle: const Text(
+                'Pelajari kembali produk, order, pembayaran, riwayat, dan shift.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showPosCashierTour(context),
+            ),
           ),
         ],
       ),

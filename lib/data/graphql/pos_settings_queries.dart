@@ -3,6 +3,8 @@ class PosSettingsQueries {
     query GetInventorySettings {
       GetInventorySettings {
        pos_defaults {
+        onboarding_completed
+        onboarding_version
         business_profile
         enabled_features { use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
         pajak_persen
@@ -29,6 +31,8 @@ class PosSettingsQueries {
     mutation UpdatePOSDefaults(\$input: POSDefaultsInput!) {
       UpdatePOSDefaults(input: \$input) {
        pos_defaults {
+        onboarding_completed
+        onboarding_version
         business_profile
         enabled_features { use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
         pajak_persen

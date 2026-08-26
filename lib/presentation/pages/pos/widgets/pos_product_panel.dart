@@ -21,6 +21,7 @@ class PosProductPanel extends StatefulWidget {
   final String selectedCategory;
   final List<String> categories;
   final ValueChanged<String> onCategorySelected;
+  final GlobalKey? searchTourKey;
 
   const PosProductPanel({
     super.key,
@@ -28,6 +29,7 @@ class PosProductPanel extends StatefulWidget {
     required this.selectedCategory,
     required this.categories,
     required this.onCategorySelected,
+    this.searchTourKey,
   });
 
   @override
@@ -257,41 +259,47 @@ class _PosProductPanelState extends State<PosProductPanel> {
         children: [
           Expanded(
             flex: 6,
-            child: TextField(
-              focusNode: _searchFocusNode,
-              decoration: InputDecoration(
-                hintText: 'Cari nama, kode, SKU, atau barcode...',
-                hintStyle: const TextStyle(fontSize: 14, color: Colors.black38),
-                filled: true,
-                fillColor: Colors.white,
-                prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                suffixIcon: _remoteSearching
-                    ? const Padding(
-                        padding: EdgeInsets.all(13),
-                        child: SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+            child: KeyedSubtree(
+              key: widget.searchTourKey,
+              child: TextField(
+                focusNode: _searchFocusNode,
+                decoration: InputDecoration(
+                  hintText: 'Cari nama, kode, SKU, atau barcode...',
+                  hintStyle: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black38,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                  suffixIcon: _remoteSearching
+                      ? const Padding(
+                          padding: EdgeInsets.all(13),
+                          child: SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Scan barcode',
+                          onPressed: () => _scanBarcode(context, state),
+                          icon: const Icon(
+                            Icons.qr_code_scanner,
+                            color: Colors.black54,
+                          ),
                         ),
-                      )
-                    : IconButton(
-                        tooltip: 'Scan barcode',
-                        onPressed: () => _scanBarcode(context, state),
-                        icon: const Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.black54,
-                        ),
-                      ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.primary),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
+                onChanged: (value) => _onSearchChanged(value, state),
               ),
-              onChanged: (value) => _onSearchChanged(value, state),
             ),
           ),
           if (widget.isMobile) ...[

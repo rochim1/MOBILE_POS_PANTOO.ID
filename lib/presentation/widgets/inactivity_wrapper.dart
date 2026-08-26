@@ -8,10 +8,12 @@ import '../pages/common/pin_lock_screen.dart';
 class InactivityWrapper extends StatefulWidget {
   final Widget child;
   final Duration inactivityDuration;
+  final bool authenticated;
 
   const InactivityWrapper({
     super.key,
     required this.child,
+    required this.authenticated,
     this.inactivityDuration = const Duration(
       minutes: 5,
     ), // Auto-lock after 5 mins
@@ -27,7 +29,20 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
   @override
   void initState() {
     super.initState();
-    _startTimer();
+    if (widget.authenticated) _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant InactivityWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.authenticated == widget.authenticated) return;
+    if (widget.authenticated) {
+      _startTimer();
+    } else {
+      _timer?.cancel();
+      _timer = null;
+      context.read<AppLockCubit>().reset();
+    }
   }
 
   @override
@@ -38,10 +53,12 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
 
   void _startTimer() {
     _timer?.cancel();
+    if (!widget.authenticated) return;
     _timer = Timer(widget.inactivityDuration, _lockApp);
   }
 
   void _resetTimer() {
+    if (!widget.authenticated) return;
     final state = context.read<AppLockCubit>().state;
     if (state.status == AppLockStatus.unlocked) {
       _startTimer();
@@ -49,6 +66,7 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
   }
 
   Future<void> _lockApp() async {
+    if (!widget.authenticated || !mounted) return;
     await context.read<AppLockCubit>().lock();
   }
 
@@ -69,7 +87,8 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
           }
         },
         builder: (context, state) {
-          final isLocked = state.status == AppLockStatus.locked;
+          final isLocked =
+              widget.authenticated && state.status == AppLockStatus.locked;
           return Stack(
             children: [
               widget.child,

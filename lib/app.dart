@@ -53,7 +53,12 @@ class App extends StatelessWidget {
                 );
               }
             },
-            child: InactivityWrapper(child: child!),
+            child: BlocBuilder<AuthCubit, AuthState>(
+              builder: (context, authState) => InactivityWrapper(
+                authenticated: authState.isAuthenticated,
+                child: child!,
+              ),
+            ),
           );
         },
         debugShowCheckedModeBanner: false,

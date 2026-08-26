@@ -14,18 +14,21 @@ import 'pos_payment_page.dart';
 import 'widgets/pos_category_sidebar.dart';
 import 'widgets/shift_management_panel.dart';
 import 'widgets/pos_info_panel.dart';
+import 'widgets/pos_cashier_tour.dart';
 
 class PosPage extends StatelessWidget {
-  const PosPage({super.key});
+  final PosCashierTourTargets? tourTargets;
+  const PosPage({super.key, this.tourTargets});
 
   @override
   Widget build(BuildContext context) {
-    return const PosPageView();
+    return PosPageView(tourTargets: tourTargets);
   }
 }
 
 class PosPageView extends StatefulWidget {
-  const PosPageView({super.key});
+  final PosCashierTourTargets? tourTargets;
+  const PosPageView({super.key, this.tourTargets});
 
   @override
   State<PosPageView> createState() => _PosPageViewState();
@@ -211,6 +214,8 @@ class _PosPageViewState extends State<PosPageView> {
                                         child: TabBarView(
                                           children: [
                                             PosProductPanel(
+                                              searchTourKey:
+                                                  widget.tourTargets?.search,
                                               isMobile: isMobile,
                                               selectedCategory:
                                                   _selectedCategory,
@@ -243,6 +248,8 @@ class _PosPageViewState extends State<PosPageView> {
                                     Expanded(
                                       flex: 5,
                                       child: PosProductPanel(
+                                        searchTourKey:
+                                            widget.tourTargets?.search,
                                         isMobile: isMobile,
                                         selectedCategory: _selectedCategory,
                                         categories: availableCategories,
@@ -387,20 +394,23 @@ class _PosPageViewState extends State<PosPageView> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _showSalesContext(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    child: KeyedSubtree(
+                      key: widget.tourTargets?.salesContext,
+                      child: OutlinedButton(
+                        onPressed: () => _showSalesContext(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: const Tooltip(
-                        message: 'Channel, level harga, pajak dan promo',
-                        child: Icon(
-                          Icons.tune_outlined,
-                          color: AppColors.primary,
+                        child: const Tooltip(
+                          message: 'Channel, level harga, pajak dan promo',
+                          child: Icon(
+                            Icons.tune_outlined,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
@@ -408,33 +418,36 @@ class _PosPageViewState extends State<PosPageView> {
                   const SizedBox(width: 8),
                   Expanded(
                     flex: 2,
-                    child: OutlinedButton(
-                      onPressed: state.cart.isEmpty
-                          ? null
-                          : () => _holdOrder(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 4,
-                        ),
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.download, color: Colors.grey, size: 18),
-                          SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'Simpan',
-                              style: TextStyle(color: Colors.grey),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                    child: KeyedSubtree(
+                      key: widget.tourTargets?.saveOrder,
+                      child: OutlinedButton(
+                        onPressed: state.cart.isEmpty
+                            ? null
+                            : () => _holdOrder(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 4,
                           ),
-                        ],
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.download, color: Colors.grey, size: 18),
+                            SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Simpan',
+                                style: TextStyle(color: Colors.grey),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -442,6 +455,7 @@ class _PosPageViewState extends State<PosPageView> {
               ),
             ),
             SizedBox(
+              key: widget.tourTargets?.payment,
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: state.cart.isEmpty

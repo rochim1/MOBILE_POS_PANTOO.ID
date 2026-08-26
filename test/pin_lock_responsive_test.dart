@@ -52,6 +52,31 @@ class TestLockCubit extends AppLockCubit {
 }
 
 void main() {
+  testWidgets('PIN tidak menutupi intro atau login tanpa sesi autentikasi', (
+    tester,
+  ) async {
+    final cubit = TestLockCubit()..seedLocked();
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(
+      BlocProvider<AppLockCubit>.value(
+        value: cubit,
+        child: const MaterialApp(
+          home: InactivityWrapper(
+            authenticated: false,
+            inactivityDuration: Duration(milliseconds: 1),
+            child: Scaffold(body: Text('Onboarding publik')),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+
+    expect(find.text('Onboarding publik'), findsOneWidget);
+    expect(find.text('Akses Kasir'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('PIN lock screen does not overflow on a short phone', (
     tester,
   ) async {
@@ -86,7 +111,8 @@ void main() {
       BlocProvider<AppLockCubit>.value(
         value: cubit,
         child: MaterialApp(
-          builder: (context, child) => InactivityWrapper(child: child!),
+          builder: (context, child) =>
+              InactivityWrapper(authenticated: true, child: child!),
           home: const Scaffold(body: Text('Dashboard')),
         ),
       ),

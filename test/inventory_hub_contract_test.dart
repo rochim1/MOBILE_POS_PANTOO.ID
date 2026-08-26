@@ -1,8 +1,26 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/data/graphql/pos_inventory_queries.dart';
 
 void main() {
   group('Kontrak hub Inventori Mobile', () {
+    test('menu operasional mengikuti tracking stok dan profil transfer', () {
+      final source = File(
+        'lib/presentation/pages/pos/pos_inventory_page.dart',
+      ).readAsStringSync();
+      expect(
+        source,
+        contains("final trackStock = features['track_stock'] != false"),
+      );
+      expect(
+        source,
+        contains("inventoryPolicy['use_transfer_request'] == true"),
+      );
+      expect(source, contains('trackStock && permissions'));
+      expect(source, contains("'Mutasi Stok'"));
+    });
+
     test('menyediakan dokumen inventori inti', () {
       expect(PosInventoryQueries.warehouses, contains('getAllCabangs'));
       expect(
