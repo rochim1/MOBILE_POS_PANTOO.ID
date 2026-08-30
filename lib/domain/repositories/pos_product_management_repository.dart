@@ -26,17 +26,43 @@ class PosProductManagementRepository {
         return Left(AppErrorHandler.handle(shiftResult.exception!));
       }
       final activeShift = shiftResult.data?['GetMyActiveKasirShift'];
-      final toko = activeShift?['toko'];
-      final branchId = toko?['lokasi_cabang_id']?.toString();
-      if (activeShift == null) {
-        return const Left(
-          ServerFailure('Buka shift kasir sebelum menambahkan produk'),
+      Map<String, dynamic>? toko = activeShift?['toko'] == null
+          ? null
+          : Map<String, dynamic>.from(activeShift['toko'] as Map);
+
+      // Katalog adalah data master: pembuatannya tidak boleh bergantung pada
+      // shift transaksi. Jika belum ada shift, gunakan toko aktif pertama yang
+      // sudah terhubung ke lokasi penjualan.
+      if (toko == null) {
+        final storeResult = await _clientProvider.client.query(
+          QueryOptions(
+            document: gql(PosQueries.getAllPOSToko),
+            variables: const {
+              'pagination': {'page': 0, 'limit': 100},
+            },
+            fetchPolicy: FetchPolicy.networkOnly,
+          ),
         );
+        if (storeResult.hasException) {
+          return Left(AppErrorHandler.handle(storeResult.exception!));
+        }
+        final stores =
+            storeResult.data?['GetAllPOSToko']?['items'] as List? ?? const [];
+        final configuredStores = stores.whereType<Map>().where(
+          (store) =>
+              store['status']?.toString().toLowerCase() == 'active' &&
+              store['lokasi_cabang_id']?.toString().isNotEmpty == true,
+        );
+        if (configuredStores.isNotEmpty) {
+          toko = Map<String, dynamic>.from(configuredStores.first);
+        }
       }
+
+      final branchId = toko?['lokasi_cabang_id']?.toString();
       if (branchId == null || branchId.isEmpty) {
         return const Left(
           ServerFailure(
-            'Outlet aktif belum terhubung ke warehouse. Atur lokasi outlet terlebih dahulu.',
+            'Hubungkan toko aktif ke lokasi penjualan sebelum menambahkan produk.',
           ),
         );
       }

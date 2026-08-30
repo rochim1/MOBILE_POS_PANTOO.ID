@@ -46,7 +46,16 @@ class PosInventoryQueries {
     query GetAllInventoryOpnames($filter: InventoryOpnameFilter, $page: Int, $limit: Int) {
       GetAllInventoryOpnames(filter: $filter, page: $page, limit: $limit) {
         total page limit
-        data { _id no_opname tanggal_opname status catatan lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty_system qty_fisik selisih unit } }
+        data {
+          _id no_opname tanggal_opname status catatan alasan_penolakan
+          approval_required_level approval_current_level approval_history_id
+          lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama }
+          items {
+            _id inventaris_id stock_balance_id snapshot_updated_at
+            kode_inventaris nama_inventaris qty_system qty_fisik selisih unit catatan_item
+            batch_counts { no_batch tanggal_kadaluarsa qty_system qty_fisik }
+          }
+        }
       }
     }
   ''';
@@ -64,7 +73,7 @@ class PosInventoryQueries {
     query GetAllInventoryScraps($filter: ScrapFilterInput, $pagination: PaginationInput) {
       GetAllInventoryScraps(filter: $filter, pagination: $pagination) {
         totalCount
-        items { _id no_scrap tanggal_scrap status alasan alasan_detail jenis_insiden lokasi_kejadian catatan total_nilai_scrap createdAt updatedAt items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty unit nilai_per_unit no_batch catatan_item lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama tindakan jumlah_hasil_recycle } }
+        items { _id no_scrap tanggal_scrap status alasan alasan_detail jenis_insiden lokasi_kejadian catatan total_nilai_scrap createdAt updatedAt tanggal_disetujui journal_id diajukan_oleh { _id name } disetujui_oleh { _id name } items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty unit nilai_per_unit total_nilai no_batch catatan_item lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama tindakan jumlah_hasil_recycle jumlah_hilang stok_sebelum stok_sesudah saldo_lokasi_sebelum saldo_lokasi_sesudah } }
       }
     }
   ''';
@@ -92,8 +101,29 @@ class PosInventoryQueries {
 
   static const locationItems = r'''
     query GetPOSInventoryLocationItems($cabangId: ID!) {
-      GetInventarisAvailableInLocation(cabang_id: $cabangId, limit: 200) {
+      GetInventarisAvailableInLocation(cabang_id: $cabangId, limit: 1000, include_non_sellable: true) {
         inventaris_id _id stock_balance_id kode_inventaris nama_inventaris unit qty harga_beli
+        sku barcode
+        batches { no_batch tanggal_kadaluarsa qty aktif }
+      }
+    }
+  ''';
+
+  static const locationBalances = r'''
+    query GetPOSInventoryLocationBalances($inventoryId: ID!, $warehouseId: ID) {
+      GetInventoryLocationBalances(
+        inventaris_id: $inventoryId
+        filter: { lokasi_cabang_id: $warehouseId }
+        sorting: { qty: "desc" }
+        pagination: { page: 0, limit: 200 }
+      ) {
+        items {
+          _id inventaris_id qty
+          lokasi_cabang_id lokasi_cabang_nama
+          lokasi_gedung_kode lokasi_gedung_nama
+          lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama
+          batches { no_batch tanggal_kadaluarsa qty aktif }
+        }
       }
     }
   ''';

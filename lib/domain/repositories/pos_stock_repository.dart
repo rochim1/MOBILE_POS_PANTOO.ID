@@ -11,30 +11,81 @@ class PosStockRepository {
 
   PosStockRepository(this._clientProvider);
 
-  Future<Either<Failure, List<PosStock>>> getStocks({
-    String? search,
-    String? stockFilter,
-  }) async {
+  Future<Either<Failure, String>> getDefaultStockLocationId() =>
+      _getStockLocationId();
+
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  getStockLocations() async {
     try {
-      final locationResult = await _clientProvider.client.query(
+      final result = await _clientProvider.client.query(
         QueryOptions(
-          document: gql(PosStockQueries.getActiveStockLocation),
+          document: gql(PosStockQueries.getStockLocations),
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
-      if (locationResult.hasException) {
-        return Left(AppErrorHandler.handle(locationResult.exception!));
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
       }
-      final branchId = locationResult
-          .data?['GetMyActiveKasirShift']?['toko']?['lokasi_cabang_id']
-          ?.toString();
-      if (branchId == null || branchId.isEmpty) {
-        return const Left(
-          ServerFailure(
-            'Buka shift pada toko yang memiliki lokasi stok terlebih dahulu.',
-          ),
-        );
-      }
+      final rows =
+          result.data?['getAllCabangs']?['cabang'] as List? ?? const [];
+      return Right(
+        rows
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .where((row) => row['_id']?.toString().isNotEmpty == true)
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, String>> _getStockLocationId() async {
+    final result = await _clientProvider.client.query(
+      QueryOptions(
+        document: gql(PosStockQueries.getActiveStockLocation),
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+    if (result.hasException) {
+      return Left(AppErrorHandler.handle(result.exception!));
+    }
+    final shiftBranchId = result
+        .data?['GetMyActiveKasirShift']?['toko']?['lokasi_cabang_id']
+        ?.toString();
+    if (shiftBranchId?.isNotEmpty == true) return Right(shiftBranchId!);
+
+    final stores = result.data?['GetAllPOSToko']?['items'] as List? ?? const [];
+    final configuredStore = stores.whereType<Map>().where(
+      (store) =>
+          store['status']?.toString() == 'active' &&
+          store['lokasi_cabang_id']?.toString().isNotEmpty == true,
+    );
+    if (configuredStore.isNotEmpty) {
+      return Right(configuredStore.first['lokasi_cabang_id'].toString());
+    }
+    return const Left(
+      ServerFailure(
+        'Hubungkan toko aktif ke lokasi penjualan terlebih dahulu.',
+      ),
+    );
+  }
+
+  Future<Either<Failure, List<PosStock>>> getStocks({
+    String? search,
+    String? stockFilter,
+    String? locationId,
+  }) async {
+    try {
+      final locationResult = locationId?.trim().isNotEmpty == true
+          ? Right<Failure, String>(locationId!.trim())
+          : await _getStockLocationId();
+      final locationFailure = locationResult.fold(
+        (failure) => failure,
+        (_) => null,
+      );
+      if (locationFailure != null) return Left(locationFailure);
+      final branchId = locationResult.getOrElse(() => '');
 
       final QueryOptions options = QueryOptions(
         document: gql(PosStockQueries.getStockByStore),
@@ -87,27 +138,18 @@ class PosStockRepository {
     required String reason,
     String? note,
     required String stockBalanceId,
+    String? locationId,
   }) async {
     try {
-      final locationResult = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosStockQueries.getActiveStockLocation),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
+      final locationResult = locationId?.trim().isNotEmpty == true
+          ? Right<Failure, String>(locationId!.trim())
+          : await _getStockLocationId();
+      final locationFailure = locationResult.fold(
+        (failure) => failure,
+        (_) => null,
       );
-      if (locationResult.hasException) {
-        return Left(AppErrorHandler.handle(locationResult.exception!));
-      }
-      final branchId = locationResult
-          .data?['GetMyActiveKasirShift']?['toko']?['lokasi_cabang_id']
-          ?.toString();
-      if (branchId == null || branchId.isEmpty) {
-        return const Left(
-          ServerFailure(
-            'Lokasi stok toko belum tersedia. Buka shift pada toko yang memiliki lokasi cabang.',
-          ),
-        );
-      }
+      if (locationFailure != null) return Left(locationFailure);
+      final branchId = locationResult.getOrElse(() => '');
       final result = await _clientProvider.client.mutate(
         MutationOptions(
           document: gql(PosStockQueries.adjustStock),
@@ -141,23 +183,19 @@ class PosStockRepository {
     }
   }
 
-  Future<Either<Failure, PosStockStatistics>> getStatistics() async {
+  Future<Either<Failure, PosStockStatistics>> getStatistics({
+    String? locationId,
+  }) async {
     try {
-      final locationResult = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosStockQueries.getActiveStockLocation),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
+      final locationResult = locationId?.trim().isNotEmpty == true
+          ? Right<Failure, String>(locationId!.trim())
+          : await _getStockLocationId();
+      final locationFailure = locationResult.fold(
+        (failure) => failure,
+        (_) => null,
       );
-      if (locationResult.hasException) {
-        return Left(AppErrorHandler.handle(locationResult.exception!));
-      }
-      final branchId = locationResult
-          .data?['GetMyActiveKasirShift']?['toko']?['lokasi_cabang_id']
-          ?.toString();
-      if (branchId == null || branchId.isEmpty) {
-        return const Left(ServerFailure('Lokasi stok toko belum tersedia'));
-      }
+      if (locationFailure != null) return Left(locationFailure);
+      final branchId = locationResult.getOrElse(() => '');
       final result = await _clientProvider.client.query(
         QueryOptions(
           document: gql(PosStockQueries.getStockByStore),

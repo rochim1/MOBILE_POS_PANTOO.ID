@@ -679,7 +679,7 @@ class PosRepository {
       final customers = items
           .map(
             (e) => PosCustomer(
-              id: e['_id']?.toString() ?? '',
+              id: (e['_id'] ?? e['id'])?.toString() ?? '',
               name: e['name']?.toString() ?? 'Unknown',
               phone: e['phone']?.toString() ?? '',
               email: e['email']?.toString() ?? '',
@@ -691,6 +691,7 @@ class PosRepository {
               customerType: e['customer_type']?.toString() ?? 'personal',
             ),
           )
+          .where((customer) => customer.id.trim().isNotEmpty)
           .toList();
 
       if (search.trim().isEmpty) {
@@ -796,6 +797,7 @@ class PosRepository {
               customerSegment: 'regular',
             ),
           )
+          .where((customer) => customer.id.trim().isNotEmpty)
           .toList();
     } catch (e) {
       return [];
@@ -1273,6 +1275,18 @@ class PosRepository {
           },
         )
         .toList();
+    final receiptItems = cart.entries
+        .map(
+          (entry) => <String, dynamic>{
+            'inventaris_id': entry.key.id,
+            'nama_inventaris': entry.key.name,
+            'unit': entry.key.saleUnit,
+            'qty': entry.value,
+            'harga_jual': entry.key.price,
+            'subtotal': entry.key.price * entry.value,
+          },
+        )
+        .toList();
 
     final payload = {
       'client_transaction_id': const Uuid().v4(),
@@ -1366,6 +1380,11 @@ class PosRepository {
             customerName: pelangganName ?? '',
             customerPhone: pelangganPhone ?? '',
             customerEmail: pelangganEmail ?? '',
+            items: receiptItems,
+            salesChannel: salesChannel,
+            customerSegment: customerSegment,
+            promoCode: promoCode ?? '',
+            note: catatan ?? '',
           ),
         );
       }
@@ -1386,6 +1405,12 @@ class PosRepository {
             customerName: pelangganName ?? '',
             customerPhone: pelangganPhone ?? '',
             customerEmail: pelangganEmail ?? '',
+            cashierName: _prefs.getString('name') ?? '',
+            salesChannel: salesChannel,
+            customerSegment: customerSegment,
+            promoCode: promoCode ?? '',
+            note: catatan ?? '',
+            items: receiptItems,
           ),
         );
       }
@@ -1416,6 +1441,13 @@ class PosRepository {
             customerName: pelangganName ?? '',
             customerPhone: pelangganPhone ?? '',
             customerEmail: pelangganEmail ?? '',
+            date: payload['tanggal'].toString(),
+            cashierName: _prefs.getString('name') ?? '',
+            salesChannel: salesChannel,
+            customerSegment: customerSegment,
+            promoCode: promoCode ?? '',
+            note: catatan ?? '',
+            items: receiptItems,
           ),
         );
       }
@@ -1454,6 +1486,13 @@ class PosRepository {
           customerName: pelangganName ?? '',
           customerPhone: pelangganPhone ?? '',
           customerEmail: pelangganEmail ?? '',
+          date: payload['tanggal'].toString(),
+          cashierName: _prefs.getString('name') ?? '',
+          salesChannel: salesChannel,
+          customerSegment: customerSegment,
+          promoCode: promoCode ?? '',
+          note: catatan ?? '',
+          items: receiptItems,
         ),
       );
     } catch (e) {
@@ -1600,6 +1639,11 @@ class PosRepository {
     required String customerName,
     required String customerPhone,
     required String customerEmail,
+    List<Map<String, dynamic>> items = const [],
+    String salesChannel = '',
+    String customerSegment = '',
+    String promoCode = '',
+    String note = '',
   }) => PosTransactionResult(
     id: payload['client_transaction_id'].toString(),
     invoice: 'OFF-${DateTime.now().millisecondsSinceEpoch}',
@@ -1615,6 +1659,13 @@ class PosRepository {
     customerName: customerName,
     customerPhone: customerPhone,
     customerEmail: customerEmail,
+    date: payload['tanggal']?.toString() ?? '',
+    cashierName: _prefs.getString('name') ?? '',
+    salesChannel: salesChannel,
+    customerSegment: customerSegment,
+    promoCode: promoCode,
+    note: note,
+    items: items,
   );
 
   static List<Map<String, dynamic>> _decodeUnitConversions(String? value) {

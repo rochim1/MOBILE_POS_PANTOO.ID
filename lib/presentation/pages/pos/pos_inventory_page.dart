@@ -252,6 +252,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   Timer? _debounce;
   List<Map<String, dynamic>> _items = const [];
   String _status = '';
+  String _locationId = '';
+  String _reason = '';
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
+  List<Map<String, dynamic>> _warehouses = const [];
   int _page = 1;
   int _total = 0;
   bool _loading = true;
@@ -261,6 +266,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   void initState() {
     super.initState();
     _load();
+    if (widget.type == PosInventoryDocumentType.opname) _loadWarehouses();
   }
 
   @override
@@ -277,6 +283,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       type: widget.type,
       search: _search.text,
       status: _status,
+      locationId: _locationId,
+      dateFrom: _dateFilter(_dateFrom),
+      dateTo: _dateFilter(_dateTo),
+      reason: _reason,
       page: targetPage,
       limit: _limit,
     );
@@ -289,6 +299,219 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       });
     });
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadWarehouses() async {
+    final result = await _repository.getWarehouses();
+    if (!mounted) return;
+    result.fold((_) {}, (items) => setState(() => _warehouses = items));
+  }
+
+  String _dateFilter(DateTime? value) =>
+      value?.toIso8601String().split('T').first ?? '';
+
+  Future<void> _showOpnameFilters() async {
+    var locationId = _locationId;
+    var dateFrom = _dateFrom;
+    var dateTo = _dateTo;
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Filter Stock Opname',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: locationId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Warehouse / Lokasi',
+                    prefixIcon: Icon(Icons.warehouse_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Semua lokasi'),
+                    ),
+                    ..._warehouses.map(
+                      (item) => DropdownMenuItem(
+                        value: item['_id']?.toString() ?? '',
+                        child: Text(
+                          item['nama_cabang']?.toString() ?? '-',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => locationId = value ?? ''),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _OpnameDateFilter(
+                        label: 'Dari tanggal',
+                        value: dateFrom,
+                        onChanged: (value) =>
+                            setSheetState(() => dateFrom = value),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _OpnameDateFilter(
+                        label: 'Sampai tanggal',
+                        value: dateTo,
+                        onChanged: (value) =>
+                            setSheetState(() => dateTo = value),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setSheetState(() {
+                          locationId = '';
+                          dateFrom = null;
+                          dateTo = null;
+                        });
+                      },
+                      child: const Text('Reset'),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      child: const Text('Terapkan'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (applied != true || !mounted) return;
+    setState(() {
+      _locationId = locationId;
+      _dateFrom = dateFrom;
+      _dateTo = dateTo;
+    });
+    _load(page: 1);
+  }
+
+  Future<void> _showScrapFilters() async {
+    var reason = _reason;
+    var dateFrom = _dateFrom;
+    var dateTo = _dateTo;
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Filter Stok Terbuang',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: reason,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Alasan disposal',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Semua alasan')),
+                    DropdownMenuItem(value: 'rusak', child: Text('Rusak')),
+                    DropdownMenuItem(
+                      value: 'kadaluarsa',
+                      child: Text('Kadaluarsa'),
+                    ),
+                    DropdownMenuItem(value: 'hilang', child: Text('Hilang')),
+                    DropdownMenuItem(
+                      value: 'cacat_produksi',
+                      child: Text('Cacat produksi'),
+                    ),
+                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => reason = value ?? ''),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _OpnameDateFilter(
+                        label: 'Dari tanggal',
+                        value: dateFrom,
+                        onChanged: (value) =>
+                            setSheetState(() => dateFrom = value),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _OpnameDateFilter(
+                        label: 'Sampai tanggal',
+                        value: dateTo,
+                        onChanged: (value) =>
+                            setSheetState(() => dateTo = value),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => setSheetState(() {
+                        reason = '';
+                        dateFrom = null;
+                        dateTo = null;
+                      }),
+                      child: const Text('Reset'),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      child: const Text('Terapkan'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (applied != true || !mounted) return;
+    setState(() {
+      _reason = reason;
+      _dateFrom = dateFrom;
+      _dateTo = dateTo;
+    });
+    _load(page: 1);
   }
 
   void _onSearch(String _) {
@@ -361,6 +584,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       ),
     );
     final reason = controller.text.trim();
+    await Future<void>.delayed(kThemeAnimationDuration);
     controller.dispose();
     if (confirmed != true) return;
     if (requiresReason && reason.length < 3) {
@@ -496,12 +720,42 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah'),
                 );
+                final hasOpnameFilter =
+                    _locationId.isNotEmpty ||
+                    _dateFrom != null ||
+                    _dateTo != null;
+                final opnameFilter = IconButton.filledTonal(
+                  onPressed: _showOpnameFilters,
+                  tooltip: 'Filter lokasi dan tanggal',
+                  icon: Badge(
+                    isLabelVisible: hasOpnameFilter,
+                    child: const Icon(Icons.tune_rounded),
+                  ),
+                );
+                final hasScrapFilter =
+                    _reason.isNotEmpty || _dateFrom != null || _dateTo != null;
+                final scrapFilter = IconButton.filledTonal(
+                  onPressed: _showScrapFilters,
+                  tooltip: 'Filter alasan dan tanggal',
+                  icon: Badge(
+                    isLabelVisible: hasScrapFilter,
+                    child: const Icon(Icons.tune_rounded),
+                  ),
+                );
                 if (constraints.maxWidth >= 700) {
                   return Row(
                     children: [
                       Expanded(child: search),
                       const SizedBox(width: 10),
                       SizedBox(width: 180, child: status),
+                      if (widget.type == PosInventoryDocumentType.opname) ...[
+                        const SizedBox(width: 8),
+                        opnameFilter,
+                      ],
+                      if (widget.type == PosInventoryDocumentType.scrap) ...[
+                        const SizedBox(width: 8),
+                        scrapFilter,
+                      ],
                       const SizedBox(width: 10),
                       SizedBox(height: 56, child: add),
                     ],
@@ -514,6 +768,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     Row(
                       children: [
                         Expanded(child: status),
+                        if (widget.type == PosInventoryDocumentType.opname) ...[
+                          const SizedBox(width: 8),
+                          opnameFilter,
+                        ],
+                        if (widget.type == PosInventoryDocumentType.scrap) ...[
+                          const SizedBox(width: 8),
+                          scrapFilter,
+                        ],
                         const SizedBox(width: 8),
                         add,
                       ],
@@ -636,6 +898,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   maxLines: 1,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
+              if (widget.type == PosInventoryDocumentType.scrap)
+                Text(
+                  _money(item['total_nilai_scrap']),
+                  maxLines: 1,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               if (widget.type == PosInventoryDocumentType.transfer &&
                   status == 'in_transit' &&
                   widget.canReceiveTransfer)
@@ -748,6 +1016,21 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         final value = row['qty_ordered'] ?? row['qty'] ?? row['qty_fisik'] ?? 0;
         return sum + ((value as num?)?.toDouble() ?? 0);
       });
+      final totalSystem = rows.fold<double>(
+        0,
+        (sum, row) => sum + ((row['qty_system'] as num?)?.toDouble() ?? 0),
+      );
+      final totalPhysical = rows.fold<double>(
+        0,
+        (sum, row) => sum + ((row['qty_fisik'] as num?)?.toDouble() ?? 0),
+      );
+      final totalDifference = totalPhysical - totalSystem;
+      final totalNetLoss = rows.fold<double>(0, (sum, row) {
+        final qty = (row['qty'] as num?)?.toDouble() ?? 0;
+        final recycled = (row['jumlah_hasil_recycle'] as num?)?.toDouble() ?? 0;
+        return sum +
+            ((row['jumlah_hilang'] as num?)?.toDouble() ?? qty - recycled);
+      });
       return SafeArea(
         child: DraggableScrollableSheet(
           expand: false,
@@ -795,8 +1078,53 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       icon: Icons.payments_outlined,
                       label: _money(item['grand_total']),
                     ),
+                  if (widget.type == PosInventoryDocumentType.opname) ...[
+                    _DetailMetric(
+                      icon: Icons.computer_outlined,
+                      label: '${_compactNumber(totalSystem)} stok sistem',
+                    ),
+                    _DetailMetric(
+                      icon: Icons.fact_check_outlined,
+                      label: '${_compactNumber(totalPhysical)} hasil fisik',
+                    ),
+                    _DetailMetric(
+                      icon: totalDifference == 0
+                          ? Icons.check_circle_outline
+                          : Icons.compare_arrows,
+                      label:
+                          '${totalDifference > 0 ? '+' : ''}${_compactNumber(totalDifference)} selisih',
+                    ),
+                  ],
+                  if (widget.type == PosInventoryDocumentType.scrap) ...[
+                    _DetailMetric(
+                      icon: Icons.delete_sweep_outlined,
+                      label: '${_compactNumber(totalNetLoss)} kerugian bersih',
+                    ),
+                    _DetailMetric(
+                      icon: Icons.payments_outlined,
+                      label: _money(item['total_nilai_scrap']),
+                    ),
+                  ],
                 ],
               ),
+              if (widget.type == PosInventoryDocumentType.opname &&
+                  (item['alasan_penolakan']?.toString().trim() ?? '')
+                      .isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade100),
+                  ),
+                  child: Text(
+                    'Alasan penolakan: ${item['alasan_penolakan']}',
+                    style: TextStyle(color: Colors.red.shade800),
+                  ),
+                ),
+              ],
               if ((item['catatan']?.toString().trim() ?? '').isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -824,13 +1152,50 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   final qty =
                       row['qty_ordered'] ?? row['qty'] ?? row['qty_fisik'] ?? 0;
                   final system = row['qty_system'];
+                  final isScrap = widget.type == PosInventoryDocumentType.scrap;
+                  final source =
+                      [
+                            row['lokasi_cabang_nama'],
+                            row['lokasi_gedung_nama'] ??
+                                row['lokasi_gedung_kode'],
+                            row['lokasi_ruangan_nama'] ??
+                                row['lokasi_ruangan_kode'],
+                            row['lokasi_rak_nama'],
+                          ]
+                          .map((value) => value?.toString().trim() ?? '')
+                          .where((value) => value.isNotEmpty)
+                          .join(' / ');
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(row['nama_inventaris']?.toString() ?? '-'),
-                    subtitle: system == null
+                    subtitle: isScrap
+                        ? Text(
+                            '${source.isEmpty ? 'Sumber stok tidak tercatat' : source}'
+                            '${(row['no_batch']?.toString() ?? '').isEmpty ? '' : ' • Batch ${row['no_batch']}'}\n'
+                            '${row['tindakan'] == 'recycle' ? 'Recycle ${_compactNumber(row['jumlah_hasil_recycle'])} • ' : ''}'
+                            'Hilang ${_compactNumber(row['jumlah_hilang'] ?? row['qty'])}',
+                          )
+                        : system == null
                         ? null
-                        : Text(
-                            'Sistem: $system • Selisih: ${row['selisih'] ?? 0}',
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Sistem: $system • Selisih: ${row['selisih'] ?? 0}',
+                              ),
+                              if ((row['batch_counts'] as List? ?? const [])
+                                  .isNotEmpty)
+                                Text(
+                                  '${(row['batch_counts'] as List).length} batch tercatat',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              if ((row['catatan_item']?.toString().trim() ?? '')
+                                  .isNotEmpty)
+                                Text(
+                                  'Alasan selisih: ${row['catatan_item']}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                            ],
                           ),
                     trailing: Text(
                       '$qty ${row['unit'] ?? ''}',
@@ -1022,6 +1387,49 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     PosInventoryDocumentType.scrap =>
       '${item['alasan'] ?? '-'}${(item['lokasi_kejadian']?.toString() ?? '').isEmpty ? '' : ' • ${item['lokasi_kejadian']}'}',
   };
+}
+
+class _OpnameDateFilter extends StatelessWidget {
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+
+  const _OpnameDateFilter({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: () async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: value ?? DateTime.now(),
+        firstDate: DateTime.now().subtract(const Duration(days: 730)),
+        lastDate: DateTime.now(),
+      );
+      if (picked != null) onChanged(picked);
+    },
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        suffixIcon: value == null
+            ? const Icon(Icons.calendar_today_outlined, size: 18)
+            : IconButton(
+                tooltip: 'Hapus tanggal',
+                onPressed: () => onChanged(null),
+                icon: const Icon(Icons.close, size: 18),
+              ),
+      ),
+      child: Text(
+        value == null
+            ? 'Semua'
+            : DateFormat('dd MMM yyyy', 'id_ID').format(value!),
+      ),
+    ),
+  );
 }
 
 class _InventoryStatus extends StatelessWidget {

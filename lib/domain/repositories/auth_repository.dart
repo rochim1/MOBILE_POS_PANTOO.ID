@@ -19,6 +19,162 @@ class AuthRepository {
 
   AuthRepository(this._clientProvider, this._prefs, this._secureStorage);
 
+  Future<Either<Failure, bool>> register({
+    required String name,
+    required String phone,
+    required String username,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosQueries.register),
+          variables: {
+            'input': {
+              'name': name.trim(),
+              'telp_number': phone.trim(),
+              'username': username.trim(),
+              'email': email.trim().toLowerCase(),
+              'password': password,
+              'is_admin': false,
+              'primary_product': 'pos',
+              'registration_source': 'mobile_pos',
+              'requested_trial': 'pantoo_unlimited',
+            },
+          },
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(result.data?['CreateUser']?['_id'] != null);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> checkEmailAvailable(String email) async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.checkEmailAvailable),
+          variables: {'email': email.trim().toLowerCase()},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(result.data?['CheckEmailAvailable'] == true);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> checkUsernameAvailable(String username) async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.checkUsernameAvailable),
+          variables: {'username': username.trim()},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(result.data?['CheckUsernameAvailable'] == true);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, String>> createWorkspace({
+    required String businessName,
+    required String phone,
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosQueries.createInstansi),
+          variables: {
+            'input': {
+              'nama_instansi': businessName.trim(),
+              'nama_resmi': businessName.trim(),
+              'telpon_number': phone.trim(),
+              'primary_product': 'pos',
+              'registration_source': 'mobile_pos',
+              'requested_trial': 'pantoo_unlimited',
+            },
+          },
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final instansiId = result.data?['CreateInstansi']?['_id']?.toString();
+      if (instansiId == null || instansiId.isEmpty) {
+        return const Left(ServerFailure('Profil usaha gagal dibuat'));
+      }
+      await _prefs.setString('instansi_id', instansiId);
+      await _prefs.remove('needs_workspace_setup');
+      _clientProvider.setAccessToken(
+        await _secureStorage.read(key: 'auth_token'),
+      );
+      final runtime = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.getPOSRuntimeConfig),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (runtime.hasException ||
+          runtime.data?['GetPOSRuntimeConfig'] == null) {
+        // Workspace and trial have already been committed. Continue to the
+        // onboarding gate; it owns retry/offline fallback for runtime config.
+        appLogger.w(
+          '[Auth] Workspace created but runtime config is not ready yet',
+          error: runtime.exception,
+        );
+        return Right(instansiId);
+      }
+      await _prefs.setString(
+        'pos_runtime_config',
+        jsonEncode(runtime.data!['GetPOSRuntimeConfig']),
+      );
+      return Right(instansiId);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, String>> resendActivationEmail(String email) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosQueries.resendConfirmationEmail),
+          variables: {'email': email.trim().toLowerCase(), 'isUser': true},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final response = result.data?['ResendConfirmationEmail'];
+      if (response?['is_successed'] != true) {
+        return Left(
+          ServerFailure(
+            response?['message']?.toString() ?? 'Email aktivasi gagal dikirim',
+          ),
+        );
+      }
+      return Right(
+        response?['message']?.toString() ?? 'Email aktivasi berhasil dikirim',
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   String? _userIdFromToken(String token) {
     try {
       final parts = token.split('.');
@@ -109,9 +265,20 @@ class AuthRepository {
         final instansiId = data['user']?['instansi_id']?['_id']?.toString();
         if (instansiId != null && instansiId.isNotEmpty) {
           await _prefs.setString('instansi_id', instansiId);
+          await _prefs.remove('needs_workspace_setup');
+        } else {
+          // Self-registration creates the account first. The tenant and trial
+          // are created after email activation, from the POS setup flow.
+          await _prefs.remove('instansi_id');
+          await _prefs.remove('pos_runtime_config');
+          await _prefs.setBool('needs_workspace_setup', true);
         }
         // Rebuild only after both the credential and tenant context exist.
         _clientProvider.setAccessToken(token);
+        if (instansiId == null || instansiId.isEmpty) {
+          appLogger.i('[Auth] Login success; workspace setup is required');
+          return Right(name);
+        }
         final sessionCheck = await _clientProvider.client.query(
           QueryOptions(
             document: gql(PosQueries.getPOSRuntimeConfig),
@@ -182,6 +349,7 @@ class AuthRepository {
     await _prefs.remove('user_id');
     await _prefs.remove('instansi_id');
     await _prefs.remove('pos_runtime_config');
+    await _prefs.remove('needs_workspace_setup');
     if (!supportsOfflineDatabase) return;
     try {
       final db = await PosLocalDatabase.instance.database;
@@ -224,6 +392,10 @@ class AuthRepository {
       await _prefs.setString('user_id', restoredUserId);
     }
     _clientProvider.setAccessToken(token);
+    if (_prefs.getBool('needs_workspace_setup') == true &&
+        (_prefs.getString('instansi_id')?.isEmpty ?? true)) {
+      return true;
+    }
     try {
       final result = await _clientProvider.client.query(
         QueryOptions(

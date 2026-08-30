@@ -113,6 +113,7 @@ class _PosStockViewState extends State<_PosStockView> {
         LoadStocks(
           search: query.isEmpty ? null : query,
           stockFilter: context.read<PosStockBloc>().state.currentFilter,
+          locationId: context.read<PosStockBloc>().state.selectedLocationId,
         ),
       );
     });
@@ -123,6 +124,7 @@ class _PosStockViewState extends State<_PosStockView> {
       LoadStocks(
         search: _searchController.text.isEmpty ? null : _searchController.text,
         stockFilter: filter,
+        locationId: context.read<PosStockBloc>().state.selectedLocationId,
       ),
     );
   }
@@ -145,6 +147,7 @@ class _PosStockViewState extends State<_PosStockView> {
       LoadStocks(
         search: _searchController.text.isEmpty ? null : _searchController.text,
         stockFilter: bloc.state.currentFilter,
+        locationId: bloc.state.selectedLocationId,
       ),
     );
     bloc.add(const LoadStatistics());
@@ -176,9 +179,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 SliverToBoxAdapter(
                   child: _buildStatisticsCards(state.statistics),
                 ),
-                SliverToBoxAdapter(
-                  child: _buildStockToolbar(state.currentFilter),
-                ),
+                SliverToBoxAdapter(child: _buildStockToolbar(state)),
                 // Content
                 if (state.status == PosStockStatus.loading &&
                     state.stocks.isEmpty)
@@ -357,7 +358,7 @@ class _PosStockViewState extends State<_PosStockView> {
     );
   }
 
-  Widget _buildStockToolbar(String currentFilter) {
+  Widget _buildStockToolbar(PosStockState state) {
     const filters = <String, String>{
       'all': 'Semua Stok',
       'low': 'Stok Rendah',
@@ -403,7 +404,9 @@ class _PosStockViewState extends State<_PosStockView> {
     );
 
     final filterDropdown = DropdownButtonFormField<String>(
-      initialValue: filters.containsKey(currentFilter) ? currentFilter : 'all',
+      initialValue: filters.containsKey(state.currentFilter)
+          ? state.currentFilter
+          : 'all',
       isExpanded: true,
       icon: const Icon(Icons.keyboard_arrow_down_rounded),
       decoration: InputDecoration(
@@ -430,6 +433,60 @@ class _PosStockViewState extends State<_PosStockView> {
       },
     );
 
+    final locationIds = state.locations
+        .map((item) => item['_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final selectedLocation = locationIds.contains(state.selectedLocationId)
+        ? state.selectedLocationId
+        : null;
+    final locationDropdown = DropdownButtonFormField<String>(
+      key: ValueKey('stock-location-${state.selectedLocationId}'),
+      initialValue: selectedLocation,
+      isExpanded: true,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded),
+      decoration: InputDecoration(
+        labelText: 'Warehouse / Lokasi',
+        prefixIcon: const Icon(Icons.warehouse_outlined, size: 20),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
+      hint: const Text('Pilih lokasi'),
+      items: state.locations.map((location) {
+        final id = location['_id']?.toString() ?? '';
+        final name = location['nama_cabang']?.toString().trim() ?? '';
+        final code = location['branch_code']?.toString().trim() ?? '';
+        final label = name.isNotEmpty ? name : (code.isNotEmpty ? code : id);
+        return DropdownMenuItem(
+          value: id,
+          child: Text(
+            code.isNotEmpty && code != label ? '$label · $code' : label,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: state.locations.isEmpty
+          ? null
+          : (value) {
+              if (value == null || value == state.selectedLocationId) return;
+              context.read<PosStockBloc>().add(
+                LoadStocks(
+                  search: _searchController.text.isEmpty
+                      ? null
+                      : _searchController.text,
+                  stockFilter: state.currentFilter,
+                  locationId: value,
+                ),
+              );
+            },
+    );
+
     final historyButton = OutlinedButton.icon(
       onPressed: _canViewStock ? _showMovementHistory : null,
       icon: const Icon(Icons.history, size: 18),
@@ -444,10 +501,12 @@ class _PosStockViewState extends State<_PosStockView> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= 680) {
+          if (constraints.maxWidth >= 900) {
             return Row(
               children: [
                 Expanded(child: SizedBox(height: 48, child: searchField)),
+                const SizedBox(width: 10),
+                SizedBox(width: 250, height: 54, child: locationDropdown),
                 const SizedBox(width: 10),
                 SizedBox(width: 190, height: 48, child: filterDropdown),
                 if (_canViewStock) ...[
@@ -461,6 +520,8 @@ class _PosStockViewState extends State<_PosStockView> {
           return Column(
             children: [
               SizedBox(height: 48, child: searchField),
+              const SizedBox(height: 8),
+              SizedBox(height: 54, child: locationDropdown),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -504,6 +565,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 rows: stocks.map((stock) {
                   final color = _getStockColor(stock);
                   return DataRow(
+                    onSelectChanged: (_) => _showStockDetail(stock),
                     cells: [
                       DataCell(
                         Text(
@@ -529,13 +591,25 @@ class _PosStockViewState extends State<_PosStockView> {
                         ),
                       ),
                       DataCell(
-                        _canAdjustStock
-                            ? IconButton(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Lihat detail',
+                              onPressed: () => _showStockDetail(stock),
+                              icon: const Icon(
+                                Icons.visibility_outlined,
+                                size: 19,
+                              ),
+                            ),
+                            if (_canAdjustStock)
+                              IconButton(
                                 tooltip: 'Koreksi stok',
                                 onPressed: () => _handleAdjustment(stock),
                                 icon: const Icon(Icons.tune, size: 19),
-                              )
-                            : const SizedBox.shrink(),
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   );
@@ -554,190 +628,338 @@ class _PosStockViewState extends State<_PosStockView> {
     final stockRatio = _getStockRatio(stock);
     final formatter = NumberFormat('#,###', 'id_ID');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: Colors.grey.shade200),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _showStockDetail(stock),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 90),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      stock.sku.isNotEmpty ? stock.sku : stock.kodeInventaris,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    stock.namaInventaris,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: stockColor.withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    stockLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: stockColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Icon(
-                  Icons.inventory_2_outlined,
-                  size: 18,
-                  color: Colors.grey.shade500,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${_formatStock(stock.stok)} ${stock.unit}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: stockColor,
-                            ),
+                Row(
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 90),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          stock.sku.isNotEmpty
+                              ? stock.sku
+                              : stock.kodeInventaris,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
                           ),
-                          Text(
-                            'Minimum ${_formatStock(stock.stokMinimum)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: stockRatio.clamp(0.0, 1.0),
-                          minHeight: 5,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(stockColor),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        stock.namaInventaris,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: stockColor.withValues(alpha: 0.09),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        stockLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: stockColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 18,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.category_outlined,
-                            size: 14,
-                            color: Colors.grey.shade500,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${_formatStock(stock.stok)} ${stock.unit}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: stockColor,
+                                ),
+                              ),
+                              Text(
+                                'Minimum ${_formatStock(stock.stokMinimum)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              stock.kategori,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500,
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: stockRatio.clamp(0.0, 1.0),
+                              minHeight: 5,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                stockColor,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      Text(
-                        'Rp ${formatter.format(stock.hargaJual.toInt())}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.category_outlined,
+                                size: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  stock.kategori,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Rp ${formatter.format(stock.hargaJual.toInt())}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_canAdjustStock)
+                      OutlinedButton.icon(
+                        onPressed: () => _handleAdjustment(stock),
+                        icon: const Icon(Icons.tune, size: 17),
+                        label: const Text('Koreksi Stok'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          visualDensity: VisualDensity.compact,
                         ),
                       ),
-                    ],
-                  ),
+                    if (!_canAdjustStock)
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.grey,
+                      ),
+                  ],
                 ),
-                if (_canAdjustStock)
-                  OutlinedButton.icon(
-                    onPressed: () => _handleAdjustment(stock),
-                    icon: const Icon(Icons.tune, size: 17),
-                    label: const Text('Koreksi Stok'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  String _selectedLocationName() {
+    final state = context.read<PosStockBloc>().state;
+    for (final location in state.locations) {
+      if (location['_id']?.toString() == state.selectedLocationId) {
+        return location['nama_cabang']?.toString().trim().isNotEmpty == true
+            ? location['nama_cabang'].toString()
+            : location['branch_code']?.toString() ?? '-';
+      }
+    }
+    return '-';
+  }
+
+  Future<void> _showStockDetail(PosStock stock) async {
+    final stockColor = _getStockColor(stock);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  stock.namaInventaris,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  stock.sku.isNotEmpty ? stock.sku : stock.kodeInventaris,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 18),
+                _stockDetailRow('Warehouse / Lokasi', _selectedLocationName()),
+                _stockDetailRow(
+                  'Kategori',
+                  stock.kategori.isEmpty ? '-' : stock.kategori,
+                ),
+                _stockDetailRow(
+                  'Stok tersedia',
+                  '${_formatStock(stock.stok)} ${stock.unit}',
+                ),
+                _stockDetailRow(
+                  'Stok minimum',
+                  '${_formatStock(stock.stokMinimum)} ${stock.unit}',
+                ),
+                _stockDetailRow(
+                  'Status stok',
+                  _getStockLabel(stock),
+                  valueColor: stockColor,
+                ),
+                _stockDetailRow(
+                  'Harga jual',
+                  'Rp ${_formatCurrency(stock.hargaJual)}',
+                ),
+                _stockDetailRow(
+                  'Harga pokok',
+                  'Rp ${_formatCurrency(stock.hargaPokok)}',
+                ),
+                _stockDetailRow(
+                  'Jumlah saldo lokasi',
+                  stock.locationCount.toString(),
+                ),
+                if (stock.requiresBatchAdjustment)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Produk ini dilacak per batch. Koreksi stok dilakukan melalui Stock Opname agar batch dan kedaluwarsa tetap konsisten.',
+                      style: TextStyle(color: Color(0xFFD97706)),
+                    ),
+                  ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      child: const Text('Tutup'),
+                    ),
+                    if (_canAdjustStock) ...[
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          _handleAdjustment(stock);
+                        },
+                        icon: const Icon(Icons.tune, size: 18),
+                        label: const Text('Koreksi Stok'),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stockDetailRow(String label, String value, {Color? valueColor}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 150,
+              child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: valueColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 
   Future<void> _handleAdjustment(PosStock stock) async {
     if (stock.requiresBatchAdjustment) {
@@ -885,9 +1107,11 @@ class _PosStockViewState extends State<_PosStockView> {
           reason: reason,
           note: noteController.text,
           stockBalanceId: stock.stockBalanceId!,
+          locationId: context.read<PosStockBloc>().state.selectedLocationId,
         ),
       );
     }
+    await Future<void>.delayed(kThemeAnimationDuration);
     stockController.dispose();
     noteController.dispose();
   }

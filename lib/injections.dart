@@ -19,6 +19,7 @@ import 'domain/repositories/purchase_return_repository.dart';
 import 'domain/repositories/pos_inventory_repository.dart';
 import 'presentation/bloc/app/app_cubit.dart';
 import 'presentation/bloc/auth/auth_cubit.dart';
+import 'presentation/bloc/auth/register_cubit.dart';
 import 'presentation/bloc/pos/pos_bloc.dart';
 import 'presentation/bloc/pos_promo/pos_promo_bloc.dart';
 import 'presentation/bloc/pos_return/pos_return_bloc.dart';
@@ -86,6 +87,7 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(authRepository: sl<AuthRepository>()),
   );
+  sl.registerFactory(() => RegisterCubit(authRepository: sl()));
   sl.registerFactory(() => PosBloc(posRepository: sl()));
 
   sl.registerFactory(() => PosReturnBloc(posRepository: sl()));

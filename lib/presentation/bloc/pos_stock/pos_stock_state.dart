@@ -10,6 +10,8 @@ class PosStockState extends Equatable {
   final PosStockStatistics? statistics;
   final String currentFilter;
   final String successMessage;
+  final List<Map<String, dynamic>> locations;
+  final String selectedLocationId;
 
   const PosStockState({
     this.status = PosStockStatus.initial,
@@ -18,6 +20,8 @@ class PosStockState extends Equatable {
     this.statistics,
     this.currentFilter = 'all',
     this.successMessage = '',
+    this.locations = const [],
+    this.selectedLocationId = '',
   });
 
   PosStockState copyWith({
@@ -27,6 +31,8 @@ class PosStockState extends Equatable {
     PosStockStatistics? statistics,
     String? currentFilter,
     String? successMessage,
+    List<Map<String, dynamic>>? locations,
+    String? selectedLocationId,
   }) {
     return PosStockState(
       status: status ?? this.status,
@@ -35,6 +41,8 @@ class PosStockState extends Equatable {
       statistics: statistics ?? this.statistics,
       currentFilter: currentFilter ?? this.currentFilter,
       successMessage: successMessage ?? this.successMessage,
+      locations: locations ?? this.locations,
+      selectedLocationId: selectedLocationId ?? this.selectedLocationId,
     );
   }
 
@@ -46,5 +54,7 @@ class PosStockState extends Equatable {
     statistics,
     currentFilter,
     successMessage,
+    locations,
+    selectedLocationId,
   ];
 }

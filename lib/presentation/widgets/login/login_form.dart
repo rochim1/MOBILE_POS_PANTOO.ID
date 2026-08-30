@@ -6,6 +6,7 @@ import '../../bloc/auth/auth_state.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/flavor/flavor_config.dart';
+import '../../pages/login/register_page.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -197,6 +198,23 @@ class _LoginFormState extends State<LoginForm> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Masuk'),
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Belum punya akun?'),
+                      TextButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              ),
+                        child: const Text('Daftar sekarang'),
+                      ),
+                    ],
                   ),
                   if (!state.isAuthenticated && state.isFailure) ...[
                     const SizedBox(height: 16),

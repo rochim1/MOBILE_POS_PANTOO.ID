@@ -27,6 +27,8 @@ void main() {
         contains('available_qty_base'),
       );
       expect(PurchaseReturnQueries.availability, contains('conversion_factor'));
+      expect(PurchaseReturnQueries.availability, contains('exclude_return_id'));
+      expect(PurchaseReturnQueries.availability, contains('barcode'));
     });
 
     test('create hanya mengirim identitas sumber dan qty yang dipilih', () {
@@ -44,6 +46,17 @@ void main() {
         expect(source, contains("'page': page > 0 ? page - 1 : 0"));
       },
     );
+
+    test('UI mendukung filter, barcode, tanggal, dan koreksi item retur', () {
+      final source = File(
+        'lib/presentation/pages/pos/pos_purchase_return_page.dart',
+      ).readAsStringSync();
+      expect(source, contains('_showFilters'));
+      expect(source, contains('_scanItem'));
+      expect(source, contains('Tanggal retur'));
+      expect(source, contains('item_reason'));
+      expect(source, contains('existing: data'));
+    });
 
     test(
       'lifecycle approval dan processing tidak memakai update stok langsung',

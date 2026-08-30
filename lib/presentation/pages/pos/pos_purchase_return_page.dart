@@ -10,6 +10,7 @@ import '../../../core/_core.dart';
 import '../../../domain/repositories/purchase_return_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../bloc/pos/pos_bloc.dart';
+import 'pos_barcode_scanner_page.dart';
 
 class PosPurchaseReturnPage extends StatefulWidget {
   const PosPurchaseReturnPage({super.key});
@@ -25,6 +26,10 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
   List<Map<String, dynamic>> _items = const [];
   bool _loading = true;
   String _status = '';
+  String _reason = '';
+  String _method = '';
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
   int _page = 1;
   int _total = 0;
   static const _limit = 20;
@@ -48,6 +53,10 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
     final result = await _repository.getAll(
       search: _searchController.text,
       status: _status,
+      reason: _reason,
+      method: _method,
+      dateFrom: _dateFrom?.toIso8601String().split('T').first ?? '',
+      dateTo: _dateTo?.toIso8601String().split('T').first ?? '',
       page: nextPage,
       limit: _limit,
     );
@@ -66,6 +75,104 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
   void _search(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () => _load(page: 1));
+  }
+
+  Future<void> _showFilters() async {
+    var reason = _reason;
+    var method = _method;
+    var from = _dateFrom;
+    var to = _dateTo;
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Filter Retur Pembelian',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: reason,
+                  decoration: const InputDecoration(
+                    labelText: 'Alasan retur',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _returnReasons(includeAll: true),
+                  onChanged: (value) =>
+                      setSheetState(() => reason = value ?? ''),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: method,
+                  decoration: const InputDecoration(
+                    labelText: 'Penyelesaian',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _returnMethods(includeAll: true),
+                  onChanged: (value) =>
+                      setSheetState(() => method = value ?? ''),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ReturnDateField(
+                        label: 'Dari tanggal',
+                        value: from,
+                        onChanged: (value) => setSheetState(() => from = value),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ReturnDateField(
+                        label: 'Sampai tanggal',
+                        value: to,
+                        onChanged: (value) => setSheetState(() => to = value),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => setSheetState(() {
+                        reason = '';
+                        method = '';
+                        from = null;
+                        to = null;
+                      }),
+                      child: const Text('Reset'),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      child: const Text('Terapkan'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (applied != true || !mounted) return;
+    setState(() {
+      _reason = reason;
+      _method = method;
+      _dateFrom = from;
+      _dateTo = to;
+    });
+    _load(page: 1);
   }
 
   Future<void> _openCreate() async {
@@ -159,12 +266,27 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                   icon: const Icon(Icons.add),
                   label: const Text('Retur ke Supplier'),
                 );
+                final hasFilter =
+                    _reason.isNotEmpty ||
+                    _method.isNotEmpty ||
+                    _dateFrom != null ||
+                    _dateTo != null;
+                final filter = IconButton.filledTonal(
+                  onPressed: _showFilters,
+                  tooltip: 'Filter retur',
+                  icon: Badge(
+                    isLabelVisible: hasFilter,
+                    child: const Icon(Icons.tune_rounded),
+                  ),
+                );
                 if (constraints.maxWidth >= 720) {
                   return Row(
                     children: [
                       Expanded(child: search),
                       const SizedBox(width: 12),
                       SizedBox(width: 190, child: status),
+                      const SizedBox(width: 8),
+                      filter,
                       const SizedBox(width: 12),
                       SizedBox(height: 56, child: button),
                     ],
@@ -178,6 +300,8 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     Row(
                       children: [
                         Expanded(child: status),
+                        const SizedBox(width: 8),
+                        filter,
                         const SizedBox(width: 10),
                         button,
                       ],
@@ -331,7 +455,8 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
 
 class _CreatePurchaseReturnPage extends StatefulWidget {
   final bool canSubmit;
-  const _CreatePurchaseReturnPage({required this.canSubmit});
+  final Map<String, dynamic>? existing;
+  const _CreatePurchaseReturnPage({required this.canSubmit, this.existing});
   @override
   State<_CreatePurchaseReturnPage> createState() =>
       _CreatePurchaseReturnPageState();
@@ -347,6 +472,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
   Map<String, dynamic>? _group;
   String _reason = 'barang_rusak';
   String _method = 'credit_note';
+  DateTime _returnDate = DateTime.now();
   bool _loading = false;
   late bool _submitApproval;
 
@@ -354,6 +480,25 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
   void initState() {
     super.initState();
     _submitApproval = widget.canSubmit;
+    final existing = widget.existing;
+    if (existing != null) {
+      _submitApproval = false;
+      _reason = existing['return_reason']?.toString() ?? _reason;
+      _method = existing['return_method']?.toString() ?? _method;
+      _returnDate =
+          DateTime.tryParse(existing['tanggal_return']?.toString() ?? '') ??
+          DateTime.now();
+      _notes.text = existing['catatan']?.toString() ?? '';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _search.text = existing['no_po']?.toString() ?? '';
+        _selectPurchase({
+          '_id': existing['purchase_id'],
+          'no_po': existing['no_po'],
+          'supplier_name': existing['supplier_name'],
+        }, existing: existing);
+      });
+    }
   }
 
   List<Map<String, dynamic>> get _availableItems =>
@@ -381,7 +526,10 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
     setState(() => _loading = false);
   }
 
-  Future<void> _selectPurchase(Map<String, dynamic> purchase) async {
+  Future<void> _selectPurchase(
+    Map<String, dynamic> purchase, {
+    Map<String, dynamic>? existing,
+  }) async {
     setState(() {
       _purchase = purchase;
       _groups = const [];
@@ -390,6 +538,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
     });
     final result = await _repository.getAvailability(
       purchase['_id'].toString(),
+      excludeReturnId: existing?['_id']?.toString() ?? '',
     );
     if (!mounted) return;
     result.fold((f) => AppToast.error(context, f.message), (rows) {
@@ -398,12 +547,43 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
           final item = Map<String, dynamic>.from(raw as Map);
           item['selected'] = false;
           item['qty_return'] = 0.0;
+          final oldItems = existing?['items'] as List? ?? const [];
+          final old = oldItems.whereType<Map>().cast<Map?>().firstWhere(
+            (candidate) =>
+                candidate?['purchase_item_id']?.toString() ==
+                    item['purchase_item_id']?.toString() &&
+                (candidate?['no_batch']?.toString() ?? '') ==
+                    (item['no_batch']?.toString() ?? ''),
+            orElse: () => null,
+          );
+          if (old != null) {
+            item['selected'] = true;
+            item['qty_return'] = old['qty_return'] ?? 0;
+            item['item_reason'] = old['alasan'] ?? '';
+          }
           return item;
         }).toList();
       }
       setState(() {
         _groups = rows;
-        _group = rows.isNotEmpty ? rows.first : null;
+        _group = rows.isEmpty
+            ? null
+            : existing == null
+            ? rows.first
+            : rows.cast<Map<String, dynamic>?>().firstWhere(
+                    (candidate) =>
+                        candidate?['lokasi']?['cabang_id']?.toString() ==
+                            existing['lokasi_cabang_id']?.toString() &&
+                        (candidate?['lokasi']?['gedung_kode']?.toString() ??
+                                '') ==
+                            (existing['lokasi_gedung_kode']?.toString() ??
+                                '') &&
+                        (candidate?['lokasi']?['ruangan_kode']?.toString() ??
+                                '') ==
+                            (existing['lokasi_ruangan_kode']?.toString() ?? ''),
+                    orElse: () => null,
+                  ) ??
+                  rows.first;
       });
     });
     setState(() => _loading = false);
@@ -446,9 +626,9 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
     }
     final location = Map<String, dynamic>.from(_group!['lokasi'] as Map);
     setState(() => _loading = true);
-    final input = {
-      'purchase_id': _purchase!['_id'],
-      'tanggal_return': DateTime.now().toIso8601String(),
+    final input = <String, dynamic>{
+      if (widget.existing == null) 'purchase_id': _purchase!['_id'],
+      'tanggal_return': _returnDate.toIso8601String().split('T').first,
       'lokasi': {
         'cabang_id': location['cabang_id'],
         'cabang_nama': location['cabang_nama'],
@@ -468,11 +648,15 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
           'nama_inventaris': item['nama_inventaris'],
           'qty_return': qty,
           'no_batch': item['no_batch'],
-          'alasan': _reason,
+          'alasan': (item['item_reason']?.toString().trim() ?? '').isEmpty
+              ? _reason
+              : item['item_reason'].toString().trim(),
         };
       }).toList(),
     };
-    final created = await _repository.createReturn(input);
+    final created = widget.existing == null
+        ? await _repository.createReturn(input)
+        : await _repository.update(widget.existing!['_id'].toString(), input);
     if (!mounted) return;
     await created.fold((f) async => AppToast.error(context, f.message), (
       data,
@@ -508,11 +692,55 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _scanItem() async {
+    if (_group == null) {
+      AppToast.error(context, 'Pilih PO dan lokasi stok terlebih dahulu');
+      return;
+    }
+    final barcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const PosBarcodeScannerPage()),
+    );
+    if (!mounted || barcode == null || barcode.trim().isEmpty) return;
+    final keyword = barcode.trim().toLowerCase();
+    Map<String, dynamic>? found;
+    for (final item in _availableItems) {
+      final candidates = [
+        item['barcode'],
+        item['sku'],
+        item['kode_inventaris'],
+      ].map((value) => value?.toString().trim().toLowerCase());
+      if (candidates.contains(keyword)) {
+        found = item;
+        break;
+      }
+    }
+    if (found == null) {
+      AppToast.error(
+        context,
+        'Barcode tidak ditemukan pada penerimaan PO di lokasi ini',
+      );
+      return;
+    }
+    final scannedItem = found;
+    setState(() {
+      scannedItem['selected'] = true;
+      if (((scannedItem['qty_return'] as num?)?.toDouble() ?? 0) <= 0) {
+        scannedItem['qty_return'] = 1.0;
+      }
+    });
+    AppToast.success(context, '${scannedItem['nama_inventaris']} dipilih');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Retur ke Supplier'),
+        title: Text(
+          widget.existing == null
+              ? 'Retur ke Supplier'
+              : 'Perbaiki Retur Pembelian',
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -521,13 +749,19 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
           ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text('1. Cari pembelian', style: _sectionStyle),
+              Text(
+                widget.existing == null
+                    ? '1. Cari pembelian'
+                    : '1. Pembelian sumber',
+                style: _sectionStyle,
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _search,
+                      enabled: widget.existing == null,
                       onSubmitted: (_) => _findPurchases(),
                       decoration: const InputDecoration(
                         labelText: 'Nomor PO / supplier',
@@ -538,7 +772,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    onPressed: _findPurchases,
+                    onPressed: widget.existing == null ? _findPurchases : null,
                     icon: const Icon(Icons.search),
                   ),
                 ],
@@ -588,6 +822,28 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ReturnDateField(
+                        label: 'Tanggal retur',
+                        value: _returnDate,
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _returnDate = value);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      onPressed: _scanItem,
+                      tooltip: 'Scan barcode barang',
+                      icon: const Icon(Icons.qr_code_scanner),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 if (_availableItems.isEmpty)
                   const Text('Tidak ada barang yang masih dapat diretur.'),
                 ..._availableItems.map(
@@ -610,25 +866,45 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                             ),
                           ),
                           if (item['selected'] == true)
-                            TextFormField(
-                              initialValue: (item['qty_return'] as num? ?? 0)
-                                  .toString(),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
+                            Column(
+                              children: [
+                                TextFormField(
+                                  initialValue:
+                                      (item['qty_return'] as num? ?? 0)
+                                          .toString(),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  decoration: InputDecoration(
+                                    labelText: 'Jumlah retur (${item['unit']})',
+                                    helperText:
+                                        (item['no_batch']?.toString() ?? '')
+                                            .isEmpty
+                                        ? 'Tanpa batch'
+                                        : 'Batch ${item['no_batch']}',
+                                    border: const OutlineInputBorder(),
                                   ),
-                              decoration: InputDecoration(
-                                labelText: 'Jumlah retur (${item['unit']})',
-                                border: const OutlineInputBorder(),
-                              ),
-                              onChanged: (value) {
-                                final qty =
-                                    double.tryParse(
-                                      value.replaceAll(',', '.'),
-                                    ) ??
-                                    0;
-                                item['qty_return'] = qty;
-                              },
+                                  onChanged: (value) {
+                                    item['qty_return'] =
+                                        double.tryParse(
+                                          value.replaceAll(',', '.'),
+                                        ) ??
+                                        0;
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  initialValue:
+                                      item['item_reason']?.toString() ?? '',
+                                  decoration: const InputDecoration(
+                                    labelText: 'Catatan/alasan barang',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (value) =>
+                                      item['item_reason'] = value,
+                                ),
+                              ],
                             ),
                         ],
                       ),
@@ -644,29 +920,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                     labelText: 'Alasan retur',
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'barang_rusak',
-                      child: Text('Barang rusak'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'kualitas_tidak_sesuai',
-                      child: Text('Kualitas tidak sesuai'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'salah_kirim',
-                      child: Text('Salah kirim'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'kelebihan_qty',
-                      child: Text('Kelebihan jumlah'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'kadaluarsa',
-                      child: Text('Kedaluwarsa'),
-                    ),
-                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
-                  ],
+                  items: _returnReasons(),
                   onChanged: (value) =>
                       setState(() => _reason = value ?? _reason),
                 ),
@@ -677,20 +931,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                     labelText: 'Penyelesaian',
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'credit_note',
-                      child: Text('Kurangi utang / kredit supplier'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'refund',
-                      child: Text('Refund uang'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'replacement',
-                      child: Text('Penggantian barang'),
-                    ),
-                  ],
+                  items: _returnMethods(),
                   onChanged: (value) =>
                       setState(() => _method = value ?? _method),
                 ),
@@ -863,118 +1104,6 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
     );
   }
 
-  Future<void> _editMetadata() async {
-    final data = _data;
-    if (data == null) return;
-    var reason = data['return_reason']?.toString() ?? 'barang_rusak';
-    var method = data['return_method']?.toString() ?? 'credit_note';
-    final notes = TextEditingController(
-      text: data['catatan']?.toString() ?? '',
-    );
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Ubah retur pembelian'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: reason,
-                  decoration: const InputDecoration(labelText: 'Alasan'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'barang_rusak',
-                      child: Text('Barang rusak'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'kualitas_tidak_sesuai',
-                      child: Text('Kualitas tidak sesuai'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'salah_kirim',
-                      child: Text('Salah kirim'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'kelebihan_qty',
-                      child: Text('Kelebihan jumlah'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'kadaluarsa',
-                      child: Text('Kedaluwarsa'),
-                    ),
-                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => reason = value ?? reason),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: method,
-                  decoration: const InputDecoration(labelText: 'Penyelesaian'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'credit_note',
-                      child: Text('Kurangi utang / kredit'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'refund',
-                      child: Text('Refund uang'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'replacement',
-                      child: Text('Penggantian barang'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => method = value ?? method),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: notes,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Catatan'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Simpan'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final noteValue = notes.text.trim();
-    notes.dispose();
-    if (confirmed != true) return;
-    setState(() => _loading = true);
-    final result = await _repository.update(widget.id, {
-      'return_reason': reason,
-      'return_method': method,
-      'catatan': noteValue,
-    });
-    if (!mounted) return;
-    result.fold(
-      (failure) {
-        AppToast.error(context, failure.message);
-        setState(() => _loading = false);
-      },
-      (_) {
-        _changed = true;
-        AppToast.success(context, 'Retur berhasil diperbarui');
-        _load();
-      },
-    );
-  }
-
   Future<void> _deleteReturn() async {
     final controller = TextEditingController();
     final confirmed = await showDialog<bool>(
@@ -1014,6 +1143,24 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
         Navigator.pop(context, true);
       },
     );
+  }
+
+  Future<void> _editFullReturn() async {
+    final data = _data;
+    if (data == null) return;
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _CreatePurchaseReturnPage(
+          canSubmit: widget.permissions['submit_purchase_returns'] == true,
+          existing: data,
+        ),
+      ),
+    );
+    if (changed == true && mounted) {
+      _changed = true;
+      await _load();
+    }
   }
 
   @override
@@ -1089,7 +1236,9 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                             item['nama_inventaris']?.toString() ?? '-',
                           ),
                           subtitle: Text(
-                            '${item['qty_return']} ${item['unit']} • ${_money(item['harga_beli'])}',
+                            '${item['qty_return']} ${item['unit']} • ${_money(item['harga_beli'])}'
+                            '${(item['no_batch']?.toString() ?? '').isEmpty ? '' : '\nBatch ${item['no_batch']}'}'
+                            '${(item['alasan']?.toString() ?? '').isEmpty ? '' : '\n${item['alasan']}'}',
                           ),
                           trailing: Text(
                             _money(item['subtotal']),
@@ -1099,13 +1248,30 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                       );
                     }),
                     const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        'Total: ${_money(data['grand_total_return'])}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          children: [
+                            _ReturnTotalRow(
+                              'Subtotal retur',
+                              _money(data['total_return_amount']),
+                            ),
+                            if (((data['diskon_persen'] as num?)?.toDouble() ??
+                                    0) >
+                                0)
+                              _ReturnTotalRow(
+                                'Diskon',
+                                '${data['diskon_persen']}%',
+                              ),
+                            _ReturnTotalRow('PPN', _money(data['ppn_amount'])),
+                            const Divider(),
+                            _ReturnTotalRow(
+                              'Total retur',
+                              _money(data['grand_total_return']),
+                              emphasized: true,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1136,7 +1302,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
       if ((status == 'draft' || status == 'rejected') &&
           can('update_purchase_returns'))
         OutlinedButton.icon(
-          onPressed: _loading ? null : _editMetadata,
+          onPressed: _loading ? null : _editFullReturn,
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Ubah'),
         ),
@@ -1218,6 +1384,97 @@ class _Notice extends StatelessWidget {
     child: Text(text, style: TextStyle(color: color)),
   );
 }
+
+class _ReturnTotalRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool emphasized;
+  const _ReturnTotalRow(this.label, this.value, {this.emphasized = false});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: [
+        Expanded(child: Text(label)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: emphasized ? 17 : 14,
+            fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ReturnDateField extends StatelessWidget {
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+  const _ReturnDateField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: () async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: value ?? DateTime.now(),
+        firstDate: DateTime.now().subtract(const Duration(days: 730)),
+        lastDate: DateTime.now(),
+      );
+      if (picked != null) onChanged(picked);
+    },
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.calendar_today_outlined),
+        border: const OutlineInputBorder(),
+      ),
+      child: Text(
+        value == null
+            ? 'Semua'
+            : DateFormat('dd MMM yyyy', 'id_ID').format(value!),
+      ),
+    ),
+  );
+}
+
+List<DropdownMenuItem<String>> _returnReasons({bool includeAll = false}) => [
+  if (includeAll)
+    const DropdownMenuItem(value: '', child: Text('Semua alasan')),
+  const DropdownMenuItem(value: 'barang_rusak', child: Text('Barang rusak')),
+  const DropdownMenuItem(
+    value: 'kualitas_tidak_sesuai',
+    child: Text('Kualitas tidak sesuai'),
+  ),
+  const DropdownMenuItem(value: 'salah_kirim', child: Text('Salah kirim')),
+  const DropdownMenuItem(
+    value: 'kelebihan_qty',
+    child: Text('Kelebihan jumlah'),
+  ),
+  const DropdownMenuItem(value: 'kadaluarsa', child: Text('Kedaluwarsa')),
+  const DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+];
+
+List<DropdownMenuItem<String>> _returnMethods({bool includeAll = false}) => [
+  if (includeAll)
+    const DropdownMenuItem(value: '', child: Text('Semua penyelesaian')),
+  const DropdownMenuItem(
+    value: 'credit_note',
+    child: Text('Kurangi utang / kredit supplier'),
+  ),
+  const DropdownMenuItem(value: 'refund', child: Text('Refund uang')),
+  const DropdownMenuItem(
+    value: 'replacement',
+    child: Text('Penggantian barang'),
+  ),
+];
 
 const _sectionStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
 String _money(dynamic value) => NumberFormat.currency(

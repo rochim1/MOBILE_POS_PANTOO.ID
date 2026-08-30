@@ -73,7 +73,9 @@ class _PosPageViewState extends State<PosPageView> {
               MaterialPageRoute(
                 builder: (_) => BlocProvider.value(
                   value: bloc,
-                  child: const PosPaymentPage(),
+                  child: PosPaymentPage(
+                    initialCustomer: bloc.state.selectedCustomer,
+                  ),
                 ),
               ),
             );
@@ -467,7 +469,9 @@ class _PosPageViewState extends State<PosPageView> {
                           MaterialPageRoute(
                             builder: (_) => BlocProvider.value(
                               value: posBloc,
-                              child: const PosPaymentPage(),
+                              child: PosPaymentPage(
+                                initialCustomer: posBloc.state.selectedCustomer,
+                              ),
                             ),
                           ),
                         );

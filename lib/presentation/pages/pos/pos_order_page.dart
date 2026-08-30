@@ -19,6 +19,7 @@ import '../../widgets/pos_category_navigation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../../../core/receipt/pos_receipt_document_builder.dart';
 
 enum _OrderCategory { all, cashier, online, invoice }
 
@@ -1155,125 +1156,23 @@ class _PosOrderPageState extends State<PosOrderPage> {
     PosReceiptTemplate template,
     Map<String, String> company,
   ) async {
-    final document = pw.Document(
-      title: 'Struk ${order.invoice}',
-      author: 'Pantoo POS',
-    );
-    final currency = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-    final paperWidth = template.paperWidth == 80 ? 80.0 : 58.0;
-    final estimatedHeight = (120.0 + (order.items.length * 13)).clamp(
-      140.0,
-      1000.0,
-    );
-    final pageFormat = PdfPageFormat(
-      paperWidth * PdfPageFormat.mm,
-      estimatedHeight * PdfPageFormat.mm,
-      marginAll: 4 * PdfPageFormat.mm,
-    );
-    final fontSize = (template.fontSize ?? 10).clamp(8, 13).toDouble();
-    final headerTitle = _resolveReceiptVariables(template.headerTitle, company);
-    final headerLines =
-        [template.headerSubtitle, template.headerLine3, template.headerLine4]
-            .map((line) => _resolveReceiptVariables(line, company))
-            .where((line) => line.isNotEmpty);
-    final footerLines =
-        [template.footerLine1, template.footerLine2, template.footerLine3]
-            .map((line) => _resolveReceiptVariables(line, company))
-            .where((line) => line.isNotEmpty);
-
-    document.addPage(
-      pw.Page(
-        pageFormat: pageFormat,
-        build: (_) => pw.DefaultTextStyle(
-          style: pw.TextStyle(fontSize: fontSize),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              pw.Text(
-                headerTitle.isNotEmpty ? headerTitle : 'PANTOO POS',
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                  fontSize: fontSize + 3,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              ...headerLines.map(
-                (line) => pw.Text(line, textAlign: pw.TextAlign.center),
-              ),
-              pw.SizedBox(height: 5),
-              pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              if (template.showInvoice != false)
-                pw.Text('No: ${order.invoice}'),
-              if (template.showTanggal != false)
-                pw.Text('Tanggal: ${_formatDate(order.date)}'),
-              if (template.showKasir != false)
-                pw.Text('Kasir: ${order.cashierName}'),
-              if (template.showPelanggan != false)
-                pw.Text('Pelanggan: ${order.customer}'),
-              pw.Text('Bayar: ${order.paymentMethod.toUpperCase()}'),
-              pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              ...order.items.expand((item) {
-                final name =
-                    item['nama_inventaris']?.toString() ??
-                    item['nama']?.toString() ??
-                    '-';
-                final qty = item['qty']?.toString() ?? '0';
-                final price =
-                    double.tryParse(
-                      (item['harga_jual'] ?? item['harga_satuan'] ?? 0)
-                          .toString(),
-                    ) ??
-                    0;
-                final subtotal =
-                    double.tryParse((item['subtotal'] ?? 0).toString()) ?? 0;
-                return [
-                  pw.Text(
-                    name,
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text('$qty x ${currency.format(price)}'),
-                      pw.Text(currency.format(subtotal)),
-                    ],
-                  ),
-                  pw.SizedBox(height: 4),
-                ];
-              }),
-              pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              _pdfTotalRow('Subtotal', currency.format(order.subtotal)),
-              if (order.discountAmount > 0)
-                _pdfTotalRow(
-                  'Diskon',
-                  '-${currency.format(order.discountAmount)}',
-                ),
-              if (order.taxAmount > 0)
-                _pdfTotalRow('Pajak', currency.format(order.taxAmount)),
-              _pdfTotalRow('TOTAL', currency.format(order.total), bold: true),
-              if (order.note.trim().isNotEmpty) ...[
-                pw.SizedBox(height: 5),
-                pw.Text('Catatan: ${order.note}'),
-              ],
-              pw.SizedBox(height: 8),
-              ...footerLines.map(
-                (line) => pw.Text(line, textAlign: pw.TextAlign.center),
-              ),
-              if (footerLines.isEmpty)
-                pw.Text(
-                  'Terima kasih atas kunjungan Anda',
-                  textAlign: pw.TextAlign.center,
-                ),
-            ],
-          ),
-        ),
+    return PosReceiptDocumentBuilder.build(
+      data: PosReceiptDocumentData(
+        invoice: order.invoice,
+        dateLabel: _formatDate(order.date),
+        cashierName: order.cashierName,
+        customerName: order.customer,
+        paymentMethod: order.paymentMethod,
+        subtotal: order.subtotal,
+        discount: order.discountAmount,
+        tax: order.taxAmount,
+        total: order.total,
+        note: order.note,
+        items: order.items,
       ),
+      template: template,
+      company: company,
     );
-    return document.save();
   }
 
   Future<Uint8List> _buildInvoicePdf(PosOrder order) async {
@@ -1397,26 +1296,6 @@ class _PosOrderPageState extends State<PosOrderPage> {
         AppToast.error(context, 'Gagal membuka layanan print invoice');
       }
     }
-  }
-
-  String _resolveReceiptVariables(String? raw, Map<String, String> company) {
-    var value = raw?.trim() ?? '';
-    final replacements = <String, String>{
-      'nama_instansi': company['nama_instansi'] ?? '',
-      'nama_resmi': company['nama_resmi'] ?? '',
-      'alamat': company['alamat'] ?? '',
-      'telpon_nomor': company['telpon_number'] ?? '',
-      'telpon_number': company['telpon_number'] ?? '',
-      'email': company['email'] ?? '',
-      'website': company['website'] ?? '',
-      'provinsi': company['provinsi'] ?? '',
-      'kabupaten': company['kabupaten'] ?? '',
-      'npwp': company['NPWP'] ?? '',
-    };
-    replacements.forEach((key, replacement) {
-      value = value.replaceAll('{{$key}}', replacement);
-    });
-    return value.replaceAll(RegExp(r'\{\{[^}]+\}\}'), '').trim();
   }
 
   Widget _buildReceiptItem(String name, String qty, String price) {

@@ -8,6 +8,7 @@ import '../../../../core/_core.dart';
 import '../../../../domain/repositories/pos_settings_repository.dart';
 import '../../../../injections.dart';
 import 'pos_shell_page.dart';
+import '../login/business_setup_page.dart';
 
 class PosOnboardingPage extends StatefulWidget {
   const PosOnboardingPage({super.key});
@@ -26,11 +27,40 @@ class PosOnboardingPage extends StatefulWidget {
     return 'pos_operational_setup_completed_v1:$instansiId:$userId';
   }
 
-  static bool isOperationalSetupCompleted(SharedPreferences prefs) =>
-      prefs.getBool(setupPreferenceKey(prefs)) ?? false;
+  static String cashierTourPreferenceKey(SharedPreferences prefs) {
+    final userId = prefs.getString('user_id') ?? 'unknown-user';
+    final instansiId = prefs.getString('instansi_id') ?? 'unknown-instansi';
+    return 'pos_cashier_tour_v1:$instansiId:$userId';
+  }
 
-  static Widget initialDestination(SharedPreferences prefs) =>
-      const PosOnboardingGate();
+  static bool isOperationalSetupCompleted(SharedPreferences prefs) =>
+      (prefs.getBool(setupPreferenceKey(prefs)) ?? false) ||
+      (prefs.getBool(cashierTourPreferenceKey(prefs)) ?? false);
+
+  static Future<void> markOperationalSetupCompleted(
+    SharedPreferences prefs,
+  ) async {
+    // Simpan kedua flag secara atomik dari sudut pandang flow aplikasi.
+    // Flag tour dipertahankan untuk kompatibilitas dengan instalasi lama.
+    await prefs.setBool(cashierTourPreferenceKey(prefs), true);
+    await prefs.setBool(setupPreferenceKey(prefs), true);
+  }
+
+  static Future<void> clearOperationalSetupCompleted(
+    SharedPreferences prefs,
+  ) async {
+    await prefs.remove(cashierTourPreferenceKey(prefs));
+    await prefs.remove(setupPreferenceKey(prefs));
+  }
+
+  static Widget initialDestination(SharedPreferences prefs) {
+    final needsWorkspace =
+        prefs.getBool('needs_workspace_setup') == true ||
+        (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
+    return needsWorkspace
+        ? const BusinessSetupPage()
+        : const PosOnboardingGate();
+  }
 
   @override
   State<PosOnboardingPage> createState() => _PosOnboardingPageState();
@@ -72,7 +102,7 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
         await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), completed);
         if (!completed) {
           // Reset dari Web Admin/database harus menang terhadap cache perangkat.
-          await prefs.remove(PosOnboardingPage.setupPreferenceKey(prefs));
+          await PosOnboardingPage.clearOperationalSetupCompleted(prefs);
           return const PosOnboardingPage();
         }
         return PosShellPage(

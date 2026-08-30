@@ -8,6 +8,7 @@ void main() {
     hasStore: true,
     hasStockLocation: true,
     hasProducts: true,
+    hasInitialStock: true,
     hasPin: true,
     hasShift: true,
     configurationHealthy: true,
@@ -22,6 +23,7 @@ void main() {
       hasStore: true,
       hasStockLocation: false,
       hasProducts: false,
+      hasInitialStock: false,
       hasPin: false,
       hasShift: true,
       configurationHealthy: true,
@@ -35,6 +37,7 @@ void main() {
       hasStore: true,
       hasStockLocation: true,
       hasProducts: true,
+      hasInitialStock: true,
       hasPin: true,
       hasShift: true,
       configurationHealthy: false,
@@ -55,6 +58,31 @@ void main() {
     expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isFalse);
     await prefs.setBool(key, true);
     expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isTrue);
+  });
+
+  test('flag tour lama dipulihkan sebagai setup operasional selesai', () async {
+    SharedPreferences.setMockInitialValues({
+      'instansi_id': 'tenant-legacy',
+      'user_id': 'cashier-legacy',
+      'pos_cashier_tour_v1:tenant-legacy:cashier-legacy': true,
+    });
+    final prefs = await SharedPreferences.getInstance();
+
+    expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isTrue);
+    await PosOnboardingPage.markOperationalSetupCompleted(prefs);
+    expect(prefs.getBool(PosOnboardingPage.setupPreferenceKey(prefs)), isTrue);
+  });
+
+  test('reset onboarding membersihkan flag setup dan tour', () async {
+    SharedPreferences.setMockInitialValues({
+      'instansi_id': 'tenant-reset',
+      'user_id': 'cashier-reset',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await PosOnboardingPage.markOperationalSetupCompleted(prefs);
+    await PosOnboardingPage.clearOperationalSetupCompleted(prefs);
+
+    expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isFalse);
   });
 
   test('routing awal selalu melewati gate database onboarding', () async {

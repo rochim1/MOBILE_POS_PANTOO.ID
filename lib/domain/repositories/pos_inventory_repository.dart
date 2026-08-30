@@ -107,6 +107,10 @@ class PosInventoryRepository {
     required PosInventoryDocumentType type,
     String search = '',
     String status = '',
+    String locationId = '',
+    String dateFrom = '',
+    String dateTo = '',
+    String reason = '',
     int page = 1,
     int limit = 20,
   }) async {
@@ -114,6 +118,18 @@ class PosInventoryRepository {
       final filter = <String, dynamic>{
         if (search.trim().isNotEmpty) 'search': search.trim(),
         if (status.isNotEmpty) 'status': status,
+        if (type == PosInventoryDocumentType.opname && locationId.isNotEmpty)
+          'lokasi_cabang_id': locationId,
+        if (type == PosInventoryDocumentType.opname && dateFrom.isNotEmpty)
+          'tanggal_dari': dateFrom,
+        if (type == PosInventoryDocumentType.opname && dateTo.isNotEmpty)
+          'tanggal_sampai': dateTo,
+        if (type == PosInventoryDocumentType.scrap && reason.isNotEmpty)
+          'alasan': reason,
+        if (type == PosInventoryDocumentType.scrap && dateFrom.isNotEmpty)
+          'date_from': dateFrom,
+        if (type == PosInventoryDocumentType.scrap && dateTo.isNotEmpty)
+          'date_to': dateTo,
       };
       final document = switch (type) {
         PosInventoryDocumentType.purchase => PosInventoryQueries.purchases,
@@ -247,6 +263,36 @@ class PosInventoryRepository {
       return Right(
         (result.data?['GetInventarisAvailableInLocation'] as List? ?? const [])
             .map((value) => Map<String, dynamic>.from(value as Map))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> getLocationBalances({
+    required String inventoryId,
+    String warehouseId = '',
+  }) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.locationBalances),
+          variables: {
+            'inventoryId': inventoryId,
+            'warehouseId': warehouseId.isEmpty ? null : warehouseId,
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['GetInventoryLocationBalances'] as Map?;
+      return Right(
+        (root?['items'] as List? ?? const [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .where((item) => ((item['qty'] as num?)?.toDouble() ?? 0) > 0)
             .toList(),
       );
     } catch (error) {

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../../core/receipt/pos_receipt_document_builder.dart';
+import '../../../domain/models/pos_receipt_template.dart';
+import '../../../domain/repositories/pos_receipt_repository.dart';
+import '../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import '../../../domain/models/pos_transaction_result.dart';
 import 'package:intl/intl.dart';
@@ -285,8 +291,33 @@ class PosSuccessPage extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               ListTile(
+                leading: const Icon(
+                  Icons.image_outlined,
+                  color: AppColors.primary,
+                ),
+                title: const Text('Bagikan sebagai PNG'),
+                subtitle: const Text('Pilih WhatsApp atau aplikasi lain'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _shareReceiptFile(context, _ReceiptFileType.png);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: Colors.red,
+                ),
+                title: const Text('Bagikan sebagai PDF'),
+                subtitle: const Text('Cocok untuk arsip dan cetak ulang'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _shareReceiptFile(context, _ReceiptFileType.pdf);
+                },
+              ),
+              const Divider(),
+              ListTile(
                 leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
-                title: const Text('WhatsApp'),
+                title: const Text('WhatsApp sebagai teks'),
                 subtitle: Text(
                   transaction.customerPhone.isEmpty
                       ? 'Masukkan nomor tujuan'
@@ -295,22 +326,6 @@ class PosSuccessPage extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _shareWhatsApp(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.email_outlined,
-                  color: AppColors.primary,
-                ),
-                title: const Text('Email'),
-                subtitle: Text(
-                  transaction.customerEmail.isEmpty
-                      ? 'Masukkan email tujuan'
-                      : transaction.customerEmail,
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _shareEmail(context);
                 },
               ),
             ],
@@ -371,24 +386,86 @@ class PosSuccessPage extends StatelessWidget {
     await _launchOrCopy(context, uri);
   }
 
-  Future<void> _shareEmail(BuildContext context) async {
-    final email = await _requestDestination(
-      context,
-      title: 'Email pelanggan',
-      initialValue: transaction.customerEmail,
-      keyboardType: TextInputType.emailAddress,
+  Future<void> _shareReceiptFile(
+    BuildContext context,
+    _ReceiptFileType type,
+  ) async {
+    try {
+      final isPng = type == _ReceiptFileType.png;
+      final bytes = isPng ? await _buildReceiptPng() : await _buildReceiptPdf();
+      if (!context.mounted) return;
+
+      final extension = isPng ? 'png' : 'pdf';
+      final mimeType = isPng ? 'image/png' : 'application/pdf';
+      final safeInvoice = transaction.invoice
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '-')
+          .replaceAll(RegExp(r'-+'), '-');
+      final fileName =
+          'Struk-${safeInvoice.isEmpty ? 'POS' : safeInvoice}.$extension';
+      final box = context.findRenderObject() as RenderBox?;
+
+      await SharePlus.instance.share(
+        ShareParams(
+          title: 'Bagikan struk ${transaction.invoice}',
+          subject: 'Struk ${transaction.invoice}',
+          text: 'Struk transaksi ${transaction.invoice} dari Pantoo POS.',
+          files: [XFile.fromData(bytes, mimeType: mimeType, name: fileName)],
+          fileNameOverrides: [fileName],
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.error(context, 'Gagal membuat file struk. Silakan coba lagi.');
+      }
+    }
+  }
+
+  Future<Uint8List> _buildReceiptPdf() async {
+    final result = await sl<PosReceiptRepository>().getReceiptPrintData();
+    final printData = result.fold(
+      (_) => const PosReceiptPrintData(
+        template: PosReceiptTemplate(),
+        company: {},
+      ),
+      (value) => value,
     );
-    if (email == null || email.isEmpty) return;
-    final uri = Uri(
-      scheme: 'mailto',
-      path: email,
-      queryParameters: {
-        'subject': 'Struk ${transaction.invoice}',
-        'body': _receiptText,
-      },
+    final rawDate = transaction.date.trim();
+    final parsedDate = DateTime.tryParse(rawDate)?.toLocal();
+    return PosReceiptDocumentBuilder.build(
+      data: PosReceiptDocumentData(
+        invoice: transaction.invoice,
+        dateLabel: parsedDate == null
+            ? DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())
+            : DateFormat('dd/MM/yyyy HH:mm').format(parsedDate),
+        cashierName: transaction.cashierName,
+        storeName: transaction.storeName,
+        customerName: transaction.customerName,
+        paymentMethod: transaction.paymentMethod,
+        salesChannel: transaction.salesChannel,
+        customerSegment: transaction.customerSegment,
+        promoCode: transaction.promoCode,
+        subtotal: transaction.subtotal,
+        discount: transaction.discount,
+        promoDiscount: transaction.promoDiscount,
+        tax: transaction.tax,
+        total: transaction.total,
+        cashReceived: transaction.cashReceived,
+        change: transaction.change,
+        note: transaction.note,
+        items: transaction.items,
+      ),
+      template: printData.template,
+      company: printData.company,
     );
-    if (!context.mounted) return;
-    await _launchOrCopy(context, uri);
+  }
+
+  Future<Uint8List> _buildReceiptPng() async {
+    final pdf = await _buildReceiptPdf();
+    final page = await Printing.raster(pdf, pages: const [0], dpi: 180).first;
+    return page.toPng();
   }
 
   Future<void> _launchOrCopy(BuildContext context, Uri uri) async {
@@ -402,3 +479,5 @@ class PosSuccessPage extends StatelessWidget {
     }
   }
 }
+
+enum _ReceiptFileType { png, pdf }

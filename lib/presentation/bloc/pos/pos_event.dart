@@ -97,6 +97,7 @@ class SubmitPayment extends PosEvent {
   final String expiredSaleReason;
   final String expiredSaleAuthorizerUsername;
   final String expiredSaleAuthorizerPin;
+  final PosCustomer? customerOverride;
   const SubmitPayment({
     required this.paymentMethod,
     this.cashReceived = 0,
@@ -105,9 +106,10 @@ class SubmitPayment extends PosEvent {
     this.expiredSaleReason = '',
     this.expiredSaleAuthorizerUsername = '',
     this.expiredSaleAuthorizerPin = '',
+    this.customerOverride,
   });
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
     paymentMethod,
     cashReceived,
     payments,
@@ -115,6 +117,7 @@ class SubmitPayment extends PosEvent {
     expiredSaleReason,
     expiredSaleAuthorizerUsername,
     expiredSaleAuthorizerPin,
+    customerOverride,
   ];
 }
 

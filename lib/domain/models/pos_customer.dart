@@ -23,11 +23,12 @@ class PosCustomer {
 
   factory PosCustomer.fromJson(Map<String, dynamic> json) {
     return PosCustomer(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      phone: json['phone'] as String,
+      id: (json['id'] ?? json['_id'])?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Pelanggan',
+      phone: json['phone']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      priceLevel: json['priceLevel'] as String,
+      priceLevel:
+          (json['priceLevel'] ?? json['price_level'])?.toString() ?? 'retail',
       customerSegment: json['customerSegment']?.toString() ?? 'regular',
       membershipStatus: json['membershipStatus']?.toString() ?? 'non_member',
       membershipTier: json['membershipTier']?.toString() ?? 'regular',

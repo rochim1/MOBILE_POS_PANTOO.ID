@@ -169,24 +169,19 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       if (stores.isNotEmpty) {
         activeShift = await posRepository.getActiveShift(stores.first.id);
       }
-      if (activeShift == null) {
-        emit(
-          state.copyWith(
-            status: PosStatus.failure,
-            customers: customers,
-            runtimeConfig: runtimeConfig,
-            stores: stores,
-            orders: orders,
-            ordersPage: 0,
-            ordersHasMore: ordersPage.hasMore,
-            errorMessage: 'Buka shift kasir sebelum memuat produk',
-          ),
-        );
-        return;
-      }
-      final activeStore = stores
-          .where((store) => store.id == activeShift!['toko_id']?.toString())
-          .firstOrNull;
+      final activeStore = activeShift != null
+          ? stores
+                .where(
+                  (store) => store.id == activeShift!['toko_id']?.toString(),
+                )
+                .firstOrNull
+          : stores
+                .where(
+                  (store) =>
+                      store.status.toLowerCase() == 'active' &&
+                      store.branchId.isNotEmpty,
+                )
+                .firstOrNull;
       if (activeStore == null || activeStore.branchId.isEmpty) {
         emit(
           state.copyWith(
@@ -207,10 +202,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         branchId: activeStore.branchId,
       );
       final favoriteProductIds = await posRepository.getFavoriteProductIds();
-      final heldOrders = await posRepository.getHeldOrders(
-        storeId: activeStore.id,
-        shiftId: activeShift['_id']?.toString() ?? '',
-      );
+      final heldOrders = activeShift == null
+          ? <HoldOrder>[]
+          : await posRepository.getHeldOrders(
+              storeId: activeStore.id,
+              shiftId: activeShift['_id']?.toString() ?? '',
+            );
 
       emit(
         state.copyWith(
@@ -223,6 +220,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           ordersPage: 0,
           ordersHasMore: ordersPage.hasMore,
           activeShift: activeShift,
+          clearActiveShift: activeShift == null,
           runtimeConfig: runtimeConfig,
           orderType: _defaultOrderType(runtimeConfig),
           salesChannel:
@@ -232,6 +230,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
               runtimeConfig['default_price_level']?.toString() ?? 'retail',
           taxPercent: (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
           favoriteProductIds: favoriteProductIds,
+          errorMessage: '',
         ),
       );
 
@@ -520,9 +519,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     Emitter<PosState> emit,
   ) async {
     if (state.cart.isEmpty) return;
+    final selectedCustomer = state.selectedCustomer ?? event.customerOverride;
     final features = state.runtimeConfig['features'] as Map?;
     if (features?['require_customer'] == true &&
-        state.selectedCustomer == null) {
+        (selectedCustomer == null || selectedCustomer.id.trim().isEmpty)) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
@@ -560,10 +560,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         customerSegment: state.customerSegment,
         priceLevel: state.priceLevel,
         pajak: state.taxAmount,
-        pelangganId: state.selectedCustomer?.id,
-        pelangganName: state.selectedCustomer?.name,
-        pelangganPhone: state.selectedCustomer?.phone,
-        pelangganEmail: state.selectedCustomer?.email,
+        pelangganId: selectedCustomer?.id,
+        pelangganName: selectedCustomer?.name,
+        pelangganPhone: selectedCustomer?.phone,
+        pelangganEmail: selectedCustomer?.email,
       );
 
       result.fold(

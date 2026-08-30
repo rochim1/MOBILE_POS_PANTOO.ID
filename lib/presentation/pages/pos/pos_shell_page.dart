@@ -151,7 +151,7 @@ class _PosShellPageState extends State<PosShellPage>
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
     await showInteractivePosCashierTour(context, _cashierTourTargets);
-    await prefs.setBool(PosOnboardingPage.setupPreferenceKey(prefs), true);
+    await PosOnboardingPage.markOperationalSetupCompleted(prefs);
     if (!mounted) return;
     setState(() => _setupCompleted = true);
   }
@@ -224,6 +224,37 @@ class _PosShellPageState extends State<PosShellPage>
     }
     if (!mounted) return;
     final pos = posBloc.state;
+    final sharedReadiness = Map<String, dynamic>.from(
+      pos.runtimeConfig['operational_readiness'] as Map? ?? const {},
+    );
+    if (sharedReadiness.isNotEmpty) {
+      switch (sharedReadiness['next_step']?.toString()) {
+        case 'warehouse':
+          _navigateSetupTarget(7, 'warehouse');
+          return;
+        case 'store':
+          _navigateSetupTarget(10);
+          return;
+        case 'product':
+          _navigateSetupTarget(2);
+          return;
+        case 'configuration':
+          _navigateSetupTarget(17);
+          return;
+        case 'stock':
+          _navigateSetupTarget(7, 'stock');
+          return;
+        case 'pin':
+          await lockCubit.lock();
+          return;
+        case 'shift':
+          _navigateSetupTarget(11);
+          return;
+        case 'cashier_tour':
+          await _completeSetupAndStartCashier();
+          return;
+      }
+    }
     final features = Map<String, dynamic>.from(
       pos.runtimeConfig['features'] as Map? ?? const {},
     );
@@ -529,8 +560,13 @@ class _PosShellPageState extends State<PosShellPage>
                             : Icons.fact_check_outlined,
                         color: Colors.white,
                       ),
-                      onPressed: () =>
-                          setState(() => _showSetupGuide = !_showSetupGuide),
+                      onPressed: () {
+                        if (_showSetupGuide) {
+                          setState(() => _showSetupGuide = false);
+                        } else {
+                          _openSetupGuide(context);
+                        }
+                      },
                     ),
                     IconButton(
                       tooltip: 'Kunci POS',

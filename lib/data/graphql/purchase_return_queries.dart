@@ -20,7 +20,7 @@ class PurchaseReturnQueries {
         _id no_return purchase_id no_po supplier_id supplier_name tanggal_return
         lokasi_cabang_id lokasi_cabang_nama return_reason return_reason_label
         catatan return_method return_method_label approval_status approved_at
-        rejected_reason total_return_amount ppn_amount grand_total_return
+        rejected_reason total_return_amount diskon_persen ppn_persen ppn_amount grand_total_return
         journal_id journal_status journal_error createdAt updatedAt
         lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama label }
         items {
@@ -41,11 +41,11 @@ class PurchaseReturnQueries {
   ''';
 
   static const availability = r'''
-    query GetPurchaseReturnSourceAvailability($purchase_id: ID!) {
-      GetPurchaseReturnSourceAvailability(purchase_id: $purchase_id) {
+    query GetPurchaseReturnSourceAvailability($purchase_id: ID!, $exclude_return_id: ID) {
+      GetPurchaseReturnSourceAvailability(purchase_id: $purchase_id, exclude_return_id: $exclude_return_id) {
         lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama label }
         items {
-          purchase_item_id inventaris_id kode_inventaris nama_inventaris
+          purchase_item_id inventaris_id kode_inventaris nama_inventaris sku barcode
           unit base_unit conversion_factor harga_beli no_batch
           available_qty available_qty_base
         }

@@ -10,11 +10,12 @@ abstract class PosStockEvent extends Equatable {
 class LoadStocks extends PosStockEvent {
   final String? search;
   final String? stockFilter;
+  final String? locationId;
 
-  const LoadStocks({this.search, this.stockFilter});
+  const LoadStocks({this.search, this.stockFilter, this.locationId});
 
   @override
-  List<Object?> get props => [search, stockFilter];
+  List<Object?> get props => [search, stockFilter, locationId];
 }
 
 class LoadStatistics extends PosStockEvent {
@@ -27,6 +28,7 @@ class AdjustStock extends PosStockEvent {
   final String reason;
   final String? note;
   final String stockBalanceId;
+  final String? locationId;
 
   const AdjustStock({
     required this.id,
@@ -34,8 +36,16 @@ class AdjustStock extends PosStockEvent {
     required this.reason,
     this.note,
     required this.stockBalanceId,
+    this.locationId,
   });
 
   @override
-  List<Object?> get props => [id, newStock, reason, note, stockBalanceId];
+  List<Object?> get props => [
+    id,
+    newStock,
+    reason,
+    note,
+    stockBalanceId,
+    locationId,
+  ];
 }

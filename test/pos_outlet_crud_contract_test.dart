@@ -15,7 +15,7 @@ void main() {
 
       expect(source, contains('getStoreWarehouseOptions'));
       expect(source, contains("'lokasi_cabang_id': selectedWarehouseId"));
-      expect(source, contains('Lokasi stok / warehouse'));
+      expect(source, contains('Lokasi penjualan / warehouse'));
       expect(source, contains('SingleChildScrollView'));
       expect(source, contains('Duration(milliseconds: 400)'));
       expect(repository, contains('PosQueries.getPOSWarehouseOptions'));

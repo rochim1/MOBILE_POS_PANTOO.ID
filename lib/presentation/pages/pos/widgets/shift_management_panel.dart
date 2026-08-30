@@ -18,6 +18,12 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
   final TextEditingController _amountController = TextEditingController();
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
   Future<void> _openShift(BuildContext context, String tokoId) async {
     final amount = parseRupiah(_amountController.text);
     setState(() => _isLoading = true);

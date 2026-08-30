@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../core/_core.dart';
 import '../../../../../injections.dart';
-import '../pos_setup_guide_page.dart';
+import '../pos_onboarding_page.dart';
 
 class PosCashierTourTargets {
   final search = GlobalKey(debugLabel: 'tour-search');
@@ -25,7 +25,6 @@ Future<void> showInteractivePosCashierTour(
   PosCashierTourTargets targets,
 ) async {
   final prefs = sl<SharedPreferences>();
-  final preferenceKey = PosSetupGuidePage.tourPreferenceKey(prefs);
   final steps = [
     _TourStep(
       targets.search,
@@ -68,7 +67,7 @@ Future<void> showInteractivePosCashierTour(
             setState(() => index++);
             return;
           }
-          await prefs.setBool(preferenceKey, true);
+          await PosOnboardingPage.markOperationalSetupCompleted(prefs);
           if (dialogContext.mounted) Navigator.pop(dialogContext);
         }
 
@@ -164,7 +163,9 @@ Future<void> showInteractivePosCashierTour(
                                 const Spacer(),
                                 TextButton(
                                   onPressed: () async {
-                                    await prefs.setBool(preferenceKey, true);
+                                    await PosOnboardingPage.markOperationalSetupCompleted(
+                                      prefs,
+                                    );
                                     if (dialogContext.mounted) {
                                       Navigator.pop(dialogContext);
                                     }

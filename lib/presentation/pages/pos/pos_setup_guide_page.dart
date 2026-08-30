@@ -50,9 +50,7 @@ class PosSetupGuidePage extends StatefulWidget {
   });
 
   static String tourPreferenceKey(SharedPreferences prefs) {
-    final user = prefs.getString('user_id') ?? 'unknown-user';
-    final tenant = prefs.getString('instansi_id') ?? 'unknown-instansi';
-    return 'pos_cashier_tour_v1:$tenant:$user';
+    return PosOnboardingPage.cashierTourPreferenceKey(prefs);
   }
 
   @override
@@ -89,26 +87,47 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
           final health = Map<String, dynamic>.from(
             state.runtimeConfig['configuration_health'] as Map? ?? const {},
           );
+          final sharedReadiness = Map<String, dynamic>.from(
+            state.runtimeConfig['operational_readiness'] as Map? ?? const {},
+          );
           final trackStock = features['track_stock'] != false;
           final activeStores = state.stores
               .where((store) => store.status.toLowerCase() == 'active')
               .toList();
-          final hasStore = activeStores.isNotEmpty;
+          final hasStore = sharedReadiness.isNotEmpty
+              ? sharedReadiness['has_linked_store'] == true
+              : activeStores.isNotEmpty;
           final warehouses = warehouseSnapshot.data ?? const [];
-          final hasStockLocation = !trackStock || warehouses.isNotEmpty;
-          final hasProducts = state.products.isNotEmpty;
+          final hasStockLocation = sharedReadiness.isNotEmpty
+              ? sharedReadiness['has_sellable_warehouse'] == true
+              : (!trackStock || warehouses.isNotEmpty);
+          final hasProducts = sharedReadiness.isNotEmpty
+              ? sharedReadiness['has_products'] == true
+              : state.products.isNotEmpty;
           final stockTrackedProducts = state.products
               .where((product) => product.tracksStock)
               .toList();
-          final hasInitialStock =
-              !trackStock ||
-              stockTrackedProducts.isEmpty ||
-              stockTrackedProducts.any((product) => product.stock > 0);
-          final hasPin =
-              lock.hasPinConfigured ||
-              (lock.activeEmployeeId?.isNotEmpty == true &&
-                  lock.operatorSessionToken.isNotEmpty);
-          final hasShift = state.activeShift != null;
+          final hasInitialStock = sharedReadiness.isNotEmpty
+              ? sharedReadiness['has_initial_stock'] == true
+              : (!trackStock ||
+                    stockTrackedProducts.isEmpty ||
+                    stockTrackedProducts.any((product) => product.stock > 0));
+          final hasPin = sharedReadiness.isNotEmpty
+              ? sharedReadiness['has_pin_operator'] == true
+              : (lock.hasPinConfigured ||
+                    (lock.activeEmployeeId?.isNotEmpty == true &&
+                        lock.operatorSessionToken.isNotEmpty));
+          final hasShift = sharedReadiness.isNotEmpty
+              ? sharedReadiness['has_open_shift'] == true
+              : state.activeShift != null;
+          final warehouseCount =
+              sharedReadiness['sellable_warehouse_count'] as int? ??
+              warehouses.length;
+          final linkedStoreCount =
+              sharedReadiness['linked_store_count'] as int? ??
+              activeStores.length;
+          final productCount =
+              sharedReadiness['product_count'] as int? ?? state.products.length;
           final healthy = health['valid'] != false;
           final readiness = PosSetupReadiness(
             hasStore: hasStore,
@@ -127,14 +146,14 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
           final steps = <_SetupStep>[
             _SetupStep(
               title: 'Lokasi stok siap',
-              description: !trackStock
-                  ? 'Tracking stok tidak digunakan oleh profil usaha ini.'
-                  : hasStockLocation
-                  ? '${warehouses.length} warehouse/lokasi aktif tersedia.'
-                  : 'Buat warehouse/lokasi dan pastikan dapat digunakan untuk stok.',
+              description: hasStockLocation
+                  ? '$warehouseCount warehouse/lokasi penjualan aktif tersedia.'
+                  : trackStock
+                  ? 'Buat warehouse/lokasi dan pastikan dapat digunakan untuk stok.'
+                  : 'Buat lokasi penjualan aktif untuk dihubungkan ke toko POS.',
               complete: hasStockLocation,
               icon: Icons.warehouse_outlined,
-              actionLabel: trackStock && permissions['view_warehouses'] == true
+              actionLabel: permissions['view_warehouses'] == true
                   ? 'Kelola lokasi'
                   : null,
               destination: 7,
@@ -143,7 +162,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
             _SetupStep(
               title: 'Toko POS aktif',
               description: hasStore
-                  ? '${activeStores.length} toko aktif tersedia.'
+                  ? '$linkedStoreCount toko aktif terhubung ke lokasi penjualan.'
                   : 'Buat toko POS dan hubungkan dengan lokasi stok.',
               complete: hasStore,
               icon: Icons.storefront_outlined,
@@ -155,7 +174,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
             _SetupStep(
               title: 'Katalog penjualan',
               description: hasProducts
-                  ? '${state.products.length} produk/layanan siap dijual.'
+                  ? '$productCount produk/layanan siap dijual.'
                   : 'Tambahkan minimal satu produk, layanan, atau paket aktif.',
               complete: hasProducts,
               icon: Icons.inventory_2_outlined,
@@ -165,26 +184,33 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
               destination: 2,
             ),
             _SetupStep(
-              title: 'Stok awal produk',
-              description: !healthy
-                  ? ((health['issues'] as List? ?? const [])
+              title: 'Konfigurasi operasional',
+              description: healthy
+                  ? 'Profil inventory dan aturan stok POS sudah konsisten.'
+                  : ((health['issues'] as List? ?? const [])
                         .map((value) => value.toString())
-                        .join(' · '))
-                  : hasInitialStock
+                        .join(' · ')),
+              complete: healthy,
+              icon: Icons.tune_outlined,
+              actionLabel: !healthy && permissions['manage_settings'] == true
+                  ? 'Periksa pengaturan'
+                  : null,
+              destination: 17,
+            ),
+            _SetupStep(
+              title: 'Stok awal produk',
+              description: hasInitialStock
                   ? 'Stok awal produk sudah tersedia untuk mulai berjualan.'
                   : 'Isi stok awal setelah produk selesai dibuat.',
-              complete: healthy && hasInitialStock,
+              complete: hasInitialStock,
               icon: Icons.inventory_outlined,
-              actionLabel: !healthy
-                  ? (permissions['manage_settings'] == true
-                        ? 'Periksa pengaturan'
-                        : null)
-                  : (permissions['view_stock'] == true ||
-                        permissions['adjust_stock'] == true)
+              actionLabel:
+                  (permissions['view_stock'] == true ||
+                      permissions['adjust_stock'] == true)
                   ? 'Isi stok awal'
                   : null,
-              destination: healthy ? 7 : 17,
-              section: healthy ? 'stock' : null,
+              destination: 7,
+              section: 'stock',
             ),
             _SetupStep(
               title: 'PIN operator kasir',
@@ -193,8 +219,12 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   : 'Pilih operator dan buat/masukkan PIN kasir.',
               complete: hasPin,
               icon: Icons.pin_outlined,
-              actionLabel: 'Atur PIN',
-              onAction: () => context.read<AppLockCubit>().lock(),
+              actionLabel: permissions['use_cashier'] == true
+                  ? 'Atur PIN'
+                  : null,
+              onAction: permissions['use_cashier'] == true
+                  ? () => context.read<AppLockCubit>().lock()
+                  : null,
             ),
             _SetupStep(
               title: 'Shift kasir dibuka',
@@ -214,7 +244,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   ? 'Panduan kasir sudah dijalankan dan POS siap digunakan.'
                   : ready
                   ? 'Semua prasyarat siap. Ikuti highlight interaktif di halaman kasir.'
-                  : 'Selesaikan enam langkah sebelumnya terlebih dahulu.',
+                  : 'Selesaikan tujuh langkah sebelumnya terlebih dahulu.',
               complete: setupCompleted,
               icon: Icons.explore_outlined,
               actionLabel: ready ? 'Mulai panduan kasir' : null,

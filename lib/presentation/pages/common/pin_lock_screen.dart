@@ -15,6 +15,143 @@ class PinLockScreen extends StatefulWidget {
   State<PinLockScreen> createState() => _PinLockScreenState();
 }
 
+class _CreatePinDialog extends StatefulWidget {
+  const _CreatePinDialog();
+
+  @override
+  State<_CreatePinDialog> createState() => _CreatePinDialogState();
+}
+
+class _CreatePinDialogState extends State<_CreatePinDialog> {
+  final _passwordController = TextEditingController();
+  final _pinController = TextEditingController();
+  final _confirmationController = TextEditingController();
+  bool _saving = false;
+  String _error = '';
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _pinController.dispose();
+    _confirmationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final pin = _pinController.text.trim();
+    if (_passwordController.text.isEmpty) {
+      setState(() => _error = 'Password wajib diisi');
+      return;
+    }
+    if (!RegExp(r'^\d{4,6}$').hasMatch(pin)) {
+      setState(() => _error = 'PIN harus 4–6 digit angka');
+      return;
+    }
+    if (pin != _confirmationController.text.trim()) {
+      setState(() => _error = 'Konfirmasi PIN tidak sama');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = '';
+    });
+    final success = await context.read<AppLockCubit>().createLoginUserPin(
+      password: _passwordController.text,
+      pin: pin,
+    );
+    if (!mounted) return;
+    if (success) {
+      Navigator.pop(context, pin);
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _error = context.read<AppLockCubit>().state.errorMessage;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Buat PIN Kasir'),
+    content: SizedBox(
+      width: 380,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Konfirmasi password akun login, lalu buat PIN kasir 4–6 digit.',
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Password akun',
+              prefixIcon: Icon(Icons.password_outlined),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _pinController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'PIN baru',
+              prefixIcon: Icon(Icons.pin_outlined),
+              border: OutlineInputBorder(),
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _confirmationController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'Ulangi PIN',
+              prefixIcon: Icon(Icons.verified_user_outlined),
+              border: OutlineInputBorder(),
+              counterText: '',
+            ),
+          ),
+          if (_error.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              _error,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Batal'),
+      ),
+      FilledButton.icon(
+        onPressed: _saving ? null : _submit,
+        icon: _saving
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.add_moderator_outlined),
+        label: const Text('Buat PIN'),
+      ),
+    ],
+  );
+}
+
 class _PinLockScreenState extends State<PinLockScreen> {
   String _pin = '';
   final int _pinLength = 6;
@@ -100,149 +237,16 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   Future<void> _createPinForLoginUser() async {
-    final passwordController = TextEditingController();
-    final pinController = TextEditingController();
-    final confirmationController = TextEditingController();
-    var saving = false;
-    String dialogError = '';
     final createdPin = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Buat PIN Kasir'),
-          content: SizedBox(
-            width: 380,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Konfirmasi password akun login, lalu buat PIN kasir 4–6 digit.',
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password akun',
-                    prefixIcon: Icon(Icons.password_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pinController,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'PIN baru',
-                    prefixIcon: Icon(Icons.pin_outlined),
-                    border: OutlineInputBorder(),
-                    counterText: '',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: confirmationController,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Ulangi PIN',
-                    prefixIcon: Icon(Icons.verified_user_outlined),
-                    border: OutlineInputBorder(),
-                    counterText: '',
-                  ),
-                ),
-                if (dialogError.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    dialogError,
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            FilledButton.icon(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final pin = pinController.text.trim();
-                      if (passwordController.text.isEmpty) {
-                        setDialogState(
-                          () => dialogError = 'Password wajib diisi',
-                        );
-                        return;
-                      }
-                      if (!RegExp(r'^\d{4,6}$').hasMatch(pin)) {
-                        setDialogState(
-                          () => dialogError = 'PIN harus 4–6 digit angka',
-                        );
-                        return;
-                      }
-                      if (pin != confirmationController.text.trim()) {
-                        setDialogState(
-                          () => dialogError = 'Konfirmasi PIN tidak sama',
-                        );
-                        return;
-                      }
-                      setDialogState(() {
-                        saving = true;
-                        dialogError = '';
-                      });
-                      final success = await context
-                          .read<AppLockCubit>()
-                          .createLoginUserPin(
-                            password: passwordController.text,
-                            pin: pin,
-                          );
-                      if (!dialogContext.mounted) return;
-                      if (success) {
-                        Navigator.pop(dialogContext, pin);
-                      } else {
-                        setDialogState(() {
-                          saving = false;
-                          dialogError = context
-                              .read<AppLockCubit>()
-                              .state
-                              .errorMessage;
-                        });
-                      }
-                    },
-              icon: saving
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.add_moderator_outlined),
-              label: const Text('Buat PIN'),
-            ),
-          ],
-        ),
-      ),
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => const _CreatePinDialog(),
     );
-    // showDialog menyelesaikan Future saat pop dimulai, sedangkan field masih
-    // dipakai selama animasi keluar. Tunggu route benar-benar terlepas sebelum
-    // controller dibuang agar AnimatedBuilder tidak memasang listener kembali
-    // pada controller yang sudah disposed.
-    await Future<void>.delayed(kThemeAnimationDuration);
-    passwordController.dispose();
-    pinController.dispose();
-    confirmationController.dispose();
     if (createdPin == null || !mounted) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     setState(() => _pin = createdPin);
     await _verifyPin();
   }

@@ -10,11 +10,13 @@ import '../../../../injections.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../../../domain/models/pos_order.dart';
+import '../../../../domain/models/pos_customer.dart';
 
 class PosPaymentPage extends StatefulWidget {
   final PosOrder? pendingOrder;
+  final PosCustomer? initialCustomer;
 
-  const PosPaymentPage({super.key, this.pendingOrder});
+  const PosPaymentPage({super.key, this.pendingOrder, this.initialCustomer});
 
   @override
   State<PosPaymentPage> createState() => _PosPaymentPageState();
@@ -32,6 +34,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   void initState() {
     super.initState();
     _invoiceNote = widget.pendingOrder?.note ?? '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.initialCustomer == null) return;
+      final bloc = context.read<PosBloc>();
+      if (bloc.state.selectedCustomer?.id != widget.initialCustomer!.id) {
+        bloc.add(SelectCustomer(widget.initialCustomer));
+      }
+    });
   }
 
   @override
@@ -428,6 +437,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                       child: Text(
                                         widget.pendingOrder?.customer ??
                                             state.selectedCustomer?.name ??
+                                            widget.initialCustomer?.name ??
                                             'Tanpa Pelanggan',
                                         style: TextStyle(fontSize: 12),
                                       ),
@@ -605,6 +615,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             cashReceived: _cashReceived,
                                             payments: _splitPayments,
                                             note: _invoiceNote,
+                                            customerOverride:
+                                                widget.initialCustomer,
                                           ),
                                         );
                                       }
@@ -760,6 +772,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         expiredSaleReason: authorization['reason']!,
         expiredSaleAuthorizerUsername: authorization['username']!,
         expiredSaleAuthorizerPin: authorization['pin']!,
+        customerOverride: widget.initialCustomer,
       ),
     );
   }
@@ -968,8 +981,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       tokoId: activeShift?['toko_id']?.toString() ?? '',
       shiftId: activeShift?['_id']?.toString() ?? '',
       orderType: state.orderType,
-      customerId: state.selectedCustomer?.id,
-      customerName: state.selectedCustomer?.name,
+      customerId: state.selectedCustomer?.id ?? widget.initialCustomer?.id,
+      customerName:
+          state.selectedCustomer?.name ?? widget.initialCustomer?.name,
       note: _invoiceNote,
       discountPercent: state.subTotal > 0
           ? (state.totalDiscount / state.subTotal * 100)

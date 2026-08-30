@@ -1,4 +1,22 @@
 class PosStockQueries {
+  static const String getStockLocations = r'''
+    query GetPOSStockLocationOptions {
+      getAllCabangs(
+        filter: { status: "active", has_warehouse: true }
+        pagination: { page: 0, limit: 200 }
+      ) {
+        cabang {
+          _id
+          branch_code
+          nama_cabang
+          warehouse_type
+          is_sellable_location
+          status
+        }
+      }
+    }
+  ''';
+
   static const String getStockByStore = r'''
     query GetInventarisAvailableInLocation($cabangId: ID!) {
       GetInventarisAvailableInLocation(cabang_id: $cabangId) {
@@ -30,9 +48,15 @@ class PosStockQueries {
   ''';
 
   static const String getActiveStockLocation = r'''
-    query GetMyActiveKasirShiftStockLocation {
+    query GetPOSStockLocationContext {
       GetMyActiveKasirShift {
         toko {
+          lokasi_cabang_id
+        }
+      }
+      GetAllPOSToko(pagination: { page: 0, limit: 100 }) {
+        items {
+          status
           lokasi_cabang_id
         }
       }

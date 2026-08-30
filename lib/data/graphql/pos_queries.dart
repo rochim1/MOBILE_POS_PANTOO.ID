@@ -42,6 +42,19 @@ class PosQueries {
           default_transfer_transit_location_id
         }
         configuration_health { valid issues }
+        operational_readiness {
+          ready
+          has_sellable_warehouse
+          sellable_warehouse_count
+          has_linked_store
+          linked_store_count
+          has_products
+          product_count
+          has_initial_stock
+          has_pin_operator
+          has_open_shift
+          next_step
+        }
         default_order_type
         default_sales_channel
         default_customer_segment
@@ -188,6 +201,50 @@ class PosQueries {
             _id
           }
         }
+      }
+    }
+  ''';
+
+  static const String register = r'''
+    mutation CreateUser($input: UserInput) {
+      CreateUser(input: $input) {
+        _id
+        name
+        email
+        username
+      }
+    }
+  ''';
+
+  static const String checkEmailAvailable = r'''
+    query CheckEmailAvailable($email: String) {
+      CheckEmailAvailable(email: $email)
+    }
+  ''';
+
+  static const String checkUsernameAvailable = r'''
+    query CheckUsernameAvailable($username: String) {
+      CheckUsernameAvailable(username: $username)
+    }
+  ''';
+
+  static const String createInstansi = r'''
+    mutation CreateInstansi($input: InstansiInput) {
+      CreateInstansi(input: $input) {
+        _id
+        nama_instansi
+        telpon_number
+        subscription_status
+        primary_product
+      }
+    }
+  ''';
+
+  static const String resendConfirmationEmail = r'''
+    mutation ResendConfirmationEmail($email: String!, $isUser: Boolean!) {
+      ResendConfirmationEmail(email: $email, is_user: $isUser) {
+        is_successed
+        message
       }
     }
   ''';

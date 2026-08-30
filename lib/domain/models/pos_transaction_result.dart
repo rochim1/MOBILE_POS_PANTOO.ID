@@ -13,6 +13,14 @@ class PosTransactionResult {
   final String customerName;
   final String customerPhone;
   final String customerEmail;
+  final String date;
+  final String cashierName;
+  final String storeName;
+  final String salesChannel;
+  final String customerSegment;
+  final String promoCode;
+  final String note;
+  final List<Map<String, dynamic>> items;
 
   const PosTransactionResult({
     required this.id,
@@ -29,6 +37,14 @@ class PosTransactionResult {
     this.customerName = '',
     this.customerPhone = '',
     this.customerEmail = '',
+    this.date = '',
+    this.cashierName = '',
+    this.storeName = '',
+    this.salesChannel = '',
+    this.customerSegment = '',
+    this.promoCode = '',
+    this.note = '',
+    this.items = const [],
   });
 
   factory PosTransactionResult.fromJson(
@@ -36,6 +52,13 @@ class PosTransactionResult {
     String customerName = '',
     String customerPhone = '',
     String customerEmail = '',
+    String cashierName = '',
+    String storeName = '',
+    String salesChannel = '',
+    String customerSegment = '',
+    String promoCode = '',
+    String note = '',
+    List<Map<String, dynamic>> items = const [],
   }) => PosTransactionResult(
     id: json['_id']?.toString() ?? '',
     invoice: json['invoice']?.toString() ?? '',
@@ -50,5 +73,17 @@ class PosTransactionResult {
     customerName: customerName,
     customerPhone: customerPhone,
     customerEmail: customerEmail,
+    date: (json['tanggal'] ?? json['createdAt'] ?? '').toString(),
+    cashierName: cashierName,
+    storeName: storeName,
+    salesChannel: salesChannel,
+    customerSegment: customerSegment,
+    promoCode: promoCode,
+    note: note,
+    items: items.isNotEmpty
+        ? items
+        : (json['items'] as List? ?? const [])
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList(),
   );
 }

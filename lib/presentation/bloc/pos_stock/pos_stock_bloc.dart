@@ -24,6 +24,7 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
       reason: event.reason,
       note: event.note,
       stockBalanceId: event.stockBalanceId,
+      locationId: event.locationId ?? state.selectedLocationId,
     );
     result.fold(
       (failure) => emit(
@@ -57,16 +58,32 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
     LoadStocks event,
     Emitter<PosStockState> emit,
   ) async {
+    var locations = state.locations;
+    if (locations.isEmpty) {
+      final locationResult = await repository.getStockLocations();
+      locations = locationResult.fold((_) => const [], (items) => items);
+    }
+    var locationId = event.locationId ?? state.selectedLocationId;
+    if (locationId.isEmpty) {
+      final defaultLocation = await repository.getDefaultStockLocationId();
+      locationId = defaultLocation.fold(
+        (_) => locations.firstOrNull?['_id']?.toString() ?? '',
+        (id) => id,
+      );
+    }
     emit(
       state.copyWith(
         status: PosStockStatus.loading,
         currentFilter: event.stockFilter ?? state.currentFilter,
+        locations: locations,
+        selectedLocationId: locationId,
       ),
     );
 
     final result = await repository.getStocks(
       search: event.search,
       stockFilter: event.stockFilter ?? state.currentFilter,
+      locationId: locationId,
     );
 
     result.fold(
@@ -78,10 +95,8 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
       ),
       (stocks) {
         emit(state.copyWith(status: PosStockStatus.success, stocks: stocks));
-        // Also load statistics on initial load
-        if (state.statistics == null) {
-          add(const LoadStatistics());
-        }
+        // Statistics are scoped to the selected warehouse/location too.
+        add(const LoadStatistics());
       },
     );
   }
@@ -90,7 +105,9 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
     LoadStatistics event,
     Emitter<PosStockState> emit,
   ) async {
-    final result = await repository.getStatistics();
+    final result = await repository.getStatistics(
+      locationId: state.selectedLocationId,
+    );
     result.fold((failure) {
       // Silently fail — statistics are supplementary
     }, (statistics) => emit(state.copyWith(statistics: statistics)));

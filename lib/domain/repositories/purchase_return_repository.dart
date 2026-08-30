@@ -19,6 +19,10 @@ class PurchaseReturnRepository {
   Future<Either<Failure, PurchaseReturnPageResult>> getAll({
     String search = '',
     String status = '',
+    String reason = '',
+    String method = '',
+    String dateFrom = '',
+    String dateTo = '',
     int page = 1,
     int limit = 20,
   }) async {
@@ -30,6 +34,10 @@ class PurchaseReturnRepository {
             'filter': {
               if (search.trim().isNotEmpty) 'search': search.trim(),
               if (status.isNotEmpty) 'approval_status': status,
+              if (reason.isNotEmpty) 'return_reason': reason,
+              if (method.isNotEmpty) 'return_method': method,
+              if (dateFrom.isNotEmpty) 'date_from': dateFrom,
+              if (dateTo.isNotEmpty) 'date_to': dateTo,
             },
             // PaginationInput backend menggunakan indeks berbasis 0, sedangkan
             // UI menampilkan nomor halaman berbasis 1.
@@ -86,13 +94,18 @@ class PurchaseReturnRepository {
   }
 
   Future<Either<Failure, List<Map<String, dynamic>>>> getAvailability(
-    String purchaseId,
-  ) async {
+    String purchaseId, {
+    String excludeReturnId = '',
+  }) async {
     try {
       final result = await _provider.client.query(
         QueryOptions(
           document: gql(PurchaseReturnQueries.availability),
-          variables: {'purchase_id': purchaseId},
+          variables: {
+            'purchase_id': purchaseId,
+            if (excludeReturnId.isNotEmpty)
+              'exclude_return_id': excludeReturnId,
+          },
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
@@ -145,11 +158,10 @@ class PurchaseReturnRepository {
   Future<Either<Failure, Map<String, dynamic>>> update(
     String id,
     Map<String, dynamic> input,
-  ) => _mutateOne(
-    PurchaseReturnQueries.update,
-    {'_id': id, 'input': input},
-    'UpdatePurchaseReturn',
-  );
+  ) => _mutateOne(PurchaseReturnQueries.update, {
+    '_id': id,
+    'input': input,
+  }, 'UpdatePurchaseReturn');
 
   Future<Either<Failure, bool>> delete(String id, String reason) async {
     try {

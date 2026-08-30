@@ -32,8 +32,15 @@ class App extends StatelessWidget {
           return BlocListener<AuthCubit, AuthState>(
             listener: (context, state) async {
               if (state.status == AuthStatus.authenticated) {
-                await context.read<AppLockCubit>().lock();
                 final prefs = sl<SharedPreferences>();
+                final needsWorkspace =
+                    prefs.getBool('needs_workspace_setup') == true ||
+                    (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
+                if (needsWorkspace) {
+                  context.read<AppLockCubit>().reset();
+                } else {
+                  await context.read<AppLockCubit>().lock();
+                }
                 navigatorKey.currentState?.pushAndRemoveUntil(
                   MaterialPageRoute(
                     builder: (_) => PosOnboardingPage.initialDestination(prefs),

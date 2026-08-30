@@ -98,9 +98,29 @@ void main() {
     test('list membawa status, lokasi, nilai, dan item untuk UI', () {
       expect(PosInventoryQueries.purchases, contains('grand_total'));
       expect(PosInventoryQueries.opnames, contains('qty_fisik'));
+      expect(PosInventoryQueries.opnames, contains('batch_counts'));
+      expect(
+        PosInventoryQueries.locationItems,
+        contains('include_non_sellable: true'),
+      );
+      expect(PosInventoryQueries.locationItems, contains('barcode'));
       expect(PosInventoryQueries.transfers, contains('dari'));
       expect(PosInventoryQueries.transfers, contains('ke'));
       expect(PosInventoryQueries.scraps, contains('total_nilai_scrap'));
+      expect(PosInventoryQueries.scraps, contains('jumlah_hilang'));
+      expect(PosInventoryQueries.scraps, contains('saldo_lokasi_sebelum'));
+    });
+
+    test('disposal memakai saldo lokasi, batch, dan kerugian bersih', () {
+      final source = File(
+        'lib/presentation/pages/pos/pos_inventory_editor_page.dart',
+      ).readAsStringSync();
+      expect(PosInventoryQueries.locationBalances, contains('batches'));
+      expect(source, contains("'stock_balance_id'"));
+      expect(source, contains("'no_batch'"));
+      expect(source, contains("'jumlah_hasil_recycle'"));
+      expect(source, contains('_scanScrapBarcode'));
+      expect(source, contains('melebihi saldo batch'));
     });
   });
 }
