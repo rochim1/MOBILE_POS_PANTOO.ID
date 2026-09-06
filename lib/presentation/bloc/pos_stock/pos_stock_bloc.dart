@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'pos_stock_event.dart';
 import 'pos_stock_state.dart';
 import '../../../domain/repositories/pos_stock_repository.dart';
-import '../../../domain/models/pos_stock.dart';
 
 class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
   final PosStockRepository repository;
@@ -23,8 +22,12 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
       newStock: event.newStock,
       reason: event.reason,
       note: event.note,
+      reference: event.reference,
       stockBalanceId: event.stockBalanceId,
       locationId: event.locationId ?? state.selectedLocationId,
+      buildingCode: event.buildingCode,
+      roomCode: event.roomCode,
+      rackName: event.rackName,
     );
     result.fold(
       (failure) => emit(
@@ -33,23 +36,20 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
           errorMessage: failure.message,
         ),
       ),
-      (newStock) {
-        final stocks = state.stocks
-            .map(
-              (item) => item.id == event.id
-                  ? PosStock.fromJson({...item.toJson(), 'stok': newStock})
-                  : item,
-            )
-            .toList();
+      (_) {
         emit(
           state.copyWith(
             status: PosStockStatus.success,
-            stocks: stocks,
             successMessage: 'Stok berhasil disesuaikan',
             errorMessage: '',
           ),
         );
-        add(const LoadStatistics());
+        add(
+          LoadStocks(
+            stockFilter: state.currentFilter,
+            locationId: state.selectedLocationId,
+          ),
+        );
       },
     );
   }
@@ -64,13 +64,6 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
       locations = locationResult.fold((_) => const [], (items) => items);
     }
     var locationId = event.locationId ?? state.selectedLocationId;
-    if (locationId.isEmpty) {
-      final defaultLocation = await repository.getDefaultStockLocationId();
-      locationId = defaultLocation.fold(
-        (_) => locations.firstOrNull?['_id']?.toString() ?? '',
-        (id) => id,
-      );
-    }
     emit(
       state.copyWith(
         status: PosStockStatus.loading,

@@ -96,5 +96,19 @@ void main() {
 
       expect(actions, isEmpty);
     });
+
+    test(
+      'legacy completed purchase with remaining quantity can be received',
+      () {
+        final actions = PosInventoryActionPolicy.available(
+          type: PosInventoryDocumentType.purchase,
+          status: 'completed',
+          can: allowAll,
+          purchaseHasRemaining: true,
+        );
+
+        expect(actions, contains('receive_purchase'));
+      },
+    );
   });
 }

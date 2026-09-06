@@ -201,15 +201,13 @@ class _PosDrawerState extends State<PosDrawer> {
           _buildShellItem(Icons.dashboard_outlined, 'Dashboard', 0),
         if (can('use_cashier'))
           _buildShellItem(Icons.point_of_sale_outlined, 'Kasir', 1),
-        if (useTables && viewTables)
-          _buildShellItem(Icons.restaurant_menu_outlined, 'Table Order', 5),
+        if (useTables && (viewTables || manageTables))
+          _buildShellItem(Icons.restaurant_menu_outlined, 'Order & Meja', 5),
 
         // ---- Manajemen ----
         _buildSectionHeader('MANAJEMEN'),
         if (can('view_products'))
           _buildShellItem(Icons.inventory_2_outlined, 'Katalog POS', 2),
-        if (useTables && manageTables)
-          _buildShellItem(Icons.table_bar_outlined, 'Manajemen Meja', 6),
         if (canViewInventory) ...[
           _buildShellItem(Icons.inventory_2_outlined, 'Inventori', 7),
           Padding(

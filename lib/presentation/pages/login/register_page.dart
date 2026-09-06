@@ -9,6 +9,7 @@ import '../../../injections.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../bloc/auth/register_cubit.dart';
 import '../../bloc/auth/register_state.dart';
+import '../../widgets/login/legal_links.dart';
 
 class RegisterPage extends StatelessWidget {
   const RegisterPage({super.key});
@@ -41,6 +42,7 @@ class _RegisterViewState extends State<_RegisterView> {
   Timer? _emailDebounce;
   bool _hidePassword = true;
   bool _hideConfirmation = true;
+  bool _acceptedLegal = false;
 
   @override
   void dispose() {
@@ -81,6 +83,16 @@ class _RegisterViewState extends State<_RegisterView> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedLegal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Setujui Kebijakan Privasi dan Ketentuan Layanan untuk mendaftar.',
+          ),
+        ),
+      );
+      return;
+    }
     FocusScope.of(context).unfocus();
     TextInput.finishAutofillContext(shouldSave: true);
     await context.read<RegisterCubit>().register(
@@ -430,10 +442,31 @@ class _RegisterViewState extends State<_RegisterView> {
                                           : null,
                                     ),
                                     const SizedBox(height: 22),
+                                    CheckboxListTile(
+                                      value: _acceptedLegal,
+                                      onChanged: state.isSubmitting
+                                          ? null
+                                          : (value) => setState(
+                                              () => _acceptedLegal =
+                                                  value == true,
+                                            ),
+                                      controlAffinity:
+                                          ListTileControlAffinity.leading,
+                                      contentPadding: EdgeInsets.zero,
+                                      title: const PantooLegalLinks(
+                                        includePrefix: false,
+                                      ),
+                                      subtitle: const Text(
+                                        'Persetujuan diperlukan untuk membuat akun.',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
                                     SizedBox(
                                       height: 50,
                                       child: FilledButton(
-                                        onPressed: state.isSubmitting
+                                        onPressed:
+                                            state.isSubmitting ||
+                                                !_acceptedLegal
                                             ? null
                                             : _submit,
                                         child: state.isSubmitting

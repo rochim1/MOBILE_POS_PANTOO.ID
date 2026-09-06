@@ -5,6 +5,7 @@ class PosSettingsQueries {
        pos_defaults {
         onboarding_completed
         onboarding_version
+        operational_setup_completed
         business_profile
         enabled_features { use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
         pajak_persen
@@ -33,6 +34,7 @@ class PosSettingsQueries {
        pos_defaults {
         onboarding_completed
         onboarding_version
+        operational_setup_completed
         business_profile
         enabled_features { use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
         pajak_persen
@@ -52,6 +54,12 @@ class PosSettingsQueries {
         pembulatan_harga
        }
       }
+    }
+  ''';
+
+  static const String markOperationalSetupCompleted = '''
+    mutation MarkPOSOperationalSetupCompleted {
+      MarkPOSOperationalSetupCompleted
     }
   ''';
 }

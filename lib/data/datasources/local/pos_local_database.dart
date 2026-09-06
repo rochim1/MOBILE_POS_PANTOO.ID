@@ -13,7 +13,7 @@ class PosLocalDatabase {
   static Database? _database;
   static Future<Database>? _databaseFuture;
   static const _databaseKeyName = 'pos_database_key_v1';
-  static const _schemaVersion = 16;
+  static const _schemaVersion = 17;
   static const _secureStorage = FlutterSecureStorage();
 
   PosLocalDatabase._init();
@@ -325,6 +325,23 @@ SELECT id, name, role FROM employees
       await db.execute('DROP TABLE employees');
       await db.execute('ALTER TABLE employees_secure RENAME TO employees');
     }
+    if (oldVersion < 17) {
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN address TEXT NOT NULL DEFAULT ""',
+      );
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN catatan TEXT NOT NULL DEFAULT ""',
+      );
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN membership_status TEXT NOT NULL DEFAULT "non_member"',
+      );
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN membership_tier TEXT NOT NULL DEFAULT "regular"',
+      );
+      await db.execute(
+        'ALTER TABLE customers ADD COLUMN customer_type TEXT NOT NULL DEFAULT "personal"',
+      );
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -358,8 +375,13 @@ CREATE TABLE customers (
   name $textType,
   phone $textType,
   email TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  catatan TEXT NOT NULL DEFAULT '',
   price_level TEXT NOT NULL DEFAULT 'retail',
-  customer_segment TEXT NOT NULL DEFAULT 'regular'
+  customer_segment TEXT NOT NULL DEFAULT 'regular',
+  membership_status TEXT NOT NULL DEFAULT 'non_member',
+  membership_tier TEXT NOT NULL DEFAULT 'regular',
+  customer_type TEXT NOT NULL DEFAULT 'personal'
 )
 ''');
 

@@ -11,12 +11,18 @@ import '../../../domain/models/pos_stock.dart';
 import '../../../domain/repositories/pos_stock_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_ui.dart';
+import '../../widgets/skeleton_loading.dart';
 import '../../bloc/pos/pos_bloc.dart';
 
 class PosStockPage extends StatelessWidget {
   final bool isGridView;
+  final VoidCallback? onOpenStockOpname;
 
-  const PosStockPage({super.key, this.isGridView = true});
+  const PosStockPage({
+    super.key,
+    this.isGridView = true,
+    this.onOpenStockOpname,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +47,10 @@ class PosStockPage extends StatelessWidget {
     return BlocProvider(
       create: (_) =>
           sl<PosStockBloc>()..add(const LoadStocks(stockFilter: 'all')),
-      child: _PosStockView(isGridView: isGridView),
+      child: _PosStockView(
+        isGridView: isGridView,
+        onOpenStockOpname: onOpenStockOpname,
+      ),
     );
   }
 }
@@ -88,8 +97,9 @@ class _StockAccessMessage extends StatelessWidget {
 
 class _PosStockView extends StatefulWidget {
   final bool isGridView;
+  final VoidCallback? onOpenStockOpname;
 
-  const _PosStockView({required this.isGridView});
+  const _PosStockView({required this.isGridView, this.onOpenStockOpname});
 
   @override
   State<_PosStockView> createState() => _PosStockViewState();
@@ -185,10 +195,23 @@ class _PosStockViewState extends State<_PosStockView> {
                     state.stocks.isEmpty)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList.builder(
-                      itemCount: 5,
-                      itemBuilder: (_, __) => const _StockCardSkeleton(),
-                    ),
+                    sliver: widget.isGridView
+                        ? SliverGrid(
+                            gridDelegate:
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 460,
+                                  mainAxisExtent: 218,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 12,
+                                ),
+                            delegate: SliverChildBuilderDelegate(
+                              (_, __) => const _StockCardSkeleton(),
+                              childCount: 6,
+                            ),
+                          )
+                        : const SliverToBoxAdapter(
+                            child: _StockTableSkeleton(),
+                          ),
                   )
                 else if (state.stocks.isEmpty)
                   const SliverFillRemaining(
@@ -339,18 +362,21 @@ class _PosStockViewState extends State<_PosStockView> {
             ],
           ),
           const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
+          if (value == '-')
+            const SkeletonBox(width: 84, height: 22, borderRadius: 5)
+          else
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 7),
           Container(height: 2, color: color),
         ],
@@ -437,9 +463,11 @@ class _PosStockViewState extends State<_PosStockView> {
         .map((item) => item['_id']?.toString() ?? '')
         .where((id) => id.isNotEmpty)
         .toSet();
-    final selectedLocation = locationIds.contains(state.selectedLocationId)
+    final selectedLocation = state.selectedLocationId.isEmpty
+        ? ''
+        : locationIds.contains(state.selectedLocationId)
         ? state.selectedLocationId
-        : null;
+        : '';
     final locationDropdown = DropdownButtonFormField<String>(
       key: ValueKey('stock-location-${state.selectedLocationId}'),
       initialValue: selectedLocation,
@@ -457,20 +485,22 @@ class _PosStockViewState extends State<_PosStockView> {
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
       ),
-      hint: const Text('Pilih lokasi'),
-      items: state.locations.map((location) {
-        final id = location['_id']?.toString() ?? '';
-        final name = location['nama_cabang']?.toString().trim() ?? '';
-        final code = location['branch_code']?.toString().trim() ?? '';
-        final label = name.isNotEmpty ? name : (code.isNotEmpty ? code : id);
-        return DropdownMenuItem(
-          value: id,
-          child: Text(
-            code.isNotEmpty && code != label ? '$label · $code' : label,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
+      items: [
+        const DropdownMenuItem(value: '', child: Text('Semua Cabang')),
+        ...state.locations.map((location) {
+          final id = location['_id']?.toString() ?? '';
+          final name = location['nama_cabang']?.toString().trim() ?? '';
+          final code = location['branch_code']?.toString().trim() ?? '';
+          final label = name.isNotEmpty ? name : (code.isNotEmpty ? code : id);
+          return DropdownMenuItem(
+            value: id,
+            child: Text(
+              code.isNotEmpty && code != label ? '$label · $code' : label,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }),
+      ],
       onChanged: state.locations.isEmpty
           ? null
           : (value) {
@@ -490,7 +520,7 @@ class _PosStockViewState extends State<_PosStockView> {
     final historyButton = OutlinedButton.icon(
       onPressed: _canViewStock ? _showMovementHistory : null,
       icon: const Icon(Icons.history, size: 18),
-      label: const Text('Riwayat Stok'),
+      label: const Text('Riwayat Shift'),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -802,7 +832,7 @@ class _PosStockViewState extends State<_PosStockView> {
                       OutlinedButton.icon(
                         onPressed: () => _handleAdjustment(stock),
                         icon: const Icon(Icons.tune, size: 17),
-                        label: const Text('Koreksi Stok'),
+                        label: const Text('Koreksi Darurat'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           visualDensity: VisualDensity.compact,
@@ -836,6 +866,17 @@ class _PosStockViewState extends State<_PosStockView> {
   }
 
   Future<void> _showStockDetail(PosStock stock) async {
+    final warehouseId = context.read<PosStockBloc>().state.selectedLocationId;
+    final balanceResult = await sl<PosStockRepository>().getLocationBalances(
+      inventoryId: stock.id,
+      warehouseId: warehouseId,
+    );
+    if (!mounted) return;
+    final balanceFailure = balanceResult.fold(
+      (failure) => failure,
+      (_) => null,
+    );
+    final balances = balanceResult.getOrElse(() => const []);
     final stockColor = _getStockColor(stock);
     await showModalBottomSheet<void>(
       context: context,
@@ -897,8 +938,57 @@ class _PosStockViewState extends State<_PosStockView> {
                 ),
                 _stockDetailRow(
                   'Jumlah saldo lokasi',
-                  stock.locationCount.toString(),
+                  balances.length.toString(),
                 ),
+                const Divider(height: 28),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Rincian saldo per lokasi',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${balances.length} lokasi',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (balanceFailure != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.shade100),
+                    ),
+                    child: Text(
+                      'Rincian lokasi gagal dimuat: ${balanceFailure.message}',
+                      style: TextStyle(color: Colors.red.shade800),
+                    ),
+                  )
+                else if (balances.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Belum ada saldo lokasi. Tambahkan melalui penerimaan, mutasi, atau Stock Opname.',
+                    ),
+                  )
+                else
+                  ...balances.map(
+                    (balance) => _buildLocationBalanceCard(balance, stock.unit),
+                  ),
                 if (stock.requiresBatchAdjustment)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
@@ -920,10 +1010,10 @@ class _PosStockViewState extends State<_PosStockView> {
                       FilledButton.icon(
                         onPressed: () {
                           Navigator.pop(sheetContext);
-                          _handleAdjustment(stock);
+                          _handleAdjustment(stock, knownBalances: balances);
                         },
                         icon: const Icon(Icons.tune, size: 18),
-                        label: const Text('Koreksi Stok'),
+                        label: const Text('Koreksi Darurat'),
                       ),
                     ],
                   ],
@@ -961,61 +1051,301 @@ class _PosStockViewState extends State<_PosStockView> {
         ),
       );
 
-  Future<void> _handleAdjustment(PosStock stock) async {
+  Widget _buildLocationBalanceCard(Map<String, dynamic> balance, String unit) {
+    final batches = (balance['batches'] as List? ?? const [])
+        .whereType<Map>()
+        .where(
+          (batch) =>
+              batch['aktif'] != false &&
+              ((batch['qty'] as num?)?.toDouble() ?? 0) > 0,
+        )
+        .toList();
+    final hasDetailedPath = [
+      balance['lokasi_gedung_kode'],
+      balance['lokasi_ruangan_kode'],
+      balance['lokasi_rak_nama'],
+    ].any((value) => value?.toString().trim().isNotEmpty == true);
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      color: Colors.grey.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 19,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _balanceLocation(balance),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      if (!hasDetailedPath)
+                        const Text(
+                          'Lokasi utama • belum dirinci ke gedung/ruangan/rak',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_formatStock((balance['qty'] as num? ?? 0).toDouble())} $unit',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            if (batches.isNotEmpty) ...[
+              const Divider(height: 20),
+              Text(
+                '${batches.length} batch aktif',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              ...batches.map((batch) {
+                final expiry = DateTime.tryParse(
+                  batch['tanggal_kadaluarsa']?.toString() ?? '',
+                );
+                final expiryLabel = expiry == null
+                    ? 'tanpa kedaluwarsa'
+                    : DateFormat(
+                        'dd MMM yyyy',
+                        'id_ID',
+                      ).format(expiry.toLocal());
+                return Text(
+                  'Batch ${batch['no_batch'] ?? '-'} • ${_formatStock((batch['qty'] as num? ?? 0).toDouble())} $unit • $expiryLabel',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAdjustment(
+    PosStock stock, {
+    List<Map<String, dynamic>>? knownBalances,
+  }) async {
     if (stock.requiresBatchAdjustment) {
       await _showAdjustmentInfo(
         'Stok dilacak per batch',
-        'Koreksi produk ini harus dilakukan melalui Stock Opname di Web Admin agar jumlah setiap batch dan tanggal kedaluwarsa tetap konsisten.',
+        'Selisih fisik produk ini harus dicatat melalui Stock Opname agar jumlah setiap batch dan tanggal kedaluwarsa tetap konsisten.',
+        openOpname: true,
       );
       return;
     }
-    if (stock.locationCount != 1 ||
-        stock.stockBalanceId == null ||
-        stock.stockBalanceId!.isEmpty) {
+    final warehouseId = context.read<PosStockBloc>().state.selectedLocationId;
+    var balances = knownBalances;
+    if (balances == null) {
+      final result = await sl<PosStockRepository>().getLocationBalances(
+        inventoryId: stock.id,
+        warehouseId: warehouseId,
+      );
+      if (!mounted) return;
+      final failure = result.fold((value) => value, (_) => null);
+      if (failure != null) {
+        AppToast.error(context, failure.message);
+        return;
+      }
+      balances = result.getOrElse(() => const []);
+    }
+    if (balances.isEmpty) {
       await _showAdjustmentInfo(
-        'Stok berada di beberapa lokasi',
-        'Pilih saldo rak/lokasi melalui halaman Stok Inventory di Web Admin. Total stok cabang tidak boleh dikoreksi sebagai satu saldo.',
+        'Saldo lokasi tidak ditemukan',
+        'Produk belum memiliki saldo pada warehouse ini. Tambahkan saldo melalui penerimaan, mutasi, atau Stock Opname.',
+        openOpname: true,
       );
       return;
     }
-    await _showAdjustmentDialog(stock);
+    final hasBatch = balances.any(
+      (balance) =>
+          (balance['batches'] as List? ?? const []).whereType<Map>().any(
+            (batch) =>
+                batch['aktif'] != false &&
+                ((batch['qty'] as num?)?.toDouble() ?? 0) > 0,
+          ),
+    );
+    if (hasBatch) {
+      await _showAdjustmentInfo(
+        'Stok dilacak per batch',
+        'Saldo memiliki batch aktif. Gunakan Stock Opname agar jumlah batch dan tanggal kedaluwarsa tetap konsisten.',
+        openOpname: true,
+      );
+      return;
+    }
+    await _showAdjustmentDialog(stock, balances);
   }
 
-  Future<void> _showAdjustmentInfo(String title, String message) =>
-      showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          icon: const Icon(Icons.info_outline, color: AppColors.primary),
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Mengerti'),
-            ),
-          ],
+  Future<void> _showAdjustmentInfo(
+    String title,
+    String message, {
+    bool openOpname = false,
+  }) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      icon: const Icon(Icons.info_outline, color: AppColors.primary),
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Mengerti'),
         ),
-      );
+        if (openOpname && widget.onOpenStockOpname != null)
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              widget.onOpenStockOpname!();
+            },
+            icon: const Icon(Icons.fact_check_outlined, size: 18),
+            label: const Text('Buka Stock Opname'),
+          ),
+      ],
+    ),
+  );
 
-  Future<void> _showAdjustmentDialog(PosStock stock) async {
+  String _balanceLocation(Map<String, dynamic> balance) {
+    String text(dynamic value) => value?.toString().trim() ?? '';
+    final branch = text(balance['lokasi_cabang_nama']).isNotEmpty
+        ? text(balance['lokasi_cabang_nama'])
+        : _selectedLocationName();
+    final building = text(
+      balance['lokasi_gedung_nama'] ?? balance['lokasi_gedung_kode'],
+    );
+    final room = text(
+      balance['lokasi_ruangan_nama'] ?? balance['lokasi_ruangan_kode'],
+    );
+    final rack = text(balance['lokasi_rak_nama']);
+
+    // Jangan pernah menampilkan rak tanpa induknya. Data lama mungkin hanya
+    // menyimpan sebagian jalur, jadi placeholder audit tetap mempertahankan
+    // urutan Cabang -> Gedung -> Ruangan -> Rak.
+    final parts = <String>['Cabang: ${branch.isEmpty ? '-' : branch}'];
+    if (building.isNotEmpty || room.isNotEmpty || rack.isNotEmpty) {
+      parts.add('Gedung: ${building.isEmpty ? 'belum tercatat' : building}');
+    }
+    if (room.isNotEmpty || rack.isNotEmpty) {
+      parts.add('Ruangan: ${room.isEmpty ? 'belum tercatat' : room}');
+    }
+    if (rack.isNotEmpty) parts.add('Rak: $rack');
+    return parts.join('  →  ');
+  }
+
+  Future<void> _showAdjustmentDialog(
+    PosStock stock,
+    List<Map<String, dynamic>> balances,
+  ) async {
+    var selectedBalance = balances.first;
     final stockController = TextEditingController(
-      text: _formatStock(stock.stok),
+      text: _formatStock((selectedBalance['qty'] as num? ?? 0).toDouble()),
     );
     final noteController = TextEditingController();
-    var reason = 'koreksi_audit';
+    final referenceController = TextEditingController();
+    final reasonResult = await sl<PosStockRepository>().getAdjustmentReasons();
+    if (!mounted) return;
+    final reasonFailure = reasonResult.fold((failure) => failure, (_) => null);
+    if (reasonFailure != null) {
+      AppToast.error(context, reasonFailure.message);
+      return;
+    }
+    final reasonOptions = reasonResult.getOrElse(() => const []);
+    if (reasonOptions.isEmpty) {
+      AppToast.error(context, 'Daftar alasan koreksi belum tersedia');
+      return;
+    }
+    var reason = '';
     final formKey = GlobalKey<FormState>();
 
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('Sesuaikan stok ${stock.namaInventaris}'),
+          title: Text('Koreksi darurat ${stock.namaInventaris}'),
           content: SingleChildScrollView(
             child: Form(
               key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Pilih saldo lokasi fisik yang benar. Koreksi hanya untuk salah input teknis atau migrasi; hasil hitung fisik diproses melalui Stock Opname.',
+                      style: const TextStyle(
+                        color: Color(0xFF9A3412),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedBalance['_id']?.toString(),
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Saldo warehouse / lokasi *',
+                      prefixIcon: Icon(Icons.location_on_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: balances
+                        .map(
+                          (balance) => DropdownMenuItem(
+                            value: balance['_id']?.toString(),
+                            child: Text(
+                              '${_balanceLocation(balance)} • ${_formatStock((balance['qty'] as num? ?? 0).toDouble())} ${stock.unit}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      final next = balances.firstWhere(
+                        (balance) => balance['_id']?.toString() == value,
+                      );
+                      setDialogState(() => selectedBalance = next);
+                      stockController.text = _formatStock(
+                        (next['qty'] as num? ?? 0).toDouble(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Saldo lokasi saat ini: ${_formatStock((selectedBalance['qty'] as num? ?? 0).toDouble())} ${stock.unit}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  _adjustmentLocationSummary(selectedBalance),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: stockController,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -1032,47 +1362,58 @@ class _PosStockViewState extends State<_PosStockView> {
                       if (parsed == null || parsed < 0) {
                         return 'Masukkan stok yang valid';
                       }
+                      if ((parsed -
+                                  ((selectedBalance['qty'] as num? ?? 0)
+                                      .toDouble()))
+                              .abs() <
+                          .000001) {
+                        return 'Nilai baru sama dengan saldo saat ini';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: reason,
-                    decoration: const InputDecoration(labelText: 'Alasan'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'koreksi_audit',
-                        child: Text('Koreksi audit'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'selisih_hitung',
-                        child: Text('Selisih hitung'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'salah_input',
-                        child: Text('Salah input'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'migrasi_data',
-                        child: Text('Migrasi data'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'lainnya',
-                        child: Text('Lainnya'),
-                      ),
-                    ],
-                    onChanged: (value) => setDialogState(() => reason = value!),
+                    initialValue: reason.isEmpty ? null : reason,
+                    decoration: const InputDecoration(
+                      labelText: 'Alasan koreksi *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: reasonOptions
+                        .map(
+                          (option) => DropdownMenuItem(
+                            value: option['value']?.toString(),
+                            child: Text(option['label']?.toString() ?? '-'),
+                          ),
+                        )
+                        .toList(),
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Pilih alasan koreksi'
+                        : null,
+                    onChanged: (value) =>
+                        setDialogState(() => reason = value ?? ''),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: referenceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Referensi / tiket *',
+                      hintText: 'Contoh: TIKET-2026-001',
+                    ),
+                    validator: (value) => (value ?? '').trim().isEmpty
+                        ? 'Referensi wajib diisi'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: noteController,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      labelText: 'Catatan (opsional)',
+                      labelText: 'Keterangan *',
                     ),
                     validator: (value) {
-                      if (reason == 'lainnya' && (value ?? '').trim().isEmpty) {
-                        return 'Catatan wajib diisi untuk alasan lainnya';
+                      if ((value ?? '').trim().length < 5) {
+                        return 'Keterangan minimal 5 karakter';
                       }
                       return null;
                     },
@@ -1106,14 +1447,86 @@ class _PosStockViewState extends State<_PosStockView> {
           newStock: double.parse(stockController.text.replaceAll(',', '.')),
           reason: reason,
           note: noteController.text,
-          stockBalanceId: stock.stockBalanceId!,
-          locationId: context.read<PosStockBloc>().state.selectedLocationId,
+          reference: referenceController.text,
+          stockBalanceId: selectedBalance['_id'].toString(),
+          locationId: selectedBalance['lokasi_cabang_id']?.toString(),
+          buildingCode: selectedBalance['lokasi_gedung_kode']?.toString() ?? '',
+          roomCode: selectedBalance['lokasi_ruangan_kode']?.toString() ?? '',
+          rackName: selectedBalance['lokasi_rak_nama']?.toString() ?? '',
         ),
       );
     }
     await Future<void>.delayed(kThemeAnimationDuration);
     stockController.dispose();
     noteController.dispose();
+    referenceController.dispose();
+  }
+
+  Widget _adjustmentLocationSummary(Map<String, dynamic> balance) {
+    String label(dynamic value) {
+      final text = value?.toString().trim() ?? '';
+      return text.isEmpty ? 'Belum dirinci' : text;
+    }
+
+    final rows = <(String, String)>[
+      (
+        'Cabang / Gudang',
+        label(
+          (balance['lokasi_cabang_nama']?.toString().trim() ?? '').isEmpty
+              ? _selectedLocationName()
+              : balance['lokasi_cabang_nama'],
+        ),
+      ),
+      (
+        'Gedung',
+        label(balance['lokasi_gedung_nama'] ?? balance['lokasi_gedung_kode']),
+      ),
+      (
+        'Ruangan',
+        label(balance['lokasi_ruangan_nama'] ?? balance['lokasi_ruangan_kode']),
+      ),
+      ('Rak', label(balance['lokasi_rak_nama'])),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: rows
+            .map(
+              (row) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 112,
+                      child: Text(
+                        row.$1,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        row.$2,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
   }
 
   // --- Helpers ---
@@ -1162,8 +1575,7 @@ class _StockCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 168,
-      margin: const EdgeInsets.only(bottom: 12),
+      height: 218,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1199,15 +1611,42 @@ class _StockCardSkeleton extends StatelessWidget {
   }
 
   Widget _block(double width, double height, {double radius = 5}) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    );
+    return SkeletonBox(width: width, height: height, borderRadius: radius);
   }
+}
+
+class _StockTableSkeleton extends StatelessWidget {
+  const _StockTableSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: List.generate(
+          6,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: index == 5 ? 0 : 14),
+            child: Row(
+              children: [
+                const SkeletonBox(width: 72, height: 14, borderRadius: 4),
+                const SizedBox(width: 20),
+                Expanded(
+                  flex: 3,
+                  child: const SkeletonBox(height: 14, borderRadius: 4),
+                ),
+                const SizedBox(width: 20),
+                Expanded(child: const SkeletonBox(height: 14, borderRadius: 4)),
+                const SizedBox(width: 20),
+                const SkeletonBox(width: 64, height: 24, borderRadius: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _StockMovementSheet extends StatefulWidget {
@@ -1299,7 +1738,7 @@ class _StockMovementSheetState extends State<_StockMovementSheet> {
               children: [
                 const Expanded(
                   child: Text(
-                    'Riwayat Stok Toko',
+                    'Riwayat Stok Shift Aktif',
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
                   ),
                 ),

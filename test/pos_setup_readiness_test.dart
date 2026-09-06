@@ -73,6 +73,37 @@ void main() {
     expect(prefs.getBool(PosOnboardingPage.setupPreferenceKey(prefs)), isTrue);
   });
 
+  test('setup operasional tetap selesai saat akun operator berganti', () async {
+    SharedPreferences.setMockInitialValues({
+      'instansi_id': 'tenant-shared',
+      'user_id': 'admin-awal',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await PosOnboardingPage.markOperationalSetupCompleted(prefs);
+
+    await prefs.setString('user_id', 'kasir-baru');
+
+    expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isTrue);
+    expect(
+      prefs.getBool(PosOnboardingPage.tenantSetupPreferenceKey(prefs)),
+      isTrue,
+    );
+  });
+
+  test(
+    'flag user lama satu instansi dimigrasikan saat akun berganti',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'instansi_id': 'tenant-migrasi',
+        'user_id': 'kasir-baru',
+        'pos_cashier_tour_v1:tenant-migrasi:admin-lama': true,
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      expect(PosOnboardingPage.isOperationalSetupCompleted(prefs), isTrue);
+    },
+  );
+
   test('reset onboarding membersihkan flag setup dan tour', () async {
     SharedPreferences.setMockInitialValues({
       'instansi_id': 'tenant-reset',

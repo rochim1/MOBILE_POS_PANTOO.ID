@@ -77,19 +77,15 @@ class PosStockRepository {
     String? locationId,
   }) async {
     try {
-      final locationResult = locationId?.trim().isNotEmpty == true
-          ? Right<Failure, String>(locationId!.trim())
-          : await _getStockLocationId();
-      final locationFailure = locationResult.fold(
-        (failure) => failure,
-        (_) => null,
-      );
-      if (locationFailure != null) return Left(locationFailure);
-      final branchId = locationResult.getOrElse(() => '');
-
       final QueryOptions options = QueryOptions(
-        document: gql(PosStockQueries.getStockByStore),
-        variables: {'cabangId': branchId},
+        document: gql(
+          locationId?.trim().isNotEmpty == true
+              ? PosStockQueries.getStockByStore
+              : PosStockQueries.getAllStock,
+        ),
+        variables: locationId?.trim().isNotEmpty == true
+            ? {'cabangId': locationId!.trim()}
+            : const {},
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
@@ -99,12 +95,22 @@ class PosStockRepository {
         return Left(AppErrorHandler.handle(result.exception!));
       }
 
-      final items =
-          result.data?['GetInventarisAvailableInLocation'] as List<dynamic>? ??
-          [];
+      final items = locationId?.trim().isNotEmpty == true
+          ? (result.data?['GetInventarisAvailableInLocation']
+                    as List<dynamic>? ??
+                [])
+          : (result.data?['GetAllInventarisUmum']?['items'] as List<dynamic>? ??
+                []);
       var stocks = items.map((raw) {
         final item = Map<String, dynamic>.from(raw as Map);
-        item['stok'] = item['qty'];
+        item['stok'] = item['qty'] ?? item['stok'];
+        item['requires_batch_adjustment'] =
+            item['wajib_batch_number'] == true ||
+            (item['expiry_batches'] as List? ?? const []).whereType<Map>().any(
+              (batch) =>
+                  batch['aktif'] != false &&
+                  ((batch['qty'] as num?)?.toDouble() ?? 0) > 0,
+            );
         item['status'] = 'active';
         return PosStock.fromJson(item);
       }).toList();
@@ -137,8 +143,12 @@ class PosStockRepository {
     required double newStock,
     required String reason,
     String? note,
+    required String reference,
     required String stockBalanceId,
     String? locationId,
+    String buildingCode = '',
+    String roomCode = '',
+    String rackName = '',
   }) async {
     try {
       final locationResult = locationId?.trim().isNotEmpty == true
@@ -160,8 +170,12 @@ class PosStockRepository {
               'jumlah': newStock,
               'sumber': 'manual_adjustment',
               'alasan': reason,
+              'referensi': reference.trim(),
               'stock_balance_id': stockBalanceId,
               'lokasi_cabang_id': branchId,
+              'lokasi_gedung_kode': buildingCode,
+              'lokasi_ruangan_kode': roomCode,
+              'lokasi_rak_nama': rackName,
               if (note != null && note.trim().isNotEmpty)
                 'keterangan': note.trim(),
             },
@@ -183,35 +197,88 @@ class PosStockRepository {
     }
   }
 
-  Future<Either<Failure, PosStockStatistics>> getStatistics({
-    String? locationId,
+  Future<Either<Failure, List<Map<String, dynamic>>>> getLocationBalances({
+    required String inventoryId,
+    String warehouseId = '',
   }) async {
     try {
-      final locationResult = locationId?.trim().isNotEmpty == true
-          ? Right<Failure, String>(locationId!.trim())
-          : await _getStockLocationId();
-      final locationFailure = locationResult.fold(
-        (failure) => failure,
-        (_) => null,
-      );
-      if (locationFailure != null) return Left(locationFailure);
-      final branchId = locationResult.getOrElse(() => '');
       final result = await _clientProvider.client.query(
         QueryOptions(
-          document: gql(PosStockQueries.getStockByStore),
-          variables: {'cabangId': branchId},
+          document: gql(PosStockQueries.getLocationBalances),
+          variables: {
+            'inventoryId': inventoryId,
+            'warehouseId': warehouseId.isEmpty ? null : warehouseId,
+          },
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      final rows =
-          result.data?['GetInventarisAvailableInLocation'] as List<dynamic>? ??
-          [];
+      final root = result.data?['GetInventoryLocationBalances'] as Map?;
+      return Right(
+        (root?['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  getAdjustmentReasons() async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosStockQueries.getAdjustmentReasons),
+          fetchPolicy: FetchPolicy.cacheFirst,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(
+        (result.data?['GetManualStockAdjustmentReasons'] as List? ?? const [])
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, PosStockStatistics>> getStatistics({
+    String? locationId,
+  }) async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(
+            locationId?.trim().isNotEmpty == true
+                ? PosStockQueries.getStockByStore
+                : PosStockQueries.getAllStock,
+          ),
+          variables: locationId?.trim().isNotEmpty == true
+              ? {'cabangId': locationId!.trim()}
+              : const {},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows = locationId?.trim().isNotEmpty == true
+          ? (result.data?['GetInventarisAvailableInLocation']
+                    as List<dynamic>? ??
+                [])
+          : (result.data?['GetAllInventarisUmum']?['items'] as List<dynamic>? ??
+                []);
       final stocks = rows.map((raw) {
         final item = Map<String, dynamic>.from(raw as Map);
-        item['stok'] = item['qty'];
+        item['stok'] = item['qty'] ?? item['stok'];
         return PosStock.fromJson(item);
       }).toList();
       return Right(

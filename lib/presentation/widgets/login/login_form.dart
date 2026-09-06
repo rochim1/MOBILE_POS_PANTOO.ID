@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/flavor/flavor_config.dart';
 import '../../pages/login/register_page.dart';
+import 'legal_links.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -225,13 +226,7 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ],
                   const SizedBox(height: 24),
-                  Text(
-                    'Dengan masuk, Anda menyetujui\nKebijakan Privasi dan Ketentuan Layanan kami.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
+                  const PantooLegalLinks(),
                 ],
               ),
             ),

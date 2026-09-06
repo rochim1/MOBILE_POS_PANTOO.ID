@@ -10,6 +10,8 @@ class PosInventoryActionPolicy {
     required String status,
     required InventoryPermissionCheck can,
     bool canReceiveTransfer = false,
+    bool canApproveDocument = true,
+    bool purchaseHasRemaining = false,
   }) {
     final actions = <String>[];
     final editable = switch (type) {
@@ -25,14 +27,19 @@ class PosInventoryActionPolicy {
         type != PosInventoryDocumentType.scrap) {
       actions.add('submit');
     }
-    if ((status == 'pending' || status == 'submitted') && can('approve')) {
+    final awaitingApproval = type == PosInventoryDocumentType.purchase
+        ? status == 'pending'
+        : status == 'pending' || status == 'submitted';
+    if (awaitingApproval && canApproveDocument && can('approve')) {
       actions.add('approve');
     }
-    if ((status == 'pending' || status == 'submitted') && can('reject')) {
+    if (awaitingApproval && canApproveDocument && can('reject')) {
       actions.add('reject');
     }
     if (type == PosInventoryDocumentType.purchase &&
-        (status == 'approved' || status == 'partially_received') &&
+        (status == 'approved' ||
+            status == 'partially_received' ||
+            (status == 'completed' && purchaseHasRemaining)) &&
         can('receive')) {
       actions.add('receive_purchase');
     }

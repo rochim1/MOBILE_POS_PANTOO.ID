@@ -15,8 +15,10 @@ import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
 import 'pos_purchase_receiving_page.dart';
+import 'pos_purchase_workspace.dart';
 import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
+import 'utils/pos_purchase_progress.dart';
 
 enum _InventorySection {
   warehouse,
@@ -106,7 +108,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       if (trackStock && permissions['view_inventory_purchases'] == true)
         const _InventoryMenu(
           _InventorySection.purchase,
-          'Faktur Pembelian',
+          'Pembelian & Penerimaan',
           Icons.receipt_long_outlined,
         ),
       if (trackStock && permissions['view_inventory_opnames'] == true)
@@ -198,11 +200,19 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       canUpdate: permissions['update_warehouses'] == true,
       canDelete: permissions['delete_warehouses'] == true,
     ),
-    _InventorySection.stock => PosStockPage(isGridView: widget.isGridView),
-    _InventorySection.purchase => _InventoryDocumentPage(
-      key: const ValueKey(PosInventoryDocumentType.purchase),
-      type: PosInventoryDocumentType.purchase,
+    _InventorySection.stock => PosStockPage(
+      isGridView: widget.isGridView,
+      onOpenStockOpname: permissions['view_inventory_opnames'] == true
+          ? () => setState(() => _selected = _InventorySection.opname)
+          : null,
+    ),
+    _InventorySection.purchase => PosPurchaseWorkspace(
       permissions: permissions,
+      purchaseListBuilder: () => _InventoryDocumentPage(
+        key: const ValueKey(PosInventoryDocumentType.purchase),
+        type: PosInventoryDocumentType.purchase,
+        permissions: permissions,
+      ),
     ),
     _InventorySection.opname => _InventoryDocumentPage(
       key: const ValueKey(PosInventoryDocumentType.opname),
@@ -260,12 +270,16 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   int _page = 1;
   int _total = 0;
   bool _loading = true;
+  Set<String> _pendingPurchaseApprovalIds = const {};
   static const _limit = 20;
 
   @override
   void initState() {
     super.initState();
     _load();
+    if (widget.type == PosInventoryDocumentType.purchase) {
+      _loadPendingPurchaseApprovals();
+    }
     if (widget.type == PosInventoryDocumentType.opname) _loadWarehouses();
   }
 
@@ -305,6 +319,15 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final result = await _repository.getWarehouses();
     if (!mounted) return;
     result.fold((_) {}, (items) => setState(() => _warehouses = items));
+  }
+
+  Future<void> _loadPendingPurchaseApprovals() async {
+    final result = await _repository.getPendingPurchaseApprovalIds();
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() => _pendingPurchaseApprovalIds = const {}),
+      (ids) => setState(() => _pendingPurchaseApprovalIds = ids),
+    );
   }
 
   String _dateFilter(DateTime? value) =>
@@ -605,6 +628,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       AppToast.success(context, 'Status dokumen berhasil diperbarui');
     });
     if (succeeded) {
+      if (widget.type == PosInventoryDocumentType.purchase) {
+        await _loadPendingPurchaseApprovals();
+      }
       await _load(page: 1);
     } else if (mounted) {
       setState(() => _loading = false);
@@ -851,7 +877,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   Widget _documentCard(Map<String, dynamic> item) {
     final itemCount = (item['items'] as List?)?.length ?? 0;
-    final status = item['status']?.toString() ?? '-';
+    final rawStatus = item['status']?.toString() ?? '-';
+    final status = widget.type == PosInventoryDocumentType.purchase
+        ? PosPurchaseProgress.effectiveStatus(item)
+        : rawStatus;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -888,6 +917,13 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: Colors.black45),
                 ),
+                if (widget.type == PosInventoryDocumentType.purchase &&
+                    rawStatus == 'completed' &&
+                    status == 'partially_received')
+                  const Text(
+                    'Status lama tidak sesuai progres • masih bisa diterima',
+                    style: TextStyle(fontSize: 12, color: Colors.orange),
+                  ),
               ],
             );
             final meta = <Widget>[
@@ -1055,7 +1091,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  _InventoryStatus(item['status']?.toString() ?? '-'),
+                  _InventoryStatus(
+                    widget.type == PosInventoryDocumentType.purchase
+                        ? PosPurchaseProgress.effectiveStatus(item)
+                        : item['status']?.toString() ?? '-',
+                  ),
                   const Spacer(),
                   Text(_date(_dateValue(item))),
                 ],
@@ -1077,6 +1117,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     _DetailMetric(
                       icon: Icons.payments_outlined,
                       label: _money(item['grand_total']),
+                    ),
+                  if (widget.type == PosInventoryDocumentType.purchase)
+                    _DetailMetric(
+                      icon: Icons.inventory_outlined,
+                      label:
+                          '${(PosPurchaseProgress.completionRatio(item) * 100).round()}% diterima',
                     ),
                   if (widget.type == PosInventoryDocumentType.opname) ...[
                     _DetailMetric(
@@ -1254,11 +1300,19 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   List<String> _availableActions(Map<String, dynamic> item) {
     final status = item['status']?.toString() ?? '';
+    final approvalHistoryId = item['approval_history_id']?.toString() ?? '';
+    final canApproveDocument =
+        approvalHistoryId.isEmpty ||
+        _pendingPurchaseApprovalIds.contains(item['_id']?.toString());
     return PosInventoryActionPolicy.available(
       type: widget.type,
       status: status,
       can: _can,
       canReceiveTransfer: widget.canReceiveTransfer,
+      canApproveDocument: canApproveDocument,
+      purchaseHasRemaining:
+          widget.type == PosInventoryDocumentType.purchase &&
+          PosPurchaseProgress.hasRemaining(item),
     );
   }
 

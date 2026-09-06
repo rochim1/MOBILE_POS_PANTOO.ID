@@ -61,4 +61,21 @@ class PosSettingsRepository {
       return Left(AppErrorHandler.handle(e));
     }
   }
+
+  Future<Either<Failure, bool>> markOperationalSetupCompleted() async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosSettingsQueries.markOperationalSetupCompleted),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(result.data?['MarkPOSOperationalSetupCompleted'] == true);
+    } catch (e) {
+      return Left(AppErrorHandler.handle(e));
+    }
+  }
 }

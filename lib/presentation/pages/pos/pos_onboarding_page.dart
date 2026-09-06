@@ -27,15 +27,35 @@ class PosOnboardingPage extends StatefulWidget {
     return 'pos_operational_setup_completed_v1:$instansiId:$userId';
   }
 
+  static String tenantSetupPreferenceKey(SharedPreferences prefs) {
+    final instansiId = prefs.getString('instansi_id') ?? 'unknown-instansi';
+    return 'pos_operational_setup_completed_v2:$instansiId';
+  }
+
   static String cashierTourPreferenceKey(SharedPreferences prefs) {
     final userId = prefs.getString('user_id') ?? 'unknown-user';
     final instansiId = prefs.getString('instansi_id') ?? 'unknown-instansi';
     return 'pos_cashier_tour_v1:$instansiId:$userId';
   }
 
-  static bool isOperationalSetupCompleted(SharedPreferences prefs) =>
-      (prefs.getBool(setupPreferenceKey(prefs)) ?? false) ||
-      (prefs.getBool(cashierTourPreferenceKey(prefs)) ?? false);
+  static bool isOperationalSetupCompleted(SharedPreferences prefs) {
+    if (prefs.getBool(tenantSetupPreferenceKey(prefs)) ?? false) return true;
+    if (prefs.getBool(setupPreferenceKey(prefs)) ?? false) return true;
+    if (prefs.getBool(cashierTourPreferenceKey(prefs)) ?? false) return true;
+
+    // Migrasi instalasi lama: setup operasional adalah kesiapan instansi,
+    // bukan milik satu akun login. Terima flag user lama dari instansi yang
+    // sama agar pergantian admin/operator tidak mengulang ringkasan setup.
+    final instansiId = prefs.getString('instansi_id') ?? 'unknown-instansi';
+    final legacySetupPrefix = 'pos_operational_setup_completed_v1:$instansiId:';
+    final legacyTourPrefix = 'pos_cashier_tour_v1:$instansiId:';
+    return prefs.getKeys().any(
+      (key) =>
+          (key.startsWith(legacySetupPrefix) ||
+              key.startsWith(legacyTourPrefix)) &&
+          (prefs.getBool(key) ?? false),
+    );
+  }
 
   static Future<void> markOperationalSetupCompleted(
     SharedPreferences prefs,
@@ -44,13 +64,32 @@ class PosOnboardingPage extends StatefulWidget {
     // Flag tour dipertahankan untuk kompatibilitas dengan instalasi lama.
     await prefs.setBool(cashierTourPreferenceKey(prefs), true);
     await prefs.setBool(setupPreferenceKey(prefs), true);
+    await prefs.setBool(tenantSetupPreferenceKey(prefs), true);
+    try {
+      await sl<PosSettingsRepository>().markOperationalSetupCompleted();
+    } catch (_) {
+      // Cache lokal tetap menjaga flow kasir saat backend sedang offline.
+    }
   }
 
   static Future<void> clearOperationalSetupCompleted(
     SharedPreferences prefs,
   ) async {
-    await prefs.remove(cashierTourPreferenceKey(prefs));
-    await prefs.remove(setupPreferenceKey(prefs));
+    final instansiId = prefs.getString('instansi_id') ?? 'unknown-instansi';
+    final keys = prefs
+        .getKeys()
+        .where(
+          (key) =>
+              key == tenantSetupPreferenceKey(prefs) ||
+              key.startsWith(
+                'pos_operational_setup_completed_v1:$instansiId:',
+              ) ||
+              key.startsWith('pos_cashier_tour_v1:$instansiId:'),
+        )
+        .toList();
+    for (final key in keys) {
+      await prefs.remove(key);
+    }
   }
 
   static Widget initialDestination(SharedPreferences prefs) {
@@ -104,6 +143,16 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
           // Reset dari Web Admin/database harus menang terhadap cache perangkat.
           await PosOnboardingPage.clearOperationalSetupCompleted(prefs);
           return const PosOnboardingPage();
+        }
+        if (settings.operationalSetupCompleted == true) {
+          await prefs.setBool(
+            PosOnboardingPage.tenantSetupPreferenceKey(prefs),
+            true,
+          );
+        } else if (PosOnboardingPage.isOperationalSetupCompleted(prefs)) {
+          // Migrasikan instalasi lama yang sebelumnya hanya menyimpan progres
+          // tour secara lokal ke status per-instansi di server.
+          await sl<PosSettingsRepository>().markOperationalSetupCompleted();
         }
         return PosShellPage(
           showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(prefs),

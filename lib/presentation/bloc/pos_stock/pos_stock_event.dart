@@ -11,7 +11,6 @@ class LoadStocks extends PosStockEvent {
   final String? search;
   final String? stockFilter;
   final String? locationId;
-
   const LoadStocks({this.search, this.stockFilter, this.locationId});
 
   @override
@@ -27,16 +26,24 @@ class AdjustStock extends PosStockEvent {
   final double newStock;
   final String reason;
   final String? note;
+  final String reference;
   final String stockBalanceId;
   final String? locationId;
+  final String buildingCode;
+  final String roomCode;
+  final String rackName;
 
   const AdjustStock({
     required this.id,
     required this.newStock,
     required this.reason,
     this.note,
+    required this.reference,
     required this.stockBalanceId,
     this.locationId,
+    this.buildingCode = '',
+    this.roomCode = '',
+    this.rackName = '',
   });
 
   @override
@@ -45,7 +52,11 @@ class AdjustStock extends PosStockEvent {
     newStock,
     reason,
     note,
+    reference,
     stockBalanceId,
     locationId,
+    buildingCode,
+    roomCode,
+    rackName,
   ];
 }

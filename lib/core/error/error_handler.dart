@@ -22,7 +22,18 @@ class AppErrorHandler {
       }
 
       if (error.linkException != null) {
-        return const NetworkFailure();
+        final detail = error.linkException.toString().toLowerCase();
+        final isNetworkFailure =
+            detail.contains('socketexception') ||
+            detail.contains('failed host lookup') ||
+            detail.contains('network is unreachable') ||
+            detail.contains('connection refused') ||
+            detail.contains('connection reset') ||
+            detail.contains('xmlhttprequest error');
+        if (isNetworkFailure) return const NetworkFailure();
+        return const ServerFailure(
+          'Respons server tidak dapat diproses. Silakan coba kembali.',
+        );
       }
       return const ServerFailure('Terjadi kesalahan pada server (GraphQL)');
     }

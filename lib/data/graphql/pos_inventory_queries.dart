@@ -37,7 +37,23 @@ class PosInventoryQueries {
     query GetAllInventoryPurchases($filter: InventoryPurchaseFilter, $pagination: pagination) {
       GetAllInventoryPurchases(filter: $filter, pagination: $pagination) {
         totalCount
-        items { _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman alamat_pengiriman metode_pembayaran syarat_pembayaran prioritas status catatan diskon_persen ppn_persen biaya_pengiriman grand_total items { _id inventaris_id kode_inventaris nama_inventaris qty_ordered qty_received harga_beli unit diskon_item diskon_item_type catatan_item } }
+        items {
+          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman alamat_pengiriman
+          metode_pembayaran syarat_pembayaran tipe_kredit payment_term_type term_days due_date due_date_basis
+          jumlah_termin jadwal_termin { no_termin amount due_date status paid_date paid_amount }
+          prioritas status catatan alasan_penolakan total_amount
+          approval_history_id
+          diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount ppn_source supplier_is_pkp
+          biaya_pengiriman biaya_tambahan { _id jenis_biaya deskripsi nominal }
+          total_biaya_tambahan biaya_mode biaya_alokasi grand_total
+          items {
+            _id inventaris_id kode_inventaris nama_inventaris
+            qty_ordered qty_ordered_base qty_received qty_received_base
+            harga_beli unit base_unit conversion_factor subtotal
+            kategori wajib_batch_number wajib_serial_number
+            diskon_item diskon_item_type catatan_item
+          }
+        }
       }
     }
   ''';
@@ -54,6 +70,7 @@ class PosInventoryQueries {
             _id inventaris_id stock_balance_id snapshot_updated_at
             kode_inventaris nama_inventaris qty_system qty_fisik selisih unit catatan_item
             batch_counts { no_batch tanggal_kadaluarsa qty_system qty_fisik }
+            unit_breakdown { unit input_qty factor }
           }
         }
       }
@@ -90,11 +107,23 @@ class PosInventoryQueries {
         suppliers { _id kode_supplier nama_supplier is_pkp default_ppn_persen }
       }
       getAllCabangs(filter: { status: "active", has_warehouse: true }, pagination: { page: 0, limit: 100 }) {
-        cabang { _id nama_cabang is_receiving_location is_transfer_source is_transfer_destination }
+        cabang {
+          _id nama_cabang is_receiving_location is_transfer_source is_transfer_destination
+          gedung {
+            kode_gedung nama_gedung
+            ruangan { kode_ruangan nama_ruangan rak { nama_rak } }
+          }
+        }
       }
       GetMyActiveKasirShift { toko { lokasi_cabang_id } }
+      GetInventorySettings {
+        inventory_operation_defaults { default_receiving_location_id }
+      }
       GetAllInventarisUmum(filter: { status: "active" }, pagination: { page: 0, limit: 200 }) {
-        items { _id kode_inventaris nama_inventaris unit harga_beli stok }
+        items {
+          _id kode_inventaris nama_inventaris unit base_unit harga_beli stok
+          unit_conversions { unit factor }
+        }
       }
     }
   ''';
@@ -102,7 +131,8 @@ class PosInventoryQueries {
   static const locationItems = r'''
     query GetPOSInventoryLocationItems($cabangId: ID!) {
       GetInventarisAvailableInLocation(cabang_id: $cabangId, limit: 1000, include_non_sellable: true) {
-        inventaris_id _id stock_balance_id kode_inventaris nama_inventaris unit qty harga_beli
+        inventaris_id _id stock_balance_id kode_inventaris nama_inventaris unit base_unit qty harga_beli
+        unit_conversions { unit factor }
         sku barcode
         batches { no_batch tanggal_kadaluarsa qty aktif }
       }
@@ -142,6 +172,71 @@ class PosInventoryQueries {
       r'''mutation DeleteInventoryPurchase($id: ID!, $reason: String) { DeleteInventoryPurchase(_id: $id, delete_reason: $reason) { _id status } }''';
   static const receivePurchase =
       r'''mutation AddInventoryReceiving($input: InventoryReceivingInput!) { AddInventoryReceiving(input: $input) { _id no_grn purchase_id status } }''';
+
+  static const purchaseReceivings = r'''
+    query GetAllInventoryReceivings($purchaseId: ID!, $pagination: pagination) {
+      GetAllInventoryReceivings(purchase_id: $purchaseId, pagination: $pagination) {
+        totalCount
+        items {
+          _id no_grn tanggal_terima no_surat_jalan status catatan foto_bukti
+          cancel_reason cancelled_at createdAt
+          created_by { _id name username }
+          cancelled_by { _id name username }
+          items {
+            _id purchase_item_id inventaris_id nama_inventaris unit base_unit
+            conversion_factor qty_received qty_received_base no_batch
+            tanggal_kadaluarsa keterangan
+            allocations {
+              lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode
+              lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama
+              lokasi_rak_nama qty
+            }
+          }
+        }
+      }
+    }
+  ''';
+
+  static const globalPurchaseReceivings = r'''
+    query GetAllInventoryReceivingsGlobal($filter: InventoryReceivingFilter, $pagination: pagination) {
+      GetAllInventoryReceivingsGlobal(filter: $filter, pagination: $pagination) {
+        totalCount
+        items {
+          _id no_grn purchase_id no_po supplier_name tanggal_terima
+          no_surat_jalan status catatan foto_bukti cancel_reason cancelled_at createdAt
+          created_by { _id name username }
+          cancelled_by { _id name username }
+          items {
+            _id purchase_item_id inventaris_id nama_inventaris unit base_unit
+            conversion_factor qty_received qty_received_base no_batch
+            tanggal_kadaluarsa keterangan
+            allocations {
+              lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode
+              lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama
+              lokasi_rak_nama qty
+            }
+          }
+        }
+      }
+    }
+  ''';
+
+  static const pendingPurchaseApprovals = r'''
+    query GetMyPendingInventoryPurchaseApprovals($pagination: pagination) {
+      GetMyPendingApprovals(
+        request_type: "inventory_purchase"
+        pagination: $pagination
+      ) { request_id }
+    }
+  ''';
+
+  static const cancelPurchaseReceiving = r'''
+    mutation CancelInventoryReceiving($input: CancelInventoryReceivingInput!) {
+      CancelInventoryReceiving(input: $input) {
+        _id no_grn status cancel_reason cancelled_at
+      }
+    }
+  ''';
 
   static const createOpname =
       r'''mutation CreateInventoryOpname($input: CreateInventoryOpnameInput!) { CreateInventoryOpname(input: $input) { _id no_opname status } }''';

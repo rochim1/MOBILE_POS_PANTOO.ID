@@ -357,9 +357,16 @@ class PosQueries {
           kode_inventaris
           nama_inventaris
           kategori
+          merchandise_category_id
+          merchandise_category_name
           pos_product_type
           sellable_in_pos
           tracks_stock
+          deskripsi
+          brand
+          harga_beli
+          harga_beli_source
+          pos_package_components { inventaris_id qty_base }
           harga_jual
           stok
           sku
@@ -368,6 +375,10 @@ class PosQueries {
           base_unit
           unit
           unit_conversions { unit factor }
+          stok_minimum
+          stok_maksimum
+          titik_reorder
+          lead_time_pengadaan
           status
         }
       }
@@ -382,6 +393,8 @@ class PosQueries {
         kode_inventaris
         nama_inventaris
         kategori
+        merchandise_category_id
+        merchandise_category_name
         pos_product_type
         sellable_in_pos
         tracks_stock
@@ -390,10 +403,18 @@ class PosQueries {
         barcode
         foto
         brand
+        deskripsi
+        harga_beli
+        harga_beli_source
+        pos_package_components { inventaris_id qty_base }
         harga_jual
         base_unit
         unit
         unit_conversions { unit factor }
+        stok_minimum
+        stok_maksimum
+        titik_reorder
+        lead_time_pengadaan
         qty
       }
     }
@@ -408,6 +429,7 @@ class PosQueries {
           phone
           email
           address
+          catatan
           price_level
           customer_segment
           membership_status
@@ -423,13 +445,13 @@ class PosQueries {
 
   static const String createPOSPelanggan = r'''
     mutation CreateCrmContact($input: CrmContactInput!) {
-      createCrmContact(input: $input) { _id name phone email address price_level customer_segment membership_status membership_tier customer_type total_transaksi total_belanja }
+      createCrmContact(input: $input) { _id name phone email address catatan price_level customer_segment membership_status membership_tier customer_type total_transaksi total_belanja }
     }
   ''';
 
   static const String updatePOSPelanggan = r'''
     mutation UpdateCrmContact($_id: ID!, $input: CrmContactUpdateInput!) {
-      updateCrmContact(_id: $_id, input: $input) { _id name phone email address price_level customer_segment membership_status membership_tier customer_type total_transaksi total_belanja }
+      updateCrmContact(_id: $_id, input: $input) { _id name phone email address catatan price_level customer_segment membership_status membership_tier customer_type total_transaksi total_belanja }
     }
   ''';
 
@@ -620,7 +642,40 @@ class PosQueries {
         stok
         sku
         status
+        merchandise_category_id
+        merchandise_category_name
+        pos_product_type
+        tracks_stock
+        deskripsi
+        brand
+        harga_beli
+        harga_beli_source
+        pos_package_components { inventaris_id qty_base }
+        barcode
+        foto
+        base_unit
+        unit_conversions { unit factor }
+        stok_minimum
+        stok_maksimum
+        titik_reorder
+        lead_time_pengadaan
       }
+    }
+  ''';
+
+  static const String generateInventoryProductIdentifiers = r'''
+    mutation GenerateInventoryProductIdentifiers($kategori: KategoriInventaris!) {
+      GenerateInventoryProductIdentifiers(kategori: $kategori) {
+        kode_inventaris
+        sku
+        barcode
+      }
+    }
+  ''';
+
+  static const String uploadInventoryProductImage = r'''
+    mutation UploadInventoryProductImage($file: Upload!) {
+      UploadInventoryProductImage(file: $file)
     }
   ''';
 
@@ -635,6 +690,23 @@ class PosQueries {
         stok
         sku
         status
+        merchandise_category_id
+        merchandise_category_name
+        pos_product_type
+        tracks_stock
+        deskripsi
+        brand
+        harga_beli
+        harga_beli_source
+        pos_package_components { inventaris_id qty_base }
+        barcode
+        foto
+        base_unit
+        unit_conversions { unit factor }
+        stok_minimum
+        stok_maksimum
+        titik_reorder
+        lead_time_pengadaan
       }
     }
   ''';
@@ -644,6 +716,20 @@ class PosQueries {
       DeleteInventarisUmum(_id: $_id, delete_reason: $deleteReason) {
         _id
       }
+    }
+  ''';
+
+  static const String getMerchandiseCategories = r'''
+    query GetMerchandiseCategories($filter: MerchandiseCategoryFilter, $pagination: pagination) {
+      GetMerchandiseCategories(filter: $filter, pagination: $pagination) {
+        items { _id kode nama status }
+      }
+    }
+  ''';
+
+  static const String addMerchandiseCategory = r'''
+    mutation AddMerchandiseCategory($input: MerchandiseCategoryInput!) {
+      AddMerchandiseCategory(input: $input) { _id kode nama status }
     }
   ''';
 }

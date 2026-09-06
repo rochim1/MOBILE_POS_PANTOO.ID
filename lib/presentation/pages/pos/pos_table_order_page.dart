@@ -103,7 +103,7 @@ class _PosTableOrderViewState extends State<_PosTableOrderView> {
               icon: Icons.table_restaurant_outlined,
               title: 'Belum ada meja',
               message:
-                  'Tambahkan meja dari Manajemen Meja agar order dine-in dapat diproses.',
+                  'Tambahkan meja dari tab Peta & Pengaturan Meja agar order dine-in dapat diproses.',
             );
           }
 

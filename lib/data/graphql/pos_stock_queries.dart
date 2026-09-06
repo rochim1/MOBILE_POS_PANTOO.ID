@@ -38,12 +38,53 @@ class PosStockQueries {
     }
   ''';
 
+  static const String getAllStock = r'''
+    query GetAllPOSInventoryStock {
+      GetAllInventarisUmum(
+        filter: { status: "active" }
+        sorting: { nama_inventaris: asc }
+        pagination: { page: 0, limit: 1000 }
+      ) {
+        items {
+          _id kode_inventaris nama_inventaris kategori harga_jual harga_beli
+          stok_minimum sku unit stok wajib_batch_number
+          expiry_batches { qty aktif }
+        }
+      }
+    }
+  ''';
+
   static const String adjustStock = r'''
     mutation UpdateStokInventarisUmum($id: ID!, $input: StokMovementInput!) {
       UpdateStokInventarisUmum(_id: $id, input: $input) {
         _id
         stok
       }
+    }
+  ''';
+
+  static const String getLocationBalances = r'''
+    query GetPOSStockLocationBalances($inventoryId: ID!, $warehouseId: ID) {
+      GetInventoryLocationBalances(
+        inventaris_id: $inventoryId
+        filter: { lokasi_cabang_id: $warehouseId }
+        sorting: { qty: "desc" }
+        pagination: { page: 0, limit: 200 }
+      ) {
+        items {
+          _id inventaris_id qty
+          lokasi_cabang_id lokasi_cabang_nama
+          lokasi_gedung_kode lokasi_gedung_nama
+          lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama
+          batches { no_batch tanggal_kadaluarsa qty aktif }
+        }
+      }
+    }
+  ''';
+
+  static const String getAdjustmentReasons = r'''
+    query GetManualStockAdjustmentReasons {
+      GetManualStockAdjustmentReasons { value label description }
     }
   ''';
 

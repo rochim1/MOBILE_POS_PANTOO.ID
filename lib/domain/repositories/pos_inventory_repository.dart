@@ -226,6 +226,9 @@ class PosInventoryRepository {
       final branchRoot = result.data?['getAllCabangs'] as Map?;
       final shift = result.data?['GetMyActiveKasirShift'] as Map?;
       final inventoryRoot = result.data?['GetAllInventarisUmum'] as Map?;
+      final settings = result.data?['GetInventorySettings'] as Map?;
+      final operationDefaults =
+          settings?['inventory_operation_defaults'] as Map?;
       final toko = shift?['toko'] as Map?;
       return Right(
         PosInventoryLookups(
@@ -235,7 +238,10 @@ class PosInventoryRepository {
           warehouses: (branchRoot?['cabang'] as List? ?? const [])
               .map((value) => Map<String, dynamic>.from(value as Map))
               .toList(),
-          activeWarehouseId: toko?['lokasi_cabang_id']?.toString() ?? '',
+          activeWarehouseId:
+              operationDefaults?['default_receiving_location_id']?.toString() ??
+              toko?['lokasi_cabang_id']?.toString() ??
+              '',
           inventoryItems: (inventoryRoot?['items'] as List? ?? const [])
               .map((value) => Map<String, dynamic>.from(value as Map))
               .toList(),
@@ -355,6 +361,104 @@ class PosInventoryRepository {
   ) => _mutate(PosInventoryQueries.receivePurchase, {
     'input': input,
   }, 'AddInventoryReceiving');
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> getPurchaseReceivings(
+    String purchaseId,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseReceivings),
+          variables: {
+            'purchaseId': purchaseId,
+            'pagination': {'page': 0, 'limit': 100},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['GetAllInventoryReceivings'] as Map?;
+      return Right(
+        (root?['items'] as List? ?? const [])
+            .map((value) => Map<String, dynamic>.from(value as Map))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, PosInventoryDocumentPage>>
+  getGlobalPurchaseReceivings({
+    String search = '',
+    String status = '',
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.globalPurchaseReceivings),
+          variables: {
+            'filter': {
+              if (search.trim().isNotEmpty) 'search': search.trim(),
+              if (status.isNotEmpty) 'status': status,
+            },
+            'pagination': {'page': page > 0 ? page - 1 : 0, 'limit': limit},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['GetAllInventoryReceivingsGlobal'] as Map?;
+      return Right(
+        PosInventoryDocumentPage(
+          (root?['items'] as List? ?? const [])
+              .map((value) => Map<String, dynamic>.from(value as Map))
+              .toList(),
+          (root?['totalCount'] as num?)?.toInt() ?? 0,
+        ),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Set<String>>> getPendingPurchaseApprovalIds() async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.pendingPurchaseApprovals),
+          variables: {
+            'pagination': {'page': 0, 'limit': 500},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(
+        (result.data?['GetMyPendingApprovals'] as List? ?? const [])
+            .map((row) => (row as Map)['request_id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, dynamic>> cancelPurchaseReceiving({
+    required String receivingId,
+    required String reason,
+  }) => _mutate(PosInventoryQueries.cancelPurchaseReceiving, {
+    'input': {'receiving_id': receivingId, 'reason': reason},
+  }, 'CancelInventoryReceiving');
 
   (String, String, bool) _actionEntry(
     PosInventoryDocumentType type,

@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 class PosSettings extends Equatable {
   final bool? onboardingCompleted;
   final int? onboardingVersion;
+  final bool? operationalSetupCompleted;
   final double? pajakPersen;
   final String? defaultMetodePembayaran;
   final String? defaultChannelPenjualan;
@@ -21,6 +22,7 @@ class PosSettings extends Equatable {
   const PosSettings({
     this.onboardingCompleted,
     this.onboardingVersion,
+    this.operationalSetupCompleted,
     this.pajakPersen,
     this.defaultMetodePembayaran,
     this.defaultChannelPenjualan,
@@ -41,6 +43,7 @@ class PosSettings extends Equatable {
     return PosSettings(
       onboardingCompleted: json['onboarding_completed'] as bool?,
       onboardingVersion: (json['onboarding_version'] as num?)?.toInt(),
+      operationalSetupCompleted: json['operational_setup_completed'] as bool?,
       pajakPersen: (json['pajak_persen'] as num?)?.toDouble(),
       defaultMetodePembayaran: json['default_metode_pembayaran'] as String?,
       defaultChannelPenjualan: json['default_channel_penjualan'] as String?,
@@ -70,6 +73,7 @@ class PosSettings extends Equatable {
     return {
       'onboarding_completed': onboardingCompleted,
       'onboarding_version': onboardingVersion,
+      'operational_setup_completed': operationalSetupCompleted,
       'pajak_persen': pajakPersen,
       'default_metode_pembayaran': defaultMetodePembayaran,
       'default_channel_penjualan': defaultChannelPenjualan,
@@ -90,6 +94,7 @@ class PosSettings extends Equatable {
   PosSettings copyWith({
     bool? onboardingCompleted,
     int? onboardingVersion,
+    bool? operationalSetupCompleted,
     double? pajakPersen,
     String? defaultMetodePembayaran,
     String? defaultChannelPenjualan,
@@ -108,6 +113,8 @@ class PosSettings extends Equatable {
     return PosSettings(
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       onboardingVersion: onboardingVersion ?? this.onboardingVersion,
+      operationalSetupCompleted:
+          operationalSetupCompleted ?? this.operationalSetupCompleted,
       pajakPersen: pajakPersen ?? this.pajakPersen,
       defaultMetodePembayaran:
           defaultMetodePembayaran ?? this.defaultMetodePembayaran,
@@ -132,6 +139,7 @@ class PosSettings extends Equatable {
   List<Object?> get props => [
     onboardingCompleted,
     onboardingVersion,
+    operationalSetupCompleted,
     pajakPersen,
     defaultMetodePembayaran,
     defaultChannelPenjualan,

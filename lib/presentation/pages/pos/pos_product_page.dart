@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
+
 import 'package:mobile_pos_pantoo/core/_core.dart';
+import 'package:mobile_pos_pantoo/core/utils/product_image_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_product_management_repository.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_event.dart';
@@ -10,6 +14,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_p
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_product_management_state.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
+import 'pos_barcode_scanner_page.dart';
 
 class PosProductPage extends StatefulWidget {
   final bool isGridView;
@@ -177,7 +182,7 @@ class _PosProductPageState extends State<PosProductPage> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
-                    onPressed: () => _showAddProductForm(context, true),
+                    onPressed: () => _showCatalogProductForm(context, true),
                     icon: const Icon(Icons.add),
                     label: const Text('Tambah Produk'),
                     style: ElevatedButton.styleFrom(
@@ -198,7 +203,7 @@ class _PosProductPageState extends State<PosProductPage> {
               const SizedBox(width: 16),
               if (_canManageProducts(context))
                 ElevatedButton.icon(
-                  onPressed: () => _showAddProductForm(context, false),
+                  onPressed: () => _showCatalogProductForm(context, false),
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah Produk'),
                   style: ElevatedButton.styleFrom(
@@ -663,6 +668,8 @@ class _PosProductPageState extends State<PosProductPage> {
     );
   }
 
+  // Legacy dialog retained temporarily for compatibility with older routes.
+  // ignore: unused_element
   void _showAddProductForm(BuildContext context, bool isMobile) {
     final nameCtrl = TextEditingController();
     final skuCtrl = TextEditingController();
@@ -727,18 +734,16 @@ class _PosProductPageState extends State<PosProductPage> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
-              if (nameCtrl.text.isEmpty ||
-                  skuCtrl.text.isEmpty ||
-                  priceCtrl.text.isEmpty) {
+              if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) {
                 AppToast.error(
                   context,
-                  'Mohon isi field yang wajib (Nama, SKU, Harga)',
+                  'Mohon isi field yang wajib (Nama dan Harga)',
                 );
                 return;
               }
               final input = {
                 'nama_inventaris': nameCtrl.text,
-                'kode_inventaris': skuCtrl.text,
+                if (skuCtrl.text.trim().isNotEmpty) 'sku': skuCtrl.text.trim(),
                 'harga_jual': parseRupiah(priceCtrl.text),
                 'stok': 0,
                 'kategori': 'barang_dagangan',
@@ -789,6 +794,47 @@ class _PosProductPageState extends State<PosProductPage> {
     }
   }
 
+  void _showCatalogProductForm(
+    BuildContext context,
+    bool isMobile, {
+    PosProduct? product,
+  }) {
+    final bloc = context.read<PosProductManagementBloc>();
+    final form = _CatalogProductForm(
+      product: product,
+      repository: bloc.repository,
+      onSubmit: (input) {
+        if (product == null) {
+          bloc.add(CreateProduct(input));
+        } else {
+          bloc.add(UpdateProduct(product.id, input));
+        }
+      },
+    );
+    if (isMobile) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => FractionallySizedBox(heightFactor: .92, child: form),
+      );
+    } else {
+      showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: SizedBox(width: 720, height: 680, child: form),
+        ),
+      );
+    }
+  }
+
   void _showProductDetails(
     BuildContext context,
     PosProduct product,
@@ -828,7 +874,11 @@ class _PosProductPageState extends State<PosProductPage> {
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      _showEditProductForm(context, product, isMobile);
+                      _showCatalogProductForm(
+                        context,
+                        isMobile,
+                        product: product,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -893,6 +943,8 @@ class _PosProductPageState extends State<PosProductPage> {
     }
   }
 
+  // Legacy dialog retained temporarily for compatibility with older routes.
+  // ignore: unused_element
   void _showEditProductForm(
     BuildContext context,
     PosProduct product,
@@ -971,18 +1023,17 @@ class _PosProductPageState extends State<PosProductPage> {
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
-                  if (nameCtrl.text.isEmpty ||
-                      skuCtrl.text.isEmpty ||
-                      priceCtrl.text.isEmpty) {
+                  if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) {
                     AppToast.error(
                       context,
-                      'Mohon isi field yang wajib (Nama, SKU, Harga)',
+                      'Mohon isi field yang wajib (Nama dan Harga)',
                     );
                     return;
                   }
                   final input = {
                     'nama_inventaris': nameCtrl.text,
-                    'kode_inventaris': skuCtrl.text,
+                    if (skuCtrl.text.trim().isNotEmpty)
+                      'sku': skuCtrl.text.trim(),
                     'harga_jual': parseRupiah(priceCtrl.text),
                   };
                   context.read<PosProductManagementBloc>().add(
@@ -1066,6 +1117,1053 @@ class _PosProductPageState extends State<PosProductPage> {
         ],
       ),
     );
+  }
+}
+
+class _CatalogProductForm extends StatefulWidget {
+  final PosProduct? product;
+  final PosProductManagementRepository repository;
+  final ValueChanged<Map<String, dynamic>> onSubmit;
+
+  const _CatalogProductForm({
+    required this.product,
+    required this.repository,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_CatalogProductForm> createState() => _CatalogProductFormState();
+}
+
+class _CatalogProductFormState extends State<_CatalogProductForm> {
+  late final TextEditingController _name;
+  late final TextEditingController _sku;
+  late final TextEditingController _price;
+  late final TextEditingController _purchasePrice;
+  late final TextEditingController _description;
+  late final TextEditingController _brand;
+  late final TextEditingController _barcode;
+  late final TextEditingController _image;
+  late final TextEditingController _minimumStock;
+  late final TextEditingController _maximumStock;
+  late final TextEditingController _reorderPoint;
+  late final TextEditingController _leadTime;
+  late final TextEditingController _baseUnit;
+  List<Map<String, dynamic>> _categories = const [];
+  List<PosProduct> _packageCandidates = const [];
+  final Map<String, TextEditingController> _componentQty = {};
+  final List<_UnitConversionDraft> _unitConversions = [];
+  Uint8List? _pickedImageBytes;
+  String _pickedImageName = '';
+  bool _uploadingImage = false;
+  int _formTab = 0;
+  String? _categoryId;
+  String _productType = 'product';
+  bool _loadingCategories = true;
+  bool _categoryLoadFailed = false;
+  bool _savingCategory = false;
+  bool _generatingIdentifiers = false;
+
+  bool get _tracksStock => _productType == 'product';
+  bool get _usesUnits => const {'product', 'package'}.contains(_productType);
+
+  @override
+  void initState() {
+    super.initState();
+    final product = widget.product;
+    _name = TextEditingController(text: product?.name ?? '');
+    _sku = TextEditingController(text: product?.sku ?? '');
+    _price = TextEditingController(
+      text: product == null ? '' : formatRupiahInput(product.price),
+    );
+    _purchasePrice = TextEditingController(
+      text: product == null ? '' : formatRupiahInput(product.purchasePrice),
+    );
+    _description = TextEditingController(text: product?.description ?? '');
+    _brand = TextEditingController(text: product?.brand ?? '');
+    _barcode = TextEditingController(text: product?.barcode ?? '');
+    _image = TextEditingController(text: product?.imageUrl ?? '');
+    _minimumStock = TextEditingController(
+      text: product == null ? '' : product.minimumStock.toStringAsFixed(0),
+    );
+    _maximumStock = TextEditingController(
+      text: product == null || product.maximumStock == 0
+          ? ''
+          : product.maximumStock.toStringAsFixed(0),
+    );
+    _reorderPoint = TextEditingController(
+      text: product == null || product.reorderPoint == 0
+          ? ''
+          : product.reorderPoint.toStringAsFixed(0),
+    );
+    _leadTime = TextEditingController(
+      text: product == null || product.procurementLeadTime == 0
+          ? ''
+          : product.procurementLeadTime.toString(),
+    );
+    _baseUnit = TextEditingController(text: product?.saleUnit ?? 'unit');
+    _categoryId = product?.categoryId.isEmpty == true
+        ? null
+        : product?.categoryId;
+    _productType =
+        const {
+          'product',
+          'package',
+          'service',
+          'deposit',
+        }.contains(product?.productType)
+        ? product!.productType
+        : 'product';
+    for (final component in product?.packageComponents ?? const []) {
+      final id = component['inventaris_id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        _componentQty[id] = TextEditingController(
+          text: component['qty_base']?.toString() ?? '1',
+        );
+      }
+    }
+    for (final conversion in product?.unitConversions ?? const []) {
+      final unit = conversion['unit']?.toString() ?? '';
+      final factor =
+          double.tryParse(conversion['factor']?.toString() ?? '1') ?? 1;
+      if (unit.isNotEmpty &&
+          unit.toLowerCase() != product?.saleUnit.toLowerCase()) {
+        _unitConversions.add(_UnitConversionDraft(unit: unit, factor: factor));
+      }
+    }
+    _loadCategories();
+    _loadPackageCandidates();
+    if (product == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _refreshIdentifiers();
+      });
+    }
+  }
+
+  Future<void> _refreshIdentifiers() async {
+    if (_generatingIdentifiers) return;
+    setState(() => _generatingIdentifiers = true);
+    final result = await widget.repository.generateProductIdentifiers();
+    if (!mounted) return;
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (values) => setState(() {
+        _sku.text = values['sku'] ?? '';
+        _barcode.text = values['barcode'] ?? '';
+      }),
+    );
+    if (mounted) setState(() => _generatingIdentifiers = false);
+  }
+
+  Future<void> _loadPackageCandidates() async {
+    final result = await widget.repository.getPackageCandidates();
+    if (!mounted) return;
+    result.fold(
+      (_) {},
+      (items) => setState(() {
+        _packageCandidates = items
+            .where((item) => item.id != widget.product?.id)
+            .toList();
+      }),
+    );
+  }
+
+  Future<void> _scanBarcode() async {
+    final value = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const PosBarcodeScannerPage()),
+    );
+    if (!mounted || value == null || value.trim().isEmpty) return;
+    setState(() => _barcode.text = value.trim());
+  }
+
+  Future<void> _loadCategories() async {
+    if (mounted) {
+      setState(() {
+        _loadingCategories = true;
+        _categoryLoadFailed = false;
+      });
+    }
+    final result = await widget.repository.getCategories();
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() => _categoryLoadFailed = true),
+      (items) => setState(() {
+        _categories = items;
+        _categoryLoadFailed = false;
+      }),
+    );
+    if (mounted) setState(() => _loadingCategories = false);
+  }
+
+  Future<void> _quickAddCategory() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tambah kategori'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Nama kategori',
+            hintText: 'Contoh: Minuman',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              Navigator.pop(dialogContext, value.trim());
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(dialogContext, controller.text.trim());
+              }
+            },
+            child: const Text('Tambah'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || !mounted) return;
+    setState(() => _savingCategory = true);
+    final result = await widget.repository.createCategory(name);
+    if (!mounted) return;
+    result.fold((failure) => AppToast.error(context, failure.message), (
+      category,
+    ) {
+      setState(() {
+        final categoryId = category['_id']?.toString();
+        _categories = [
+          ..._categories.where((item) => item['_id']?.toString() != categoryId),
+          category,
+        ];
+        _categoryId = categoryId;
+      });
+      AppToast.success(context, 'Kategori berhasil ditambahkan');
+    });
+    if (mounted) setState(() => _savingCategory = false);
+  }
+
+  Future<void> _choosePackageComponents() async {
+    final selected = Set<String>.from(_componentQty.keys);
+    final result = await showDialog<Set<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          title: const Text('Pilih komponen paket'),
+          content: SizedBox(
+            width: 520,
+            height: 420,
+            child: _packageCandidates.isEmpty
+                ? const Center(
+                    child: Text('Belum ada produk fisik yang dapat dipilih.'),
+                  )
+                : ListView.builder(
+                    itemCount: _packageCandidates.length,
+                    itemBuilder: (_, index) {
+                      final product = _packageCandidates[index];
+                      return CheckboxListTile(
+                        value: selected.contains(product.id),
+                        title: Text(product.name),
+                        subtitle: Text('${product.code} • ${product.saleUnit}'),
+                        onChanged: (checked) => setDialogState(() {
+                          if (checked == true) {
+                            selected.add(product.id);
+                          } else {
+                            selected.remove(product.id);
+                          }
+                        }),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, selected),
+              child: const Text('Terapkan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      for (final id
+          in _componentQty.keys.where((id) => !result.contains(id)).toList()) {
+        _componentQty.remove(id)?.dispose();
+      }
+      for (final id in result) {
+        _componentQty.putIfAbsent(id, () => TextEditingController(text: '1'));
+      }
+    });
+  }
+
+  PosProduct? _candidateById(String id) {
+    for (final item in _packageCandidates) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final file = await pickProductImage();
+      if (file == null || !mounted) return;
+      final extension = file.name.split('.').last.toLowerCase();
+      if (!const {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)) {
+        AppToast.error(context, 'Format foto harus JPG, PNG, atau WebP');
+        return;
+      }
+      final bytes = file.bytes;
+      if (!mounted) return;
+      if (bytes.length > 5 * 1024 * 1024) {
+        AppToast.error(context, 'Ukuran foto maksimal 5 MB');
+        return;
+      }
+      if (bytes.isEmpty) {
+        AppToast.error(context, 'File gambar tidak dapat dibaca');
+        return;
+      }
+      setState(() {
+        _pickedImageBytes = bytes;
+        _pickedImageName = file.name;
+      });
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(context, 'Gagal membuka gambar: $error');
+      }
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_name.text.trim().isEmpty || _price.text.trim().isEmpty) {
+      setState(() => _formTab = 0);
+      AppToast.error(context, 'Nama dan harga jual wajib diisi');
+      return;
+    }
+    final unit = _baseUnit.text.trim().toLowerCase();
+    if (_usesUnits && unit.isEmpty) {
+      setState(() => _formTab = 1);
+      AppToast.error(context, 'Satuan dasar wajib diisi');
+      return;
+    }
+    final minimumStock =
+        double.tryParse(_minimumStock.text.replaceAll(',', '.')) ?? 0;
+    final maximumStock =
+        double.tryParse(_maximumStock.text.replaceAll(',', '.')) ?? 0;
+    final reorderPoint =
+        double.tryParse(_reorderPoint.text.replaceAll(',', '.')) ?? 0;
+    if (_tracksStock && maximumStock > 0 && maximumStock < minimumStock) {
+      setState(() => _formTab = 1);
+      AppToast.error(
+        context,
+        'Stok maksimum tidak boleh di bawah stok minimum',
+      );
+      return;
+    }
+    if (_tracksStock && maximumStock > 0 && reorderPoint > maximumStock) {
+      setState(() => _formTab = 1);
+      AppToast.error(
+        context,
+        'Titik pemesanan ulang tidak boleh melebihi stok maksimum',
+      );
+      return;
+    }
+    final components = _componentQty.entries
+        .map(
+          (entry) => {
+            'inventaris_id': entry.key,
+            'qty_base':
+                double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0,
+          },
+        )
+        .toList();
+    if (_productType == 'package' &&
+        (components.isEmpty ||
+            components.any((row) => (row['qty_base'] as double) <= 0))) {
+      setState(() => _formTab = 1);
+      AppToast.error(
+        context,
+        'Paket wajib memiliki komponen dengan jumlah yang valid',
+      );
+      return;
+    }
+    final sku = _sku.text.trim();
+    var imageUrl = _image.text.trim();
+    if (_pickedImageBytes != null) {
+      setState(() => _uploadingImage = true);
+      final upload = await widget.repository.uploadProductImage(
+        bytes: _pickedImageBytes!,
+        filename: _pickedImageName,
+      );
+      if (!mounted) return;
+      final failed = upload.fold(
+        (failure) {
+          AppToast.error(context, failure.message);
+          return true;
+        },
+        (url) {
+          imageUrl = url;
+          return false;
+        },
+      );
+      setState(() => _uploadingImage = false);
+      if (failed) return;
+    }
+    final conversions = <Map<String, dynamic>>[
+      if (_usesUnits) {'unit': unit, 'factor': 1.0},
+      ..._unitConversions
+          .where((row) => row.unit.text.trim().isNotEmpty)
+          .map(
+            (row) => {
+              'unit': row.unit.text.trim().toLowerCase(),
+              'factor':
+                  double.tryParse(row.factor.text.replaceAll(',', '.')) ?? 0,
+            },
+          ),
+    ];
+    if (conversions.any((row) => (row['factor'] as double) <= 0) ||
+        conversions.map((row) => row['unit']).toSet().length !=
+            conversions.length) {
+      setState(() => _formTab = 1);
+      AppToast.error(
+        context,
+        'Konversi satuan harus unik dan bernilai lebih dari 0',
+      );
+      return;
+    }
+    widget.onSubmit({
+      'nama_inventaris': _name.text.trim(),
+      if (sku.isNotEmpty) 'sku': sku,
+      'deskripsi': _description.text.trim(),
+      'brand': _brand.text.trim(),
+      'harga_beli': parseRupiah(_purchasePrice.text),
+      'harga_beli_source': widget.product?.purchasePriceSource == 'avco'
+          ? 'avco'
+          : 'manual',
+      'harga_jual': parseRupiah(_price.text),
+      'kategori': 'barang_dagangan',
+      'pos_product_type': _productType,
+      'sellable_in_pos': true,
+      'tracks_stock': _tracksStock,
+      'merchandise_category_id': _categoryId,
+      'pos_package_components': _productType == 'package'
+          ? components
+          : const [],
+      'base_unit': _usesUnits ? unit : 'unit',
+      'unit': _usesUnits ? unit : 'unit',
+      'unit_conversions': _usesUnits ? conversions : const [],
+      'barcode': _barcode.text.trim(),
+      'foto': imageUrl,
+      'stok_minimum': _tracksStock ? minimumStock : 0,
+      'stok_maksimum': _tracksStock ? maximumStock : 0,
+      'titik_reorder': _tracksStock ? reorderPoint : 0,
+      'lead_time_pengadaan': _tracksStock
+          ? (int.tryParse(_leadTime.text) ?? 0)
+          : 0,
+      if (widget.product == null) 'stok': 0,
+    });
+    Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _sku.dispose();
+    _price.dispose();
+    _purchasePrice.dispose();
+    _description.dispose();
+    _brand.dispose();
+    _barcode.dispose();
+    _image.dispose();
+    _minimumStock.dispose();
+    _maximumStock.dispose();
+    _reorderPoint.dispose();
+    _leadTime.dispose();
+    _baseUnit.dispose();
+    for (final controller in _componentQty.values) {
+      controller.dispose();
+    }
+    for (final conversion in _unitConversions) {
+      conversion.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= 650;
+    final fields = <Widget>[
+      TextField(
+        controller: _name,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Nama produk *',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      TextField(
+        controller: _sku,
+        decoration: InputDecoration(
+          labelText: 'SKU internal',
+          hintText: _generatingIdentifiers
+              ? 'Sedang membuat SKU...'
+              : 'Dibuat otomatis oleh server',
+          helperText:
+              'Unik per instansi dan dapat diisi manual bila diperlukan.',
+          border: const OutlineInputBorder(),
+          suffixIcon: IconButton(
+            tooltip: 'Generate ulang SKU dan barcode',
+            onPressed: _generatingIdentifiers ? null : _refreshIdentifiers,
+            icon: _generatingIdentifiers
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+          ),
+        ),
+      ),
+      TextField(
+        controller: _brand,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Merek',
+          hintText: 'Opsional',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      TextField(
+        controller: _description,
+        minLines: 1,
+        maxLines: 3,
+        decoration: const InputDecoration(
+          labelText: 'Deskripsi produk',
+          hintText: 'Opsional',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      TextField(
+        controller: _purchasePrice,
+        enabled: widget.product?.purchasePriceSource != 'avco',
+        keyboardType: TextInputType.number,
+        inputFormatters: const [RupiahInputFormatter()],
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          labelText: 'Harga beli / HPP',
+          prefixText: 'Rp ',
+          helperText: widget.product?.purchasePriceSource == 'avco'
+              ? 'Dihitung otomatis dari penerimaan barang (AVCO)'
+              : 'Digunakan untuk estimasi margin',
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      TextField(
+        controller: _price,
+        keyboardType: TextInputType.number,
+        inputFormatters: const [RupiahInputFormatter()],
+        onChanged: (_) => setState(() {}),
+        decoration: const InputDecoration(
+          labelText: 'Harga jual *',
+          prefixText: 'Rp ',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      DropdownButtonFormField<String>(
+        initialValue: _productType,
+        decoration: const InputDecoration(
+          labelText: 'Bentuk penjualan *',
+          border: OutlineInputBorder(),
+        ),
+        items: [
+          const DropdownMenuItem(
+            value: 'product',
+            child: Text('Produk fisik (stok sendiri)'),
+          ),
+          const DropdownMenuItem(
+            value: 'package',
+            child: Text('Paket / bundel (stok komponen)'),
+          ),
+          if (widget.product?.productType == 'service')
+            const DropdownMenuItem(
+              value: 'service',
+              child: Text('Jasa lama (tanpa stok)'),
+            ),
+          if (widget.product?.productType == 'deposit')
+            const DropdownMenuItem(
+              value: 'deposit',
+              child: Text('Deposit lama (tanpa stok)'),
+            ),
+        ],
+        onChanged: (value) => setState(() => _productType = value ?? 'product'),
+      ),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              initialValue:
+                  _categories.any((e) => e['_id']?.toString() == _categoryId)
+                  ? _categoryId
+                  : null,
+              decoration: InputDecoration(
+                labelText: 'Kategori barang',
+                border: const OutlineInputBorder(),
+                suffixIcon: _loadingCategories
+                    ? const Center(
+                        widthFactor: 1,
+                        heightFactor: 1,
+                        child: SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : _categoryLoadFailed
+                    ? IconButton(
+                        tooltip: 'Muat ulang kategori',
+                        onPressed: _loadCategories,
+                        icon: const Icon(Icons.refresh),
+                      )
+                    : null,
+              ),
+              items: _categories
+                  .map(
+                    (category) => DropdownMenuItem(
+                      value: category['_id']?.toString(),
+                      child: Text(category['nama']?.toString() ?? '-'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _categoryId = value),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(
+            tooltip: 'Tambah kategori cepat',
+            onPressed: _savingCategory ? null : _quickAddCategory,
+            icon: _savingCategory
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add),
+          ),
+        ],
+      ),
+      if (_productType == 'package')
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _choosePackageComponents,
+              icon: const Icon(Icons.inventory_2_outlined),
+              label: Text(
+                _componentQty.isEmpty
+                    ? 'Pilih komponen paket *'
+                    : '${_componentQty.length} komponen dipilih',
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._componentQty.entries.map((entry) {
+              final product = _candidateById(entry.key);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextField(
+                  controller: entry.value,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: product?.name ?? 'Komponen',
+                    suffixText: product?.saleUnit ?? 'unit',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      if (_usesUnits)
+        TextField(
+          controller: _baseUnit,
+          decoration: const InputDecoration(
+            labelText: 'Satuan dasar *',
+            hintText: 'pcs, botol, kg',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      if (_usesUnits)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Konversi satuan',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(
+                    () => _unitConversions.add(
+                      _UnitConversionDraft(unit: '', factor: 1),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah'),
+                ),
+              ],
+            ),
+            const Text(
+              'Contoh: 1 dus = 12 pcs. Faktor selalu terhadap satuan dasar.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
+            ..._unitConversions.asMap().entries.map((entry) {
+              final row = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: row.unit,
+                        decoration: const InputDecoration(
+                          labelText: 'Satuan',
+                          hintText: 'dus',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: row.factor,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Isi satuan dasar',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Hapus konversi',
+                      onPressed: () => setState(() {
+                        _unitConversions.removeAt(entry.key).dispose();
+                      }),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      if (_tracksStock)
+        TextField(
+          controller: _minimumStock,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Peringatan stok minimum',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      if (_tracksStock)
+        TextField(
+          controller: _reorderPoint,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Titik pemesanan ulang',
+            helperText: 'Saran jumlah stok saat perlu melakukan pembelian',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      if (_tracksStock)
+        TextField(
+          controller: _maximumStock,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Stok maksimum',
+            helperText: 'Opsional, untuk membatasi kelebihan persediaan',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      if (_tracksStock)
+        TextField(
+          controller: _leadTime,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Lead time pengadaan',
+            suffixText: 'hari',
+            helperText: 'Estimasi waktu barang tiba setelah dipesan',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      TextField(
+        controller: _barcode,
+        decoration: InputDecoration(
+          labelText: 'Barcode',
+          hintText: _generatingIdentifiers
+              ? 'Sedang membuat barcode...'
+              : 'Scan/isi barcode kemasan atau kosongkan',
+          helperText: 'Jika kosong, server membuat barcode internal EAN-13.',
+          border: const OutlineInputBorder(),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Generate ulang SKU dan barcode',
+                onPressed: _generatingIdentifiers ? null : _refreshIdentifiers,
+                icon: _generatingIdentifiers
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
+              IconButton(
+                tooltip: 'Scan barcode dengan kamera',
+                onPressed: _scanBarcode,
+                icon: const Icon(Icons.qr_code_scanner),
+              ),
+            ],
+          ),
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox.square(
+                dimension: 72,
+                child: _pickedImageBytes != null
+                    ? Image.memory(_pickedImageBytes!, fit: BoxFit.cover)
+                    : _image.text.trim().isNotEmpty
+                    ? Image.network(
+                        _image.text.trim(),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.broken_image_outlined),
+                      )
+                    : const ColoredBox(
+                        color: Color(0xFFF2F4F7),
+                        child: Icon(Icons.image_outlined),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Foto produk',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const Text(
+                    'JPG, PNG, atau WebP • maksimal 5 MB',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 6),
+                  OutlinedButton.icon(
+                    onPressed: _uploadingImage ? null : _pickImage,
+                    icon: const Icon(Icons.upload_outlined),
+                    label: Text(
+                      _pickedImageBytes == null
+                          ? 'Pilih gambar'
+                          : 'Ganti gambar',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      Builder(
+        builder: (_) {
+          final selling = parseRupiah(_price.text);
+          final cost = parseRupiah(_purchasePrice.text);
+          final margin = selling <= 0 ? 0 : ((selling - cost) / selling) * 100;
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: .35),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.trending_up),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Estimasi margin: Rp ${formatRupiahInput(selling - cost)} '
+                    '(${margin.toStringAsFixed(1)}%)',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ];
+    // Delapan elemen pertama bersifat tetap. Identitas memakai 0..5 dan
+    // kategori di indeks 7; tipe produk (6) membuka aturan dinamis sesudahnya.
+    // Tiga elemen terakhir selalu barcode, foto, dan ringkasan margin.
+    final informationFields = <Widget>[
+      ...fields.take(6),
+      fields[7],
+      ...fields.skip(fields.length - 3),
+    ];
+    final stockFields = <Widget>[
+      fields[6],
+      ...fields.skip(8).take(fields.length - 11),
+    ];
+    final visibleFields = _formTab == 0 ? informationFields : stockFields;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.product == null ? 'Tambah Produk' : 'Edit Produk',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Data transaksi stok, batch, dan kedaluwarsa dicatat saat penerimaan.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(
+                value: 0,
+                icon: Icon(Icons.info_outline),
+                label: Text('Informasi Produk'),
+              ),
+              ButtonSegment(
+                value: 1,
+                icon: Icon(Icons.inventory_2_outlined),
+                label: Text('Stok & Satuan'),
+              ),
+            ],
+            selected: {_formTab},
+            showSelectedIcon: false,
+            onSelectionChanged: (value) =>
+                setState(() => _formTab = value.first),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              18,
+              20,
+              MediaQuery.viewInsetsOf(context).bottom + 20,
+            ),
+            child: wide
+                ? Wrap(
+                    spacing: 14,
+                    runSpacing: 14,
+                    children: visibleFields
+                        .map((field) => SizedBox(width: 325, child: field))
+                        .toList(),
+                  )
+                : Column(
+                    children: visibleFields
+                        .expand((field) => [field, const SizedBox(height: 13)])
+                        .toList(),
+                  ),
+          ),
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal'),
+              ),
+              const SizedBox(width: 10),
+              FilledButton.icon(
+                onPressed: _uploadingImage ? null : _submit,
+                icon: _uploadingImage
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(
+                  _uploadingImage ? 'Mengunggah...' : 'Simpan produk',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UnitConversionDraft {
+  final TextEditingController unit;
+  final TextEditingController factor;
+
+  _UnitConversionDraft({required String unit, required double factor})
+    : unit = TextEditingController(text: unit),
+      factor = TextEditingController(text: factor.toString());
+
+  void dispose() {
+    unit.dispose();
+    factor.dispose();
   }
 }
 

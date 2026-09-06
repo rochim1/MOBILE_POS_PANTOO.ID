@@ -9,8 +9,7 @@ import 'pos_page.dart';
 import 'pos_product_page.dart';
 import 'pos_order_page.dart';
 import 'pos_more_menu_page.dart';
-import 'pos_table_order_page.dart';
-import 'pos_table_management_page.dart';
+import 'pos_order_table_hub_page.dart';
 import 'pos_inventory_page.dart';
 import 'pos_customer_page.dart';
 import 'pos_outlet_page.dart';
@@ -24,6 +23,7 @@ import 'pos_report_page.dart';
 import 'pos_purchase_return_page.dart';
 import 'pos_setup_guide_page.dart';
 import 'pos_onboarding_page.dart';
+import 'pos_notification_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_drawer.dart';
 import '../home/home_page.dart';
@@ -36,6 +36,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_inventory_repository.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_notification_repository.dart';
 
 class PosShellPage extends StatefulWidget {
   final bool prepareDashboard;
@@ -66,6 +67,9 @@ class _PosShellPageState extends State<PosShellPage>
   String _inventoryInitialSection = 'stock';
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
+  List<Map<String, dynamic>> _navbarNotifications = const [];
+  int _unreadNotifications = 0;
+  bool _notificationsLoading = false;
 
   bool get _railExpanded => _sidebarMode == 0;
 
@@ -75,8 +79,9 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Katalog Penjualan', icon: Icons.inventory_2_outlined),
     (label: 'Riwayat', icon: Icons.receipt_long_outlined),
     (label: 'Menu', icon: Icons.apps_outlined),
-    (label: 'Table Order', icon: Icons.table_restaurant_outlined),
-    (label: 'Manajemen Meja', icon: Icons.chair_alt_outlined),
+    (label: 'Order & Meja', icon: Icons.table_restaurant_outlined),
+    // Alias indeks lama agar deep-link/state tersimpan tetap menuju hub baru.
+    (label: 'Order & Meja', icon: Icons.table_restaurant_outlined),
     (label: 'Inventori', icon: Icons.warehouse_outlined),
     (label: 'Promo & Voucher', icon: Icons.discount_outlined),
     (label: 'Pelanggan', icon: Icons.people_outline),
@@ -102,6 +107,9 @@ class _PosShellPageState extends State<PosShellPage>
       _showUnlockLoading = true;
     }
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadNavbarNotifications();
+    });
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       results,
     ) {
@@ -110,6 +118,162 @@ class _PosShellPageState extends State<PosShellPage>
       }
     });
   }
+
+  Future<void> _loadNavbarNotifications() async {
+    if (_notificationsLoading) return;
+    _notificationsLoading = true;
+    final result = await sl<PosNotificationRepository>()
+        .getOperationalNotifications(limit: 50);
+    if (!mounted) return;
+    result.fold((_) {}, (data) {
+      setState(() {
+        _navbarNotifications = data.items;
+        _unreadNotifications = data.unreadCount;
+      });
+    });
+    _notificationsLoading = false;
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PosNotificationPage()));
+    if (mounted) _loadNavbarNotifications();
+  }
+
+  Future<void> _readNavbarNotification(String id) async {
+    if (id.isEmpty) return;
+    await sl<PosNotificationRepository>().markAsRead(id);
+    if (mounted) _loadNavbarNotifications();
+  }
+
+  Widget _notificationButton() => PopupMenuButton<String>(
+    tooltip: 'Notifikasi',
+    color: Colors.white,
+    surfaceTintColor: Colors.white,
+    elevation: 8,
+    offset: const Offset(0, 46),
+    constraints: const BoxConstraints(minWidth: 320, maxWidth: 360),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    onSelected: (value) {
+      if (value == 'all') {
+        _openNotifications();
+      } else if (value.startsWith('read:')) {
+        _readNavbarNotification(value.substring(5));
+      }
+    },
+    icon: Badge(
+      isLabelVisible: _unreadNotifications > 0,
+      label: Text(_unreadNotifications > 99 ? '99+' : '$_unreadNotifications'),
+      child: const Icon(Icons.notifications_none, color: Colors.white),
+    ),
+    itemBuilder: (context) => [
+      const PopupMenuItem<String>(
+        enabled: false,
+        height: 52,
+        child: Row(
+          children: [
+            Icon(Icons.notifications_outlined, color: AppColors.primary),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Notifikasi operasional',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+            ),
+            Text(
+              'POS & Inventori',
+              style: TextStyle(fontSize: 11, color: Colors.black45),
+            ),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(height: 1),
+      if (_navbarNotifications.isEmpty)
+        const PopupMenuItem<String>(
+          enabled: false,
+          child: Text('Belum ada notifikasi baru'),
+        )
+      else
+        ..._navbarNotifications.take(5).map((item) {
+          final id = item['_id']?.toString() ?? '';
+          final unread = item['is_read'] != true;
+          return PopupMenuItem<String>(
+            value: 'read:$id',
+            height: 66,
+            child: SizedBox(
+              width: 320,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: .10),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      _notificationIcon(item['module_type']?.toString()),
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['title']?.toString() ?? 'Notifikasi',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: unread
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          item['body']?.toString() ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: Colors.black54,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      const PopupMenuDivider(),
+      const PopupMenuItem<String>(
+        value: 'all',
+        height: 48,
+        child: Center(
+          child: Text(
+            'Selengkapnya',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  IconData _notificationIcon(String? module) => switch (module) {
+    'inventory' => Icons.inventory_2_outlined,
+    'POS' => Icons.point_of_sale_outlined,
+    _ => Icons.notifications_outlined,
+  };
 
   @override
   void dispose() {
@@ -172,8 +336,8 @@ class _PosShellPageState extends State<PosShellPage>
         setState(() => _selectedIndex = index);
       },
     ),
-    const PosTableOrderPage(),
-    const PosTableManagementPage(),
+    const PosOrderTableHubPage(),
+    const PosOrderTableHubPage(),
     PosInventoryPage(
       key: ValueKey('inventory-$_inventoryInitialSection'),
       isGridView: _stockGridView,
@@ -404,6 +568,7 @@ class _PosShellPageState extends State<PosShellPage>
               });
             }
             _loadPOSAfterUnlock(context);
+            _loadNavbarNotifications();
           } else {
             _posDataRequested = false;
             if (_showUnlockLoading) {
@@ -568,25 +733,13 @@ class _PosShellPageState extends State<PosShellPage>
                         }
                       },
                     ),
+                    _notificationButton(),
                     IconButton(
                       tooltip: 'Kunci POS',
                       icon: const Icon(Icons.lock_outline, color: Colors.white),
                       onPressed: () => context.read<AppLockCubit>().lock(),
                     ),
                     if (_selectedIndex == 1) ...[
-                      PopupMenuButton<String>(
-                        icon: const Icon(
-                          Icons.notifications_none,
-                          color: Colors.white,
-                        ),
-                        offset: const Offset(0, 50),
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'notif1',
-                            child: Text('Belum ada notifikasi baru'),
-                          ),
-                        ],
-                      ),
                       BlocBuilder<PosBloc, PosState>(
                         builder: (context, state) {
                           return IconButton(

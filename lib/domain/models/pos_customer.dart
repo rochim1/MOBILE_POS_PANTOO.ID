@@ -3,6 +3,8 @@ class PosCustomer {
   final String name;
   final String phone;
   final String email;
+  final String address;
+  final String note;
   final String priceLevel;
   final String customerSegment;
   final String membershipStatus;
@@ -14,6 +16,8 @@ class PosCustomer {
     required this.name,
     required this.phone,
     this.email = '',
+    this.address = '',
+    this.note = '',
     required this.priceLevel,
     this.customerSegment = 'regular',
     this.membershipStatus = 'non_member',
@@ -27,12 +31,22 @@ class PosCustomer {
       name: json['name']?.toString() ?? 'Pelanggan',
       phone: json['phone']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
+      address: json['address']?.toString() ?? '',
+      note: (json['note'] ?? json['catatan'])?.toString() ?? '',
       priceLevel:
           (json['priceLevel'] ?? json['price_level'])?.toString() ?? 'retail',
-      customerSegment: json['customerSegment']?.toString() ?? 'regular',
-      membershipStatus: json['membershipStatus']?.toString() ?? 'non_member',
-      membershipTier: json['membershipTier']?.toString() ?? 'regular',
-      customerType: json['customerType']?.toString() ?? 'personal',
+      customerSegment:
+          (json['customerSegment'] ?? json['customer_segment'])?.toString() ??
+          'regular',
+      membershipStatus:
+          (json['membershipStatus'] ?? json['membership_status'])?.toString() ??
+          'non_member',
+      membershipTier:
+          (json['membershipTier'] ?? json['membership_tier'])?.toString() ??
+          'regular',
+      customerType:
+          (json['customerType'] ?? json['customer_type'])?.toString() ??
+          'personal',
     );
   }
 
@@ -42,6 +56,8 @@ class PosCustomer {
       'name': name,
       'phone': phone,
       'email': email,
+      'address': address,
+      'catatan': note,
       'priceLevel': priceLevel,
       'customerSegment': customerSegment,
       'membershipStatus': membershipStatus,

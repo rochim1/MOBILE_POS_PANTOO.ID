@@ -950,7 +950,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     if (state.orderType == 'dine_in') {
       AppToast.warning(
         context,
-        'Invoice dine-in harus dibuat dari Table Order agar meja tercatat.',
+        'Invoice dine-in harus dibuat dari Order & Meja agar meja tercatat.',
       );
       return;
     }

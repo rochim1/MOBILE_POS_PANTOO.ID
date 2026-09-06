@@ -454,9 +454,17 @@ class PosRepository {
                   e['_id']?.toString() ??
                   '',
               name: e['nama_inventaris']?.toString() ?? 'Unknown',
-              category: (e['brand']?.toString().trim().isNotEmpty == true)
+              category:
+                  e['merchandise_category_name']
+                          ?.toString()
+                          .trim()
+                          .isNotEmpty ==
+                      true
+                  ? e['merchandise_category_name'].toString()
+                  : (e['brand']?.toString().trim().isNotEmpty == true)
                   ? e['brand'].toString()
-                  : (e['kategori']?.toString() ?? 'Umum'),
+                  : 'Belum dikategorikan',
+              categoryId: e['merchandise_category_id']?.toString() ?? '',
               productType: e['pos_product_type']?.toString() ?? 'product',
               promoEligible: e['promo_eligible'] == true,
               // Paket divalidasi terhadap stok komponennya oleh server; qty
@@ -464,6 +472,17 @@ class PosRepository {
               tracksStock:
                   e['tracks_stock'] != false &&
                   e['pos_product_type']?.toString() != 'package',
+              description: e['deskripsi']?.toString() ?? '',
+              brand: e['brand']?.toString() ?? '',
+              purchasePrice:
+                  double.tryParse(e['harga_beli']?.toString() ?? '0') ?? 0,
+              purchasePriceSource:
+                  e['harga_beli_source']?.toString() ?? 'manual',
+              packageComponents:
+                  (e['pos_package_components'] as List? ?? const [])
+                      .whereType<Map>()
+                      .map((row) => Map<String, dynamic>.from(row))
+                      .toList(),
               price: double.tryParse(e['harga_jual']?.toString() ?? '0') ?? 0.0,
               stock:
                   double.tryParse((e['qty'] ?? e['stok'] ?? 0).toString()) ?? 0,
@@ -477,6 +496,15 @@ class PosRepository {
                         .map((row) => Map<String, dynamic>.from(row as Map))
                         .toList()
                   : const [],
+              minimumStock:
+                  double.tryParse(e['stok_minimum']?.toString() ?? '0') ?? 0,
+              maximumStock:
+                  double.tryParse(e['stok_maksimum']?.toString() ?? '0') ?? 0,
+              reorderPoint:
+                  double.tryParse(e['titik_reorder']?.toString() ?? '0') ?? 0,
+              procurementLeadTime:
+                  int.tryParse(e['lead_time_pengadaan']?.toString() ?? '0') ??
+                  0,
             ),
           )
           .toList();
@@ -532,14 +560,33 @@ class PosRepository {
                   row['_id']?.toString() ??
                   '',
               name: row['nama_inventaris']?.toString() ?? 'Unknown',
-              category: row['brand']?.toString().trim().isNotEmpty == true
+              category:
+                  row['merchandise_category_name']
+                          ?.toString()
+                          .trim()
+                          .isNotEmpty ==
+                      true
+                  ? row['merchandise_category_name'].toString()
+                  : row['brand']?.toString().trim().isNotEmpty == true
                   ? row['brand'].toString()
-                  : row['kategori']?.toString() ?? 'Umum',
+                  : 'Belum dikategorikan',
+              categoryId: row['merchandise_category_id']?.toString() ?? '',
               productType: row['pos_product_type']?.toString() ?? 'product',
               promoEligible: row['promo_eligible'] == true,
               tracksStock:
                   row['tracks_stock'] != false &&
                   row['pos_product_type']?.toString() != 'package',
+              description: row['deskripsi']?.toString() ?? '',
+              brand: row['brand']?.toString() ?? '',
+              purchasePrice:
+                  double.tryParse(row['harga_beli']?.toString() ?? '0') ?? 0,
+              purchasePriceSource:
+                  row['harga_beli_source']?.toString() ?? 'manual',
+              packageComponents:
+                  (row['pos_package_components'] as List? ?? const [])
+                      .whereType<Map>()
+                      .map((value) => Map<String, dynamic>.from(value))
+                      .toList(),
               price: double.tryParse(row['harga_jual']?.toString() ?? '0') ?? 0,
               stock:
                   double.tryParse(
@@ -559,6 +606,15 @@ class PosRepository {
                         .map((value) => Map<String, dynamic>.from(value))
                         .toList()
                   : const [],
+              minimumStock:
+                  double.tryParse(row['stok_minimum']?.toString() ?? '0') ?? 0,
+              maximumStock:
+                  double.tryParse(row['stok_maksimum']?.toString() ?? '0') ?? 0,
+              reorderPoint:
+                  double.tryParse(row['titik_reorder']?.toString() ?? '0') ?? 0,
+              procurementLeadTime:
+                  int.tryParse(row['lead_time_pengadaan']?.toString() ?? '0') ??
+                  0,
             );
           })
           .where((product) => product.id.isNotEmpty)
@@ -683,6 +739,8 @@ class PosRepository {
               name: e['name']?.toString() ?? 'Unknown',
               phone: e['phone']?.toString() ?? '',
               email: e['email']?.toString() ?? '',
+              address: e['address']?.toString() ?? '',
+              note: e['catatan']?.toString() ?? '',
               priceLevel: e['price_level']?.toString() ?? 'retail',
               customerSegment: 'regular',
               membershipStatus:
@@ -793,8 +851,14 @@ class PosRepository {
               name: e['name'] as String,
               phone: e['phone'] as String,
               email: e['email']?.toString() ?? '',
+              address: e['address']?.toString() ?? '',
+              note: e['catatan']?.toString() ?? '',
               priceLevel: e['price_level']?.toString() ?? 'retail',
-              customerSegment: 'regular',
+              customerSegment: e['customer_segment']?.toString() ?? 'regular',
+              membershipStatus:
+                  e['membership_status']?.toString() ?? 'non_member',
+              membershipTier: e['membership_tier']?.toString() ?? 'regular',
+              customerType: e['customer_type']?.toString() ?? 'personal',
             ),
           )
           .where((customer) => customer.id.trim().isNotEmpty)
@@ -818,8 +882,13 @@ class PosRepository {
           'name': customer.name,
           'phone': customer.phone,
           'email': customer.email,
+          'address': customer.address,
+          'catatan': customer.note,
           'price_level': customer.priceLevel,
           'customer_segment': customer.customerSegment,
+          'membership_status': customer.membershipStatus,
+          'membership_tier': customer.membershipTier,
+          'customer_type': customer.customerType,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit(noResult: true);
