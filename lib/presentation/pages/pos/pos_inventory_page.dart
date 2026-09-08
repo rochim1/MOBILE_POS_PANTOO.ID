@@ -208,10 +208,11 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     ),
     _InventorySection.purchase => PosPurchaseWorkspace(
       permissions: permissions,
-      purchaseListBuilder: () => _InventoryDocumentPage(
+      purchaseListBuilder: (onReceive) => _InventoryDocumentPage(
         key: const ValueKey(PosInventoryDocumentType.purchase),
         type: PosInventoryDocumentType.purchase,
         permissions: permissions,
+        onReceivePurchase: onReceive,
       ),
     ),
     _InventorySection.opname => _InventoryDocumentPage(
@@ -245,11 +246,13 @@ class _InventoryDocumentPage extends StatefulWidget {
   final PosInventoryDocumentType type;
   final bool canReceiveTransfer;
   final Map<String, dynamic> permissions;
+  final ValueChanged<Map<String, dynamic>>? onReceivePurchase;
   const _InventoryDocumentPage({
     super.key,
     required this.type,
     required this.permissions,
     this.canReceiveTransfer = false,
+    this.onReceivePurchase,
   });
 
   @override
@@ -1349,6 +1352,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       return;
     }
     if (action == 'receive_purchase') {
+      if (widget.onReceivePurchase != null) {
+        widget.onReceivePurchase!(item);
+        return;
+      }
       final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(

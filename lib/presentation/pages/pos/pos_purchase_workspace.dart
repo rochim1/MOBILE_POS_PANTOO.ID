@@ -10,7 +10,8 @@ import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseWorkspace extends StatefulWidget {
   final Map<String, dynamic> permissions;
-  final Widget Function() purchaseListBuilder;
+  final Widget Function(ValueChanged<Map<String, dynamic>> onReceive)
+  purchaseListBuilder;
 
   const PosPurchaseWorkspace({
     super.key,
@@ -24,51 +25,67 @@ class PosPurchaseWorkspace extends StatefulWidget {
 
 class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
   int _tab = 0;
+  Map<String, dynamic>? _activeReceiving;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Material(
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(
-                value: 0,
-                icon: Icon(Icons.description_outlined),
-                label: Text('Purchase Order'),
-              ),
-              ButtonSegment(
-                value: 1,
-                icon: Icon(Icons.inventory_outlined),
-                label: Text('Penerimaan'),
-              ),
-            ],
-            selected: {_tab},
-            onSelectionChanged: (value) => setState(() => _tab = value.first),
+  Widget build(BuildContext context) {
+    final receiving = _activeReceiving;
+    if (receiving != null) {
+      return PosPurchaseReceivingPage(
+        purchase: receiving,
+        embedded: true,
+        onFinished: () => setState(() => _activeReceiving = null),
+      );
+    }
+    return Column(
+      children: [
+        Material(
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                  value: 0,
+                  icon: Icon(Icons.description_outlined),
+                  label: Text('Purchase Order'),
+                ),
+                ButtonSegment(
+                  value: 1,
+                  icon: Icon(Icons.inventory_outlined),
+                  label: Text('Penerimaan'),
+                ),
+              ],
+              selected: {_tab},
+              onSelectionChanged: (value) => setState(() => _tab = value.first),
+            ),
           ),
         ),
-      ),
-      Expanded(
-        child: IndexedStack(
-          index: _tab,
-          children: [
-            widget.purchaseListBuilder(),
-            _ReceivingList(
-              canReceive:
-                  widget.permissions['receive_inventory_purchases'] == true,
-            ),
-          ],
+        Expanded(
+          child: IndexedStack(
+            index: _tab,
+            children: [
+              widget.purchaseListBuilder(
+                (purchase) => setState(() => _activeReceiving = purchase),
+              ),
+              _ReceivingList(
+                canReceive:
+                    widget.permissions['receive_inventory_purchases'] == true,
+                onReceive: (purchase) =>
+                    setState(() => _activeReceiving = purchase),
+              ),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _ReceivingList extends StatefulWidget {
   final bool canReceive;
-  const _ReceivingList({required this.canReceive});
+  final ValueChanged<Map<String, dynamic>> onReceive;
+  const _ReceivingList({required this.canReceive, required this.onReceive});
 
   @override
   State<_ReceivingList> createState() => _ReceivingListState();
@@ -133,13 +150,7 @@ class _ReceivingListState extends State<_ReceivingList> {
   }
 
   Future<void> _receive(Map<String, dynamic> purchase) async {
-    final changed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PosPurchaseReceivingPage(purchase: purchase),
-      ),
-    );
-    if (changed == true && mounted) await _load(page: 1);
+    widget.onReceive(purchase);
   }
 
   String _number(dynamic value) {

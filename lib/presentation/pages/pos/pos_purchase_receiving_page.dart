@@ -8,7 +8,14 @@ import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseReceivingPage extends StatefulWidget {
   final Map<String, dynamic> purchase;
-  const PosPurchaseReceivingPage({super.key, required this.purchase});
+  final bool embedded;
+  final VoidCallback? onFinished;
+  const PosPurchaseReceivingPage({
+    super.key,
+    required this.purchase,
+    this.embedded = false,
+    this.onFinished,
+  });
 
   @override
   State<PosPurchaseReceivingPage> createState() =>
@@ -28,6 +35,14 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   bool _loading = true;
   List<Map<String, dynamic>> _history = const [];
   late final List<Map<String, dynamic>> _items;
+
+  void _finish() {
+    if (widget.embedded) {
+      widget.onFinished?.call();
+    } else {
+      Navigator.pop(context, true);
+    }
+  }
 
   @override
   void initState() {
@@ -266,7 +281,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       },
       (_) {
         AppToast.success(context, 'Penerimaan pembelian berhasil dicatat');
-        Navigator.pop(context, true);
+        _finish();
       },
     );
   }
@@ -327,7 +342,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
         AppToast.success(context, 'Penerimaan berhasil dibatalkan');
         // Snapshot PO yang dibawa halaman ini sudah berubah. Kembali ke daftar
         // agar PO dan sisa kuantitas dimuat ulang dari server.
-        Navigator.pop(context, true);
+        _finish();
       },
     );
   }
@@ -370,14 +385,140 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     );
   }
 
+  Widget _buildAdvancedReceivingFields() => Column(
+    children: [
+      InkWell(
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: _receivingDate,
+            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+            lastDate: DateTime.now(),
+          );
+          if (picked != null && mounted) {
+            setState(() => _receivingDate = picked);
+          }
+        },
+        child: InputDecorator(
+          decoration: const InputDecoration(
+            labelText: 'Tanggal penerimaan',
+            prefixIcon: Icon(Icons.calendar_today_outlined),
+            border: OutlineInputBorder(),
+          ),
+          child: Text(_receivingDate.toIso8601String().split('T').first),
+        ),
+      ),
+      const SizedBox(height: 10),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final fields = <Widget>[
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: _buildingCode.isEmpty ? null : _buildingCode,
+              decoration: const InputDecoration(
+                labelText: 'Gedung (opsional)',
+                border: OutlineInputBorder(),
+              ),
+              items: _buildings
+                  .map(
+                    (row) => DropdownMenuItem(
+                      value: row['kode_gedung'].toString(),
+                      child: Text(
+                        '${row['kode_gedung']} - ${row['nama_gedung']}',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() {
+                _buildingCode = value ?? '';
+                _roomCode = '';
+                _rackName = '';
+              }),
+            ),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: _roomCode.isEmpty ? null : _roomCode,
+              decoration: const InputDecoration(
+                labelText: 'Ruangan (opsional)',
+                border: OutlineInputBorder(),
+              ),
+              items: _rooms
+                  .map(
+                    (row) => DropdownMenuItem(
+                      value: row['kode_ruangan'].toString(),
+                      child: Text(
+                        '${row['kode_ruangan']} - ${row['nama_ruangan']}',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _buildingCode.isEmpty
+                  ? null
+                  : (value) => setState(() {
+                      _roomCode = value ?? '';
+                      _rackName = '';
+                    }),
+            ),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: _rackName.isEmpty ? null : _rackName,
+              decoration: const InputDecoration(
+                labelText: 'Rak (opsional)',
+                border: OutlineInputBorder(),
+              ),
+              items: _racks
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
+                  .toList(),
+              onChanged: _roomCode.isEmpty
+                  ? null
+                  : (value) => setState(() => _rackName = value ?? ''),
+            ),
+          ];
+          return constraints.maxWidth >= 720
+              ? Row(
+                  children: [
+                    for (var i = 0; i < fields.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      Expanded(child: fields[i]),
+                    ],
+                  ],
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < fields.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 10),
+                      fields[i],
+                    ],
+                  ],
+                );
+        },
+      ),
+      const SizedBox(height: 10),
+      TextField(
+        controller: _deliveryNote,
+        decoration: const InputDecoration(
+          labelText: 'Nomor surat jalan (opsional)',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      const SizedBox(height: 10),
+      TextField(
+        controller: _notes,
+        maxLines: 2,
+        decoration: const InputDecoration(
+          labelText: 'Catatan penerimaan (opsional)',
+          border: OutlineInputBorder(),
+        ),
+      ),
+    ],
+  );
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('Terima ${widget.purchase['no_po'] ?? 'Pembelian'}'),
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-    ),
-    body: _loading && _lookups == null
+  Widget build(BuildContext context) {
+    final body = _loading && _lookups == null
         ? const Center(child: CircularProgressIndicator())
         : Stack(
             children: [
@@ -400,35 +541,6 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _receivingDate,
-                                firstDate: DateTime.now().subtract(
-                                  const Duration(days: 365),
-                                ),
-                                lastDate: DateTime.now(),
-                              );
-                              if (picked != null && mounted) {
-                                setState(() => _receivingDate = picked);
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                labelText: 'Tanggal penerimaan *',
-                                prefixIcon: Icon(Icons.calendar_today_outlined),
-                                border: OutlineInputBorder(),
-                              ),
-                              child: Text(
-                                _receivingDate
-                                    .toIso8601String()
-                                    .split('T')
-                                    .first,
-                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -462,127 +574,15 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                             }),
                           ),
                           const SizedBox(height: 12),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final fields = <Widget>[
-                                DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: _buildingCode.isEmpty
-                                      ? null
-                                      : _buildingCode,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Gedung (opsional)',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _buildings
-                                      .map(
-                                        (row) => DropdownMenuItem(
-                                          value: row['kode_gedung'].toString(),
-                                          child: Text(
-                                            '${row['kode_gedung']} - ${row['nama_gedung']}',
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (value) => setState(() {
-                                    _buildingCode = value ?? '';
-                                    _roomCode = '';
-                                    _rackName = '';
-                                  }),
-                                ),
-                                DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: _roomCode.isEmpty
-                                      ? null
-                                      : _roomCode,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Ruangan (opsional)',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _rooms
-                                      .map(
-                                        (row) => DropdownMenuItem(
-                                          value: row['kode_ruangan'].toString(),
-                                          child: Text(
-                                            '${row['kode_ruangan']} - ${row['nama_ruangan']}',
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: _buildingCode.isEmpty
-                                      ? null
-                                      : (value) => setState(() {
-                                          _roomCode = value ?? '';
-                                          _rackName = '';
-                                        }),
-                                ),
-                                DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: _rackName.isEmpty
-                                      ? null
-                                      : _rackName,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Rak (opsional)',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _racks
-                                      .map(
-                                        (value) => DropdownMenuItem(
-                                          value: value,
-                                          child: Text(value),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: _roomCode.isEmpty
-                                      ? null
-                                      : (value) => setState(
-                                          () => _rackName = value ?? '',
-                                        ),
-                                ),
-                              ];
-                              return constraints.maxWidth >= 720
-                                  ? Row(
-                                      children: [
-                                        for (
-                                          var i = 0;
-                                          i < fields.length;
-                                          i++
-                                        ) ...[
-                                          if (i > 0) const SizedBox(width: 10),
-                                          Expanded(child: fields[i]),
-                                        ],
-                                      ],
-                                    )
-                                  : Column(
-                                      children: [
-                                        for (
-                                          var i = 0;
-                                          i < fields.length;
-                                          i++
-                                        ) ...[
-                                          if (i > 0) const SizedBox(height: 10),
-                                          fields[i],
-                                        ],
-                                      ],
-                                    );
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _deliveryNote,
-                            decoration: const InputDecoration(
-                              labelText: 'Nomor surat jalan',
-                              border: OutlineInputBorder(),
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            childrenPadding: const EdgeInsets.only(bottom: 4),
+                            leading: const Icon(Icons.tune),
+                            title: const Text('Detail tambahan'),
+                            subtitle: const Text(
+                              'Tanggal, surat jalan, gedung, ruangan, rak, dan catatan',
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _notes,
-                            maxLines: 2,
-                            decoration: const InputDecoration(
-                              labelText: 'Catatan penerimaan',
-                              border: OutlineInputBorder(),
-                            ),
+                            children: [_buildAdvancedReceivingFields()],
                           ),
                         ],
                       ),
@@ -674,103 +674,129 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                   double.tryParse(value.replaceAll(',', '.')) ??
                                   0,
                             ),
-                            const SizedBox(height: 10),
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final fields = <Widget>[
-                                  TextFormField(
-                                    initialValue: item['no_batch']?.toString(),
-                                    decoration: InputDecoration(
-                                      labelText:
-                                          item['wajib_batch_number'] == true
-                                          ? 'Nomor batch *'
-                                          : 'Nomor batch (opsional)',
-                                      border: const OutlineInputBorder(),
-                                    ),
-                                    onChanged: (value) =>
-                                        item['no_batch'] = value.trim(),
-                                  ),
-                                  InkWell(
-                                    onTap: () async {
-                                      final current = DateTime.tryParse(
-                                        item['tanggal_kadaluarsa']
-                                                ?.toString() ??
-                                            '',
-                                      );
-                                      final picked = await showDatePicker(
-                                        context: context,
-                                        initialDate:
-                                            current ??
-                                            _receivingDate.add(
-                                              const Duration(days: 30),
-                                            ),
-                                        firstDate: DateTime(
-                                          _receivingDate.year,
-                                          _receivingDate.month,
-                                          _receivingDate.day,
-                                        ),
-                                        lastDate: DateTime(2200),
-                                      );
-                                      if (picked != null && mounted) {
-                                        setState(() {
-                                          item['tanggal_kadaluarsa'] = picked
-                                              .toIso8601String()
-                                              .split('T')
-                                              .first;
-                                        });
-                                      }
-                                    },
-                                    child: InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText:
-                                            item['wajib_batch_number'] == true
-                                            ? 'Tanggal kedaluwarsa *'
-                                            : 'Tanggal kedaluwarsa (opsional)',
-                                        border: const OutlineInputBorder(),
-                                        suffixIcon: const Icon(
-                                          Icons.calendar_today_outlined,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        (item['tanggal_kadaluarsa']
-                                                        ?.toString() ??
-                                                    '')
-                                                .isEmpty
-                                            ? 'Pilih tanggal'
-                                            : _shortDate(
-                                                item['tanggal_kadaluarsa'],
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ];
-                                return constraints.maxWidth >= 620
-                                    ? Row(
-                                        children: [
-                                          Expanded(child: fields[0]),
-                                          const SizedBox(width: 10),
-                                          Expanded(child: fields[1]),
-                                        ],
-                                      )
-                                    : Column(
-                                        children: [
-                                          fields[0],
-                                          const SizedBox(height: 10),
-                                          fields[1],
-                                        ],
-                                      );
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              initialValue: item['keterangan']?.toString(),
-                              decoration: InputDecoration(
-                                labelText: item['wajib_serial_number'] == true
-                                    ? 'Serial number *'
-                                    : 'Keterangan / serial number (opsional)',
-                                border: const OutlineInputBorder(),
+                            ExpansionTile(
+                              tilePadding: EdgeInsets.zero,
+                              initiallyExpanded:
+                                  item['wajib_batch_number'] == true ||
+                                  item['wajib_serial_number'] == true,
+                              leading: const Icon(Icons.qr_code_2),
+                              title: Text(
+                                item['wajib_batch_number'] == true ||
+                                        item['wajib_serial_number'] == true
+                                    ? 'Data pelacakan wajib'
+                                    : 'Batch, kedaluwarsa & keterangan',
                               ),
-                              onChanged: (value) => item['keterangan'] = value,
+                              subtitle: Text(
+                                item['wajib_batch_number'] == true ||
+                                        item['wajib_serial_number'] == true
+                                    ? 'Lengkapi sebelum menyimpan'
+                                    : 'Opsional untuk barang ini',
+                              ),
+                              children: [
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final fields = <Widget>[
+                                      TextFormField(
+                                        initialValue: item['no_batch']
+                                            ?.toString(),
+                                        decoration: InputDecoration(
+                                          labelText:
+                                              item['wajib_batch_number'] == true
+                                              ? 'Nomor batch *'
+                                              : 'Nomor batch (opsional)',
+                                          border: const OutlineInputBorder(),
+                                        ),
+                                        onChanged: (value) =>
+                                            item['no_batch'] = value.trim(),
+                                      ),
+                                      InkWell(
+                                        onTap: () async {
+                                          final current = DateTime.tryParse(
+                                            item['tanggal_kadaluarsa']
+                                                    ?.toString() ??
+                                                '',
+                                          );
+                                          final picked = await showDatePicker(
+                                            context: context,
+                                            initialDate:
+                                                current ??
+                                                _receivingDate.add(
+                                                  const Duration(days: 30),
+                                                ),
+                                            firstDate: DateTime(
+                                              _receivingDate.year,
+                                              _receivingDate.month,
+                                              _receivingDate.day,
+                                            ),
+                                            lastDate: DateTime(2200),
+                                          );
+                                          if (picked != null && mounted) {
+                                            setState(() {
+                                              item['tanggal_kadaluarsa'] =
+                                                  picked
+                                                      .toIso8601String()
+                                                      .split('T')
+                                                      .first;
+                                            });
+                                          }
+                                        },
+                                        child: InputDecorator(
+                                          decoration: InputDecoration(
+                                            labelText:
+                                                item['wajib_batch_number'] ==
+                                                    true
+                                                ? 'Tanggal kedaluwarsa *'
+                                                : 'Tanggal kedaluwarsa (opsional)',
+                                            border: const OutlineInputBorder(),
+                                            suffixIcon: const Icon(
+                                              Icons.calendar_today_outlined,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            (item['tanggal_kadaluarsa']
+                                                            ?.toString() ??
+                                                        '')
+                                                    .isEmpty
+                                                ? 'Pilih tanggal'
+                                                : _shortDate(
+                                                    item['tanggal_kadaluarsa'],
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                    ];
+                                    return constraints.maxWidth >= 620
+                                        ? Row(
+                                            children: [
+                                              Expanded(child: fields[0]),
+                                              const SizedBox(width: 10),
+                                              Expanded(child: fields[1]),
+                                            ],
+                                          )
+                                        : Column(
+                                            children: [
+                                              fields[0],
+                                              const SizedBox(height: 10),
+                                              fields[1],
+                                            ],
+                                          );
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  initialValue: item['keterangan']?.toString(),
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        item['wajib_serial_number'] == true
+                                        ? 'Serial number *'
+                                        : 'Keterangan (opsional)',
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                  onChanged: (value) =>
+                                      item['keterangan'] = value,
+                                ),
+                                const SizedBox(height: 4),
+                              ],
                             ),
                           ],
                         ),
@@ -793,6 +819,37 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                   ),
                 ),
             ],
+          );
+    if (!widget.embedded) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Terima ${widget.purchase['no_po'] ?? 'Pembelian'}'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: body,
+      );
+    }
+    return Column(
+      children: [
+        Material(
+          color: Colors.white,
+          child: ListTile(
+            leading: IconButton(
+              tooltip: 'Kembali ke pembelian',
+              onPressed: widget.onFinished,
+              icon: const Icon(Icons.arrow_back),
+            ),
+            title: Text(
+              'Terima ${widget.purchase['no_po'] ?? 'Pembelian'}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: const Text('Pembelian & Penerimaan'),
           ),
-  );
+        ),
+        const Divider(height: 1),
+        Expanded(child: body),
+      ],
+    );
+  }
 }
