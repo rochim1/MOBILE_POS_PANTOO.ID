@@ -1081,10 +1081,11 @@ class _PosShellPageState extends State<PosShellPage>
       _sidebarSection('POINT OF SALE'),
       if (can('view_dashboard')) _sidebarItem(0),
       if (can('use_cashier')) _sidebarItem(1),
-      if (useTables && viewTables) _sidebarItem(5),
+      // Order dan manajemen meja sudah dilebur dalam satu workspace. Tampilkan
+      // satu menu bila pengguna memiliki salah satu hak akses terkait.
+      if (useTables && (viewTables || manageTables)) _sidebarItem(5),
       _sidebarSection('MANAJEMEN'),
       if (can('view_products')) _sidebarItem(2),
-      if (useTables && manageTables) _sidebarItem(6),
       if (canViewInventory) _sidebarItem(7),
       if (can('view_promos')) _sidebarItem(8),
       if (can('view_customers')) _sidebarItem(9),

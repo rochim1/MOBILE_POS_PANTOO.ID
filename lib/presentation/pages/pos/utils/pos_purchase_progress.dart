@@ -6,7 +6,9 @@ class PosPurchaseProgress {
 
   static double orderedBase(Map<dynamic, dynamic> item) {
     final explicit = item['qty_ordered_base'];
-    if (explicit != null) return _number(explicit);
+    if (_number(explicit) > 0 || _number(item['qty_ordered']) <= 0) {
+      return _number(explicit);
+    }
     return _number(item['qty_ordered']) *
         (_number(item['conversion_factor']) <= 0
             ? 1
@@ -15,7 +17,9 @@ class PosPurchaseProgress {
 
   static double receivedBase(Map<dynamic, dynamic> item) {
     final explicit = item['qty_received_base'];
-    if (explicit != null) return _number(explicit);
+    if (_number(explicit) > 0 || _number(item['qty_received']) <= 0) {
+      return _number(explicit);
+    }
     return _number(item['qty_received']) *
         (_number(item['conversion_factor']) <= 0
             ? 1

@@ -288,31 +288,44 @@ class AuthRepository {
             fetchPolicy: FetchPolicy.networkOnly,
           ),
         );
-        if (sessionCheck.hasException ||
-            sessionCheck.data?['GetPOSRuntimeConfig'] == null) {
-          _clientProvider.setAccessToken(null);
-          await _secureStorage.delete(key: 'auth_token');
-          await _secureStorage.delete(key: 'refresh_token');
-          await _prefs.remove('username');
-          await _prefs.remove('instansi_id');
-          return Left(
-            sessionCheck.hasException
-                ? AppErrorHandler.handle(sessionCheck.exception!)
-                : const AuthFailure(
-                    'Akun tidak memiliki konteks instansi POS yang valid',
-                  ),
+        if (sessionCheck.hasException) {
+          final failure = AppErrorHandler.handle(sessionCheck.exception!);
+          if (failure is AuthFailure) {
+            _clientProvider.setAccessToken(null);
+            await _secureStorage.delete(key: 'auth_token');
+            await _secureStorage.delete(key: 'refresh_token');
+            await _prefs.remove('username');
+            await _prefs.remove('instansi_id');
+            return Left(failure);
+          }
+
+          // Login credentials are already valid. Runtime configuration is a
+          // follow-up bootstrap request and must not turn a successful login
+          // into a false login failure when the API/schema is temporarily
+          // unavailable. The dashboard will retry loading it normally.
+          appLogger.w(
+            '[Auth] Login berhasil, tetapi bootstrap konfigurasi POS gagal: '
+            '${failure.message}',
+            error: sessionCheck.exception,
           );
+          await _prefs.remove('pos_runtime_config');
+          return Right(name);
         }
-        final effectiveInstansiId = sessionCheck
-            .data?['GetPOSRuntimeConfig']?['instansi_id']
-            ?.toString();
+
+        final runtimeConfig = sessionCheck.data?['GetPOSRuntimeConfig'];
+        if (runtimeConfig == null) {
+          appLogger.w(
+            '[Auth] Login berhasil, tetapi GetPOSRuntimeConfig tidak '
+            'mengembalikan data',
+          );
+          await _prefs.remove('pos_runtime_config');
+          return Right(name);
+        }
+        final effectiveInstansiId = runtimeConfig['instansi_id']?.toString();
         if (effectiveInstansiId != null && effectiveInstansiId.isNotEmpty) {
           await _prefs.setString('instansi_id', effectiveInstansiId);
         }
-        await _prefs.setString(
-          'pos_runtime_config',
-          jsonEncode(sessionCheck.data!['GetPOSRuntimeConfig']),
-        );
+        await _prefs.setString('pos_runtime_config', jsonEncode(runtimeConfig));
         appLogger.i('[Auth] Login success for: $name');
         return Right(name);
       }

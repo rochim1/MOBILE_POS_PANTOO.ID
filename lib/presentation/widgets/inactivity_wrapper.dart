@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/lock/lock_cubit.dart';
 import '../bloc/lock/lock_state.dart';
@@ -25,10 +26,12 @@ class InactivityWrapper extends StatefulWidget {
 
 class _InactivityWrapperState extends State<InactivityWrapper> {
   Timer? _timer;
+  DateTime _lastActivityAt = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     if (widget.authenticated) _startTimer();
   }
 
@@ -48,25 +51,49 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
   @override
   void dispose() {
     _timer?.cancel();
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     super.dispose();
   }
 
   void _startTimer() {
     _timer?.cancel();
     if (!widget.authenticated) return;
-    _timer = Timer(widget.inactivityDuration, _lockApp);
+    _lastActivityAt = DateTime.now();
+    _scheduleDeadline(widget.inactivityDuration);
   }
 
-  void _resetTimer() {
+  void _scheduleDeadline(Duration delay) {
+    _timer?.cancel();
+    _timer = Timer(delay, _checkInactivity);
+  }
+
+  void _recordActivity() {
     if (!widget.authenticated) return;
     final state = context.read<AppLockCubit>().state;
     if (state.status == AppLockStatus.unlocked) {
-      _startTimer();
+      _lastActivityAt = DateTime.now();
+      // A single deadline is enough. When it fires, _checkInactivity uses the
+      // latest timestamp and reschedules only the remaining idle duration.
+      _timer ??= Timer(widget.inactivityDuration, _checkInactivity);
     }
   }
 
-  Future<void> _lockApp() async {
+  bool _handleKeyEvent(KeyEvent event) {
+    _recordActivity();
+    return false;
+  }
+
+  Future<void> _checkInactivity() async {
+    _timer = null;
     if (!widget.authenticated || !mounted) return;
+    if (context.read<AppLockCubit>().state.status != AppLockStatus.unlocked) {
+      return;
+    }
+    final idleFor = DateTime.now().difference(_lastActivityAt);
+    if (idleFor < widget.inactivityDuration) {
+      _scheduleDeadline(widget.inactivityDuration - idleFor);
+      return;
+    }
     await context.read<AppLockCubit>().lock();
   }
 
@@ -74,9 +101,12 @@ class _InactivityWrapperState extends State<InactivityWrapper> {
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (_) => _resetTimer(),
-      onPointerMove: (_) => _resetTimer(),
-      onPointerUp: (_) => _resetTimer(),
+      onPointerDown: (_) => _recordActivity(),
+      onPointerMove: (_) => _recordActivity(),
+      onPointerUp: (_) => _recordActivity(),
+      onPointerHover: (_) => _recordActivity(),
+      onPointerSignal: (_) => _recordActivity(),
+      onPointerCancel: (_) => _recordActivity(),
       child: BlocConsumer<AppLockCubit, AppLockState>(
         listenWhen: (previous, current) => previous.status != current.status,
         listener: (context, state) {

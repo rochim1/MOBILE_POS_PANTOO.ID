@@ -987,7 +987,7 @@ class _PosStockViewState extends State<_PosStockView> {
                   )
                 else
                   ...balances.map(
-                    (balance) => _buildLocationBalanceCard(balance, stock.unit),
+                    (balance) => _buildLocationBalanceCard(balance, stock),
                   ),
                 if (stock.requiresBatchAdjustment)
                   const Padding(
@@ -1005,17 +1005,6 @@ class _PosStockViewState extends State<_PosStockView> {
                       onPressed: () => Navigator.pop(sheetContext),
                       child: const Text('Tutup'),
                     ),
-                    if (_canAdjustStock) ...[
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(sheetContext);
-                          _handleAdjustment(stock, knownBalances: balances);
-                        },
-                        icon: const Icon(Icons.tune, size: 18),
-                        label: const Text('Koreksi Darurat'),
-                      ),
-                    ],
                   ],
                 ),
               ],
@@ -1051,7 +1040,11 @@ class _PosStockViewState extends State<_PosStockView> {
         ),
       );
 
-  Widget _buildLocationBalanceCard(Map<String, dynamic> balance, String unit) {
+  Widget _buildLocationBalanceCard(
+    Map<String, dynamic> balance,
+    PosStock stock,
+  ) {
+    final unit = stock.unit;
     final batches = (balance['batches'] as List? ?? const [])
         .whereType<Map>()
         .where(
@@ -1141,6 +1134,20 @@ class _PosStockViewState extends State<_PosStockView> {
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 );
               }),
+            ],
+            if (_canAdjustStock && batches.isEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _handleAdjustment(stock, knownBalances: [balance]);
+                  },
+                  icon: const Icon(Icons.tune, size: 17),
+                  label: const Text('Koreksi saldo ini'),
+                ),
+              ),
             ],
           ],
         ),
@@ -1309,35 +1316,63 @@ class _PosStockViewState extends State<_PosStockView> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedBalance['_id']?.toString(),
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Saldo warehouse / lokasi *',
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: balances
-                        .map(
-                          (balance) => DropdownMenuItem(
-                            value: balance['_id']?.toString(),
+                  if (balances.length > 1)
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedBalance['_id']?.toString(),
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Pilih saldo lokasi *',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: balances
+                          .map(
+                            (balance) => DropdownMenuItem(
+                              value: balance['_id']?.toString(),
+                              child: Text(
+                                '${_balanceLocation(balance)} • ${_formatStock((balance['qty'] as num? ?? 0).toDouble())} ${stock.unit}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        final next = balances.firstWhere(
+                          (balance) => balance['_id']?.toString() == value,
+                        );
+                        setDialogState(() => selectedBalance = next);
+                        stockController.text = _formatStock(
+                          (next['qty'] as num? ?? 0).toDouble(),
+                        );
+                      },
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: .07),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 20,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
                             child: Text(
-                              '${_balanceLocation(balance)} • ${_formatStock((balance['qty'] as num? ?? 0).toDouble())} ${stock.unit}',
-                              overflow: TextOverflow.ellipsis,
+                              _balanceLocation(selectedBalance),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      final next = balances.firstWhere(
-                        (balance) => balance['_id']?.toString() == value,
-                      );
-                      setDialogState(() => selectedBalance = next);
-                      stockController.text = _formatStock(
-                        (next['qty'] as num? ?? 0).toDouble(),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   Text(
                     'Saldo lokasi saat ini: ${_formatStock((selectedBalance['qty'] as num? ?? 0).toDouble())} ${stock.unit}',
@@ -1397,12 +1432,10 @@ class _PosStockViewState extends State<_PosStockView> {
                   TextFormField(
                     controller: referenceController,
                     decoration: const InputDecoration(
-                      labelText: 'Referensi / tiket *',
-                      hintText: 'Contoh: TIKET-2026-001',
+                      labelText: 'Referensi / tiket (opsional)',
+                      hintText: 'Kosongkan untuk nomor otomatis',
+                      helperText: 'Sistem tetap membuat referensi internal.',
                     ),
-                    validator: (value) => (value ?? '').trim().isEmpty
-                        ? 'Referensi wajib diisi'
-                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

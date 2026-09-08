@@ -673,6 +673,12 @@ class PosQueries {
     }
   ''';
 
+  static const String getInventoryUnitOptions = r'''
+    query GetInventoryUnitOptions {
+      GetInventoryUnitOptions
+    }
+  ''';
+
   static const String uploadInventoryProductImage = r'''
     mutation UploadInventoryProductImage($file: Upload!) {
       UploadInventoryProductImage(file: $file)

@@ -14,6 +14,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_p
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_product_management_state.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
 
 class PosProductPage extends StatefulWidget {
@@ -29,6 +30,7 @@ class _PosProductPageState extends State<PosProductPage> {
   String _searchQuery = '';
   String? _categoryFilter;
   String _stockFilter = 'all';
+  bool _waitingForCatalogRefresh = false;
 
   List<PosProduct> _getFilteredProducts(
     List<PosProduct> products, {
@@ -82,22 +84,27 @@ class _PosProductPageState extends State<PosProductPage> {
         listener: (context, mgmtState) {
           if (mgmtState.status == PosProductManagementStatus.success) {
             AppToast.success(context, mgmtState.successMessage);
-            if (mgmtState.operation == 'delete') {
-              context.read<PosBloc>().add(
-                RemoveProductLocally(mgmtState.affectedProductId),
-              );
-            } else if (mgmtState.product != null) {
-              context.read<PosBloc>().add(
-                UpsertProductLocally(mgmtState.product!),
-              );
-            }
-            context.read<PosBloc>().add(LoadPosData());
+            // Urutan katalog ditentukan oleh backend. Menyisipkan hasil
+            // mutation di posisi pertama membuat daftar meloncat saat refetch
+            // kembali dengan urutan alfabetis.
+            setState(() => _waitingForCatalogRefresh = true);
+            context.read<PosBloc>().add(RefreshProducts());
           } else if (mgmtState.status == PosProductManagementStatus.failure) {
             AppToast.error(context, mgmtState.errorMessage);
           }
         },
         builder: (context, mgmtState) {
-          return BlocBuilder<PosBloc, PosState>(
+          return BlocConsumer<PosBloc, PosState>(
+            listenWhen: (previous, current) =>
+                previous.productsRefreshing && !current.productsRefreshing,
+            listener: (context, state) {
+              if (_waitingForCatalogRefresh) {
+                setState(() => _waitingForCatalogRefresh = false);
+              }
+              if (state.errorMessage == 'Katalog gagal dimuat ulang') {
+                AppToast.error(context, state.errorMessage);
+              }
+            },
             builder: (context, state) {
               final trackStock = _tracksStock(context);
               final filteredProducts = _getFilteredProducts(
@@ -122,7 +129,11 @@ class _PosProductPageState extends State<PosProductPage> {
                     if (mgmtState.status == PosProductManagementStatus.loading)
                       const LinearProgressIndicator(),
                     Expanded(
-                      child: widget.isGridView
+                      child:
+                          (_waitingForCatalogRefresh ||
+                              state.productsRefreshing)
+                          ? _buildCatalogSkeleton(isMobile)
+                          : widget.isGridView
                           ? _buildProductCards(isMobile, filteredProducts)
                           : _buildProductTable(filteredProducts),
                     ),
@@ -133,6 +144,28 @@ class _PosProductPageState extends State<PosProductPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildCatalogSkeleton(bool isMobile) {
+    if (!widget.isGridView) {
+      return ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: isMobile ? 5 : 7,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, _) => const SkeletonProductListItem(),
+      );
+    }
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isMobile ? 2 : 4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: isMobile ? .9 : 1.2,
+      ),
+      itemCount: isMobile ? 6 : 8,
+      itemBuilder: (_, _) => const SkeletonProductCard(),
     );
   }
 
@@ -803,12 +836,18 @@ class _PosProductPageState extends State<PosProductPage> {
     final form = _CatalogProductForm(
       product: product,
       repository: bloc.repository,
-      onSubmit: (input) {
+      onSubmit: (input) async {
         if (product == null) {
           bloc.add(CreateProduct(input));
         } else {
           bloc.add(UpdateProduct(product.id, input));
         }
+        final result = await bloc.stream.firstWhere(
+          (state) =>
+              state.status == PosProductManagementStatus.success ||
+              state.status == PosProductManagementStatus.failure,
+        );
+        return result.status == PosProductManagementStatus.success;
       },
     );
     if (isMobile) {
@@ -1123,7 +1162,7 @@ class _PosProductPageState extends State<PosProductPage> {
 class _CatalogProductForm extends StatefulWidget {
   final PosProduct? product;
   final PosProductManagementRepository repository;
-  final ValueChanged<Map<String, dynamic>> onSubmit;
+  final Future<bool> Function(Map<String, dynamic>) onSubmit;
 
   const _CatalogProductForm({
     required this.product,
@@ -1147,15 +1186,20 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   late final TextEditingController _minimumStock;
   late final TextEditingController _maximumStock;
   late final TextEditingController _reorderPoint;
-  late final TextEditingController _leadTime;
   late final TextEditingController _baseUnit;
   List<Map<String, dynamic>> _categories = const [];
   List<PosProduct> _packageCandidates = const [];
+  // Nullable agar State lama hasil Flutter web hot-reload tetap aman ketika
+  // field ini baru ditambahkan. Hot restart akan menginisialisasinya normal.
+  List<String>? _unitOptions;
+  List<String> get _availableUnitOptions =>
+      _unitOptions ?? PosProductManagementRepository.fallbackUnitOptions;
   final Map<String, TextEditingController> _componentQty = {};
   final List<_UnitConversionDraft> _unitConversions = [];
   Uint8List? _pickedImageBytes;
   String _pickedImageName = '';
   bool _uploadingImage = false;
+  bool _submitting = false;
   int _formTab = 0;
   String? _categoryId;
   String _productType = 'product';
@@ -1196,12 +1240,14 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ? ''
           : product.reorderPoint.toStringAsFixed(0),
     );
-    _leadTime = TextEditingController(
-      text: product == null || product.procurementLeadTime == 0
-          ? ''
-          : product.procurementLeadTime.toString(),
-    );
     _baseUnit = TextEditingController(text: product?.saleUnit ?? 'unit');
+    _unitOptions = {
+      ...PosProductManagementRepository.fallbackUnitOptions,
+      _baseUnit.text.trim().toLowerCase(),
+      ...(product?.unitConversions ?? const [])
+          .map((row) => row['unit']?.toString().trim().toLowerCase() ?? '')
+          .where((value) => value.isNotEmpty),
+    }.where((value) => value.isNotEmpty).toList();
     _categoryId = product?.categoryId.isEmpty == true
         ? null
         : product?.categoryId;
@@ -1233,6 +1279,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     }
     _loadCategories();
     _loadPackageCandidates();
+    _loadUnitOptions();
     if (product == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _refreshIdentifiers();
@@ -1266,6 +1313,16 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             .toList();
       }),
     );
+  }
+
+  Future<void> _loadUnitOptions() async {
+    final values = await widget.repository.getUnitOptions();
+    if (!mounted) return;
+    final legacyValues = <String>[
+      _baseUnit.text.trim().toLowerCase(),
+      ..._unitConversions.map((row) => row.unit.text.trim().toLowerCase()),
+    ].where((value) => value.isNotEmpty);
+    setState(() => _unitOptions = {...values, ...legacyValues}.toList());
   }
 
   Future<void> _scanBarcode() async {
@@ -1448,6 +1505,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   }
 
   Future<void> _submit() async {
+    if (_submitting || _uploadingImage) return;
     if (_name.text.trim().isEmpty || _price.text.trim().isEmpty) {
       setState(() => _formTab = 0);
       AppToast.error(context, 'Nama dan harga jual wajib diisi');
@@ -1544,7 +1602,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       );
       return;
     }
-    widget.onSubmit({
+    setState(() => _submitting = true);
+    final saved = await widget.onSubmit({
       'nama_inventaris': _name.text.trim(),
       if (sku.isNotEmpty) 'sku': sku,
       'deskripsi': _description.text.trim(),
@@ -1570,12 +1629,11 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       'stok_minimum': _tracksStock ? minimumStock : 0,
       'stok_maksimum': _tracksStock ? maximumStock : 0,
       'titik_reorder': _tracksStock ? reorderPoint : 0,
-      'lead_time_pengadaan': _tracksStock
-          ? (int.tryParse(_leadTime.text) ?? 0)
-          : 0,
       if (widget.product == null) 'stok': 0,
     });
-    Navigator.pop(context);
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (saved) Navigator.pop(context);
   }
 
   @override
@@ -1591,7 +1649,6 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     _minimumStock.dispose();
     _maximumStock.dispose();
     _reorderPoint.dispose();
-    _leadTime.dispose();
     _baseUnit.dispose();
     for (final controller in _componentQty.values) {
       controller.dispose();
@@ -1796,16 +1853,26 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ],
         ),
       if (_usesUnits)
-        TextField(
-          controller: _baseUnit,
+        DropdownButtonFormField<String>(
+          initialValue:
+              _availableUnitOptions.contains(_baseUnit.text.toLowerCase())
+              ? _baseUnit.text.toLowerCase()
+              : null,
           decoration: const InputDecoration(
             labelText: 'Satuan dasar *',
-            hintText: 'pcs, botol, kg',
+            helperText: 'Stok selalu disimpan dalam satuan ini.',
             border: OutlineInputBorder(),
           ),
+          items: _availableUnitOptions
+              .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => _baseUnit.text = value);
+          },
         ),
       if (_usesUnits)
         Column(
+          key: const ValueKey('unit-conversions'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
@@ -1839,13 +1906,27 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: row.unit,
+                      child: DropdownButtonFormField<String>(
+                        initialValue:
+                            _availableUnitOptions.contains(row.unit.text)
+                            ? row.unit.text
+                            : null,
                         decoration: const InputDecoration(
                           labelText: 'Satuan',
-                          hintText: 'dus',
                           border: OutlineInputBorder(),
                         ),
+                        items: _availableUnitOptions
+                            .where((unit) => unit != _baseUnit.text)
+                            .map(
+                              (unit) => DropdownMenuItem(
+                                value: unit,
+                                child: Text(unit),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) row.unit.text = value;
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1876,6 +1957,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         ),
       if (_tracksStock)
         TextField(
+          key: const ValueKey('minimum-stock'),
           controller: _minimumStock,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
@@ -1885,6 +1967,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         ),
       if (_tracksStock)
         TextField(
+          key: const ValueKey('reorder-point'),
           controller: _reorderPoint,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
@@ -1895,22 +1978,12 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         ),
       if (_tracksStock)
         TextField(
+          key: const ValueKey('maximum-stock'),
           controller: _maximumStock,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Stok maksimum',
             helperText: 'Opsional, untuk membatasi kelebihan persediaan',
-            border: OutlineInputBorder(),
-          ),
-        ),
-      if (_tracksStock)
-        TextField(
-          controller: _leadTime,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Lead time pengadaan',
-            suffixText: 'hari',
-            helperText: 'Estimasi waktu barang tiba setelah dipesan',
             border: OutlineInputBorder(),
           ),
         ),
@@ -2108,12 +2181,37 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               MediaQuery.viewInsetsOf(context).bottom + 20,
             ),
             child: wide
-                ? Wrap(
-                    spacing: 14,
-                    runSpacing: 14,
-                    children: visibleFields
-                        .map((field) => SizedBox(width: 325, child: field))
-                        .toList(),
+                ? LayoutBuilder(
+                    builder: (context, constraints) {
+                      const spacing = 14.0;
+                      final availableWidth = constraints.maxWidth;
+                      final thresholdWidth = (availableWidth - spacing * 2) / 3;
+                      return Wrap(
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: visibleFields.map((field) {
+                          final key = field.key;
+                          final isFullWidth =
+                              _formTab == 1 &&
+                              key == const ValueKey('unit-conversions');
+                          final isThreshold =
+                              _formTab == 1 &&
+                              {
+                                const ValueKey('minimum-stock'),
+                                const ValueKey('reorder-point'),
+                                const ValueKey('maximum-stock'),
+                              }.contains(key);
+                          return SizedBox(
+                            width: isFullWidth
+                                ? availableWidth
+                                : isThreshold
+                                ? thresholdWidth
+                                : 325,
+                            child: field,
+                          );
+                        }).toList(),
+                      );
+                    },
                   )
                 : Column(
                     children: visibleFields
@@ -2134,15 +2232,19 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               ),
               const SizedBox(width: 10),
               FilledButton.icon(
-                onPressed: _uploadingImage ? null : _submit,
-                icon: _uploadingImage
+                onPressed: _uploadingImage || _submitting ? null : _submit,
+                icon: _uploadingImage || _submitting
                     ? const SizedBox.square(
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save_outlined),
                 label: Text(
-                  _uploadingImage ? 'Mengunggah...' : 'Simpan produk',
+                  _uploadingImage
+                      ? 'Mengunggah...'
+                      : _submitting
+                      ? 'Menyimpan...'
+                      : 'Simpan produk',
                 ),
               ),
             ],

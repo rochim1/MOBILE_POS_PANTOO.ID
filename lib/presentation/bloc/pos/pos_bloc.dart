@@ -27,6 +27,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
+    on<RefreshProducts>(_onRefreshProducts);
     on<UpsertProductLocally>(_onUpsertProductLocally);
     on<RemoveProductLocally>(_onRemoveProductLocally);
     on<RefreshOrders>(_onRefreshOrders);
@@ -48,6 +49,56 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<UpdateOrderType>(_onUpdateOrderType);
     on<UpdateSalesContext>(_onUpdateSalesContext);
     on<ToggleFavoriteProduct>(_onToggleFavoriteProduct);
+  }
+
+  Future<void> _onRefreshProducts(
+    RefreshProducts event,
+    Emitter<PosState> emit,
+  ) async {
+    emit(state.copyWith(productsRefreshing: true, errorMessage: ''));
+    try {
+      final activeStore = state.activeShift == null
+          ? state.stores
+                .where(
+                  (store) =>
+                      store.status.toLowerCase() == 'active' &&
+                      store.branchId.isNotEmpty,
+                )
+                .firstOrNull
+          : state.stores
+                .where(
+                  (store) =>
+                      store.id == state.activeShift!['toko_id']?.toString() &&
+                      store.branchId.isNotEmpty,
+                )
+                .firstOrNull;
+      if (activeStore == null) {
+        emit(
+          state.copyWith(
+            productsRefreshing: false,
+            errorMessage: 'Toko belum terhubung ke lokasi penjualan aktif',
+          ),
+        );
+        return;
+      }
+      final products = await posRepository.getProducts(
+        branchId: activeStore.branchId,
+      );
+      emit(
+        state.copyWith(
+          products: products,
+          productsRefreshing: false,
+          errorMessage: '',
+        ),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          productsRefreshing: false,
+          errorMessage: 'Katalog gagal dimuat ulang',
+        ),
+      );
+    }
   }
 
   void _onUpsertProductLocally(

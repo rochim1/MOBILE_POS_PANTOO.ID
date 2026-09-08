@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -38,6 +39,13 @@ final sl = GetIt.instance;
 Future<void> initLocator(FlavorConfig flavorConfig) async {
   // Core
   final sharedPreferences = await SharedPreferences.getInstance();
+  if (kIsWeb) {
+    // Clean up Chucker records written by older Web builds. The underlying
+    // browser key is `flutter.api_responses`; SharedPreferences expects the
+    // unprefixed key here. Do not clear unrelated session/onboarding data.
+    await sharedPreferences.remove('api_responses');
+    await sharedPreferences.remove('chucker_settings');
+  }
   sl.registerLazySingleton(() => sharedPreferences);
   sl.registerLazySingleton(() => const FlutterSecureStorage());
   sl.registerLazySingleton(

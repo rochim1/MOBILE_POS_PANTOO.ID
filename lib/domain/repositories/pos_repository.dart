@@ -397,6 +397,11 @@ class PosRepository {
     String pin,
   ) async {
     try {
+      if (!await _clientProvider.hasAccessToken()) {
+        return const Left(
+          AuthFailure('Sesi telah berakhir. Silakan login kembali.'),
+        );
+      }
       final result = await _clientProvider.client.mutate(
         MutationOptions(
           document: gql(PosQueries.verifyPOSUserPin),
@@ -488,7 +493,7 @@ class PosRepository {
                   double.tryParse((e['qty'] ?? e['stok'] ?? 0).toString()) ?? 0,
               sku: e['sku']?.toString() ?? '',
               barcode: e['barcode']?.toString() ?? '',
-              imageUrl: e['foto']?.toString() ?? '',
+              imageUrl: _clientProvider.resolveMediaUrl(e['foto']),
               baseUnit:
                   e['base_unit']?.toString() ?? e['unit']?.toString() ?? 'unit',
               unitConversions: e['unit_conversions'] is List
@@ -595,7 +600,7 @@ class PosRepository {
                   0,
               sku: row['sku']?.toString() ?? '',
               barcode: row['barcode']?.toString() ?? '',
-              imageUrl: row['foto']?.toString() ?? '',
+              imageUrl: _clientProvider.resolveMediaUrl(row['foto']),
               baseUnit:
                   row['base_unit']?.toString() ??
                   row['unit']?.toString() ??

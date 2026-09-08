@@ -25,6 +25,19 @@ class GraphQLClientProvider {
   DateTime? _tokenActivatedAt;
   Future<bool>? _refreshInFlight;
 
+  String resolveMediaUrl(dynamic rawValue) {
+    final value = rawValue?.toString().trim() ?? '';
+    if (value.isEmpty) return '';
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.hasScheme) return value;
+
+    final endpoint = Uri.parse(endpointUrl);
+    final apiOrigin = endpoint.replace(path: '/', query: null, fragment: null);
+    return apiOrigin
+        .resolve(value.startsWith('/') ? value.substring(1) : value)
+        .toString();
+  }
+
   GraphQLClientProvider(
     this.sharedPreferences,
     this.secureStorage, {
@@ -45,7 +58,14 @@ class GraphQLClientProvider {
   void _initClient() {
     final httpLink = HttpLink(
       endpointUrl,
-      httpClient: kDebugMode ? ChuckerHttpClient(http.Client()) : http.Client(),
+      // Chucker persists complete bodies in SharedPreferences. On Web that is
+      // backed by localStorage (usually only a few MB), so catalog responses
+      // and image payloads can exhaust the quota and break an otherwise
+      // successful GraphQL request. Keep the inspector for native debug builds
+      // only.
+      httpClient: kDebugMode && !kIsWeb
+          ? ChuckerHttpClient(http.Client())
+          : http.Client(),
       defaultHeaders: {
         'X-API-Key': dotenv.env['MOBILE_API_KEY'] ?? '',
         // POS is an internal-user client, but it must remain distinguishable
@@ -217,7 +237,47 @@ class GraphQLClientProvider {
 
   Future<bool> hasAccessToken() async {
     final token = _sessionToken ?? await secureStorage.read(key: 'auth_token');
-    return token != null && token.trim().isNotEmpty;
+    if (token == null || token.trim().isEmpty) return false;
+    _sessionToken ??= token.trim();
+
+    final expiresAt = _readJwtExpiry(token);
+    if (expiresAt == null ||
+        expiresAt.isAfter(DateTime.now().add(const Duration(seconds: 15)))) {
+      return true;
+    }
+
+    final refreshed = await refreshAccessToken();
+    if (!refreshed) _notifyUnauthorized();
+    return refreshed;
+  }
+
+  Future<Map<String, String>> authenticatedRequestHeaders() async {
+    await hasAccessToken();
+    final token = _sessionToken ?? await secureStorage.read(key: 'auth_token');
+    return {
+      'X-API-Key': dotenv.env['MOBILE_API_KEY'] ?? '',
+      'apps': 'pos',
+      'x-iid': sharedPreferences.getString('instansi_id') ?? '',
+      if (token != null && token.trim().isNotEmpty)
+        'Authorization': 'Bearer ${token.trim()}',
+    };
+  }
+
+  DateTime? _readJwtExpiry(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final exp = payload is Map ? payload['exp'] : null;
+      final seconds = exp is num ? exp.toInt() : int.tryParse('$exp');
+      return seconds == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Rebuild the client (e.g. after changing custom endpoint)

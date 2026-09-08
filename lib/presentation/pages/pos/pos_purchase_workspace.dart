@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../../injections.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
+import 'pos_purchase_receiving_page.dart';
+import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseWorkspace extends StatefulWidget {
   final Map<String, dynamic> permissions;
@@ -54,7 +56,7 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
           children: [
             widget.purchaseListBuilder(),
             _ReceivingList(
-              canCancel:
+              canReceive:
                   widget.permissions['receive_inventory_purchases'] == true,
             ),
           ],
@@ -65,8 +67,8 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
 }
 
 class _ReceivingList extends StatefulWidget {
-  final bool canCancel;
-  const _ReceivingList({required this.canCancel});
+  final bool canReceive;
+  const _ReceivingList({required this.canReceive});
 
   @override
   State<_ReceivingList> createState() => _ReceivingListState();
@@ -77,6 +79,7 @@ class _ReceivingListState extends State<_ReceivingList> {
   final _search = TextEditingController();
   Timer? _debounce;
   List<Map<String, dynamic>> _items = const [];
+  List<Map<String, dynamic>> _receivablePurchases = const [];
   bool _loading = true;
   String _status = '';
   int _page = 1;
@@ -103,13 +106,52 @@ class _ReceivingListState extends State<_ReceivingList> {
       status: _status,
       page: target,
     );
+    final purchasesResult = widget.canReceive
+        ? await _repository.getDocuments(
+            type: PosInventoryDocumentType.purchase,
+            limit: 100,
+          )
+        : null;
     if (!mounted) return;
     result.fold((failure) => AppToast.error(context, failure.message), (data) {
       _items = data.items;
       _total = data.totalCount;
       _page = target;
     });
+    purchasesResult?.fold(
+      (failure) => AppToast.error(
+        context,
+        'Daftar PO yang dapat diterima gagal dimuat: ${failure.message}',
+      ),
+      (data) => _receivablePurchases = data.items.where((purchase) {
+        final status = PosPurchaseProgress.effectiveStatus(purchase);
+        return const {'approved', 'partially_received'}.contains(status) &&
+            PosPurchaseProgress.hasRemaining(purchase);
+      }).toList(),
+    );
     setState(() => _loading = false);
+  }
+
+  Future<void> _receive(Map<String, dynamic> purchase) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PosPurchaseReceivingPage(purchase: purchase),
+      ),
+    );
+    if (changed == true && mounted) await _load(page: 1);
+  }
+
+  String _number(dynamic value) {
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse('$value') ?? 0;
+    return number == number.roundToDouble()
+        ? number.toInt().toString()
+        : number
+              .toStringAsFixed(2)
+              .replaceFirst(RegExp(r'0+$'), '')
+              .replaceFirst(RegExp(r'\.$'), '');
   }
 
   void _searchChanged(String _) {
@@ -243,12 +285,114 @@ class _ReceivingListState extends State<_ReceivingList> {
         const SizedBox(height: 12),
         if (_loading)
           const LinearProgressIndicator()
-        else if (_items.isEmpty)
+        else ...[
+          if (_receivablePurchases.isNotEmpty) ...[
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Menunggu penerimaan',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._receivablePurchases.map((purchase) {
+              final rows = (purchase['items'] as List? ?? const [])
+                  .whereType<Map>();
+              final remainingLines = rows
+                  .where(
+                    (row) =>
+                        PosPurchaseProgress.remainingInOrderedUnit(row) >
+                        .000001,
+                  )
+                  .length;
+              final progress = PosPurchaseProgress.completionRatio(purchase);
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              purchase['no_po']?.toString() ?? 'Purchase Order',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Text('${(progress * 100).round()}% diterima'),
+                        ],
+                      ),
+                      Text(
+                        '${purchase['supplier_name'] ?? '-'} · $remainingLines jenis barang masih tersisa',
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(value: progress),
+                      const SizedBox(height: 10),
+                      ...rows
+                          .where(
+                            (row) =>
+                                PosPurchaseProgress.remainingInOrderedUnit(
+                                  row,
+                                ) >
+                                .000001,
+                          )
+                          .map(
+                            (row) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      row['nama_inventaris']?.toString() ?? '-',
+                                    ),
+                                  ),
+                                  Text(
+                                    'Sisa ${_number(PosPurchaseProgress.remainingInOrderedUnit(row))} ${row['unit'] ?? ''}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                          onPressed: () => _receive(purchase),
+                          icon: const Icon(Icons.inventory_2_outlined),
+                          label: Text(
+                            progress > 0 ? 'Terima Sisa' : 'Terima Barang',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 18),
+          ],
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Riwayat penerimaan',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (!_loading && _items.isEmpty)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 72),
+            padding: EdgeInsets.symmetric(vertical: 36),
             child: Center(child: Text('Belum ada penerimaan barang')),
           )
-        else
+        else if (!_loading)
           ..._items.map(
             (receipt) => Card(
               child: ListTile(

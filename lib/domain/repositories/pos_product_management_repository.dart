@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'dart:typed_data';
 import 'dart:math';
+import 'dart:convert';
 import 'package:dartz/dartz.dart';
 import '../../core/error/failures.dart';
 import '../../core/error/error_handler.dart';
@@ -14,6 +15,112 @@ class PosProductManagementRepository {
   final GraphQLClientProvider _clientProvider;
 
   PosProductManagementRepository(this._clientProvider);
+
+  String _absoluteMediaUrl(dynamic rawValue) {
+    return _clientProvider.resolveMediaUrl(rawValue);
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> _executeMutation(
+    String document,
+    Map<String, dynamic> variables,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_clientProvider.endpointUrl),
+        headers: {
+          ...await _clientProvider.authenticatedRequestHeaders(),
+          'content-type': 'application/json',
+        },
+        body: jsonEncode({'query': document, 'variables': variables}),
+      );
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        return Left(
+          ServerFailure(
+            'Server mengembalikan respons non-JSON '
+            '(HTTP ${response.statusCode}).',
+          ),
+        );
+      }
+      if (decoded is! Map) {
+        return const Left(ServerFailure('Format respons GraphQL tidak valid'));
+      }
+      final payload = Map<String, dynamic>.from(decoded);
+      final errors = payload['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        final message = first is Map
+            ? first['message']?.toString()
+            : first.toString();
+        final extensions = first is Map ? first['extensions'] : null;
+        final code = extensions is Map ? extensions['code']?.toString() : null;
+        if (code == 'UNAUTHORIZED' || code == 'UNAUTHENTICATED') {
+          return Left(
+            AuthFailure(
+              message ?? 'Sesi telah berakhir. Silakan login kembali.',
+            ),
+          );
+        }
+        return Left(ServerFailure(message ?? 'Mutation GraphQL gagal'));
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return Left(
+          ServerFailure('Request gagal (HTTP ${response.statusCode})'),
+        );
+      }
+      final data = payload['data'];
+      if (data is! Map) {
+        return const Left(ServerFailure('Server tidak mengembalikan data'));
+      }
+      return Right(Map<String, dynamic>.from(data));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  static const fallbackUnitOptions = <String>[
+    'unit',
+    'pcs',
+    'kg',
+    'gram',
+    'liter',
+    'ml',
+    'box',
+    'rim',
+    'set',
+    'pack',
+    'roll',
+    'meter',
+    'lembar',
+    'buah',
+    'pasang',
+    'lusin',
+  ];
+
+  Future<List<String>> getUnitOptions() async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.getInventoryUnitOptions),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      final rows = result.data?['GetInventoryUnitOptions'];
+      if (rows is List) {
+        final values = rows
+            .map((item) => item.toString().trim().toLowerCase())
+            .where((item) => item.isNotEmpty)
+            .toSet()
+            .toList();
+        if (values.isNotEmpty) return values;
+      }
+    } catch (_) {
+      // Server lama: gunakan snapshot kanonik agar form tetap dapat dipakai.
+    }
+    return fallbackUnitOptions;
+  }
 
   Map<String, String> _buildLocalIdentifierPreview() {
     final random = Random.secure();
@@ -87,25 +194,63 @@ class PosProductManagementRepository {
           ServerFailure('Format foto harus JPG, PNG, atau WebP'),
         );
       }
-      final file = http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: filename,
-        contentType: MediaType('image', subtype),
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(_clientProvider.endpointUrl),
       );
-      final result = await _clientProvider.client.mutate(
-        MutationOptions(
-          document: gql(PosQueries.uploadInventoryProductImage),
-          variables: {'file': file},
+      request.headers.addAll(
+        await _clientProvider.authenticatedRequestHeaders(),
+      );
+      request.fields['operations'] = jsonEncode({
+        'query': PosQueries.uploadInventoryProductImage,
+        'variables': {'file': null},
+      });
+      request.fields['map'] = jsonEncode({
+        '0': ['variables.file'],
+      });
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          '0',
+          bytes,
+          filename: filename,
+          contentType: MediaType('image', subtype),
         ),
       );
-      if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      Map<String, dynamic>? payload;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map) payload = Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return Left(
+          ServerFailure(
+            'Upload gambar gagal: respons server bukan JSON '
+            '(HTTP ${response.statusCode}).',
+          ),
+        );
       }
-      final url = result.data?['UploadInventoryProductImage']?.toString() ?? '';
+      final errors = payload?['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        final message = first is Map
+            ? first['message']?.toString()
+            : first.toString();
+        return Left(ServerFailure(message ?? 'Upload gambar gagal'));
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return Left(
+          ServerFailure('Upload gambar gagal (HTTP ${response.statusCode})'),
+        );
+      }
+      final data = payload?['data'];
+      final url = data is Map
+          ? data['UploadInventoryProductImage']?.toString() ?? ''
+          : '';
       return url.isEmpty
           ? const Left(ServerFailure('Server tidak mengembalikan URL foto'))
-          : Right(url);
+          : Right(_absoluteMediaUrl(url));
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
     }
@@ -146,6 +291,7 @@ class PosProductManagementRepository {
                 'category': row['merchandise_category_name']?.toString() ?? '',
                 'price': row['harga_jual'] ?? 0,
                 'stock': row['stok'] ?? 0,
+                'foto': _absoluteMediaUrl(row['foto']),
               }),
             )
             .where((item) => item.productType == 'product' && item.tracksStock)
@@ -223,59 +369,9 @@ class PosProductManagementRepository {
   ) async {
     try {
       final productInput = Map<String, dynamic>.from(input);
-      final shiftResult = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosQueries.getMyActiveKasirShift),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-      if (shiftResult.hasException) {
-        return Left(AppErrorHandler.handle(shiftResult.exception!));
-      }
-      final activeShift = shiftResult.data?['GetMyActiveKasirShift'];
-      Map<String, dynamic>? toko = activeShift?['toko'] == null
-          ? null
-          : Map<String, dynamic>.from(activeShift['toko'] as Map);
-
-      // Katalog adalah data master: pembuatannya tidak boleh bergantung pada
-      // shift transaksi. Jika belum ada shift, gunakan toko aktif pertama yang
-      // sudah terhubung ke lokasi penjualan.
-      if (toko == null) {
-        final storeResult = await _clientProvider.client.query(
-          QueryOptions(
-            document: gql(PosQueries.getAllPOSToko),
-            variables: const {
-              'pagination': {'page': 0, 'limit': 100},
-            },
-            fetchPolicy: FetchPolicy.networkOnly,
-          ),
-        );
-        if (storeResult.hasException) {
-          return Left(AppErrorHandler.handle(storeResult.exception!));
-        }
-        final stores =
-            storeResult.data?['GetAllPOSToko']?['items'] as List? ?? const [];
-        final configuredStores = stores.whereType<Map>().where(
-          (store) =>
-              store['status']?.toString().toLowerCase() == 'active' &&
-              store['lokasi_cabang_id']?.toString().isNotEmpty == true,
-        );
-        if (configuredStores.isNotEmpty) {
-          toko = Map<String, dynamic>.from(configuredStores.first);
-        }
-      }
-
-      final branchId = toko?['lokasi_cabang_id']?.toString();
-      if (branchId == null || branchId.isEmpty) {
-        return const Left(
-          ServerFailure(
-            'Hubungkan toko aktif ke lokasi penjualan sebelum menambahkan produk.',
-          ),
-        );
-      }
-      productInput['lokasi_cabang_id'] = branchId;
-      productInput['lokasi_cabang_nama'] =
-          toko?['lokasi_cabang_nama']?.toString() ?? '';
+      // Produk adalah data master dengan saldo awal nol. Lokasi tidak boleh
+      // diambil dari shift/toko karena saldo per lokasi baru terbentuk lewat
+      // penerimaan, saldo awal, transfer, atau opname.
       productInput['pos_product_type'] ??= 'product';
       productInput['sellable_in_pos'] ??= true;
       productInput['tracks_stock'] ??= ![
@@ -283,19 +379,24 @@ class PosProductManagementRepository {
         'deposit',
         'package',
       ].contains(productInput['pos_product_type']);
-      final MutationOptions options = MutationOptions(
-        document: gql(PosQueries.createInventarisUmum),
-        variables: {'input': productInput},
+      final mutation = await _executeMutation(PosQueries.createInventarisUmum, {
+        'input': productInput,
+      });
+      Failure? mutationFailure;
+      Map<String, dynamic>? mutationData;
+      mutation.fold(
+        (failure) => mutationFailure = failure,
+        (value) => mutationData = value,
       );
-
-      final QueryResult result = await _clientProvider.client.mutate(options);
-
-      final data = result.data?['AddInventarisUmum'];
-      if (data == null) {
-        if (result.hasException) {
-          return Left(AppErrorHandler.handle(result.exception!));
-        }
+      if (mutationFailure != null) return Left(mutationFailure!);
+      if (mutationData == null) {
         return const Left(ServerFailure('Gagal membuat produk'));
+      }
+      final data = mutationData!['AddInventarisUmum'];
+      if (data is! Map) {
+        return const Left(
+          ServerFailure('Produk tidak dikembalikan oleh server'),
+        );
       }
 
       return Right(
@@ -324,7 +425,7 @@ class PosProductManagementRepository {
           stock: double.tryParse(data['stok']?.toString() ?? '0') ?? 0,
           sku: data['sku']?.toString() ?? '',
           barcode: data['barcode']?.toString() ?? '',
-          imageUrl: data['foto']?.toString() ?? '',
+          imageUrl: _absoluteMediaUrl(data['foto']),
           baseUnit: data['base_unit']?.toString() ?? 'unit',
           unitConversions: (data['unit_conversions'] as List? ?? const [])
               .whereType<Map>()
@@ -350,19 +451,25 @@ class PosProductManagementRepository {
     Map<String, dynamic> input,
   ) async {
     try {
-      final MutationOptions options = MutationOptions(
-        document: gql(PosQueries.updateInventarisUmum),
-        variables: {'_id': id, 'input': input},
+      final mutation = await _executeMutation(PosQueries.updateInventarisUmum, {
+        '_id': id,
+        'input': input,
+      });
+      Failure? mutationFailure;
+      Map<String, dynamic>? mutationData;
+      mutation.fold(
+        (failure) => mutationFailure = failure,
+        (value) => mutationData = value,
       );
-
-      final QueryResult result = await _clientProvider.client.mutate(options);
-
-      final data = result.data?['UpdateInventarisUmum'];
-      if (data == null) {
-        if (result.hasException) {
-          return Left(AppErrorHandler.handle(result.exception!));
-        }
+      if (mutationFailure != null) return Left(mutationFailure!);
+      if (mutationData == null) {
         return const Left(ServerFailure('Gagal mengupdate produk'));
+      }
+      final data = mutationData!['UpdateInventarisUmum'];
+      if (data is! Map) {
+        return const Left(
+          ServerFailure('Produk tidak dikembalikan oleh server'),
+        );
       }
 
       return Right(
@@ -391,7 +498,7 @@ class PosProductManagementRepository {
           stock: double.tryParse(data['stok']?.toString() ?? '0') ?? 0,
           sku: data['sku']?.toString() ?? '',
           barcode: data['barcode']?.toString() ?? '',
-          imageUrl: data['foto']?.toString() ?? '',
+          imageUrl: _absoluteMediaUrl(data['foto']),
           baseUnit: data['base_unit']?.toString() ?? 'unit',
           unitConversions: (data['unit_conversions'] as List? ?? const [])
               .whereType<Map>()
@@ -414,18 +521,14 @@ class PosProductManagementRepository {
 
   Future<Either<Failure, bool>> deleteProduct(String id) async {
     try {
-      final MutationOptions options = MutationOptions(
-        document: gql(PosQueries.deleteInventarisUmum),
-        variables: {'_id': id, 'deleteReason': 'Dihapus melalui Mobile POS'},
+      final mutation = await _executeMutation(PosQueries.deleteInventarisUmum, {
+        '_id': id,
+        'deleteReason': 'Dihapus melalui Mobile POS',
+      });
+      return mutation.fold(
+        Left.new,
+        (data) => Right(data['DeleteInventarisUmum'] is Map),
       );
-
-      final QueryResult result = await _clientProvider.client.mutate(options);
-
-      if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
-      }
-
-      return const Right(true);
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
     }

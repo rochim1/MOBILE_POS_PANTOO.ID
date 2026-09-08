@@ -12,6 +12,8 @@ abstract class PosEvent extends Equatable {
 
 class LoadPosData extends PosEvent {}
 
+class RefreshProducts extends PosEvent {}
+
 class UpsertProductLocally extends PosEvent {
   final PosProduct product;
   const UpsertProductLocally(this.product);

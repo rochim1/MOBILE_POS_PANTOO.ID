@@ -642,7 +642,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               ),
                             ),
                             Text(
-                              'Belum diterima: ${item['remaining']} ${item['unit'] ?? ''}',
+                              'Dipesan ${item['qty_ordered'] ?? 0} · '
+                              'Sudah diterima ${item['qty_received'] ?? 0} · '
+                              'Sisa ${item['remaining']} ${item['unit'] ?? ''}',
                             ),
                             if ((item['conversion_factor'] as num? ?? 1) != 1)
                               Text(
@@ -663,7 +665,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                     decimal: true,
                                   ),
                               decoration: const InputDecoration(
-                                labelText: 'Jumlah diterima',
+                                labelText: 'Diterima sekarang',
+                                helperText:
+                                    'Boleh kurang dari sisa untuk pengiriman parsial',
                                 border: OutlineInputBorder(),
                               ),
                               onChanged: (value) => item['receive_qty'] =
