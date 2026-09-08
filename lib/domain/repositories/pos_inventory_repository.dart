@@ -19,11 +19,21 @@ class PosInventoryLookups {
   final List<Map<String, dynamic>> warehouses;
   final String activeWarehouseId;
   final List<Map<String, dynamic>> inventoryItems;
+  final List<Map<String, dynamic>> scrapReasons;
+  final List<Map<String, dynamic>> scrapIncidentTypes;
+  final List<Map<String, dynamic>> scrapOccurrenceLocations;
+  final List<Map<String, dynamic>> purchaseReturnReasons;
+  final List<Map<String, dynamic>> purchaseReturnMethods;
   const PosInventoryLookups({
     required this.suppliers,
     required this.warehouses,
     required this.activeWarehouseId,
     required this.inventoryItems,
+    required this.scrapReasons,
+    required this.scrapIncidentTypes,
+    required this.scrapOccurrenceLocations,
+    required this.purchaseReturnReasons,
+    required this.purchaseReturnMethods,
   });
 }
 
@@ -230,6 +240,12 @@ class PosInventoryRepository {
       final operationDefaults =
           settings?['inventory_operation_defaults'] as Map?;
       final toko = shift?['toko'] as Map?;
+      final transactionOptions =
+          result.data?['GetInventoryTransactionOptions'] as Map?;
+      List<Map<String, dynamic>> options(String key) =>
+          (transactionOptions?[key] as List? ?? const [])
+              .map((value) => Map<String, dynamic>.from(value as Map))
+              .toList();
       return Right(
         PosInventoryLookups(
           suppliers: (supplierRoot?['suppliers'] as List? ?? const [])
@@ -245,6 +261,11 @@ class PosInventoryRepository {
           inventoryItems: (inventoryRoot?['items'] as List? ?? const [])
               .map((value) => Map<String, dynamic>.from(value as Map))
               .toList(),
+          scrapReasons: options('scrap_reasons'),
+          scrapIncidentTypes: options('scrap_incident_types'),
+          scrapOccurrenceLocations: options('scrap_occurrence_locations'),
+          purchaseReturnReasons: options('purchase_return_reasons'),
+          purchaseReturnMethods: options('purchase_return_methods'),
         ),
       );
     } catch (error) {

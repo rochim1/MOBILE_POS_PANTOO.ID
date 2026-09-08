@@ -1129,6 +1129,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     ),
                   if (widget.type == PosInventoryDocumentType.opname) ...[
                     _DetailMetric(
+                      icon: Icons.approval_outlined,
+                      label:
+                          'Persetujuan ${item['approval_current_level'] ?? 0}/${item['approval_required_level'] ?? 1}',
+                    ),
+                    _DetailMetric(
                       icon: Icons.computer_outlined,
                       label: '${_compactNumber(totalSystem)} stok sistem',
                     ),
@@ -1185,6 +1190,43 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   ),
                   child: Text('Catatan: ${item['catatan']}'),
                 ),
+              ],
+              if (widget.type == PosInventoryDocumentType.opname &&
+                  (item['approval_logs'] as List? ?? const []).isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Riwayat persetujuan',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...(item['approval_logs'] as List).map((raw) {
+                  final log = Map<String, dynamic>.from(raw as Map);
+                  final action = (log['action']?.toString() ?? '-').replaceAll(
+                    '_',
+                    ' ',
+                  );
+                  final note = log['note']?.toString().trim() ?? '';
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.check_circle_outline, size: 20),
+                    title: Text(
+                      action,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      [
+                        if ((log['level'] as num? ?? 0) > 0)
+                          'Level ${log['level']}',
+                        if (note.isNotEmpty) note,
+                      ].join(' • '),
+                    ),
+                    trailing: Text(_date(log['at'])),
+                  );
+                }),
               ],
               const Divider(height: 28),
               const Text(
@@ -1394,7 +1436,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     PosInventoryDocumentType.purchase => const [
       ('', 'Semua'),
       ('draft', 'Draft'),
-      ('pending', 'Menunggu'),
+      ('pending', 'Menunggu persetujuan'),
       ('approved', 'Disetujui'),
       ('partially_received', 'Diterima sebagian'),
       ('completed', 'Selesai'),
@@ -1543,7 +1585,8 @@ String _date(dynamic value) {
 
 String _statusLabel(String value) => switch (value) {
   'draft' => 'Draft',
-  'pending' || 'submitted' => 'Menunggu',
+  'pending' => 'Menunggu persetujuan',
+  'submitted' => 'Diajukan',
   'approved' => 'Disetujui',
   'partially_received' => 'Diterima sebagian',
   'in_transit' => 'Dalam perjalanan',

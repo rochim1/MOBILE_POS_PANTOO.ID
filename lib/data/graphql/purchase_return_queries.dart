@@ -1,4 +1,13 @@
 class PurchaseReturnQueries {
+  static const options = r'''
+    query GetInventoryTransactionOptions {
+      GetInventoryTransactionOptions {
+        purchase_return_reasons { value label description }
+        purchase_return_methods { value label description }
+      }
+    }
+  ''';
+
   static const list = r'''
     query GetAllPurchaseReturns($filter: PurchaseReturnFilterInput, $pagination: PaginationInput) {
       GetAllPurchaseReturns(filter: $filter, pagination: $pagination) {

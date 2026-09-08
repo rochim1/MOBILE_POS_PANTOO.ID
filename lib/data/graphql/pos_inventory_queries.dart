@@ -65,6 +65,7 @@ class PosInventoryQueries {
         data {
           _id no_opname tanggal_opname status catatan alasan_penolakan
           approval_required_level approval_current_level approval_history_id
+          approval_logs { action level note by at }
           lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama }
           items {
             _id inventaris_id stock_balance_id snapshot_updated_at
@@ -118,6 +119,13 @@ class PosInventoryQueries {
       GetMyActiveKasirShift { toko { lokasi_cabang_id } }
       GetInventorySettings {
         inventory_operation_defaults { default_receiving_location_id }
+      }
+      GetInventoryTransactionOptions {
+        scrap_reasons { value label description }
+        scrap_incident_types { value label description }
+        scrap_occurrence_locations { value label description }
+        purchase_return_reasons { value label description }
+        purchase_return_methods { value label description }
       }
       GetAllInventarisUmum(filter: { status: "active" }, pagination: { page: 0, limit: 200 }) {
         items {

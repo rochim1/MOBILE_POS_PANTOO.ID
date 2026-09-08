@@ -1096,66 +1096,10 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('view_reports')) _sidebarItem(12),
       if (can('view_returns')) _sidebarItem(13),
       _sidebarSection('PENGATURAN'),
-      if (can('view_settings'))
-        _sidebarRouteItem(
-          Icons.settings_outlined,
-          'Pengaturan Default',
-          const PosSettingsPage(),
-          menuContext: menuContext,
-        ),
+      if (can('view_settings')) _sidebarItem(17),
       if (can('view_receipt')) _sidebarItem(14),
       _sidebarItem(15),
     ];
-  }
-
-  Widget _sidebarRouteItem(
-    IconData icon,
-    String label,
-    Widget page, {
-    required BuildContext menuContext,
-    bool needsBloc = false,
-  }) {
-    final item = InkWell(
-      onTap: () {
-        final posBloc = menuContext.read<PosBloc>();
-        Navigator.of(menuContext).push(
-          MaterialPageRoute(
-            builder: (_) => needsBloc
-                ? BlocProvider.value(value: posBloc, child: page)
-                : page,
-          ),
-        );
-      },
-      child: Container(
-        height: 48,
-        margin: EdgeInsets.symmetric(
-          horizontal: _railExpanded ? 10 : 8,
-          vertical: 2,
-        ),
-        padding: EdgeInsets.symmetric(horizontal: _railExpanded ? 12 : 0),
-        child: _railExpanded
-            ? Row(
-                children: [
-                  Icon(icon, size: 22, color: Colors.black54),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Center(child: Icon(icon, size: 22, color: Colors.black54)),
-      ),
-    );
-    return _railExpanded ? item : Tooltip(message: label, child: item);
   }
 
   Widget _sidebarItem(int index) {

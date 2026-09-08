@@ -7,7 +7,6 @@ import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_cubit.dart';
 
 import '../../common/feature_placeholder_page.dart';
 import '../../login/login_page.dart';
-import '../pos_settings_page.dart';
 
 class PosDrawer extends StatefulWidget {
   final int selectedIndex;
@@ -243,11 +242,7 @@ class _PosDrawerState extends State<PosDrawer> {
         // ---- Pengaturan ----
         _buildSectionHeader('PENGATURAN'),
         if (can('view_settings'))
-          _buildNavItem(
-            Icons.settings_outlined,
-            'Pengaturan Default',
-            const PosSettingsPage(),
-          ),
+          _buildShellItem(Icons.settings_outlined, 'Pengaturan POS', 17),
         if (can('view_receipt'))
           _buildShellItem(Icons.print_outlined, 'Pengaturan Struk', 14),
         _buildShellItem(
@@ -387,24 +382,6 @@ class _PosDrawerState extends State<PosDrawer> {
       selected: isSelected,
       selectedTileColor: const Color(0xFFE6F7F3),
       onTap: () => _closeAndSwitchTab(index),
-    );
-  }
-
-  /// Item yang membuka halaman baru via Navigator.push
-  Widget _buildNavItem(
-    IconData icon,
-    String title,
-    Widget page, {
-    bool needsBloc = false,
-  }) {
-    return ListTile(
-      dense: true,
-      leading: Icon(icon, color: Colors.black87, size: 22),
-      title: Text(
-        title,
-        style: const TextStyle(color: Colors.black87, fontSize: 14),
-      ),
-      onTap: () => _closeAndNavigate(page, needsBloc: needsBloc),
     );
   }
 

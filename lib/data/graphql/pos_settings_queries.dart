@@ -20,6 +20,10 @@ class PosSettingsQueries {
         auto_print_receipt
         allow_out_of_shift
         allow_kasir_price_edit
+        expired_sale_policy
+        pos_lock_enabled
+        pos_lock_on_background
+        pos_auto_lock_minutes
         default_catatan
         min_transaksi_tunai
         pembulatan_harga
@@ -49,6 +53,10 @@ class PosSettingsQueries {
         auto_print_receipt
         allow_out_of_shift
         allow_kasir_price_edit
+        expired_sale_policy
+        pos_lock_enabled
+        pos_lock_on_background
+        pos_auto_lock_minutes
         default_catatan
         min_transaksi_tunai
         pembulatan_harga

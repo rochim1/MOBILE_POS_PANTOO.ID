@@ -16,6 +16,32 @@ class PurchaseReturnRepository {
   final GraphQLClientProvider _provider;
   PurchaseReturnRepository(this._provider);
 
+  Future<Either<Failure, Map<String, List<Map<String, dynamic>>>>>
+  getTransactionOptions() async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PurchaseReturnQueries.options),
+          fetchPolicy: FetchPolicy.cacheFirst,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['GetInventoryTransactionOptions'] as Map?;
+      List<Map<String, dynamic>> read(String key) =>
+          (root?[key] as List? ?? const [])
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+      return Right({
+        'reasons': read('purchase_return_reasons'),
+        'methods': read('purchase_return_methods'),
+      });
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, PurchaseReturnPageResult>> getAll({
     String search = '',
     String status = '',

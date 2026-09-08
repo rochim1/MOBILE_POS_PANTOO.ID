@@ -8,6 +8,7 @@ import '../../bloc/pos/pos_event.dart';
 import '../../bloc/pos/pos_state.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_full_width_tabs.dart';
 import 'widgets/pos_product_panel.dart';
 import 'widgets/pos_cart_panel.dart';
 import 'pos_payment_page.dart';
@@ -200,18 +201,18 @@ class _PosPageViewState extends State<PosPageView> {
                                   length: 2,
                                   child: Column(
                                     children: [
-                                      Container(
-                                        color: Colors.white,
-                                        child: const TabBar(
-                                          labelColor: AppColors.secondary,
-                                          indicatorColor: AppColors.secondary,
-                                          tabs: [
-                                            Tab(text: 'Katalog Produk'),
-                                            Tab(text: 'Keranjang'),
-                                          ],
-                                        ),
+                                      const PosFullWidthTabBar(
+                                        tabs: [
+                                          PosFullWidthTab(
+                                            icon: Icons.storefront_outlined,
+                                            label: 'Katalog Produk',
+                                          ),
+                                          PosFullWidthTab(
+                                            icon: Icons.shopping_cart_outlined,
+                                            label: 'Keranjang',
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 10),
                                       Expanded(
                                         child: TabBarView(
                                           children: [

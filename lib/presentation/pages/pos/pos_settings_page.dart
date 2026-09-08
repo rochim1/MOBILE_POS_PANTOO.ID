@@ -6,23 +6,14 @@ import '../../../../injections.dart';
 import '../../bloc/pos_settings/pos_settings_bloc.dart';
 import '../../bloc/pos_settings/pos_settings_event.dart';
 import '../../bloc/pos_settings/pos_settings_state.dart';
+import '../../bloc/pos/pos_bloc.dart';
+import '../../bloc/pos/pos_event.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/pos_ui.dart';
 import '../../widgets/loading_indicator_widget.dart';
 import '../../widgets/pos_category_navigation.dart';
-import 'pos_offline_queue_page.dart';
-import 'pos_outlet_page.dart';
-import 'pos_printer_page.dart';
 import 'pos_setup_guide_page.dart';
 
-enum _SettingsSection {
-  transaction,
-  finance,
-  cashier,
-  outlet,
-  receipt,
-  synchronization,
-}
+enum _SettingsSection { transaction, finance, cashier }
 
 class PosSettingsPage extends StatelessWidget {
   const PosSettingsPage({super.key});
@@ -48,7 +39,10 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   final _minTransaksiTunaiController = TextEditingController();
   final _invoicePrefixController = TextEditingController();
   final _defaultCatatanController = TextEditingController();
+  final _autoLockMinutesController = TextEditingController();
 
+  String _businessProfile = 'retail';
+  Map<String, bool> _enabledFeatures = const {};
   String _pembulatanHarga = 'none';
   String _metodePembayaran = 'tunai';
   String _channel = 'retail';
@@ -56,13 +50,41 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   List<String> _channelOptions = const ['retail'];
   List<String> _priceLevelOptions = const ['retail'];
   String _discountPolicy = 'stack';
+  String _fulfillmentType = 'take_away';
+  String _expiredSalePolicy = 'block';
 
   bool _autoPrintReceipt = false;
   bool _allowKasirPriceEdit = false;
   bool _allowOutOfShift = false;
+  bool _posLockEnabled = true;
+  bool _posLockOnBackground = true;
+
+  static const _featureLabels = <String, String>{
+    'use_tables': 'Meja / Ruangan',
+    'use_kitchen_flow': 'Alur dapur',
+    'use_service_order': 'Service order',
+    'use_appointments': 'Reservasi',
+    'use_technicians': 'Teknisi / staf',
+    'use_vehicle_data': 'Data kendaraan',
+    'use_delivery': 'Pengantaran',
+    'require_customer': 'Pelanggan wajib',
+    'track_stock': 'Tracking stok',
+  };
 
   bool _isInitialized = false;
   _SettingsSection _selectedSection = _SettingsSection.transaction;
+
+  List<String> get _fulfillmentOptions {
+    final restaurant = _businessProfile == 'restoran';
+    return [
+      if (restaurant && _enabledFeatures['use_tables'] == true) 'dine_in',
+      if (restaurant) 'free_table',
+      'take_away',
+      if (_enabledFeatures['use_delivery'] == true) 'delivery',
+      if (restaurant) 'quick_service',
+      if (_enabledFeatures['use_appointments'] == true) 'reservation',
+    ];
+  }
 
   static const _sections = <PosCategoryItem<_SettingsSection>>[
     PosCategoryItem(
@@ -83,24 +105,6 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       label: 'Kasir & Keamanan',
       group: 'Operasional',
     ),
-    PosCategoryItem(
-      value: _SettingsSection.outlet,
-      icon: Icons.storefront_outlined,
-      label: 'Info Outlet',
-      group: 'Akun & Akses',
-    ),
-    PosCategoryItem(
-      value: _SettingsSection.receipt,
-      icon: Icons.receipt_long_outlined,
-      label: 'Struk & Printer',
-      group: 'Aplikasi',
-    ),
-    PosCategoryItem(
-      value: _SettingsSection.synchronization,
-      icon: Icons.sync_outlined,
-      label: 'Sinkronisasi',
-      group: 'Aplikasi',
-    ),
   ];
 
   @override
@@ -109,6 +113,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     _minTransaksiTunaiController.dispose();
     _invoicePrefixController.dispose();
     _defaultCatatanController.dispose();
+    _autoLockMinutesController.dispose();
     super.dispose();
   }
 
@@ -122,9 +127,17 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     );
     _invoicePrefixController.text = s.invoicePrefix ?? '';
     _defaultCatatanController.text = s.defaultCatatan ?? '';
+    _autoLockMinutesController.text = '${s.posAutoLockMinutes ?? 5}';
 
+    _businessProfile = s.businessProfile ?? 'retail';
+    _enabledFeatures = {
+      for (final key in _featureLabels.keys)
+        key: s.enabledFeatures[key] ?? (key == 'track_stock'),
+    };
     _pembulatanHarga = s.pembulatanHarga ?? 'none';
-    _metodePembayaran = s.defaultMetodePembayaran ?? 'tunai';
+    _metodePembayaran = s.defaultMetodePembayaran == 'kartu_debit'
+        ? 'debit'
+        : s.defaultMetodePembayaran ?? 'tunai';
     _channelOptions = <String>{'retail', ...s.salesChannelOptions}.toList();
     final channel = s.defaultChannelPenjualan ?? 'retail';
     _channel = _channelOptions.contains(channel) ? channel : 'retail';
@@ -143,28 +156,68 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         }.contains(discountPolicy)
         ? discountPolicy
         : 'stack';
+    _fulfillmentType = s.defaultTipePesanan ?? 'take_away';
+    if (!_fulfillmentOptions.contains(_fulfillmentType)) {
+      _fulfillmentType = 'take_away';
+    }
+    _expiredSalePolicy = s.expiredSalePolicy ?? 'block';
 
     _autoPrintReceipt = s.autoPrintReceipt ?? false;
     _allowKasirPriceEdit = s.allowKasirPriceEdit ?? false;
     _allowOutOfShift = s.allowOutOfShift ?? false;
+    _posLockEnabled = s.posLockEnabled ?? true;
+    _posLockOnBackground = s.posLockOnBackground ?? true;
 
     _isInitialized = true;
   }
 
   void _saveSettings() {
+    final tax = double.tryParse(_pajakController.text) ?? -1;
+    final lockMinutes = int.tryParse(_autoLockMinutesController.text) ?? 0;
+    final minimumCash = parseRupiah(_minTransaksiTunaiController.text);
+    final invoicePrefix = _invoicePrefixController.text.trim().toUpperCase();
+    if (tax < 0 || tax > 100) {
+      AppToast.error(context, 'Pajak harus berada pada rentang 0–100%.');
+      return;
+    }
+    if (_posLockEnabled && (lockMinutes < 1 || lockMinutes > 120)) {
+      AppToast.error(context, 'Durasi kunci otomatis harus 1–120 menit.');
+      return;
+    }
+    if (minimumCash < 0) {
+      AppToast.error(context, 'Minimal transaksi tunai tidak boleh negatif.');
+      return;
+    }
+    if (!RegExp(r'^[A-Z0-9]{1,10}$').hasMatch(invoicePrefix)) {
+      AppToast.error(
+        context,
+        'Prefix invoice harus 1–10 karakter huruf atau angka.',
+      );
+      return;
+    }
+    if (!_fulfillmentOptions.contains(_fulfillmentType)) {
+      _fulfillmentType = 'take_away';
+    }
     final input = {
-      'pajak_persen': double.tryParse(_pajakController.text) ?? 0,
-      'min_transaksi_tunai': parseRupiah(_minTransaksiTunaiController.text),
+      'business_profile': _businessProfile,
+      'enabled_features': _enabledFeatures,
+      'pajak_persen': tax,
+      'min_transaksi_tunai': minimumCash,
       'pembulatan_harga': _pembulatanHarga,
       'default_metode_pembayaran': _metodePembayaran,
       'default_channel_penjualan': _channel,
+      'default_tipe_pesanan': _fulfillmentType,
       'default_price_level': _priceLevel,
       'default_discount_policy': _discountPolicy,
-      'invoice_prefix': _invoicePrefixController.text,
+      'invoice_prefix': invoicePrefix,
       'default_catatan': _defaultCatatanController.text,
       'auto_print_receipt': _autoPrintReceipt,
       'allow_kasir_price_edit': _allowKasirPriceEdit,
       'allow_out_of_shift': _allowOutOfShift,
+      'expired_sale_policy': _expiredSalePolicy,
+      'pos_lock_enabled': _posLockEnabled,
+      'pos_lock_on_background': _posLockOnBackground,
+      'pos_auto_lock_minutes': lockMinutes,
     };
 
     context.read<PosSettingsBloc>().add(UpdateSettings(input: input));
@@ -172,22 +225,15 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Pengaturan POS',
-          subtitle: 'Default transaksi dan keamanan',
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: BlocConsumer<PosSettingsBloc, PosSettingsState>(
+    return ColoredBox(
+      color: AppColors.bgPrimary,
+      child: BlocConsumer<PosSettingsBloc, PosSettingsState>(
         listener: (context, state) {
           if (state.status == PosSettingsStatus.loaded) {
             _initFields(state);
           } else if (state.status == PosSettingsStatus.saved) {
             AppToast.success(context, state.successMessage);
+            context.read<PosBloc>().add(LoadPosData());
           } else if (state.status == PosSettingsStatus.failure) {
             AppToast.error(context, state.errorMessage);
           }
@@ -198,7 +244,13 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             return const Center(child: LoadingIndicatorWidget());
           }
 
-          final content = _settingsContent(state);
+          final canManage = context.select<PosBloc, bool>((bloc) {
+            final permissions = Map<String, dynamic>.from(
+              bloc.state.runtimeConfig['permissions'] as Map? ?? const {},
+            );
+            return permissions['manage_settings'] == true;
+          });
+          final content = _settingsContent(state, canManage: canManage);
           return LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth >= 760) {
@@ -242,16 +294,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     );
   }
 
-  Widget _settingsContent(PosSettingsState state) {
-    if (_selectedSection == _SettingsSection.outlet) {
-      return const PosOutletPage();
-    }
-    if (_selectedSection == _SettingsSection.receipt) {
-      return const PosPrinterPage();
-    }
-    if (_selectedSection == _SettingsSection.synchronization) {
-      return const PosOfflineQueuePage();
-    }
+  Widget _settingsContent(PosSettingsState state, {required bool canManage}) {
     final section = switch (_selectedSection) {
       _SettingsSection.finance => _buildSection(
         title: 'Pajak & Keuangan',
@@ -277,13 +320,40 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         icon: Icons.tune_outlined,
         children: [
           _buildDropdown(
+            label: 'Profil Bisnis POS',
+            value: _businessProfile,
+            items: const ['retail', 'restoran', 'bengkel', 'jasa', 'custom'],
+            onChanged: (val) => setState(() {
+              _businessProfile = val!;
+              if (!_fulfillmentOptions.contains(_fulfillmentType)) {
+                _fulfillmentType = 'take_away';
+              }
+            }),
+          ),
+          const Text(
+            'Fitur operasional',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          ..._featureLabels.entries.map(
+            (entry) => _buildSwitch(
+              entry.value,
+              _enabledFeatures[entry.key] ?? false,
+              (value) => setState(() {
+                _enabledFeatures = {..._enabledFeatures, entry.key: value};
+                if (!_fulfillmentOptions.contains(_fulfillmentType)) {
+                  _fulfillmentType = 'take_away';
+                }
+              }),
+            ),
+          ),
+          _buildDropdown(
             label: 'Metode Pembayaran',
             value: _metodePembayaran,
             items: const [
               'tunai',
               'transfer',
               'qris',
-              'kartu_debit',
+              'debit',
               'kartu_kredit',
               'e_wallet',
             ],
@@ -300,6 +370,12 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             value: _priceLevel,
             items: _priceLevelOptions,
             onChanged: (val) => setState(() => _priceLevel = val!),
+          ),
+          _buildDropdown(
+            label: 'Jenis Pesanan Default',
+            value: _fulfillmentType,
+            items: _fulfillmentOptions,
+            onChanged: (val) => setState(() => _fulfillmentType = val!),
           ),
           _buildDropdown(
             label: 'Discount Policy',
@@ -339,6 +415,27 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             _allowOutOfShift,
             (v) => setState(() => _allowOutOfShift = v),
           ),
+          _buildDropdown(
+            label: 'Penjualan Barang Kedaluwarsa',
+            value: _expiredSalePolicy,
+            items: const ['block', 'allow_with_permission'],
+            onChanged: (val) => setState(() => _expiredSalePolicy = val!),
+          ),
+          _buildSwitch(
+            'Aktifkan Kunci POS',
+            _posLockEnabled,
+            (v) => setState(() => _posLockEnabled = v),
+          ),
+          _buildSwitch(
+            'Kunci Saat Aplikasi di Latar Belakang',
+            _posLockOnBackground,
+            (v) => setState(() => _posLockOnBackground = v),
+          ),
+          _buildTextField(
+            'Kunci Otomatis Setelah (menit)',
+            _autoLockMinutesController,
+            isNumber: true,
+          ),
           Material(
             type: MaterialType.transparency,
             child: ListTile(
@@ -354,9 +451,6 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           ),
         ],
       ),
-      _SettingsSection.outlet ||
-      _SettingsSection.receipt ||
-      _SettingsSection.synchronization => const SizedBox.shrink(),
     };
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -365,37 +459,54 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            section,
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: state.status == PosSettingsStatus.saving
-                  ? null
-                  : _saveSettings,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            if (!canManage)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: const Text(
+                  'Mode lihat saja. Izin Kelola Pengaturan POS diperlukan untuk menyimpan perubahan.',
                 ),
               ),
-              child: state.status == PosSettingsStatus.saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      'Simpan Pengaturan',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+            IgnorePointer(
+              ignoring: !canManage,
+              child: Opacity(opacity: canManage ? 1 : .72, child: section),
             ),
+            const SizedBox(height: 24),
+            if (canManage)
+              ElevatedButton(
+                onPressed: state.status == PosSettingsStatus.saving
+                    ? null
+                    : _saveSettings,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: state.status == PosSettingsStatus.saving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Simpan Pengaturan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
             const SizedBox(height: 40),
           ],
         ),

@@ -119,21 +119,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           ),
     );
     _scrapReason = widget.existing?['alasan']?.toString() ?? 'rusak';
-    if (!const {
-      'rusak',
-      'kadaluarsa',
-      'hilang',
-      'kehilangan',
-      'lainnya',
-      'usang',
-      'cacat_produksi',
-      'bencana',
-      'kecelakaan',
-      'mencair',
-      'tumpah',
-    }.contains(_scrapReason)) {
-      _scrapReason = 'lainnya';
-    }
     _incidentType = widget.existing?['jenis_insiden']?.toString() ?? 'disposal';
     _opnameDate =
         DateTime.tryParse(
@@ -174,6 +159,21 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       },
       (data) async {
         _lookups = data;
+        String validOption(String current, List<Map<String, dynamic>> options) {
+          if (options.any((option) => option['value'] == current)) {
+            return current;
+          }
+          return options.isNotEmpty
+              ? options.first['value']?.toString() ?? ''
+              : '';
+        }
+
+        _scrapReason = validOption(_scrapReason, data.scrapReasons);
+        _incidentType = validOption(_incidentType, data.scrapIncidentTypes);
+        _incidentLocation = validOption(
+          _incidentLocation,
+          data.scrapOccurrenceLocations,
+        );
         if (_sourceId.isEmpty) _sourceId = data.activeWarehouseId;
         if (widget.type == PosInventoryDocumentType.purchase) {
           _catalog = data.inventoryItems;
@@ -2019,52 +2019,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                           labelText: 'Alasan barang terbuang',
                           border: OutlineInputBorder(),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'rusak',
-                            child: Text('Rusak'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'kadaluarsa',
-                            child: Text('Kedaluwarsa'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'hilang',
-                            child: Text('Hilang'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'kehilangan',
-                            child: Text('Kehilangan'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'lainnya',
-                            child: Text('Lainnya'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'usang',
-                            child: Text('Usang'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'cacat_produksi',
-                            child: Text('Cacat produksi'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'bencana',
-                            child: Text('Bencana'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'kecelakaan',
-                            child: Text('Kecelakaan operasional'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'mencair',
-                            child: Text('Mencair / rusak suhu'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'tumpah',
-                            child: Text('Tumpah / bocor'),
-                          ),
-                        ],
+                        items: (_lookups?.scrapReasons ?? const [])
+                            .map(
+                              (option) => DropdownMenuItem<String>(
+                                value: option['value']?.toString(),
+                                child: Text(option['label']?.toString() ?? ''),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (value) => setState(() {
                           _scrapReason = value ?? 'rusak';
                           _incidentType = switch (_scrapReason) {
@@ -2085,28 +2047,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                           labelText: 'Lokasi kejadian',
                           border: OutlineInputBorder(),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'gudang',
-                            child: Text('Gudang'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'cabang',
-                            child: Text('Cabang / outlet'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'pengantaran',
-                            child: Text('Pengantaran barang'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'ruang_operasional',
-                            child: Text('Ruang operasional'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'lainnya',
-                            child: Text('Lainnya'),
-                          ),
-                        ],
+                        items: (_lookups?.scrapOccurrenceLocations ?? const [])
+                            .map(
+                              (option) => DropdownMenuItem<String>(
+                                value: option['value']?.toString(),
+                                child: Text(option['label']?.toString() ?? ''),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (value) => setState(
                           () => _incidentLocation = value ?? 'gudang',
                         ),

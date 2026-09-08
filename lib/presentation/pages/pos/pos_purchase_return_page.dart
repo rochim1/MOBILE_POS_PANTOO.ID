@@ -32,12 +32,27 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
   DateTime? _dateTo;
   int _page = 1;
   int _total = 0;
+  List<Map<String, dynamic>> _reasonOptions = const [];
+  List<Map<String, dynamic>> _methodOptions = const [];
   static const _limit = 20;
 
   @override
   void initState() {
     super.initState();
+    _loadOptions();
     _load();
+  }
+
+  Future<void> _loadOptions() async {
+    final result = await _repository.getTransactionOptions();
+    if (!mounted) return;
+    result.fold(
+      (_) {},
+      (options) => setState(() {
+        _reasonOptions = options['reasons'] ?? const [];
+        _methodOptions = options['methods'] ?? const [];
+      }),
+    );
   }
 
   @override
@@ -105,7 +120,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     labelText: 'Alasan retur',
                     border: OutlineInputBorder(),
                   ),
-                  items: _returnReasons(includeAll: true),
+                  items: _optionItems(_reasonOptions, includeAll: true),
                   onChanged: (value) =>
                       setSheetState(() => reason = value ?? ''),
                 ),
@@ -116,7 +131,11 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     labelText: 'Penyelesaian',
                     border: OutlineInputBorder(),
                   ),
-                  items: _returnMethods(includeAll: true),
+                  items: _optionItems(
+                    _methodOptions,
+                    includeAll: true,
+                    allLabel: 'Semua penyelesaian',
+                  ),
                   onChanged: (value) =>
                       setSheetState(() => method = value ?? ''),
                 ),
@@ -472,6 +491,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
   Map<String, dynamic>? _group;
   String _reason = 'barang_rusak';
   String _method = 'credit_note';
+  List<Map<String, dynamic>> _reasonOptions = const [];
+  List<Map<String, dynamic>> _methodOptions = const [];
   DateTime _returnDate = DateTime.now();
   bool _loading = false;
   late bool _submitApproval;
@@ -480,6 +501,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
   void initState() {
     super.initState();
     _submitApproval = widget.canSubmit;
+    _loadOptions();
     final existing = widget.existing;
     if (existing != null) {
       _submitApproval = false;
@@ -499,6 +521,29 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
         }, existing: existing);
       });
     }
+  }
+
+  Future<void> _loadOptions() async {
+    final result = await _repository.getTransactionOptions();
+    if (!mounted) return;
+    result.fold((failure) => AppToast.error(context, failure.message), (
+      options,
+    ) {
+      setState(() {
+        _reasonOptions = options['reasons'] ?? const [];
+        _methodOptions = options['methods'] ?? const [];
+        if (!_reasonOptions.any((item) => item['value'] == _reason)) {
+          _reason = _reasonOptions.isNotEmpty
+              ? _reasonOptions.first['value']?.toString() ?? ''
+              : '';
+        }
+        if (!_methodOptions.any((item) => item['value'] == _method)) {
+          _method = _methodOptions.isNotEmpty
+              ? _methodOptions.first['value']?.toString() ?? ''
+              : '';
+        }
+      });
+    });
   }
 
   List<Map<String, dynamic>> get _availableItems =>
@@ -915,23 +960,29 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                 const Text('3. Alasan dan penyelesaian', style: _sectionStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _reason,
+                  initialValue:
+                      _reasonOptions.any((item) => item['value'] == _reason)
+                      ? _reason
+                      : null,
                   decoration: const InputDecoration(
                     labelText: 'Alasan retur',
                     border: OutlineInputBorder(),
                   ),
-                  items: _returnReasons(),
+                  items: _optionItems(_reasonOptions),
                   onChanged: (value) =>
                       setState(() => _reason = value ?? _reason),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  initialValue: _method,
+                  initialValue:
+                      _methodOptions.any((item) => item['value'] == _method)
+                      ? _method
+                      : null,
                   decoration: const InputDecoration(
                     labelText: 'Penyelesaian',
                     border: OutlineInputBorder(),
                   ),
-                  items: _returnMethods(),
+                  items: _optionItems(_methodOptions),
                   onChanged: (value) =>
                       setState(() => _method = value ?? _method),
                 ),
@@ -1445,34 +1496,17 @@ class _ReturnDateField extends StatelessWidget {
   );
 }
 
-List<DropdownMenuItem<String>> _returnReasons({bool includeAll = false}) => [
-  if (includeAll)
-    const DropdownMenuItem(value: '', child: Text('Semua alasan')),
-  const DropdownMenuItem(value: 'barang_rusak', child: Text('Barang rusak')),
-  const DropdownMenuItem(
-    value: 'kualitas_tidak_sesuai',
-    child: Text('Kualitas tidak sesuai'),
-  ),
-  const DropdownMenuItem(value: 'salah_kirim', child: Text('Salah kirim')),
-  const DropdownMenuItem(
-    value: 'kelebihan_qty',
-    child: Text('Kelebihan jumlah'),
-  ),
-  const DropdownMenuItem(value: 'kadaluarsa', child: Text('Kedaluwarsa')),
-  const DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
-];
-
-List<DropdownMenuItem<String>> _returnMethods({bool includeAll = false}) => [
-  if (includeAll)
-    const DropdownMenuItem(value: '', child: Text('Semua penyelesaian')),
-  const DropdownMenuItem(
-    value: 'credit_note',
-    child: Text('Kurangi utang / kredit supplier'),
-  ),
-  const DropdownMenuItem(value: 'refund', child: Text('Refund uang')),
-  const DropdownMenuItem(
-    value: 'replacement',
-    child: Text('Penggantian barang'),
+List<DropdownMenuItem<String>> _optionItems(
+  List<Map<String, dynamic>> options, {
+  bool includeAll = false,
+  String allLabel = 'Semua alasan',
+}) => [
+  if (includeAll) DropdownMenuItem(value: '', child: Text(allLabel)),
+  ...options.map(
+    (item) => DropdownMenuItem(
+      value: item['value']?.toString(),
+      child: Text(item['label']?.toString() ?? ''),
+    ),
   ),
 ];
 

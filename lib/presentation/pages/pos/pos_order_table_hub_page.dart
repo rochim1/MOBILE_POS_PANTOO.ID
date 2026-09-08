@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../bloc/pos/pos_bloc.dart';
+import '../../widgets/pos_full_width_tabs.dart';
 import 'pos_table_management_page.dart';
 import 'pos_table_order_page.dart';
 
@@ -38,30 +39,22 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
 
     return Column(
       children: [
-        Material(
-          color: Theme.of(context).colorScheme.surface,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: SegmentedButton<int>(
-              segments: [
-                if (canViewOrders)
-                  const ButtonSegment(
-                    value: 0,
-                    icon: Icon(Icons.receipt_long_outlined),
-                    label: Text('Daftar Order'),
-                  ),
-                if (canManageTables)
-                  const ButtonSegment(
-                    value: 1,
-                    icon: Icon(Icons.table_restaurant_outlined),
-                    label: Text('Peta & Pengaturan Meja'),
-                  ),
-              ],
-              selected: {selectedTab},
-              showSelectedIcon: false,
-              onSelectionChanged: (value) => setState(() => _tab = value.first),
-            ),
-          ),
+        PosFullWidthTabs(
+          tabs: [
+            if (canViewOrders)
+              const PosFullWidthTab(
+                icon: Icons.receipt_long_outlined,
+                label: 'Daftar Order',
+              ),
+            if (canManageTables)
+              const PosFullWidthTab(
+                icon: Icons.table_restaurant_outlined,
+                label: 'Peta & Pengaturan Meja',
+              ),
+          ],
+          selectedIndex: canViewOrders && canManageTables ? selectedTab : 0,
+          onSelected: (index) =>
+              setState(() => _tab = canViewOrders ? index : 1),
         ),
         const Divider(height: 1),
         Expanded(

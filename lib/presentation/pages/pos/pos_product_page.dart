@@ -14,6 +14,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_p
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_product_management_state.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_full_width_tabs.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
 
@@ -2151,26 +2152,19 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ),
         ),
         const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(
-                value: 0,
-                icon: Icon(Icons.info_outline),
-                label: Text('Informasi Produk'),
-              ),
-              ButtonSegment(
-                value: 1,
-                icon: Icon(Icons.inventory_2_outlined),
-                label: Text('Stok & Satuan'),
-              ),
-            ],
-            selected: {_formTab},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) =>
-                setState(() => _formTab = value.first),
-          ),
+        PosFullWidthTabs(
+          tabs: const [
+            PosFullWidthTab(
+              icon: Icons.info_outline,
+              label: 'Informasi Produk',
+            ),
+            PosFullWidthTab(
+              icon: Icons.inventory_2_outlined,
+              label: 'Stok & Satuan',
+            ),
+          ],
+          selectedIndex: _formTab,
+          onSelected: (value) => setState(() => _formTab = value),
         ),
         Expanded(
           child: SingleChildScrollView(

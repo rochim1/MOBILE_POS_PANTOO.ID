@@ -7,6 +7,7 @@ import 'widgets/pos_active_shift_tab.dart';
 import 'widgets/pos_shift_history_tab.dart';
 import '../../../../core/_core.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_full_width_tabs.dart';
 
 class PosShiftPage extends StatelessWidget {
   const PosShiftPage({super.key});
@@ -29,22 +30,14 @@ class PosShiftPage extends StatelessWidget {
             color: AppColors.bgPrimary,
             child: Column(
               children: [
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                  child: const TabBar(
-                    labelColor: AppColors.primary,
-                    unselectedLabelColor: Colors.black54,
-                    indicatorColor: AppColors.primary,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    tabs: [
-                      Tab(
-                        icon: Icon(Icons.point_of_sale, size: 19),
-                        text: 'Aktif',
-                      ),
-                      Tab(icon: Icon(Icons.history, size: 19), text: 'Riwayat'),
-                    ],
-                  ),
+                const PosFullWidthTabBar(
+                  tabs: [
+                    PosFullWidthTab(
+                      icon: Icons.point_of_sale,
+                      label: 'Shift Aktif',
+                    ),
+                    PosFullWidthTab(icon: Icons.history, label: 'Riwayat'),
+                  ],
                 ),
                 const Expanded(
                   child: TabBarView(

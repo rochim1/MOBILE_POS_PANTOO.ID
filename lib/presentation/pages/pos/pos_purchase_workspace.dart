@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../injections.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_full_width_tabs.dart';
 import 'pos_purchase_receiving_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
@@ -39,28 +40,21 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
     }
     return Column(
       children: [
-        Material(
-          color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                  value: 0,
-                  icon: Icon(Icons.description_outlined),
-                  label: Text('Purchase Order'),
-                ),
-                ButtonSegment(
-                  value: 1,
-                  icon: Icon(Icons.inventory_outlined),
-                  label: Text('Penerimaan'),
-                ),
-              ],
-              selected: {_tab},
-              onSelectionChanged: (value) => setState(() => _tab = value.first),
+        PosFullWidthTabs(
+          tabs: const [
+            PosFullWidthTab(
+              icon: Icons.description_outlined,
+              label: 'Purchase Order',
             ),
-          ),
+            PosFullWidthTab(
+              icon: Icons.inventory_outlined,
+              label: 'Penerimaan',
+            ),
+          ],
+          selectedIndex: _tab,
+          onSelected: (value) => setState(() => _tab = value),
         ),
+        const Divider(height: 1),
         Expanded(
           child: IndexedStack(
             index: _tab,
