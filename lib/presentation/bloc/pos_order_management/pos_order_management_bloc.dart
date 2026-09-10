@@ -9,8 +9,36 @@ class PosOrderManagementBloc
 
   PosOrderManagementBloc({required this.repository})
     : super(const PosOrderManagementState()) {
+    on<LoadActiveOrders>(_onLoadActiveOrders);
     on<LoadTableOrders>(_onLoadTableOrders);
     on<UpdateItemStatus>(_onUpdateItemStatus);
+  }
+
+  Future<void> _onLoadActiveOrders(
+    LoadActiveOrders event,
+    Emitter<PosOrderManagementState> emit,
+  ) async {
+    emit(state.copyWith(status: PosOrderManagementStatus.loading));
+    final result = await repository.getActiveOrders(
+      storeId: event.storeId,
+      search: event.search,
+      status: event.status,
+    );
+    result.fold(
+      (failure) => emit(
+        state.copyWith(
+          status: PosOrderManagementStatus.failure,
+          errorMessage: failure.message,
+        ),
+      ),
+      (orders) => emit(
+        state.copyWith(
+          status: PosOrderManagementStatus.loaded,
+          orders: orders,
+          errorMessage: '',
+        ),
+      ),
+    );
   }
 
   Future<void> _onLoadTableOrders(
@@ -60,8 +88,17 @@ class PosOrderManagementBloc
             successMessage: 'Status pesanan berhasil diubah',
           ),
         );
-        // Reload table orders
-        add(LoadTableOrders(event.tableId));
+        if (event.storeId.isNotEmpty) {
+          add(
+            LoadActiveOrders(
+              storeId: event.storeId,
+              search: event.search,
+              status: event.statusFilter,
+            ),
+          );
+        } else {
+          add(LoadTableOrders(event.tableId));
+        }
       },
     );
   }

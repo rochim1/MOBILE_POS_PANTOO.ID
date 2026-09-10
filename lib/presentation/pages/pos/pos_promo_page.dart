@@ -64,8 +64,8 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   Color _getStatusColor(PosPromo promo) {
     if (_isExpired(promo)) return Colors.grey;
-    if (promo.isActive) return Colors.green;
-    return Colors.red;
+    if (promo.isActive) return AppColors.success;
+    return AppColors.danger;
   }
 
   String _getStatusText(PosPromo promo) {
@@ -468,7 +468,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                         IconButton(
                           icon: const Icon(
                             Icons.delete_outline,
-                            color: Colors.red,
+                            color: AppColors.danger,
                             size: 20,
                           ),
                           onPressed: () => _confirmDelete(context, promo),
@@ -524,7 +524,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
               context.read<PosPromoBloc>().add(DeletePromo(promo.id));
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.danger,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

@@ -46,11 +46,11 @@ class _PosReturnViewState extends State<PosReturnView> {
       case 'draft':
         return Colors.grey.shade600;
       case 'approved':
-        return Colors.blue;
+        return AppColors.info;
       case 'completed':
-        return Colors.green;
+        return AppColors.success;
       case 'rejected':
-        return Colors.red;
+        return AppColors.danger;
       default:
         return Colors.grey;
     }
@@ -274,7 +274,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                       ),
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.red,
+                                        color: AppColors.danger,
                                       ),
                                     ),
                                   ],
@@ -293,7 +293,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                           .add(ApproveReturn(item['_id'])),
                                       child: const Text(
                                         'Approve',
-                                        style: TextStyle(color: Colors.blue),
+                                        style: TextStyle(color: AppColors.info),
                                       ),
                                     ),
                                   if (status == 'draft')
@@ -305,7 +305,9 @@ class _PosReturnViewState extends State<PosReturnView> {
                                           .add(DeleteReturn(item['_id'])),
                                       child: const Text(
                                         'Hapus',
-                                        style: TextStyle(color: Colors.red),
+                                        style: TextStyle(
+                                          color: AppColors.danger,
+                                        ),
                                       ),
                                     ),
                                   if (status == 'approved')
@@ -314,7 +316,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                           .read<PosReturnBloc>()
                                           .add(ProcessReturn(item['_id'])),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
+                                        backgroundColor: AppColors.success,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             8,

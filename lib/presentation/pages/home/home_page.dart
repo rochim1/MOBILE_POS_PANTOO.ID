@@ -67,7 +67,7 @@ class _HomePageState extends State<HomePage> {
         final totalProducts = state.products.length;
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade100,
+          backgroundColor: AppColors.appBackground,
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -244,14 +244,14 @@ class _HomePageState extends State<HomePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        border: Border.all(color: const Color(0xFFFDBA74)),
+        color: AppColors.warningBackground,
+        border: Border.all(color: AppColors.warningBorder),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded, color: Color(0xFFC2410C)),
+          const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -259,7 +259,7 @@ class _HomePageState extends State<HomePage> {
                   ? 'Konfigurasi POS belum siap. Tarik untuk mencoba memuat ulang.'
                   : issues.join('\n'),
               style: const TextStyle(
-                color: Color(0xFF9A3412),
+                color: AppColors.warning,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -284,28 +284,28 @@ class _HomePageState extends State<HomePage> {
         title: 'Pendapatan Hari Ini',
         value: _formatCurrency(todayRevenue),
         icon: Icons.account_balance_wallet_outlined,
-        color: const Color(0xFF059669),
+        color: AppColors.primary,
         growth: revenueGrowth,
       ),
       _StatCardData(
         title: 'Transaksi Hari Ini',
         value: '$todayTransactions',
         icon: Icons.receipt_long_outlined,
-        color: const Color(0xFF2563EB),
+        color: AppColors.info,
         growth: transactionGrowth,
       ),
       _StatCardData(
         title: 'Rata-rata Order',
         value: _formatCurrency(todayAvgOrder),
         icon: Icons.show_chart_outlined,
-        color: const Color(0xFFD97706),
+        color: AppColors.warning,
         growth: null,
       ),
       _StatCardData(
         title: 'Total Produk',
         value: '$totalProducts',
         icon: Icons.inventory_2_outlined,
-        color: const Color(0xFF7C3AED),
+        color: AppColors.neutral,
         growth: null,
       ),
     ];
@@ -376,7 +376,7 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,7 +398,7 @@ class _HomePageState extends State<HomePage> {
                   data.title,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF64748B),
+                    color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -414,8 +414,8 @@ class _HomePageState extends State<HomePage> {
                   decoration: BoxDecoration(
                     color:
                         (data.growth! >= 0
-                                ? const Color(0xFF059669)
-                                : const Color(0xFFDC2626))
+                                ? AppColors.success
+                                : AppColors.danger)
                             .withValues(alpha: 0.09),
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -425,8 +425,8 @@ class _HomePageState extends State<HomePage> {
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: data.growth! >= 0
-                          ? const Color(0xFF047857)
-                          : const Color(0xFFB91C1C),
+                          ? AppColors.success
+                          : AppColors.danger,
                     ),
                   ),
                 ),
@@ -438,7 +438,7 @@ class _HomePageState extends State<HomePage> {
             style: const TextStyle(
               fontSize: 21,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
+              color: AppColors.heading,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -471,7 +471,7 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
+              color: AppColors.heading,
             ),
           ),
           const SizedBox(height: 20),
@@ -609,12 +609,12 @@ class _HomePageState extends State<HomePage> {
     bool isTablet,
   ) {
     final colors = <String, Color>{
-      'tunai': const Color(0xFF10B981),
-      'qris': const Color(0xFF3B82F6),
-      'debit': const Color(0xFFF59E0B),
-      'transfer': const Color(0xFF8B5CF6),
-      'e-wallet': const Color(0xFF14B8A6),
-      'kredit': const Color(0xFFEF4444),
+      'tunai': AppColors.primary,
+      'qris': AppColors.info,
+      'debit': AppColors.warning,
+      'transfer': AppColors.neutral,
+      'e-wallet': AppColors.primaryDark,
+      'kredit': AppColors.danger,
     };
 
     return Container(
@@ -632,7 +632,7 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
+              color: AppColors.heading,
             ),
           ),
           const SizedBox(height: 16),
@@ -733,7 +733,7 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
+              color: AppColors.heading,
             ),
           ),
           const SizedBox(height: 16),
@@ -790,7 +790,7 @@ class _HomePageState extends State<HomePage> {
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1F2937),
+                              color: AppColors.heading,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -811,7 +811,7 @@ class _HomePageState extends State<HomePage> {
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
+                        color: AppColors.heading,
                       ),
                     ),
                   ],
@@ -881,13 +881,13 @@ class _HomePageState extends State<HomePage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                  color: AppColors.successBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
                   'Aktif',
                   style: TextStyle(
-                    color: Color(0xFF10B981),
+                    color: AppColors.success,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -942,21 +942,21 @@ class _HomePageState extends State<HomePage> {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2), // Red 50
+        color: AppColors.dangerBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFECACA)), // Red 200
+        border: Border.all(color: AppColors.dangerBorder),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEE2E2),
+              color: AppColors.dangerBackground,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.warning_amber_rounded,
-              color: Color(0xFFEF4444),
+              color: AppColors.danger,
             ),
           ),
           const SizedBox(width: 16),
@@ -969,16 +969,13 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF991B1B),
+                    color: AppColors.danger,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${lowStockProducts.length} produk memiliki stok kurang dari 5. Segera lakukan re-stock.',
-                  style: const TextStyle(
-                    color: Color(0xFFB91C1C),
-                    fontSize: 13,
-                  ),
+                  style: const TextStyle(color: AppColors.danger, fontSize: 13),
                 ),
               ],
             ),
@@ -988,7 +985,7 @@ class _HomePageState extends State<HomePage> {
             child: const Text(
               'Lihat',
               style: TextStyle(
-                color: Color(0xFFEF4444),
+                color: AppColors.danger,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1024,7 +1021,7 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: AppColors.heading,
                 ),
               ),
               TextButton(
@@ -1081,7 +1078,7 @@ class _HomePageState extends State<HomePage> {
                       Text(
                         order.status,
                         style: const TextStyle(
-                          color: Color(0xFF10B981),
+                          color: AppColors.success,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),

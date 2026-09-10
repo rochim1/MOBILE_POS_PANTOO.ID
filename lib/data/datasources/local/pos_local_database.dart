@@ -13,7 +13,7 @@ class PosLocalDatabase {
   static Database? _database;
   static Future<Database>? _databaseFuture;
   static const _databaseKeyName = 'pos_database_key_v1';
-  static const _schemaVersion = 17;
+  static const _schemaVersion = 18;
   static const _secureStorage = FlutterSecureStorage();
 
   PosLocalDatabase._init();
@@ -342,6 +342,11 @@ SELECT id, name, role FROM employees
         'ALTER TABLE customers ADD COLUMN customer_type TEXT NOT NULL DEFAULT "personal"',
       );
     }
+    if (oldVersion < 18) {
+      await db.execute(
+        'ALTER TABLE offline_transactions ADD COLUMN next_retry_at TEXT',
+      );
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -421,6 +426,7 @@ CREATE TABLE offline_transactions (
   ,resolution TEXT
   ,resolved_at TEXT
   ,client_snapshot TEXT
+  ,next_retry_at TEXT
 )
 ''');
     await db.execute(

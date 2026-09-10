@@ -323,7 +323,9 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               Icon(
                 state.promoApplied ? Icons.check_circle : Icons.info_outline,
                 size: 18,
-                color: state.promoApplied ? Colors.green : Colors.orange,
+                color: state.promoApplied
+                    ? AppColors.success
+                    : AppColors.warning,
               ),
               const SizedBox(width: 7),
               Expanded(

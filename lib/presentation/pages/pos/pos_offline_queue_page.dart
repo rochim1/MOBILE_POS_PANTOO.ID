@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import '../../widgets/pos_ui.dart';
@@ -19,26 +21,51 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   List<Map<String, dynamic>> _transactions = [];
   bool _loading = true;
   String? _status;
+  Map<String, dynamic> _summary = const {};
+  bool _networkAvailable = true;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) {
+      if (!mounted) return;
+      setState(
+        () => _networkAvailable = !result.contains(ConnectivityResult.none),
+      );
+    });
     _load();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final items = await _syncService.getOfflineTransactions(status: _status);
+    final results = await Future.wait<dynamic>([
+      _syncService.getOfflineTransactions(status: _status),
+      _syncService.getQueueSummary(),
+      Connectivity().checkConnectivity(),
+    ]);
     if (!mounted) return;
     setState(() {
-      _transactions = items;
+      _transactions = results[0] as List<Map<String, dynamic>>;
+      _summary = results[1] as Map<String, dynamic>;
+      _networkAvailable = !(results[2] as List<ConnectivityResult>).contains(
+        ConnectivityResult.none,
+      );
       _loading = false;
     });
   }
 
   Future<void> _sync() async {
     setState(() => _loading = true);
-    await _syncService.syncOfflineTransactions();
+    await _syncService.syncOfflineTransactions(force: true);
     await _load();
     if (mounted) {
       AppToast.success(context, 'Sinkronisasi antrean selesai diperiksa');
@@ -47,7 +74,9 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
 
   Future<void> _retryAll() async {
     final count = await _syncService.retryAllRejected();
-    if (count > 0) await _syncService.syncOfflineTransactions();
+    if (count > 0) {
+      await _syncService.syncOfflineTransactions(force: true);
+    }
     await _load();
     if (mounted) {
       AppToast.info(
@@ -68,6 +97,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                _queueHealthCard(),
+                const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -138,6 +169,75 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     );
   }
 
+  Widget _queueHealthCard() {
+    final unresolved = (_summary['unresolved'] as num?)?.toInt() ?? 0;
+    final review = (_summary['needs_review'] as num?)?.toInt() ?? 0;
+    final oldestRaw = _summary['oldest_pending_at']?.toString();
+    final oldest = oldestRaw == null ? null : DateTime.tryParse(oldestRaw);
+    final age = oldest == null ? null : DateTime.now().difference(oldest);
+    final ageLabel = age == null
+        ? null
+        : age.inDays > 0
+        ? '${age.inDays} hari'
+        : age.inHours > 0
+        ? '${age.inHours} jam'
+        : '${age.inMinutes.clamp(1, 59)} menit';
+    final color = !_networkAvailable
+        ? AppColors.warning
+        : review > 0
+        ? Colors.deepOrange
+        : unresolved > 0
+        ? AppColors.info
+        : AppColors.success;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        border: Border.all(color: color.withValues(alpha: .28)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _networkAvailable ? Icons.cloud_outlined : Icons.cloud_off_outlined,
+            color: color,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _networkAvailable
+                      ? 'Koneksi perangkat tersedia'
+                      : 'Perangkat sedang offline',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  unresolved == 0
+                      ? 'Tidak ada transaksi penjualan yang menunggu.'
+                      : '$unresolved transaksi belum selesai${ageLabel == null ? '' : ' • tertua $ageLabel'}${review == 0 ? '' : ' • $review perlu ditinjau'}',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+                if (_networkAvailable)
+                  const Text(
+                    'Ketersediaan server diperiksa saat sinkronisasi.',
+                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Cakupan offline: penjualan tunai kasir. Pembayaran elektronik, shift, pelanggan, dan perubahan inventori wajib online.',
+                  style: TextStyle(fontSize: 11, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _filterChip(String? status, String label) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -196,13 +296,16 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               Text('Waktu: ${transaction['timestamp'] ?? '-'}'),
               if (total != null) Text('Total: Rp $total'),
               Text('Percobaan sinkron: ${transaction['attempts'] ?? 0}'),
+              if ((transaction['next_retry_at']?.toString() ?? '').isNotEmpty &&
+                  status == 'pending')
+                Text('Retry otomatis: ${transaction['next_retry_at']}'),
               if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
                   transaction['error'].toString(),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.red),
+                  style: const TextStyle(color: AppColors.danger),
                 ),
               ],
               if (canRetry)
@@ -246,11 +349,11 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
 
   Widget _statusBadge(String status) {
     final (label, color) = switch (status) {
-      'synced' => ('Terkirim', Colors.green),
-      'syncing' => ('Diproses', Colors.blue),
+      'synced' => ('Terkirim', AppColors.success),
+      'syncing' => ('Diproses', AppColors.info),
       'needs_review' => ('Perlu ditinjau', Colors.deepOrange),
-      'rejected' => ('Ditolak', Colors.red),
-      _ => ('Menunggu', Colors.orange),
+      'rejected' => ('Ditolak', AppColors.danger),
+      _ => ('Menunggu', AppColors.warning),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -300,7 +403,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 'Error',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.red,
+                  color: AppColors.danger,
                 ),
               ),
               SelectableText(transaction['error'].toString()),
@@ -368,7 +471,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             child: const Text('Kembali'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Tolak'),
           ),

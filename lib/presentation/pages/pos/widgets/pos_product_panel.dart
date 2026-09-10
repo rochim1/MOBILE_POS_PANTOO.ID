@@ -632,7 +632,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   state.favoriteProductIds.contains(product.id)
                       ? Icons.star
                       : Icons.star_border,
-                  color: Colors.amber,
+                  color: AppColors.warning,
                 ),
               ),
             ),
@@ -736,7 +736,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                           state.favoriteProductIds.contains(product.id)
                               ? Icons.star
                               : Icons.star_border,
-                          color: Colors.amber,
+                          color: AppColors.warning,
                         ),
                       ),
                     ),

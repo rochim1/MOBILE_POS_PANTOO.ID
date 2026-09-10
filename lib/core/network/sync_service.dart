@@ -31,8 +31,52 @@ class SyncService {
 
   SyncService(this._clientProvider);
 
+  Future<Map<String, dynamic>> getQueueSummary() async {
+    if (!supportsOfflineDatabase) {
+      return const {
+        'pending': 0,
+        'needs_review': 0,
+        'rejected': 0,
+        'synced': 0,
+        'unresolved': 0,
+        'oldest_pending_at': null,
+      };
+    }
+    final instansiId =
+        _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
+    if (instansiId.isEmpty) return const {};
+    final db = await PosLocalDatabase.instance.database;
+    final grouped = await db.rawQuery(
+      'SELECT status, COUNT(*) AS total FROM offline_transactions '
+      'WHERE instansi_id = ? GROUP BY status',
+      [instansiId],
+    );
+    final counts = <String, int>{};
+    for (final row in grouped) {
+      counts[row['status']?.toString() ?? 'pending'] =
+          (row['total'] as num?)?.toInt() ?? 0;
+    }
+    final oldest = await db.query(
+      'offline_transactions',
+      columns: const ['timestamp'],
+      where:
+          "instansi_id = ? AND status IN ('pending','syncing','needs_review')",
+      whereArgs: [instansiId],
+      orderBy: 'timestamp ASC',
+      limit: 1,
+    );
+    return {
+      ...counts,
+      'unresolved':
+          (counts['pending'] ?? 0) +
+          (counts['syncing'] ?? 0) +
+          (counts['needs_review'] ?? 0),
+      'oldest_pending_at': oldest.isEmpty ? null : oldest.first['timestamp'],
+    };
+  }
+
   /// Menjalankan proses sinkronisasi transaksi offline ke server.
-  Future<void> syncOfflineTransactions() async {
+  Future<void> syncOfflineTransactions({bool force = false}) async {
     if (!supportsOfflineDatabase) return;
     if (_isSyncing) return;
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -49,6 +93,18 @@ class SyncService {
       final instansiId =
           _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
       if (instansiId.isEmpty) return;
+      // Receipt resmi sudah berada di server. Pertahankan histori sinkron lokal
+      // selama 90 hari untuk audit perangkat, lalu bersihkan agar SQLite tidak
+      // tumbuh tanpa batas pada terminal yang jarang logout.
+      await db.delete(
+        'offline_transactions',
+        where: 'instansi_id = ? AND status = ? AND timestamp < ?',
+        whereArgs: [
+          instansiId,
+          'synced',
+          DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
+        ],
+      );
       // Recover rows left in-flight when the app was killed mid-sync.
       await db.update(
         'offline_transactions',
@@ -60,8 +116,13 @@ class SyncService {
       // Ambil transaksi yang masih pending
       final pendingTransactions = await db.query(
         'offline_transactions',
-        where: 'status = ? AND instansi_id = ?',
-        whereArgs: ['pending', instansiId],
+        where: force
+            ? 'status = ? AND instansi_id = ?'
+            : 'status = ? AND instansi_id = ? AND '
+                  '(next_retry_at IS NULL OR next_retry_at <= ?)',
+        whereArgs: force
+            ? ['pending', instansiId]
+            : ['pending', instansiId, DateTime.now().toIso8601String()],
       );
 
       if (pendingTransactions.isEmpty) {
@@ -116,18 +177,21 @@ class SyncService {
                 }),
                 'resolution': 'accepted_by_server',
                 'resolved_at': DateTime.now().toIso8601String(),
+                'next_retry_at': null,
               },
               where: 'id = ?',
               whereArgs: [id],
             );
             appLogger.i('SyncService: Transaksi $id berhasil disinkron.');
           } else if (_isRetryableNetworkFailure(result.exception)) {
+            final attempts = (tx['attempts'] as int? ?? 0) + 1;
             await db.update(
               'offline_transactions',
               {
                 'status': 'pending',
                 'error': result.exception.toString(),
                 'server_response': null,
+                'next_retry_at': _nextRetryAt(attempts).toIso8601String(),
               },
               where: 'id = ?',
               whereArgs: [id],
@@ -152,7 +216,7 @@ class SyncService {
             }
             final failure = AppErrorHandler.handle(exception);
             final status = classifyOfflineGraphQLErrors(
-              exception.graphqlErrors,
+              _allGraphQLErrors(exception),
             );
             await db.update(
               'offline_transactions',
@@ -169,9 +233,14 @@ class SyncService {
             );
           }
         } catch (e) {
+          final attempts = (tx['attempts'] as int? ?? 0) + 1;
           await db.update(
             'offline_transactions',
-            {'status': 'pending', 'error': e.toString()},
+            {
+              'status': 'pending',
+              'error': e.toString(),
+              'next_retry_at': _nextRetryAt(attempts).toIso8601String(),
+            },
             where: 'id = ?',
             whereArgs: [id],
           );
@@ -186,9 +255,16 @@ class SyncService {
     }
   }
 
+  DateTime _nextRetryAt(int attempts) {
+    // 15 dtk, 30 dtk, 1 mnt ... maksimal 30 menit. Retry manual tetap langsung.
+    final exponent = attempts.clamp(1, 8) - 1;
+    final seconds = (15 * (1 << exponent)).clamp(15, 1800);
+    return DateTime.now().add(Duration(seconds: seconds));
+  }
+
   bool _isRetryableNetworkFailure(OperationException? exception) {
     final linkException = exception?.linkException;
-    if (linkException == null || exception?.graphqlErrors.isNotEmpty == true) {
+    if (linkException == null || _allGraphQLErrors(exception).isNotEmpty) {
       return false;
     }
 
@@ -203,7 +279,7 @@ class SyncService {
   }
 
   String _encodeServerErrors(OperationException? exception) {
-    final errors = exception?.graphqlErrors ?? const [];
+    final errors = _allGraphQLErrors(exception);
     return jsonEncode(
       errors
           .map(
@@ -214,6 +290,24 @@ class SyncService {
           )
           .toList(),
     );
+  }
+
+  List<GraphQLError> _allGraphQLErrors(OperationException? exception) {
+    if (exception == null) return const [];
+    final errors = <GraphQLError>[...exception.graphqlErrors];
+    final linkException = exception.linkException;
+    if (linkException is ServerException) {
+      for (final error in linkException.parsedResponse?.errors ?? const []) {
+        if (!errors.any(
+          (existing) =>
+              existing.message == error.message &&
+              existing.extensions?['code'] == error.extensions?['code'],
+        )) {
+          errors.add(error);
+        }
+      }
+    }
+    return errors;
   }
 
   Future<List<Map<String, dynamic>>> getOfflineTransactions({
@@ -247,6 +341,7 @@ class SyncService {
         'server_response': null,
         'resolution': 'retry_after_review',
         'resolved_at': DateTime.now().toIso8601String(),
+        'next_retry_at': null,
       },
       where:
           'id = ? AND instansi_id = ? AND status IN (?, ?, ?) AND '
@@ -260,7 +355,7 @@ class SyncService {
         'rejected_by_operator',
       ],
     );
-    await syncOfflineTransactions();
+    await syncOfflineTransactions(force: true);
   }
 
   Future<int> retryAllRejected() async {
@@ -275,6 +370,7 @@ class SyncService {
         'error': null,
         'resolution': 'bulk_retry_rejected',
         'resolved_at': DateTime.now().toIso8601String(),
+        'next_retry_at': null,
       },
       where:
           'instansi_id = ? AND status = ? AND '

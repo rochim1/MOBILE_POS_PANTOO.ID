@@ -20,7 +20,11 @@ class PosShiftBloc extends Bloc<PosShiftEvent, PosShiftState> {
   ) async {
     emit(PosShiftLoading());
 
-    final activeShift = await posRepository.getActiveShift(event.tokoId);
+    // Backend memberlakukan satu shift terbuka per kasir untuk seluruh toko.
+    // Karena itu status layar juga harus dicari secara global; filter toko dapat
+    // menyembunyikan shift outlet lain dan membuat tombol buka menghasilkan
+    // konflik "masih ada shift aktif" yang tampak keliru.
+    final activeShift = await posRepository.getActiveShift();
 
     final historyResult = await posRepository.getShiftHistory();
     List<Map<String, dynamic>> history = [];

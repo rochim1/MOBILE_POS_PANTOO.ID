@@ -1135,11 +1135,13 @@ class PosRepository {
 
   Future<List<PosOrder>> getOrders() async => (await getOrdersPage()).items;
 
-  Future<Map<String, dynamic>?> getActiveShift(String tokoId) async {
+  Future<Map<String, dynamic>?> getActiveShift([String? tokoId]) async {
     try {
       final QueryOptions options = QueryOptions(
         document: gql(PosQueries.getMyActiveKasirShift),
-        variables: {'toko_id': tokoId},
+        variables: {
+          if (tokoId != null && tokoId.trim().isNotEmpty) 'toko_id': tokoId,
+        },
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
@@ -1430,6 +1432,13 @@ class PosRepository {
     if (supportsOfflineDatabase) {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
+        if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
+          return const Left(
+            NetworkFailure(
+              'Pembayaran non-tunai harus diverifikasi oleh server. Pilih Tunai atau sambungkan perangkat ke internet.',
+            ),
+          );
+        }
         if (expiredSaleAuthorizerPin.trim().isNotEmpty) {
           return const Left(
             NetworkFailure(
@@ -1457,6 +1466,7 @@ class PosRepository {
             items: receiptItems,
             salesChannel: salesChannel,
             customerSegment: customerSegment,
+            orderType: orderType,
             promoCode: promoCode ?? '',
             note: catatan ?? '',
           ),
@@ -1482,6 +1492,7 @@ class PosRepository {
             cashierName: _prefs.getString('name') ?? '',
             salesChannel: salesChannel,
             customerSegment: customerSegment,
+            orderType: orderType,
             promoCode: promoCode ?? '',
             note: catatan ?? '',
             items: receiptItems,
@@ -1492,6 +1503,13 @@ class PosRepository {
       if (result.hasException && _isRetryableNetworkFailure(result.exception)) {
         if (!supportsOfflineDatabase) {
           return Left(AppErrorHandler.handle(result.exception!));
+        }
+        if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
+          return const Left(
+            NetworkFailure(
+              'Server tidak dapat dijangkau. Pembayaran non-tunai belum disimpan karena harus diverifikasi online.',
+            ),
+          );
         }
         await _saveTransactionToOfflineQueue(
           payload,
@@ -1519,6 +1537,7 @@ class PosRepository {
             cashierName: _prefs.getString('name') ?? '',
             salesChannel: salesChannel,
             customerSegment: customerSegment,
+            orderType: orderType,
             promoCode: promoCode ?? '',
             note: catatan ?? '',
             items: receiptItems,
@@ -1535,6 +1554,13 @@ class PosRepository {
         return const Left(
           NetworkFailure(
             'Koneksi server terputus. Transaksi web belum disimpan; silakan coba kembali.',
+          ),
+        );
+      }
+      if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
+        return const Left(
+          NetworkFailure(
+            'Server tidak dapat dijangkau. Pembayaran non-tunai belum disimpan karena harus diverifikasi online.',
           ),
         );
       }
@@ -1564,6 +1590,7 @@ class PosRepository {
           cashierName: _prefs.getString('name') ?? '',
           salesChannel: salesChannel,
           customerSegment: customerSegment,
+          orderType: orderType,
           promoCode: promoCode ?? '',
           note: catatan ?? '',
           items: receiptItems,
@@ -1696,11 +1723,35 @@ class PosRepository {
   bool _isRetryableNetworkFailure(OperationException? exception) {
     final linkException = exception?.linkException;
     if (linkException == null) return false;
+    if (exception!.graphqlErrors.isNotEmpty) return false;
+    // graphql_flutter dapat membungkus respons GraphQL berstatus HTTP 4xx
+    // sebagai ServerException dan membiarkan graphqlErrors luar kosong.
+    // Respons yang sudah mencapai API bukan kegagalan koneksi dan tidak boleh
+    // diam-diam disimpan sebagai transaksi offline.
+    if (linkException is ServerException &&
+        (linkException.parsedResponse?.errors?.isNotEmpty ?? false)) {
+      return false;
+    }
     if (linkException is HttpLinkServerException) {
       final status = linkException.response.statusCode;
       return status >= 500 || status == 408 || status == 429;
     }
     return true;
+  }
+
+  bool _isOfflinePaymentAllowed(
+    String paymentMethod,
+    List<Map<String, dynamic>> payments,
+  ) {
+    if (paymentMethod == 'tunai') return true;
+    if (paymentMethod != 'split') return false;
+    // Split hanya aman offline bila seluruh komponennya tunai.
+    return payments.isNotEmpty &&
+        payments.every((payment) {
+          final method =
+              payment['metode']?.toString().toLowerCase().trim() ?? '';
+          return method == 'tunai';
+        });
   }
 
   PosTransactionResult _pendingOfflineResult({
@@ -1716,6 +1767,7 @@ class PosRepository {
     List<Map<String, dynamic>> items = const [],
     String salesChannel = '',
     String customerSegment = '',
+    String orderType = '',
     String promoCode = '',
     String note = '',
   }) => PosTransactionResult(
@@ -1737,6 +1789,7 @@ class PosRepository {
     cashierName: _prefs.getString('name') ?? '',
     salesChannel: salesChannel,
     customerSegment: customerSegment,
+    orderType: orderType,
     promoCode: promoCode,
     note: note,
     items: items,

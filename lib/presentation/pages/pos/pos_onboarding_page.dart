@@ -373,7 +373,10 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       (failure) async {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failure.message), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(failure.message),
+            backgroundColor: AppColors.danger,
+          ),
         );
       },
       (_) async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../bloc/pos/pos_bloc.dart';
 import '../../../bloc/pos/pos_event.dart';
@@ -69,7 +70,7 @@ class PosCartPanel extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.close, color: Colors.red),
+              icon: const Icon(Icons.close, color: AppColors.danger),
               onPressed: () {
                 context.read<PosBloc>().add(RemoveCartItem(product));
                 AppToast.info(

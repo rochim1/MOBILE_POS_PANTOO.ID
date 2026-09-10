@@ -14,6 +14,7 @@ class PosReceiptTemplate extends Equatable {
   final bool? showChannel;
   final bool? showSegment;
   final bool? showPromo;
+  final bool? showOrderType;
   final String? footerLine1;
   final String? footerLine2;
   final String? footerLine3;
@@ -35,6 +36,7 @@ class PosReceiptTemplate extends Equatable {
     this.showChannel,
     this.showSegment,
     this.showPromo,
+    this.showOrderType,
     this.footerLine1,
     this.footerLine2,
     this.footerLine3,
@@ -58,6 +60,7 @@ class PosReceiptTemplate extends Equatable {
       showChannel: json['show_channel'] as bool?,
       showSegment: json['show_segment'] as bool?,
       showPromo: json['show_promo'] as bool?,
+      showOrderType: json['show_tipe_pesanan'] as bool?,
       footerLine1: json['footer_line1'] as String?,
       footerLine2: json['footer_line2'] as String?,
       footerLine3: json['footer_line3'] as String?,
@@ -82,6 +85,7 @@ class PosReceiptTemplate extends Equatable {
       'show_channel': showChannel,
       'show_segment': showSegment,
       'show_promo': showPromo,
+      'show_tipe_pesanan': showOrderType,
       'footer_line1': footerLine1,
       'footer_line2': footerLine2,
       'footer_line3': footerLine3,
@@ -105,6 +109,7 @@ class PosReceiptTemplate extends Equatable {
     bool? showChannel,
     bool? showSegment,
     bool? showPromo,
+    bool? showOrderType,
     String? footerLine1,
     String? footerLine2,
     String? footerLine3,
@@ -126,6 +131,7 @@ class PosReceiptTemplate extends Equatable {
       showChannel: showChannel ?? this.showChannel,
       showSegment: showSegment ?? this.showSegment,
       showPromo: showPromo ?? this.showPromo,
+      showOrderType: showOrderType ?? this.showOrderType,
       footerLine1: footerLine1 ?? this.footerLine1,
       footerLine2: footerLine2 ?? this.footerLine2,
       footerLine3: footerLine3 ?? this.footerLine3,
@@ -150,6 +156,7 @@ class PosReceiptTemplate extends Equatable {
     showChannel,
     showSegment,
     showPromo,
+    showOrderType,
     footerLine1,
     footerLine2,
     footerLine3,

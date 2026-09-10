@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_event.dart';
@@ -167,7 +168,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
         : null;
 
     final isDiffZero = (shift['cash_difference'] ?? 0) == 0;
-    final diffColor = isDiffZero ? Colors.green : Colors.red;
+    final diffColor = isDiffZero ? AppColors.success : AppColors.danger;
 
     final isOpen = shift['status'] == 'open';
 
@@ -194,14 +195,13 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: (isOpen ? Colors.green : Colors.blueGrey).withValues(
-                    alpha: 0.1,
-                  ),
+                  color: (isOpen ? AppColors.success : AppColors.neutral)
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.point_of_sale_rounded,
-                  color: isOpen ? Colors.green.shade700 : Colors.blueGrey,
+                  color: isOpen ? AppColors.success : AppColors.neutral,
                   size: 21,
                 ),
               ),
@@ -225,16 +225,14 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
                 ),
                 decoration: BoxDecoration(
                   color: isOpen
-                      ? Colors.green.withValues(alpha: 0.1)
+                      ? AppColors.success.withValues(alpha: 0.1)
                       : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   isOpen ? 'Buka' : 'Tutup',
                   style: TextStyle(
-                    color: isOpen
-                        ? Colors.green.shade700
-                        : Colors.grey.shade700,
+                    color: isOpen ? AppColors.success : Colors.grey.shade700,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),

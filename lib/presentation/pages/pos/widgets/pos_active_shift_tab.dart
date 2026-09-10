@@ -95,6 +95,18 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
 
                 if (state is PosShiftLoaded) {
                   if (state.activeShift != null) {
+                    final activeStoreId = state.activeShift!['toko_id']
+                        ?.toString();
+                    if (activeStoreId != null &&
+                        activeStoreId.isNotEmpty &&
+                        activeStoreId != selectedTokoId &&
+                        stores.any((store) => store.id == activeStoreId)) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && selectedTokoId != activeStoreId) {
+                          setState(() => selectedTokoId = activeStoreId);
+                        }
+                      });
+                    }
                     return _buildActiveShiftInfo(context, state.activeShift!);
                   }
                   return _buildOpenShiftForm(context);
@@ -178,19 +190,9 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF10B981), Color(0xFF047857)],
-            ),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF059669).withValues(alpha: 0.25),
-                blurRadius: 14,
-                offset: const Offset(0, 7),
-              ),
-            ],
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,12 +202,12 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                   Container(
                     padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      color: AppColors.successBackground,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.lock_open_rounded,
-                      color: Colors.white,
+                      color: AppColors.success,
                     ),
                   ),
                   const SizedBox(width: 11),
@@ -217,13 +219,16 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                           'Shift sedang berjalan',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.heading,
                             fontSize: 16,
                           ),
                         ),
                         Text(
                           'Kasir siap menerima transaksi',
-                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -234,7 +239,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               Text(
                 shift['toko']?['nama_toko'] ?? '-',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.heading,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
@@ -244,7 +249,10 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 openedAt != null
                     ? 'Dibuka ${DateFormat('dd MMM, HH:mm').format(openedAt)}'
                     : 'Waktu buka tidak tersedia',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 18),
               Row(
@@ -293,13 +301,13 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => _promptPettyCash(context, 'in', shift['_id']),
-                icon: const Icon(Icons.download, color: Colors.green),
+                icon: const Icon(Icons.download, color: AppColors.success),
                 label: const Text(
                   'Kas Masuk',
-                  style: TextStyle(color: Colors.green),
+                  style: TextStyle(color: AppColors.success),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.green),
+                  side: const BorderSide(color: AppColors.successBorder),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -311,13 +319,13 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => _promptPettyCash(context, 'out', shift['_id']),
-                icon: const Icon(Icons.upload, color: Colors.orange),
+                icon: const Icon(Icons.upload, color: AppColors.warning),
                 label: const Text(
                   'Kas Keluar',
-                  style: TextStyle(color: Colors.orange),
+                  style: TextStyle(color: AppColors.warning),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.orange),
+                  side: const BorderSide(color: AppColors.warningBorder),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -331,7 +339,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
         ElevatedButton(
           onPressed: () => _promptCloseShift(context, shift),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
@@ -351,7 +359,8 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     return Container(
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+        color: AppColors.surfaceSecondary,
+        border: Border.all(color: AppColors.dividerColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -361,7 +370,10 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 10),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 10,
+            ),
           ),
           const SizedBox(height: 3),
           Text(
@@ -369,7 +381,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.heading,
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),
@@ -631,7 +643,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 Navigator.pop(bottomSheetContext);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: AppColors.danger,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(

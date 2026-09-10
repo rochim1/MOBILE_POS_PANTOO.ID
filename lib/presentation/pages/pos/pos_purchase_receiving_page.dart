@@ -529,7 +529,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: Color(0xFFE1E5EA)),
+                      side: const BorderSide(color: Color(0xFFE1E5E9)),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),

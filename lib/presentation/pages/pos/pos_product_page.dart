@@ -934,7 +934,7 @@ class _PosProductPageState extends State<PosProductPage> {
                       _showDeleteConfirmation(context, product, bloc);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor: AppColors.danger,
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Hapus'),
@@ -1151,7 +1151,7 @@ class _PosProductPageState extends State<PosProductPage> {
               bloc.add(DeleteProduct(product.id));
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -2041,7 +2041,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                             const Icon(Icons.broken_image_outlined),
                       )
                     : const ColoredBox(
-                        color: Color(0xFFF2F4F7),
+                        color: Color(0xFFF2F4F6),
                         child: Icon(Icons.image_outlined),
                       ),
               ),

@@ -1170,7 +1170,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE1E5EA)),
+        side: const BorderSide(color: Color(0xFFE1E5E9)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1676,7 +1676,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE1E5EA)),
+        side: const BorderSide(color: Color(0xFFE1E5E9)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1879,14 +1879,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FF),
+                color: const Color(0xFFEDF4F8),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFC8DCFF)),
+                border: Border.all(color: const Color(0xFFD2E1EA)),
               ),
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, color: Color(0xFF245BC2)),
+                  Icon(Icons.info_outline, color: Color(0xFF3E6F8E)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1917,7 +1917,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
         title: Text('${_editing ? 'Ubah' : 'Tambah'} ${_title(widget.type)}'),
         backgroundColor: AppColors.primary,
@@ -2071,7 +2071,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: .09),
+                          color: AppColors.warning.withValues(alpha: .09),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
@@ -2591,7 +2591,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: Color(0xFFE1E5EA)),
+                          side: const BorderSide(color: Color(0xFFE1E5E9)),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),

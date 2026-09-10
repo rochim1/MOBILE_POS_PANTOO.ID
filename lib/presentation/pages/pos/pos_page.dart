@@ -107,7 +107,11 @@ class _PosPageViewState extends State<PosPageView> {
                     ),
                     title: const Row(
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 28),
+                        Icon(
+                          Icons.check_circle,
+                          color: AppColors.success,
+                          size: 28,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'Pembayaran Berhasil',
@@ -159,7 +163,7 @@ class _PosPageViewState extends State<PosPageView> {
                     title: const Text(
                       'Pembayaran Gagal',
                       style: TextStyle(
-                        color: Colors.red,
+                        color: AppColors.danger,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -490,7 +494,7 @@ class _PosPageViewState extends State<PosPageView> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
-                        color: Colors.amber,
+                        color: AppColors.warning,
                         shape: BoxShape.circle,
                       ),
                       child: Text(

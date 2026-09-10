@@ -1329,12 +1329,12 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                     if ((data['rejected_reason']?.toString() ?? '').isNotEmpty)
                       _Notice(
                         'Ditolak: ${data['rejected_reason']}',
-                        Colors.red,
+                        AppColors.danger,
                       ),
                     if ((data['journal_error']?.toString() ?? '').isNotEmpty)
                       _Notice(
                         'Jurnal gagal: ${data['journal_error']}',
-                        Colors.orange,
+                        AppColors.warning,
                       ),
                     const SizedBox(height: 16),
                     Wrap(spacing: 8, runSpacing: 8, children: _actions(data)),
@@ -1525,11 +1525,11 @@ String _date(dynamic value) {
 }
 
 Color _statusColor(String status) => switch (status) {
-  'draft' => Colors.blueGrey,
-  'pending_approval' => Colors.orange,
-  'approved' => Colors.blue,
-  'rejected' => Colors.red,
-  'processed' => Colors.green,
+  'draft' => AppColors.neutral,
+  'pending_approval' => AppColors.warning,
+  'approved' => AppColors.info,
+  'rejected' => AppColors.danger,
+  'processed' => AppColors.success,
   _ => Colors.grey,
 };
 String _statusLabel(String status) => switch (status) {

@@ -16,6 +16,7 @@ class PosReceiptQueries {
         show_channel
         show_segment
         show_promo
+        show_tipe_pesanan
         footer_line1
         footer_line2
         footer_line3
@@ -33,6 +34,7 @@ class PosReceiptQueries {
         provinsi
         kabupaten
         NPWP
+        logo
        }
       }
     }
@@ -55,6 +57,7 @@ class PosReceiptQueries {
         show_channel
         show_segment
         show_promo
+        show_tipe_pesanan
         footer_line1
         footer_line2
         footer_line3

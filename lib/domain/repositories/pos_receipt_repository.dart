@@ -45,12 +45,14 @@ class PosReceiptRepository {
       final rawCompany = Map<String, dynamic>.from(
         receiptData?['instansi'] as Map? ?? const {},
       );
+      final company = rawCompany.map(
+        (key, value) => MapEntry(key, value?.toString() ?? ''),
+      );
+      company['logo'] = _clientProvider.resolveMediaUrl(rawCompany['logo']);
       return Right(
         PosReceiptPrintData(
           template: PosReceiptTemplate.fromJson(templateData),
-          company: rawCompany.map(
-            (key, value) => MapEntry(key, value?.toString() ?? ''),
-          ),
+          company: company,
         ),
       );
     } catch (e) {

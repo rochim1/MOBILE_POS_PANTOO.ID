@@ -27,7 +27,7 @@ class PosAppBarTitle extends StatelessWidget {
             width: 7,
             height: 7,
             decoration: BoxDecoration(
-              color: online ? const Color(0xFF4ADE80) : AppColors.warning,
+              color: online ? const Color(0xFF087F75) : AppColors.warning,
               shape: BoxShape.circle,
             ),
           ),

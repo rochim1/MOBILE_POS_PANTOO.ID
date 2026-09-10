@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -110,7 +111,7 @@ class _RegisterViewState extends State<_RegisterView> {
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
       filled: true,
-      fillColor: const Color(0xfff7f8fa),
+      fillColor: const Color(0xFFF7F8FA),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
@@ -137,7 +138,7 @@ class _RegisterViewState extends State<_RegisterView> {
       );
     }
     if (available == null) return const SizedBox.shrink();
-    final color = available ? Colors.green.shade700 : Colors.red.shade700;
+    final color = available ? AppColors.success : AppColors.danger;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -216,7 +217,7 @@ class _RegisterViewState extends State<_RegisterView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.error!),
-              backgroundColor: Colors.red.shade700,
+              backgroundColor: AppColors.danger,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -492,7 +493,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                           TextSpan(
                                             text: 'Masuk',
                                             style: const TextStyle(
-                                              color: Color(0xff0f8177),
+                                              color: Color(0xFF087F75),
                                               fontWeight: FontWeight.w700,
                                             ),
                                             recognizer: TapGestureRecognizer()

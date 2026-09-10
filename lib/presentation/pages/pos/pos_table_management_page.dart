@@ -305,10 +305,10 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
 
   Widget _buildGridCard(PosTableModel table) {
     final isAvailable = table.status.toLowerCase() != 'terisi';
-    final accent = isAvailable ? AppColors.primary : Colors.orange.shade700;
+    final accent = isAvailable ? AppColors.primary : AppColors.warning;
 
     return Material(
-      color: isAvailable ? Colors.white : Colors.orange.shade50,
+      color: isAvailable ? Colors.white : AppColors.warningBackground,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: () => _showTableForm(context, table: table),
@@ -321,7 +321,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
             border: Border.all(
               color: isAvailable
                   ? Colors.grey.shade200
-                  : Colors.orange.shade300,
+                  : AppColors.warningBorder,
             ),
           ),
           child: Column(
@@ -435,7 +435,10 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   const PopupMenuItem(value: 'edit', child: Text('Edit')),
                   const PopupMenuItem(
                     value: 'delete',
-                    child: Text('Hapus', style: TextStyle(color: Colors.red)),
+                    child: Text(
+                      'Hapus',
+                      style: TextStyle(color: AppColors.danger),
+                    ),
                   ),
                 ],
               ),
@@ -455,7 +458,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
         vertical: compact ? 3 : 4,
       ),
       decoration: BoxDecoration(
-        color: isAvailable ? Colors.green : Colors.orange,
+        color: isAvailable ? AppColors.success : AppColors.warning,
         borderRadius: BorderRadius.circular(compact ? 8 : 12),
       ),
       child: Text(

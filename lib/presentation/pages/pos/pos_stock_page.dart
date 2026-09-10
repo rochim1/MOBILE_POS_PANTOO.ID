@@ -266,7 +266,7 @@ class _PosStockViewState extends State<_PosStockView> {
         'Total Produk',
         stats != null ? formatter.format(stats.totalInventaris) : '-',
         Icons.inventory_2,
-        const Color(0xFF7C3AED),
+        AppColors.neutral,
       ),
       (
         'Nilai Stok',
@@ -274,19 +274,19 @@ class _PosStockViewState extends State<_PosStockView> {
             ? 'Rp ${_formatCurrency(stats.totalNilaiInventaris)}'
             : '-',
         Icons.account_balance_wallet,
-        const Color(0xFF2563EB),
+        AppColors.info,
       ),
       (
         'Stok Rendah',
         stats != null ? formatter.format(stats.lowStockCount) : '-',
         Icons.warning_amber_rounded,
-        const Color(0xFFD97706),
+        AppColors.warning,
       ),
       (
         'Stok Habis',
         stats != null ? formatter.format(stats.outOfStockCount) : '-',
         Icons.error_outline,
-        const Color(0xFFDC2626),
+        AppColors.danger,
       ),
     ];
     return Padding(
@@ -330,7 +330,7 @@ class _PosStockViewState extends State<_PosStockView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE1E5E9)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +352,7 @@ class _PosStockViewState extends State<_PosStockView> {
                   label,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF64748B),
+                    color: Color(0xFF737B89),
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -373,7 +373,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 style: const TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: Color(0xFF172033),
                 ),
               ),
             ),
@@ -964,13 +964,13 @@ class _PosStockViewState extends State<_PosStockView> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: AppColors.dangerBackground,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade100),
+                      border: Border.all(color: AppColors.dangerBorder),
                     ),
                     child: Text(
                       'Rincian lokasi gagal dimuat: ${balanceFailure.message}',
-                      style: TextStyle(color: Colors.red.shade800),
+                      style: TextStyle(color: AppColors.danger),
                     ),
                   )
                 else if (balances.isEmpty)
@@ -994,7 +994,7 @@ class _PosStockViewState extends State<_PosStockView> {
                     padding: EdgeInsets.only(top: 8),
                     child: Text(
                       'Produk ini dilacak per batch. Koreksi stok dilakukan melalui Stock Opname agar batch dan kedaluwarsa tetap konsisten.',
-                      style: TextStyle(color: Color(0xFFD97706)),
+                      style: TextStyle(color: AppColors.warning),
                     ),
                   ),
                 const SizedBox(height: 18),
@@ -1093,7 +1093,7 @@ class _PosStockViewState extends State<_PosStockView> {
                           'Lokasi utama • belum dirinci ke gedung/ruangan/rak',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFD97706),
+                            color: AppColors.warning,
                           ),
                         ),
                     ],
@@ -1304,13 +1304,13 @@ class _PosStockViewState extends State<_PosStockView> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
+                      color: const Color(0xFFFFF7E6),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       'Pilih saldo lokasi fisik yang benar. Koreksi hanya untuk salah input teknis atau migrasi; hasil hitung fisik diproses melalui Stock Opname.',
                       style: const TextStyle(
-                        color: Color(0xFF9A3412),
+                        color: AppColors.warning,
                         height: 1.35,
                       ),
                     ),
@@ -1567,7 +1567,7 @@ class _PosStockViewState extends State<_PosStockView> {
   Color _getStockColor(PosStock stock) {
     if (stock.stok <= 0) return AppColors.danger;
     if (stock.stok <= stock.stokMinimum) return AppColors.warning;
-    return const Color(0xFF64748B);
+    return const Color(0xFF737B89);
   }
 
   String _getStockLabel(PosStock stock) {

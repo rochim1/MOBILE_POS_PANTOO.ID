@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get_it/get_it.dart';
 
@@ -259,7 +260,7 @@ class _IntroPageState extends State<IntroPage> {
                                   message,
                                   style: const TextStyle(color: Colors.white),
                                 ),
-                                backgroundColor: Colors.red.shade600,
+                                backgroundColor: AppColors.danger,
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );

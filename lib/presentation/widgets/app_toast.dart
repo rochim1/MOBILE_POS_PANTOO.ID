@@ -12,7 +12,9 @@ class AppToast {
     context,
     message: message,
     icon: Icons.check_circle,
-    color: const Color(0xFF198754),
+    color: AppColors.success,
+    background: AppColors.successBackground,
+    border: AppColors.successBorder,
     duration: const Duration(seconds: 2),
   );
 
@@ -20,7 +22,9 @@ class AppToast {
     context,
     message: message,
     icon: Icons.error_outline,
-    color: const Color(0xFFDC3545),
+    color: AppColors.danger,
+    background: AppColors.dangerBackground,
+    border: AppColors.dangerBorder,
     duration: const Duration(seconds: 4),
   );
 
@@ -29,6 +33,8 @@ class AppToast {
     message: message,
     icon: Icons.info_outline,
     color: AppColors.primary,
+    background: AppColors.infoBackground,
+    border: AppColors.infoBorder,
     duration: const Duration(seconds: 2),
   );
 
@@ -36,7 +42,9 @@ class AppToast {
     context,
     message: message,
     icon: Icons.warning_amber_rounded,
-    color: const Color(0xFFE6A700),
+    color: AppColors.warning,
+    background: AppColors.warningBackground,
+    border: AppColors.warningBorder,
     duration: const Duration(seconds: 3),
   );
 
@@ -45,6 +53,8 @@ class AppToast {
     required String message,
     required IconData icon,
     required Color color,
+    required Color background,
+    required Color border,
     required Duration duration,
   }) {
     _dismiss();
@@ -64,7 +74,8 @@ class AppToast {
           color: Colors.transparent,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: color,
+              color: background,
+              border: Border.all(color: border),
               borderRadius: BorderRadius.circular(12),
               boxShadow: const [
                 BoxShadow(
@@ -79,15 +90,15 @@ class AppToast {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, color: Colors.white, size: 20),
+                  Icon(icon, color: color, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       message,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: color,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -97,11 +108,7 @@ class AppToast {
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Tutup',
                     onPressed: _dismiss,
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white70,
-                      size: 18,
-                    ),
+                    icon: Icon(Icons.close, color: color, size: 18),
                   ),
                 ],
               ),

@@ -17,7 +17,7 @@ class PosReceiptBloc extends Bloc<PosReceiptEvent, PosReceiptState> {
   ) async {
     emit(state.copyWith(status: PosReceiptStatus.loading));
 
-    final result = await repository.getReceiptTemplate();
+    final result = await repository.getReceiptPrintData();
 
     result.fold(
       (failure) => emit(
@@ -26,8 +26,12 @@ class PosReceiptBloc extends Bloc<PosReceiptEvent, PosReceiptState> {
           errorMessage: failure.message,
         ),
       ),
-      (template) => emit(
-        state.copyWith(status: PosReceiptStatus.loaded, template: template),
+      (data) => emit(
+        state.copyWith(
+          status: PosReceiptStatus.loaded,
+          template: data.template,
+          company: data.company,
+        ),
       ),
     );
   }

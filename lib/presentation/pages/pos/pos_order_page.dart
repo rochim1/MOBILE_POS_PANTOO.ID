@@ -20,6 +20,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../../../core/receipt/pos_receipt_document_builder.dart';
+import '../../../../core/receipt/pos_receipt_print_service.dart';
 
 enum _OrderCategory { all, cashier, online, invoice }
 
@@ -484,13 +485,13 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         Icon(
                           Icons.pending_actions_outlined,
                           size: 16,
-                          color: Colors.orange.shade700,
+                          color: AppColors.warning,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           'Invoice tersimpan · menunggu pembayaran',
                           style: TextStyle(
-                            color: Colors.orange.shade800,
+                            color: AppColors.warning,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -935,15 +936,15 @@ class _PosOrderPageState extends State<PosOrderPage> {
     switch (status.toLowerCase()) {
       case 'selesai':
       case 'lunas':
-        return Colors.green;
+        return AppColors.success;
       case 'sebagian':
       case 'belum bayar':
       case 'baru':
-        return Colors.orange;
+        return AppColors.warning;
       case 'batal':
-        return Colors.red;
+        return AppColors.danger;
       default:
-        return Colors.orange;
+        return AppColors.warning;
     }
   }
 
@@ -1163,6 +1164,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
         cashierName: order.cashierName,
         customerName: order.customer,
         paymentMethod: order.paymentMethod,
+        orderType: order.orderType,
         subtotal: order.subtotal,
         discount: order.discountAmount,
         tax: order.taxAmount,
@@ -1275,9 +1277,13 @@ class _PosOrderPageState extends State<PosOrderPage> {
         printData.template,
         printData.company,
       );
-      await Printing.layoutPdf(
+      await PosReceiptPrintService(sl()).printPdf(
+        bytes: bytes,
         name: 'Struk-${order.invoice}',
-        onLayout: (_) async => bytes,
+        format: PosReceiptDocumentBuilder.pageFormatFor(
+          printData.template,
+          order.items.length,
+        ),
       );
     } catch (_) {
       if (mounted) AppToast.error(context, 'Gagal membuka layanan print struk');

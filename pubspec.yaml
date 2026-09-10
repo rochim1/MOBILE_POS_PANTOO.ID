@@ -94,6 +94,7 @@ flutter:
   assets:
     - .env
     - assets/images/pantoo_loading.gif
+    - assets/images/pantoo_brand_ambassador.png
     - assets/images/
     - assets/icons/
 

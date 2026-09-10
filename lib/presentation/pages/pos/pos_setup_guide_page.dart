@@ -448,8 +448,8 @@ class _SetupStepCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: step.complete
-                ? Colors.green.withValues(alpha: .1)
-                : Colors.orange.withValues(alpha: .1),
+                ? AppColors.success.withValues(alpha: .1)
+                : AppColors.warning.withValues(alpha: .1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -460,17 +460,13 @@ class _SetupStepCard extends StatelessWidget {
                     ? Icons.check_circle_outline
                     : Icons.schedule_outlined,
                 size: 15,
-                color: step.complete
-                    ? Colors.green.shade700
-                    : Colors.orange.shade800,
+                color: step.complete ? AppColors.success : AppColors.warning,
               ),
               const SizedBox(width: 5),
               Text(
                 step.complete ? 'Selesai' : 'Perlu disiapkan',
                 style: TextStyle(
-                  color: step.complete
-                      ? Colors.green.shade700
-                      : Colors.orange.shade800,
+                  color: step.complete ? AppColors.success : AppColors.warning,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),

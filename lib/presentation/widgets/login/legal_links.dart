@@ -51,9 +51,9 @@ class _PantooLegalLinksState extends State<PantooLegalLinks> {
       context,
     ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600);
     final linkStyle = style?.copyWith(
-      color: const Color(0xFF0F8177),
+      color: const Color(0xFF087F75),
       decoration: TextDecoration.underline,
-      decorationColor: const Color(0xFF0F8177),
+      decorationColor: const Color(0xFF087F75),
     );
 
     return Text.rich(

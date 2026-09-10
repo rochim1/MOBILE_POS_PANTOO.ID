@@ -40,6 +40,7 @@ class PosOrderDetail extends Equatable {
   final String? status; // e.g., 'active', 'completed', 'cancelled'
   final double? totalAmount;
   final String? tableId;
+  final String? tableName;
   final List<PosOrderItem> items;
   final String? createdAt;
 
@@ -50,6 +51,7 @@ class PosOrderDetail extends Equatable {
     this.status,
     this.totalAmount,
     this.tableId,
+    this.tableName,
     this.items = const [],
     this.createdAt,
   });
@@ -64,6 +66,7 @@ class PosOrderDetail extends Equatable {
       totalAmount: (json['grand_total'] as num? ?? json['total_amount'] as num?)
           ?.toDouble(),
       tableId: json['table_id'] as String?,
+      tableName: (json['table'] as Map?)?['name']?.toString(),
       items:
           (json['items'] as List<dynamic>?)
               ?.map((e) => PosOrderItem.fromJson(e as Map<String, dynamic>))
@@ -81,6 +84,7 @@ class PosOrderDetail extends Equatable {
     status,
     totalAmount,
     tableId,
+    tableName,
     items,
     createdAt,
   ];

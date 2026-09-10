@@ -12,6 +12,45 @@ class PosOrderRepository {
 
   PosOrderRepository(this._clientProvider);
 
+  Future<Either<Failure, List<PosOrderDetail>>> getActiveOrders({
+    required String storeId,
+    String search = '',
+    String status = '',
+  }) async {
+    try {
+      final filter = <String, dynamic>{
+        'toko_id': storeId,
+        if (search.trim().isNotEmpty) 'search': search.trim(),
+        'status': status.isEmpty ? '__active__' : status,
+      };
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosTableOrderQueries.getActiveOrders),
+          variables: {
+            'filter': filter,
+            'pagination': {'page': 0, 'limit': 100},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows =
+          result.data?['GetAllPOSOrder']?['items'] as List? ?? const [];
+      return Right(
+        rows
+            .whereType<Map>()
+            .map(
+              (row) => PosOrderDetail.fromJson(Map<String, dynamic>.from(row)),
+            )
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, List<PosOrderDetail>>> getOrdersByTable(
     String tableId,
   ) async {

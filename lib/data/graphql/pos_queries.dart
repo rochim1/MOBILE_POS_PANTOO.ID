@@ -471,6 +471,7 @@ class PosQueries {
         promo_discount
         pajak
         metode_pembayaran
+        tipe_pesanan
         uang_diterima
         kembalian
         payments { metode jumlah }
@@ -513,6 +514,7 @@ class PosQueries {
           kasir_name
           pelanggan
           metode_pembayaran
+          tipe_pesanan
           subtotal
           diskon
           pajak

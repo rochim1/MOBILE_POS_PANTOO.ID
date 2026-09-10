@@ -33,7 +33,7 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
 
     if (!canViewOrders && !canManageTables) {
       return const Center(
-        child: Text('Anda tidak memiliki akses Order & Meja.'),
+        child: Text('Anda tidak memiliki akses Pesanan Aktif & Meja.'),
       );
     }
 
@@ -44,12 +44,12 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
             if (canViewOrders)
               const PosFullWidthTab(
                 icon: Icons.receipt_long_outlined,
-                label: 'Daftar Order',
+                label: 'Pesanan Aktif',
               ),
             if (canManageTables)
               const PosFullWidthTab(
                 icon: Icons.table_restaurant_outlined,
-                label: 'Peta & Pengaturan Meja',
+                label: 'Peta Meja',
               ),
           ],
           selectedIndex: canViewOrders && canManageTables ? selectedTab : 0,

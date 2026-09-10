@@ -5,6 +5,7 @@ class PosOrder {
   final String customer;
   final String cashierName;
   final String paymentMethod;
+  final String orderType;
   final double total;
   final double subtotal;
   final double discountAmount;
@@ -25,6 +26,7 @@ class PosOrder {
     required this.customer,
     required this.cashierName,
     required this.paymentMethod,
+    this.orderType = '',
     required this.total,
     double? subtotal,
     this.discountAmount = 0,
@@ -65,6 +67,7 @@ class PosOrder {
           : 'Retail',
       cashierName: json['kasir_name'] ?? 'Kasir',
       paymentMethod: json['metode_pembayaran']?.toString() ?? '-',
+      orderType: json['tipe_pesanan']?.toString() ?? '',
       total: double.tryParse(json['total']?.toString() ?? '0') ?? 0.0,
       subtotal:
           double.tryParse(json['subtotal']?.toString() ?? '') ??
@@ -93,6 +96,7 @@ class PosOrder {
           : 'Retail',
       cashierName: json['kasir_name']?.toString() ?? 'Kasir',
       paymentMethod: json['metode_pembayaran']?.toString() ?? '-',
+      orderType: json['tipe_pesanan']?.toString() ?? '',
       total: double.tryParse(json['grand_total']?.toString() ?? '0') ?? 0,
       subtotal:
           double.tryParse(json['subtotal']?.toString() ?? '') ??

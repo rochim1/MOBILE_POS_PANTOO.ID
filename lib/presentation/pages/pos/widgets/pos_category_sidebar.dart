@@ -113,7 +113,7 @@ class _PosCategorySidebarState extends State<PosCategorySidebar> {
                         88, // Perfect square in collapsed state gives more padding
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFFE6F7F3)
+                          ? const Color(0xFFE6F4F2)
                           : Colors.transparent,
                       border: isSelected
                           ? Border(

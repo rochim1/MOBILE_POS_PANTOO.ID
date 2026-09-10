@@ -3,34 +3,61 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // app color
-  static const Color primary = Color(0xFF0F766E);
-  static const Color primaryDark = Color(0xFF0B5F59);
-  static const Color primarySoft = Color(0xFFE7F5F3);
-  static const Color secondary = Color(0xFF159E91);
-  static const Color accent = Color(0xFFF59E0B);
+  // Brand
+  static const Color primary = Color(0xFF087F75);
+  static const Color primaryDark = Color(0xFF06665F);
+  static const Color primaryLight = Color(0xFFE6F4F2);
+  static const Color primarySoft = Color(0xFFF1F8F7);
+  static const Color secondary = primary;
+  static const Color accent = Color(0xFFC88916);
+
+  // Text
+  static const Color heading = Color(0xFF172033);
+  static const Color body = Color(0xFF3F4756);
+  static const Color textSecondary = Color(0xFF737B89);
+  static const Color textMuted = Color(0xFF9AA1AC);
+
+  // Surface
+  static const Color appBackground = Color(0xFFF7F8FA);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceSecondary = Color(0xFFF3F5F6);
+  static const Color border = Color(0xFFE1E5E9);
+  static const Color dividerColor = Color(0xFFE8EBEE);
+
+  // Semantic
+  static const Color warning = Color(0xFFC88916);
+  static const Color warningBackground = Color(0xFFFFF7E6);
+  static const Color warningBorder = Color(0xFFF2DFB5);
+  static const Color success = primary;
+  static const Color successBackground = Color(0xFFE8F4F1);
+  static const Color successBorder = Color(0xFFC8E4DF);
+  static const Color danger = Color(0xFFB94A48);
+  static const Color dangerBackground = Color(0xFFFBEDEC);
+  static const Color dangerBorder = Color(0xFFEBCFCD);
+  static const Color info = Color(0xFF3E6F8E);
+  static const Color infoBackground = Color(0xFFEDF4F8);
+  static const Color infoBorder = Color(0xFFD2E1EA);
+  static const Color neutral = Color(0xFF667085);
+  static const Color neutralBackground = Color(0xFFF2F4F6);
+  static const Color neutralBorder = Color(0xFFDDE1E6);
+  static const Color secondaryButtonBorder = Color(0xFFD5E5E2);
 
   // component color
-  static const Color divider = Color(0xFFC6C6C8);
-  static const Color dividerLight = Color(0xFFEBEBF5);
-  static const Color danger = Color(0xFFFF453A);
-  static const Color warning = Color(0xFFFF9F0A);
-  static const Color success = Color(0xFF32D74B);
+  static const Color divider = dividerColor;
+  static const Color dividerLight = dividerColor;
   static const Color white = Color(0xFFFFFFFF);
   static const Color transparent = Colors.transparent;
   static const Color splash = Color(0x2AFFF8FF);
   static const Color listMenu = Color(0xFF1F3682);
 
   // border
-  static final Color borderGrey = Colors.grey.shade300;
+  static const Color borderGrey = border;
 
   // label text light
-  static const Color labelPrimary = Color(0xFF3C3C43);
-  static Color labelSecondary = const Color(0xFF3C3C43).withValues(alpha: 0.6);
-  static Color labelTertiary = const Color(0xFF3C3C43).withValues(alpha: 0.3);
-  static Color labelQuarternary = const Color(
-    0xFF3C3C43,
-  ).withValues(alpha: 0.18);
+  static const Color labelPrimary = body;
+  static const Color labelSecondary = textSecondary;
+  static const Color labelTertiary = textMuted;
+  static const Color labelQuarternary = neutralBorder;
 
   // label text dark
   static Color labelPrimaryDark = const Color(0xFFFFFFFF);
@@ -47,66 +74,66 @@ class AppColors {
   ).withValues(alpha: 0.08);
 
   // system fill color
-  static const Color red = Color(0xFFFF3B30);
-  static const Color orange = Color(0xFFFF9500);
-  static const Color yellow = Color(0xFFFFCC00);
-  static const Color green = Color(0xFF34C759);
-  static const Color tial = Color(0xFF5AC8FA);
-  static const Color blue = Color(0xFF007AFF);
-  static const Color indigo = Color(0xFF5856D6);
-  static const Color purple = Color(0xFFAF52DE);
-  static const Color pink = Color(0xFFFF2D55);
+  static const Color red = danger;
+  static const Color orange = warning;
+  static const Color yellow = warning;
+  static const Color green = success;
+  static const Color tial = info;
+  static const Color blue = info;
+  static const Color indigo = info;
+  static const Color purple = Color(0xFF7569A6);
+  static const Color pink = neutral;
 
   // system light color
-  static const Color lightRed = Color(0xFFFFDDDB);
-  static const Color lightOrange = Color(0xFFFFEDD3);
-  static const Color lightYellow = Color(0xFFFFF6D3);
-  static const Color lightGreen = Color(0xFFDBF6E2);
-  static const Color lightTial = Color(0xFFE2F5FE);
-  static const Color lightBlue = Color(0xFFD3E8FF);
-  static const Color lightIndigo = Color(0xFFE2E2F8);
-  static const Color lightPurple = Color(0xFFF1E1F9);
-  static const Color lightPink = Color(0xFFFFDAE1);
+  static const Color lightRed = dangerBackground;
+  static const Color lightOrange = warningBackground;
+  static const Color lightYellow = warningBackground;
+  static const Color lightGreen = successBackground;
+  static const Color lightTial = infoBackground;
+  static const Color lightBlue = infoBackground;
+  static const Color lightIndigo = infoBackground;
+  static const Color lightPurple = Color(0xFFF0EEF8);
+  static const Color lightPink = neutralBackground;
 
   // backgroud color light
-  static const Color bgPrimary = Color(0xFFF4F7FA);
-  static const Color bgSecondary = Color(0xFFF2F2F7);
+  static const Color bgPrimary = appBackground;
+  static const Color bgSecondary = surfaceSecondary;
 
   // backgroud color dark
   static const Color bgPrimaryDark = Color(0xFF1C1C1E);
   static const Color bgSecondaryDark = Color(0xFF2C2C2E);
 
   // App Shimmer
-  static const Color shimmerBaseColor = Color(0xFFCCCCCC);
-  static const Color shimmerHighlightColor = Color(0xFFEFEFEF);
+  static const Color shimmerBaseColor = Color(0xFFE1E5E9);
+  static const Color shimmerHighlightColor = Color(0xFFF3F5F6);
 
   /// [MaterialColor] theme map color
-  static const MaterialColor grey = MaterialColor(0xFF8E8E93, <int, Color>{
-    50: Color(0xFFF2F2F7), //10%
-    100: Color(0xFFE5E5EA), //20%
-    200: Color(0xFFD1D1D6), //30%
-    300: Color(0xFFC7C7CC), //40%
-    400: Color(0xFFAEAEB2), //50%
-    500: Color(0xFF8E8E93), //60%
-    600: Color(0xFF636366), //70%
-    700: Color(0xFF48484A), //80%
-    800: Color(0xFF3A3A3C), //90%
-    850: Color(0xFF2C2C2E), //95%
-    900: Color(0xFF1C1C1E), //100%
+  static const MaterialColor grey = MaterialColor(0xFF737B89, <int, Color>{
+    50: Color(0xFFF7F8FA),
+    100: Color(0xFFF3F5F6),
+    200: Color(0xFFE8EBEE),
+    300: Color(0xFFE1E5E9),
+    400: Color(0xFFB8BEC7),
+    500: Color(0xFF9AA1AC),
+    600: Color(0xFF737B89),
+    700: Color(0xFF667085),
+    800: Color(0xFF3F4756),
+    850: Color(0xFF273143),
+    900: Color(0xFF172033),
   });
 
   /// [MaterialColor] theme map color
   static const MaterialColor primaryTheme =
-      MaterialColor(0xFF4CAF50, <int, Color>{
-        50: Color(0xFFEAF5EA),
-        100: Color(0xFFC9E7CB),
-        200: Color(0xFFA6D7A8),
-        300: Color(0xFF82C785),
-        400: Color(0xFF67BB6A),
-        500: Color(0xFF4CAF50),
-        600: Color(0xFF45A849),
-        700: Color(0xFF3C9F40),
-        800: Color(0xFF339637),
-        900: Color(0xFF248627),
+      MaterialColor(0xFF087F75, <int, Color>{
+        50: Color(0xFFF1F8F7),
+        100: Color(0xFFE6F4F2),
+        200: Color(0xFFC8E4DF),
+        300: Color(0xFF8FCBC3),
+        400: Color(0xFF4DA99F),
+        500: Color(0xFF087F75),
+        600: Color(0xFF07736A),
+        700: Color(0xFF06665F),
+        800: Color(0xFF05564F),
+        900: Color(0xFF03433E),
       });
 }

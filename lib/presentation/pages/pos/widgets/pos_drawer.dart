@@ -4,6 +4,8 @@ import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_cubit.dart';
+import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
 
 import '../../common/feature_placeholder_page.dart';
 import '../../login/login_page.dart';
@@ -98,14 +100,20 @@ class _PosDrawerState extends State<PosDrawer> {
             child: SafeArea(
               top: false,
               child: InkWell(
-                onTap: () {
+                onTap: () async {
+                  final summary = await sl<SyncService>().getQueueSummary();
+                  if (!context.mounted) return;
+                  final unresolved =
+                      (summary['unresolved'] as num?)?.toInt() ?? 0;
                   showDialog(
                     context: context,
                     builder: (BuildContext dialogContext) {
                       return AlertDialog(
                         title: const Text('Konfirmasi Keluar'),
-                        content: const Text(
-                          'Apakah Anda yakin ingin keluar dari aplikasi?',
+                        content: Text(
+                          unresolved > 0
+                              ? '$unresolved transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi sinkronisasi tertunda sampai akun instansi ini login kembali.'
+                              : 'Apakah Anda yakin ingin keluar dari aplikasi?',
                         ),
                         actions: [
                           TextButton(
@@ -130,7 +138,7 @@ class _PosDrawerState extends State<PosDrawer> {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                              backgroundColor: AppColors.danger,
                             ),
                             child: const Text(
                               'Keluar',
@@ -144,12 +152,12 @@ class _PosDrawerState extends State<PosDrawer> {
                 },
                 child: const Row(
                   children: [
-                    Icon(Icons.logout, color: Colors.red),
+                    Icon(Icons.logout, color: AppColors.danger),
                     SizedBox(width: 16),
                     Text(
                       'Keluar',
                       style: TextStyle(
-                        color: Colors.red,
+                        color: AppColors.danger,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -201,7 +209,11 @@ class _PosDrawerState extends State<PosDrawer> {
         if (can('use_cashier'))
           _buildShellItem(Icons.point_of_sale_outlined, 'Kasir', 1),
         if (useTables && (viewTables || manageTables))
-          _buildShellItem(Icons.restaurant_menu_outlined, 'Order & Meja', 5),
+          _buildShellItem(
+            Icons.restaurant_menu_outlined,
+            'Pesanan Aktif & Meja',
+            5,
+          ),
 
         // ---- Manajemen ----
         _buildSectionHeader('MANAJEMEN'),
@@ -247,7 +259,7 @@ class _PosDrawerState extends State<PosDrawer> {
           _buildShellItem(Icons.print_outlined, 'Pengaturan Struk', 14),
         _buildShellItem(
           Icons.cloud_sync_outlined,
-          'Antrean & Sinkronisasi',
+          'Antrean Transaksi Offline',
           15,
         ),
       ],
@@ -380,7 +392,7 @@ class _PosDrawerState extends State<PosDrawer> {
         ),
       ),
       selected: isSelected,
-      selectedTileColor: const Color(0xFFE6F7F3),
+      selectedTileColor: const Color(0xFFE6F4F2),
       onTap: () => _closeAndSwitchTab(index),
     );
   }

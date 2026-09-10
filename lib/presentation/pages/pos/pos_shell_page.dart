@@ -66,10 +66,12 @@ class _PosShellPageState extends State<PosShellPage>
   bool _setupCompleted = false;
   String _inventoryInitialSection = 'stock';
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _offlineSyncTimer;
   final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
   List<Map<String, dynamic>> _navbarNotifications = const [];
   int _unreadNotifications = 0;
   bool _notificationsLoading = false;
+  int _offlineUnresolved = 0;
 
   bool get _railExpanded => _sidebarMode == 0;
 
@@ -79,9 +81,9 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Katalog Penjualan', icon: Icons.inventory_2_outlined),
     (label: 'Riwayat', icon: Icons.receipt_long_outlined),
     (label: 'Menu', icon: Icons.apps_outlined),
-    (label: 'Order & Meja', icon: Icons.table_restaurant_outlined),
+    (label: 'Pesanan Aktif & Meja', icon: Icons.table_restaurant_outlined),
     // Alias indeks lama agar deep-link/state tersimpan tetap menuju hub baru.
-    (label: 'Order & Meja', icon: Icons.table_restaurant_outlined),
+    (label: 'Pesanan Aktif & Meja', icon: Icons.table_restaurant_outlined),
     (label: 'Inventori', icon: Icons.warehouse_outlined),
     (label: 'Promo & Voucher', icon: Icons.discount_outlined),
     (label: 'Pelanggan', icon: Icons.people_outline),
@@ -90,7 +92,7 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Laporan Penjualan', icon: Icons.bar_chart_outlined),
     (label: 'Retur Penjualan', icon: Icons.keyboard_return_outlined),
     (label: 'Pengaturan Printer', icon: Icons.print_outlined),
-    (label: 'Antrean & Sinkronisasi', icon: Icons.cloud_sync_outlined),
+    (label: 'Antrean Transaksi Offline', icon: Icons.cloud_sync_outlined),
     (label: 'Retur ke Supplier', icon: Icons.assignment_return_outlined),
     (label: 'Pengaturan POS', icon: Icons.settings_outlined),
   ];
@@ -108,15 +110,37 @@ class _PosShellPageState extends State<PosShellPage>
     }
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadNavbarNotifications();
+      if (mounted) {
+        _loadNavbarNotifications();
+        _refreshOfflineQueueSummary();
+      }
     });
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       results,
     ) {
       if (!results.contains(ConnectivityResult.none)) {
-        sl<SyncService>().syncOfflineTransactions();
+        sl<SyncService>().syncOfflineTransactions().whenComplete(
+          _refreshOfflineQueueSummary,
+        );
       }
     });
+    // Connectivity dapat tetap berstatus Wi-Fi saat API sedang mati. Polling
+    // ringan ini memastikan antrean bergerak lagi tanpa menunggu jaringan
+    // berganti atau pengguna membuka ulang aplikasi. Backoff tetap diterapkan
+    // oleh SyncService per transaksi.
+    _offlineSyncTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      sl<SyncService>().syncOfflineTransactions().whenComplete(
+        _refreshOfflineQueueSummary,
+      );
+    });
+  }
+
+  Future<void> _refreshOfflineQueueSummary() async {
+    final summary = await sl<SyncService>().getQueueSummary();
+    if (!mounted) return;
+    setState(
+      () => _offlineUnresolved = (summary['unresolved'] as num?)?.toInt() ?? 0,
+    );
   }
 
   Future<void> _loadNavbarNotifications() async {
@@ -279,13 +303,16 @@ class _PosShellPageState extends State<PosShellPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
+    _offlineSyncTimer?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      sl<SyncService>().syncOfflineTransactions();
+      sl<SyncService>().syncOfflineTransactions().whenComplete(
+        _refreshOfflineQueueSummary,
+      );
     }
   }
 
@@ -510,7 +537,7 @@ class _PosShellPageState extends State<PosShellPage>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.route_outlined, color: Colors.orange.shade800),
+                    Icon(Icons.route_outlined, color: AppColors.warning),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
@@ -582,7 +609,7 @@ class _PosShellPageState extends State<PosShellPage>
             children: [
               Scaffold(
                 resizeToAvoidBottomInset: false,
-                backgroundColor: const Color(0xFFF3F6FB),
+                backgroundColor: const Color(0xFFF7F8FA),
                 appBar: AppBar(
                   elevation: 0,
                   backgroundColor: AppColors.primary,
@@ -646,7 +673,7 @@ class _PosShellPageState extends State<PosShellPage>
                             children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: Colors.orange.shade300,
+                                backgroundColor: AppColors.warningBorder,
                                 child: Text(
                                   initial,
                                   style: const TextStyle(
@@ -689,7 +716,7 @@ class _PosShellPageState extends State<PosShellPage>
                                             width: 6,
                                             height: 6,
                                             decoration: const BoxDecoration(
-                                              color: Colors.green,
+                                              color: AppColors.success,
                                               shape: BoxShape.circle,
                                             ),
                                           ),
@@ -717,21 +744,23 @@ class _PosShellPageState extends State<PosShellPage>
                     },
                   ),
                   actions: [
-                    IconButton(
-                      tooltip: 'Checklist kesiapan POS',
-                      icon: Icon(
-                        _showSetupGuide
-                            ? Icons.checklist_rounded
-                            : Icons.fact_check_outlined,
-                        color: Colors.white,
+                    Builder(
+                      builder: (posBlocContext) => IconButton(
+                        tooltip: 'Checklist kesiapan POS',
+                        icon: Icon(
+                          _showSetupGuide
+                              ? Icons.checklist_rounded
+                              : Icons.fact_check_outlined,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          if (_showSetupGuide) {
+                            setState(() => _showSetupGuide = false);
+                          } else {
+                            _openSetupGuide(posBlocContext);
+                          }
+                        },
                       ),
-                      onPressed: () {
-                        if (_showSetupGuide) {
-                          setState(() => _showSetupGuide = false);
-                        } else {
-                          _openSetupGuide(context);
-                        }
-                      },
                     ),
                     _notificationButton(),
                     IconButton(
@@ -1122,11 +1151,7 @@ class _PosShellPageState extends State<PosShellPage>
         child: _railExpanded
             ? Row(
                 children: [
-                  Icon(
-                    destination.icon,
-                    size: 22,
-                    color: selected ? AppColors.primary : Colors.black54,
-                  ),
+                  _sidebarIcon(destination, selected, index),
                   const SizedBox(width: 13),
                   Expanded(
                     child: Text(
@@ -1142,20 +1167,50 @@ class _PosShellPageState extends State<PosShellPage>
                       ),
                     ),
                   ),
+                  if (index == 15 && _offlineUnresolved > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _offlineUnresolved > 99 ? '99+' : '$_offlineUnresolved',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                 ],
               )
-            : Center(
-                child: Icon(
-                  destination.icon,
-                  size: 22,
-                  color: selected ? AppColors.primary : Colors.black54,
-                ),
-              ),
+            : Center(child: _sidebarIcon(destination, selected, index)),
       ),
     );
     return _railExpanded
         ? item
         : Tooltip(message: destination.label, child: item);
+  }
+
+  Widget _sidebarIcon(
+    ({String label, IconData icon}) destination,
+    bool selected,
+    int index,
+  ) {
+    final icon = Icon(
+      destination.icon,
+      size: 22,
+      color: selected ? AppColors.primary : Colors.black54,
+    );
+    if (index != 15 || _offlineUnresolved == 0) return icon;
+    return Badge(
+      label: Text(_offlineUnresolved > 99 ? '99+' : '$_offlineUnresolved'),
+      child: icon,
+    );
   }
 
   Widget _buildBottomNavItem({

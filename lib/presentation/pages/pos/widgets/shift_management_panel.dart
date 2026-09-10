@@ -29,6 +29,24 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
     setState(() => _isLoading = true);
 
     final repo = sl<PosRepository>();
+    Map<String, dynamic>? existingShift;
+    try {
+      existingShift = await repo.getActiveShift();
+    } catch (_) {
+      // Mutation tetap menjadi sumber kebenaran terakhir ketika preflight
+      // gagal karena jaringan; errornya akan diterjemahkan oleh repository.
+    }
+    if (existingShift != null) {
+      if (!mounted || !context.mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Shift aktif ditemukan dan ditampilkan kembali.'),
+        ),
+      );
+      context.read<PosBloc>().add(LoadPosData());
+      return;
+    }
     final result = await repo.openShift(tokoId, amount);
 
     if (!mounted) return;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../bloc/auth/auth_cubit.dart';
@@ -28,7 +29,7 @@ class LoginPage extends StatelessWidget {
                     message,
                     style: const TextStyle(color: Colors.white),
                   ),
-                  backgroundColor: Colors.red.shade600,
+                  backgroundColor: AppColors.danger,
                   behavior: SnackBarBehavior.floating,
                 ),
               );

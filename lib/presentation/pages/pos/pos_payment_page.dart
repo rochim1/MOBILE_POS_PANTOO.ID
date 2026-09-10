@@ -110,7 +110,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       width: 7,
                       height: 7,
                       decoration: const BoxDecoration(
-                        color: Colors.green,
+                        color: AppColors.success,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -138,7 +138,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => PosSuccessPage(transaction: transaction),
+                builder: (context) => PosSuccessPage(
+                  transaction: transaction,
+                  autoPrint: state.runtimeConfig['auto_print_receipt'] == true,
+                ),
               ),
             );
           } else if (state.status == PosStatus.failure &&
@@ -158,7 +161,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               builder: (dialogContext) => AlertDialog(
                 icon: Icon(
                   _failureIcon(message),
-                  color: Colors.orange.shade700,
+                  color: AppColors.warning,
                   size: 42,
                 ),
                 title: Text(_failureTitle(message)),
@@ -218,7 +221,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                     total - _cashReceived > 0
                                         ? total - _cashReceived
                                         : 0,
-                                    Colors.red,
+                                    AppColors.danger,
                                   ),
                                 ),
                                 Expanded(
@@ -227,7 +230,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                     _cashReceived - total > 0
                                         ? _cashReceived - total
                                         : 0,
-                                    Colors.blue,
+                                    AppColors.info,
                                   ),
                                 ),
                               ],
@@ -326,7 +329,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                 Expanded(
                                   flex: 7,
                                   child: Container(
-                                    color: const Color(0xFFF9FAFB),
+                                    color: const Color(0xFFF7F8FA),
                                     padding: const EdgeInsets.all(24),
                                     child: _paymentMethod == 'Pisah Bayar'
                                         ? _buildSplitSummary(total)
@@ -501,7 +504,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           Container(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAFB),
+                              color: const Color(0xFFF7F8FA),
                               border: Border(
                                 top: BorderSide(color: Colors.grey.shade200),
                               ),
@@ -513,7 +516,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                   _buildSummaryRow(
                                     'Diskon',
                                     -discount,
-                                    color: Colors.green.shade700,
+                                    color: AppColors.success,
                                   ),
                                 if (tax > 0) _buildSummaryRow('Pajak', tax),
                                 if (_invoiceNote.trim().isNotEmpty) ...[
@@ -691,7 +694,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final authorization = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+        icon: const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
         title: const Text('Otorisasi Barang Kedaluwarsa'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -950,7 +953,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     if (state.orderType == 'dine_in') {
       AppToast.warning(
         context,
-        'Invoice dine-in harus dibuat dari Order & Meja agar meja tercatat.',
+        'Invoice dine-in harus dibuat dari Pesanan Aktif & Meja agar meja tercatat.',
       );
       return;
     }
@@ -1150,14 +1153,17 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     _buildSplitTotalRow(
                       difference >= 0 ? 'Sisa' : 'Kelebihan',
                       difference.abs(),
-                      color: isValid ? Colors.green : Colors.red,
+                      color: isValid ? AppColors.success : AppColors.danger,
                     ),
                     if (!isValid)
                       const Padding(
                         padding: EdgeInsets.only(top: 8),
                         child: Text(
                           'Minimal 2 metode, setiap jumlah harus lebih dari 0, dan total harus tepat.',
-                          style: TextStyle(color: Colors.red, fontSize: 12),
+                          style: TextStyle(
+                            color: AppColors.danger,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                   ],
@@ -1254,7 +1260,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE6F7F3) : Colors.transparent,
+          color: isSelected ? const Color(0xFFE6F4F2) : Colors.transparent,
           border: Border(
             left: BorderSide(
               color: isSelected ? AppColors.primary : Colors.transparent,

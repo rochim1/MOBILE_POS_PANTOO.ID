@@ -925,7 +925,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     status == 'partially_received')
                   const Text(
                     'Status lama tidak sesuai progres • masih bisa diterima',
-                    style: TextStyle(fontSize: 12, color: Colors.orange),
+                    style: TextStyle(fontSize: 12, color: AppColors.warning),
                   ),
               ],
             );
@@ -1169,13 +1169,13 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: AppColors.dangerBackground,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade100),
+                    border: Border.all(color: AppColors.dangerBorder),
                   ),
                   child: Text(
                     'Alasan penolakan: ${item['alasan_penolakan']}',
-                    style: TextStyle(color: Colors.red.shade800),
+                    style: TextStyle(color: AppColors.danger),
                   ),
                 ),
               ],
@@ -1596,11 +1596,11 @@ String _statusLabel(String value) => switch (value) {
   _ => value,
 };
 Color _statusColor(String value) => switch (value) {
-  'approved' => Colors.blue,
-  'completed' || 'posted' => Colors.green,
-  'rejected' || 'cancelled' => Colors.red,
-  'pending' || 'submitted' || 'in_transit' => Colors.orange,
-  _ => Colors.blueGrey,
+  'approved' => AppColors.info,
+  'completed' || 'posted' => AppColors.success,
+  'rejected' || 'cancelled' => AppColors.danger,
+  'pending' || 'submitted' || 'in_transit' => AppColors.warning,
+  _ => AppColors.neutral,
 };
 
 String _actionLabel(String action) => switch (action) {
@@ -1639,9 +1639,12 @@ class _ActionMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Icon(icon, size: 19, color: destructive ? Colors.red : null),
+      Icon(icon, size: 19, color: destructive ? AppColors.danger : null),
       const SizedBox(width: 10),
-      Text(label, style: TextStyle(color: destructive ? Colors.red : null)),
+      Text(
+        label,
+        style: TextStyle(color: destructive ? AppColors.danger : null),
+      ),
     ],
   );
 }

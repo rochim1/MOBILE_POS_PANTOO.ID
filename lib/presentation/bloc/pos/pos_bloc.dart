@@ -218,7 +218,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
       Map<String, dynamic>? activeShift;
       if (stores.isNotEmpty) {
-        activeShift = await posRepository.getActiveShift(stores.first.id);
+        // Satu kasir hanya boleh memiliki satu shift terbuka lintas toko.
+        // Jangan membatasi pencarian ke toko pertama karena shift outlet lain
+        // akan tersembunyi sementara backend tetap menolak pembukaan baru.
+        activeShift = await posRepository.getActiveShift();
       }
       final activeStore = activeShift != null
           ? stores

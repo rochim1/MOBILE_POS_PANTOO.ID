@@ -50,10 +50,14 @@ void main() {
     );
     expect(stockSource, contains('getAdjustmentReasons'));
     expect(stockSource, isNot(contains("value: 'selisih_hitung'")));
-    expect(stockSource, contains("labelText: 'Referensi / tiket *'"));
+    expect(stockSource, contains("labelText: 'Referensi / tiket (opsional)'"));
+    expect(stockSource, contains('Sistem tetap membuat referensi internal.'));
     expect(stockSource, contains("labelText: 'Keterangan *'"));
     expect(stockSource, contains('Buka Stock Opname'));
-    expect(stockSource, contains("labelText: 'Saldo warehouse / lokasi *'"));
+    expect(
+      stockSource,
+      isNot(contains("labelText: 'Saldo warehouse / lokasi *'")),
+    );
     expect(stockSource, contains('getLocationBalances'));
     expect(stockSource, contains("selectedBalance['lokasi_gedung_kode']"));
     expect(

@@ -96,10 +96,36 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Pantoo POS'), findsOneWidget);
-    expect(find.text('Aplikasi Kasir Online'), findsOneWidget);
+    expect(find.text('Pantoo POS'), findsNothing);
+    expect(find.text('Aplikasi Kasir Online'), findsNothing);
     expect(find.text('Akses Kasir'), findsOneWidget);
     expect(find.text('Logout akun'), findsOneWidget);
+  });
+
+  testWidgets('PIN entry panel is anchored to the right on a wide screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final cubit = TestLockCubit()..seedLocked();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(
+      BlocProvider<AppLockCubit>.value(
+        value: cubit,
+        child: const MaterialApp(home: PinLockScreen()),
+      ),
+    );
+    await tester.pump();
+
+    final panelRect = tester.getRect(
+      find.byKey(const ValueKey('pin-entry-panel')),
+    );
+    expect(panelRect.center.dx, greaterThan(600));
+    expect(panelRect.center.dx, closeTo(900, 1));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('employee picker modal opens from lock overlay navigator', (

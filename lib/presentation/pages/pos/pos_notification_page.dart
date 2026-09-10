@@ -71,7 +71,7 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF4F7FA),
+    backgroundColor: const Color(0xFFF7F8FA),
     appBar: AppBar(
       title: const Text('Notifikasi'),
       backgroundColor: AppColors.primary,

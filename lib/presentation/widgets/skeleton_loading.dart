@@ -54,9 +54,9 @@ class _SkeletonBoxState extends State<SkeletonBox>
           begin: Alignment(-1.0 + _animation.value, 0),
           end: Alignment(_animation.value, 0),
           colors: const [
-            Color(0xFFE8E8E8),
-            Color(0xFFF5F5F5),
-            Color(0xFFE8E8E8),
+            Color(0xFFE8EBEE),
+            Color(0xFFF3F5F6),
+            Color(0xFFE8EBEE),
           ],
         ),
       ),

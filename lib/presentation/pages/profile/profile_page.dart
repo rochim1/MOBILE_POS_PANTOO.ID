@@ -12,7 +12,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6FB),
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
@@ -67,13 +67,13 @@ class ProfilePage extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF198754).withValues(alpha: 0.15),
+                      color: AppColors.successBackground,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
                       'Staff Kasir Aktif',
                       style: TextStyle(
-                        color: Color(0xFF198754),
+                        color: AppColors.success,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -123,11 +123,11 @@ class ProfilePage extends StatelessWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: Colors.red.shade600,
+                        foregroundColor: AppColors.danger,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: Colors.red.shade200),
+                          side: BorderSide(color: AppColors.dangerBorder),
                         ),
                       ),
                       icon: const Icon(Icons.logout),
@@ -176,7 +176,7 @@ class ProfilePage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF3F6FB),
+                color: const Color(0xFFF7F8FA),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: AppColors.primary),

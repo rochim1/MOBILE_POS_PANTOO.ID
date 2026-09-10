@@ -58,7 +58,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE7E7E7))),
+              border: Border(top: BorderSide(color: Color(0xFFE8EBEE))),
             ),
             child: SafeArea(
               child: ElevatedButton(
@@ -189,7 +189,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.blue.shade200),
+                        border: Border.all(color: AppColors.infoBorder),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

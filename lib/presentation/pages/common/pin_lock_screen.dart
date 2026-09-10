@@ -7,6 +7,8 @@ import 'package:mobile_pos_pantoo/core/_core.dart';
 import '../../bloc/lock/lock_cubit.dart';
 import '../../bloc/lock/lock_state.dart';
 import '../../bloc/auth/auth_cubit.dart';
+import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
 
 class PinLockScreen extends StatefulWidget {
   const PinLockScreen({super.key});
@@ -124,7 +126,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             const SizedBox(height: 10),
             Text(
               _error,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+              style: const TextStyle(color: AppColors.danger, fontSize: 12),
             ),
           ],
         ],
@@ -204,12 +206,17 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   Future<void> _confirmLogout() async {
     if (_isLoggingOut) return;
+    final summary = await sl<SyncService>().getQueueSummary();
+    if (!mounted) return;
+    final unresolved = (summary['unresolved'] as num?)?.toInt() ?? 0;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Keluar dari akun?'),
-        content: const Text(
-          'Sesi kasir dan akun akan ditutup. Anda perlu login kembali untuk menggunakan POS.',
+        content: Text(
+          unresolved > 0
+              ? '$unresolved transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi tidak dapat disinkronkan sampai akun instansi ini login kembali.'
+              : 'Sesi kasir dan akun akan ditutup. Anda perlu login kembali untuk menggunakan POS.',
         ),
         actions: [
           TextButton(
@@ -415,278 +422,302 @@ class _PinLockScreenState extends State<PinLockScreen> {
       backgroundColor: AppColors.primary,
       body: SafeArea(
         child: LayoutBuilder(
-          builder: (context, constraints) => Stack(
-            children: [
-              Positioned(
-                left: 18,
-                top: 12,
-                child: Image.asset(
-                  'assets/images/pantoo.png',
-                  height: 34,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              Center(
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: 420,
-                    height: 810,
-                    child: BlocBuilder<AppLockCubit, AppLockState>(
-                      builder: (context, state) {
-                        final selectedEmployee = state.employees
-                            .where(
-                              (employee) =>
-                                  employee['_id']?.toString() ==
-                                  state.selectedEmployeeId,
-                            )
-                            .firstOrNull;
-                        final canCreateOwnPin =
-                            selectedEmployee?['is_login_user'] == true &&
-                            state.hasPinConfigured == false;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 28,
-                            vertical: 14,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              const SizedBox(
-                                height: 50,
-                                width: double.infinity,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          'Pantoo POS',
-                                          style: TextStyle(
-                                            fontSize: 21,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Aplikasi Kasir Online',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Akses Kasir',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const Text(
-                                'Pilih operator dan masukkan PIN untuk melanjutkan',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Material(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: state.loadingEmployees
-                                      ? null
-                                      : _showEmployeePicker,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 13,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.badge_outlined),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            _employeeName(selectedEmployee),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (state.loadingEmployees)
-                                          const SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
+          builder: (context, constraints) {
+            final showMarketingPanel = constraints.maxWidth >= 1000;
+            return Row(
+              children: [
+                if (showMarketingPanel)
+                  const Expanded(child: _PinMarketingPanel()),
+                Expanded(
+                  child: ColoredBox(
+                    color: Colors.white.withValues(alpha: 0.94),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: 8,
+                              bottom: 8,
+                            ),
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                                child: SizedBox(
+                                  key: const ValueKey('pin-entry-panel'),
+                                  width: 420,
+                                  height: 810,
+                                  child: BlocBuilder<AppLockCubit, AppLockState>(
+                                    builder: (context, state) {
+                                      final selectedEmployee = state.employees
+                                          .where(
+                                            (employee) =>
+                                                employee['_id']?.toString() ==
+                                                state.selectedEmployeeId,
                                           )
-                                        else
-                                          const Icon(Icons.expand_more),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                state.errorMessage.isNotEmpty
-                                    ? state.errorMessage
-                                    : canCreateOwnPin
-                                    ? 'Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.'
-                                    : 'Masukkan PIN 4–6 digit karyawan',
-                                style: TextStyle(
-                                  color: state.errorMessage.isNotEmpty
-                                      ? Colors.orangeAccent
-                                      : Colors.white70,
-                                  fontSize: 13,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(
-                                  _pinLength,
-                                  (index) => Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                    ),
-                                    width: 13,
-                                    height: 13,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: index < _pin.length
-                                          ? Colors.white
-                                          : Colors.white30,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              _buildKeypadRow(['1', '2', '3']),
-                              const SizedBox(height: 10),
-                              _buildKeypadRow(['4', '5', '6']),
-                              const SizedBox(height: 10),
-                              _buildKeypadRow(['7', '8', '9']),
-                              const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  const SizedBox(width: 64, height: 64),
-                                  _buildKeypadButton('0'),
-                                  SizedBox(
-                                    width: 64,
-                                    height: 64,
-                                    child: TextButton(
-                                      onPressed: _isVerifying
-                                          ? null
-                                          : _onDeleteTap,
-                                      style: TextButton.styleFrom(
-                                        shape: const CircleBorder(),
-                                        foregroundColor: Colors.white,
-                                      ),
-                                      child: const Icon(
-                                        Icons.backspace_outlined,
-                                        size: 27,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _isVerifying
-                                      ? null
-                                      : canCreateOwnPin
-                                      ? _createPinForLoginUser
-                                      : state.hasPinConfigured &&
-                                            _pin.length >= 4
-                                      ? _verifyPin
-                                      : null,
-                                  icon: _isVerifying
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : Icon(
-                                          canCreateOwnPin
-                                              ? Icons.add_moderator_outlined
-                                              : Icons.lock_open,
+                                          .firstOrNull;
+                                      final canCreateOwnPin =
+                                          selectedEmployee?['is_login_user'] ==
+                                              true &&
+                                          state.hasPinConfigured == false;
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 28,
+                                          vertical: 14,
                                         ),
-                                  label: Text(
-                                    canCreateOwnPin
-                                        ? 'Buat PIN Akun Ini'
-                                        : 'Masuk sebagai Kasir',
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 13,
-                                    ),
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: AppColors.primary,
-                                    disabledBackgroundColor: Colors.white24,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                canCreateOwnPin
-                                    ? 'PIN akun lain tetap dibuat atau direset oleh admin POS.'
-                                    : 'PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.',
-                                style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 11,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 4),
-                              TextButton.icon(
-                                onPressed: _isLoggingOut
-                                    ? null
-                                    : _confirmLogout,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  disabledForegroundColor: Colors.white38,
-                                ),
-                                icon: _isLoggingOut
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Text(
+                                              'Akses Kasir',
+                                              style: TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.heading,
+                                              ),
+                                            ),
+                                            const Text(
+                                              'Pilih operator dan masukkan PIN untuk melanjutkan',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Material(
+                                              color: AppColors.surfaceSecondary,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: InkWell(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                onTap: state.loadingEmployees
+                                                    ? null
+                                                    : _showEmployeePicker,
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 14,
+                                                        vertical: 13,
+                                                      ),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.badge_outlined,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                        child: Text(
+                                                          _employeeName(
+                                                            selectedEmployee,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                      if (state
+                                                          .loadingEmployees)
+                                                        const SizedBox(
+                                                          width: 18,
+                                                          height: 18,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                              ),
+                                                        )
+                                                      else
+                                                        const Icon(
+                                                          Icons.expand_more,
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              state.errorMessage.isNotEmpty
+                                                  ? state.errorMessage
+                                                  : canCreateOwnPin
+                                                  ? 'Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.'
+                                                  : 'Masukkan PIN 4–6 digit karyawan',
+                                              style: TextStyle(
+                                                color:
+                                                    state
+                                                        .errorMessage
+                                                        .isNotEmpty
+                                                    ? AppColors.danger
+                                                    : AppColors.textSecondary,
+                                                fontSize: 13,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: List.generate(
+                                                _pinLength,
+                                                (index) => Container(
+                                                  margin:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 7,
+                                                      ),
+                                                  width: 13,
+                                                  height: 13,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: index < _pin.length
+                                                        ? AppColors.primary
+                                                        : AppColors.border,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 18),
+                                            _buildKeypadRow(['1', '2', '3']),
+                                            const SizedBox(height: 10),
+                                            _buildKeypadRow(['4', '5', '6']),
+                                            const SizedBox(height: 10),
+                                            _buildKeypadRow(['7', '8', '9']),
+                                            const SizedBox(height: 10),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: [
+                                                const SizedBox(
+                                                  width: 64,
+                                                  height: 64,
+                                                ),
+                                                _buildKeypadButton('0'),
+                                                SizedBox(
+                                                  width: 64,
+                                                  height: 64,
+                                                  child: TextButton(
+                                                    onPressed: _isVerifying
+                                                        ? null
+                                                        : _onDeleteTap,
+                                                    style: TextButton.styleFrom(
+                                                      shape:
+                                                          const CircleBorder(),
+                                                      foregroundColor:
+                                                          AppColors.body,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.backspace_outlined,
+                                                      size: 27,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 14),
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton.icon(
+                                                onPressed: _isVerifying
+                                                    ? null
+                                                    : canCreateOwnPin
+                                                    ? _createPinForLoginUser
+                                                    : state.hasPinConfigured &&
+                                                          _pin.length >= 4
+                                                    ? _verifyPin
+                                                    : null,
+                                                icon: _isVerifying
+                                                    ? const SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                      )
+                                                    : Icon(
+                                                        canCreateOwnPin
+                                                            ? Icons
+                                                                  .add_moderator_outlined
+                                                            : Icons.lock_open,
+                                                      ),
+                                                label: Text(
+                                                  canCreateOwnPin
+                                                      ? 'Buat PIN Akun Ini'
+                                                      : 'Masuk sebagai Kasir',
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 13,
+                                                      ),
+                                                  backgroundColor:
+                                                      AppColors.primary,
+                                                  foregroundColor: Colors.white,
+                                                  disabledBackgroundColor:
+                                                      AppColors.neutralBorder,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              canCreateOwnPin
+                                                  ? 'PIN akun lain tetap dibuat atau direset oleh admin POS.'
+                                                  : 'PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.',
+                                              style: TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontSize: 11,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            TextButton.icon(
+                                              onPressed: _isLoggingOut
+                                                  ? null
+                                                  : _confirmLogout,
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    AppColors.danger,
+                                                disabledForegroundColor:
+                                                    AppColors.textMuted,
+                                              ),
+                                              icon: _isLoggingOut
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: AppColors
+                                                                .danger,
+                                                          ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.logout,
+                                                      size: 18,
+                                                    ),
+                                              label: const Text('Logout akun'),
+                                            ),
+                                          ],
                                         ),
-                                      )
-                                    : const Icon(Icons.logout, size: 18),
-                                label: const Text('Logout akun'),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -707,12 +738,112 @@ class _PinLockScreenState extends State<PinLockScreen> {
         onPressed: _isVerifying ? null : () => _onKeypadTap(text),
         style: TextButton.styleFrom(
           shape: const CircleBorder(),
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.white.withValues(alpha: 0.1),
+          foregroundColor: AppColors.heading,
+          backgroundColor: AppColors.surfaceSecondary,
         ),
         child: Text(
           text,
           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w400),
+        ),
+      ),
+    );
+  }
+}
+
+class _PinMarketingPanel extends StatelessWidget {
+  const _PinMarketingPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/pantoo_brand_ambassador.png'),
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.7),
+              Colors.black.withValues(alpha: 0.28),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(40, 30, 40, 48),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 72,
+                    height: 64,
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Image.asset(
+                      'assets/images/brand_logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pantoo POS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Kasir cepat, bisnis lebih tertata',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              const Text(
+                'Satu kasir untuk setiap peluang',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Layani pelanggan, pantau stok, dan kelola penjualan dari satu tempat.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black38,
+                      offset: Offset(0, 1),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

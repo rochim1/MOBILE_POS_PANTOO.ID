@@ -464,9 +464,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: AppColors.warningBackground,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade200),
+                  border: Border.all(color: AppColors.warningBorder),
                 ),
                 child: const Text(
                   'Mode lihat saja. Izin Kelola Pengaturan POS diperlukan untuk menyimpan perubahan.',

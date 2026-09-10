@@ -89,13 +89,13 @@ class BranchOutletPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: AppColors.successBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
                   'Aktif',
                   style: TextStyle(
-                    color: Colors.green,
+                    color: AppColors.success,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),

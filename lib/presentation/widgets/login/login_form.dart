@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../bloc/auth/auth_cubit.dart';
@@ -221,7 +222,7 @@ class _LoginFormState extends State<LoginForm> {
                     const SizedBox(height: 16),
                     Text(
                       state.error ?? 'Login gagal.',
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: AppColors.danger),
                       textAlign: TextAlign.center,
                     ),
                   ],

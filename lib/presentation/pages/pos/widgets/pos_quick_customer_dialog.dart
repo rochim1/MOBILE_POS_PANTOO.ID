@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 
 import '../../../../domain/models/pos_customer.dart';
 import '../../../../domain/repositories/pos_repository.dart';
@@ -60,7 +61,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
                           ? const [
                               TextSpan(
                                 text: ' *',
-                                style: TextStyle(color: Colors.red),
+                                style: TextStyle(color: AppColors.danger),
                               ),
                             ]
                           : const [],
@@ -68,7 +69,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(BuildContext context) async {
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF374151),
+                      color: Color(0xFF3F4756),
                     ),
                   ),
                 ),

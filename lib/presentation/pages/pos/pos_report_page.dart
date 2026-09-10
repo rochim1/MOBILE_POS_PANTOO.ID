@@ -69,7 +69,7 @@ class _ReportViewState extends State<_ReportView> {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xFFF6F8FA),
+    color: const Color(0xFFF7F8FA),
     child: BlocConsumer<PosReportBloc, PosReportState>(
       listener: (context, state) {
         if (state.status == PosReportStatus.failure) {
@@ -229,7 +229,7 @@ class _ReportViewState extends State<_ReportView> {
           padding: const EdgeInsets.symmetric(horizontal: 13),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: const Color(0xFFDDE2E7)),
+            border: Border.all(color: const Color(0xFFE1E5E9)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -288,7 +288,7 @@ class _ReportViewState extends State<_ReportView> {
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xFFDDE2E7)),
+      borderSide: const BorderSide(color: Color(0xFFE1E5E9)),
     ),
   );
 
@@ -312,42 +312,42 @@ class _ReportViewState extends State<_ReportView> {
             title: 'Total Penjualan',
             value: _money.format(stats.todayRevenue ?? 0),
             icon: Icons.payments_outlined,
-            color: const Color(0xFF08B89D),
+            color: const Color(0xFF087F75),
             growth: stats.revenueGrowth,
           ),
           (
             title: 'Total Transaksi',
             value: '${stats.todayTransactions ?? 0}',
             icon: Icons.receipt_long_outlined,
-            color: const Color(0xFFE53FA8),
+            color: AppColors.neutral,
             growth: stats.transactionGrowth,
           ),
           (
             title: 'Rata-rata / Transaksi',
             value: _money.format(stats.todayAvgOrder ?? 0),
             icon: Icons.analytics_outlined,
-            color: const Color(0xFF7C3AED),
+            color: AppColors.info,
             growth: null,
           ),
           (
             title: 'Item Produk Teratas',
             value: '$topQty item',
             icon: Icons.inventory_2_outlined,
-            color: const Color(0xFFE5C000),
+            color: const Color(0xFFC88916),
             growth: null,
           ),
           (
             title: 'Pertumbuhan Omzet',
             value: '${(stats.revenueGrowth ?? 0).toStringAsFixed(1)}%',
             icon: Icons.trending_up,
-            color: const Color(0xFF0EA5E9),
+            color: AppColors.info,
             growth: null,
           ),
           (
             title: 'Pertumbuhan Transaksi',
             value: '${(stats.transactionGrowth ?? 0).toStringAsFixed(1)}%',
             icon: Icons.show_chart_rounded,
-            color: const Color(0xFFF97316),
+            color: AppColors.warning,
             growth: null,
           ),
         ];
@@ -576,7 +576,7 @@ class _ReportViewState extends State<_ReportView> {
                   border: entry.key == items.length - 1
                       ? null
                       : const Border(
-                          bottom: BorderSide(color: Color(0xFFEEF1F3)),
+                          bottom: BorderSide(color: Color(0xFFF3F5F6)),
                         ),
                 ),
                 child: Row(
@@ -652,7 +652,7 @@ class _ReportViewState extends State<_ReportView> {
                 label: 'Penerimaan Tunai',
                 value: _money.format(total),
                 icon: Icons.payments_outlined,
-                color: const Color(0xFF059669),
+                color: const Color(0xFF087F75),
               ),
             ),
             const SizedBox(width: 12),
@@ -661,7 +661,7 @@ class _ReportViewState extends State<_ReportView> {
                 label: 'Transaksi Tunai',
                 value: '$count',
                 icon: Icons.receipt_long_outlined,
-                color: const Color(0xFF2563EB),
+                color: AppColors.info,
               ),
             ),
           ],
@@ -726,7 +726,7 @@ class _ReportViewState extends State<_ReportView> {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF64748B), height: 1.5),
+                style: const TextStyle(color: Color(0xFF737B89), height: 1.5),
               ),
             ],
           ),
@@ -817,12 +817,12 @@ class _ReportViewState extends State<_ReportView> {
   }
 
   Color _payColor(String method) => switch (method.toLowerCase()) {
-    'tunai' => const Color(0xFF10B981),
-    'qris' => const Color(0xFF3B82F6),
-    'transfer' => const Color(0xFF8B5CF6),
-    'debit' || 'kartu_debit' => const Color(0xFFF59E0B),
-    'kartu_kredit' => const Color(0xFFEF4444),
-    'e_wallet' => const Color(0xFF14B8A6),
+    'tunai' => AppColors.primary,
+    'qris' => AppColors.info,
+    'transfer' => const Color(0xFF7569A6),
+    'debit' || 'kartu_debit' => AppColors.warning,
+    'kartu_kredit' => AppColors.danger,
+    'e_wallet' => AppColors.primaryDark,
     _ => Colors.grey,
   };
 }
@@ -844,7 +844,7 @@ class _Metric extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
+      border: Border.all(color: const Color(0xFFE1E5E9)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -868,7 +868,7 @@ class _Metric extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF64748B),
+                  color: Color(0xFF737B89),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -878,9 +878,7 @@ class _Metric extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color:
-                      (growth >= 0
-                              ? const Color(0xFF059669)
-                              : const Color(0xFFDC2626))
+                      (growth >= 0 ? const Color(0xFF087F75) : AppColors.danger)
                           .withValues(alpha: .09),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -890,8 +888,8 @@ class _Metric extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: growth >= 0
-                        ? const Color(0xFF047857)
-                        : const Color(0xFFB91C1C),
+                        ? const Color(0xFF06665F)
+                        : AppColors.danger,
                   ),
                 ),
               ),
@@ -905,7 +903,7 @@ class _Metric extends StatelessWidget {
           style: const TextStyle(
             fontSize: 21,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF0F172A),
+            color: Color(0xFF172033),
           ),
         ),
         const SizedBox(height: 7),
@@ -932,7 +930,7 @@ class _Card extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE5E9EC)),
+      border: Border.all(color: const Color(0xFFE8EBEE)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1016,8 +1014,8 @@ class _SkeletonState extends State<_Skeleton>
     animation: _controller,
     builder: (context, _) {
       final color = Color.lerp(
-        const Color(0xFFE7EBEF),
-        const Color(0xFFF5F7F9),
+        const Color(0xFFE8EBEE),
+        const Color(0xFFF7F8FA),
         _controller.value,
       )!;
       Widget bar(double width, double height) => Container(
@@ -1034,7 +1032,7 @@ class _SkeletonState extends State<_Skeleton>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: const Color(0xFFE1E5E9)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1084,7 +1082,7 @@ class _SkeletonState extends State<_Skeleton>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: const Color(0xFFE1E5E9)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

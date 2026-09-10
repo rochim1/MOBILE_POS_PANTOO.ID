@@ -18,6 +18,7 @@ class PosTransactionResult {
   final String storeName;
   final String salesChannel;
   final String customerSegment;
+  final String orderType;
   final String promoCode;
   final String note;
   final List<Map<String, dynamic>> items;
@@ -42,6 +43,7 @@ class PosTransactionResult {
     this.storeName = '',
     this.salesChannel = '',
     this.customerSegment = '',
+    this.orderType = '',
     this.promoCode = '',
     this.note = '',
     this.items = const [],
@@ -56,6 +58,7 @@ class PosTransactionResult {
     String storeName = '',
     String salesChannel = '',
     String customerSegment = '',
+    String orderType = '',
     String promoCode = '',
     String note = '',
     List<Map<String, dynamic>> items = const [],
@@ -78,6 +81,9 @@ class PosTransactionResult {
     storeName: storeName,
     salesChannel: salesChannel,
     customerSegment: customerSegment,
+    orderType: orderType.isNotEmpty
+        ? orderType
+        : json['tipe_pesanan']?.toString() ?? '',
     promoCode: promoCode,
     note: note,
     items: items.isNotEmpty

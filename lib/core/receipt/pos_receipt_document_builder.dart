@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -15,6 +16,7 @@ class PosReceiptDocumentData {
   final String paymentMethod;
   final String salesChannel;
   final String customerSegment;
+  final String orderType;
   final String promoCode;
   final double subtotal;
   final double discount;
@@ -35,6 +37,7 @@ class PosReceiptDocumentData {
     required this.paymentMethod,
     this.salesChannel = '',
     this.customerSegment = '',
+    this.orderType = '',
     this.promoCode = '',
     required this.subtotal,
     this.discount = 0,
@@ -49,6 +52,8 @@ class PosReceiptDocumentData {
 }
 
 class PosReceiptDocumentBuilder {
+  static final Map<String, Future<pw.MemoryImage?>> _logoCache = {};
+
   static Future<Uint8List> build({
     required PosReceiptDocumentData data,
     required PosReceiptTemplate template,
@@ -63,16 +68,7 @@ class PosReceiptDocumentBuilder {
       symbol: 'Rp ',
       decimalDigits: 0,
     );
-    final paperWidth = template.paperWidth == 80 ? 80.0 : 58.0;
-    final estimatedHeight = (150.0 + (data.items.length * 15)).clamp(
-      165.0,
-      1000.0,
-    );
-    final pageFormat = PdfPageFormat(
-      paperWidth * PdfPageFormat.mm,
-      estimatedHeight * PdfPageFormat.mm,
-      marginAll: 4 * PdfPageFormat.mm,
-    );
+    final pageFormat = pageFormatFor(template, data.items.length);
     final fontSize = (template.fontSize ?? 10).clamp(8, 13).toDouble();
     final headerTitle = _resolve(template.headerTitle, company);
     final headerLines = [
@@ -85,6 +81,7 @@ class PosReceiptDocumentBuilder {
       template.footerLine2,
       template.footerLine3,
     ].map((line) => _resolve(line, company)).where((line) => line.isNotEmpty);
+    final logo = await _loadLogo(template, company);
 
     document.addPage(
       pw.Page(
@@ -94,6 +91,17 @@ class PosReceiptDocumentBuilder {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
+              if (logo != null) ...[
+                pw.Center(
+                  child: pw.Image(
+                    logo,
+                    width: 34 * PdfPageFormat.mm,
+                    height: 16 * PdfPageFormat.mm,
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+                pw.SizedBox(height: 3),
+              ],
               pw.Text(
                 headerTitle.isNotEmpty ? headerTitle : 'PANTOO POS',
                 textAlign: pw.TextAlign.center,
@@ -122,6 +130,8 @@ class PosReceiptDocumentBuilder {
               if (template.showSegment == true &&
                   data.customerSegment.isNotEmpty)
                 pw.Text('Segmen: ${data.customerSegment}'),
+              if (template.showOrderType != false && data.orderType.isNotEmpty)
+                pw.Text('Jenis pesanan: ${_orderTypeLabel(data.orderType)}'),
               pw.Text('Bayar: ${data.paymentMethod.toUpperCase()}'),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               ...data.items.expand((item) {
@@ -201,6 +211,21 @@ class PosReceiptDocumentBuilder {
     );
   }
 
+  static PdfPageFormat pageFormatFor(
+    PosReceiptTemplate template,
+    int itemCount,
+  ) {
+    final paperWidth = template.paperWidth == 80 ? 80.0 : 58.0;
+    // Thermal rolls are continuous. Keep enough room for unusually large carts
+    // so a valid sale does not fail merely because it contains many lines.
+    final estimatedHeight = (150.0 + (itemCount * 15)).clamp(165.0, 4500.0);
+    return PdfPageFormat(
+      paperWidth * PdfPageFormat.mm,
+      estimatedHeight * PdfPageFormat.mm,
+      marginAll: 4 * PdfPageFormat.mm,
+    );
+  }
+
   static double _number(dynamic value) =>
       double.tryParse(value?.toString() ?? '0') ?? 0;
 
@@ -222,5 +247,54 @@ class PosReceiptDocumentBuilder {
       value = value.replaceAll('{{$key}}', replacement);
     });
     return value.replaceAll(RegExp(r'\{\{[^}]+\}\}'), '').trim();
+  }
+
+  static Future<pw.MemoryImage?> _loadLogo(
+    PosReceiptTemplate template,
+    Map<String, String> company,
+  ) async {
+    if (template.showLogo == false) return null;
+    final url = company['logo']?.trim() ?? '';
+    if (url.isEmpty) return null;
+    final cached = _logoCache[url];
+    if (cached != null) return cached;
+
+    final request = _downloadLogo(url);
+    _logoCache[url] = request;
+    final logo = await request;
+    if (logo == null) _logoCache.remove(url);
+    return logo;
+  }
+
+  static Future<pw.MemoryImage?> _downloadLogo(String url) async {
+    try {
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 5));
+      final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+      if (response.statusCode < 200 ||
+          response.statusCode >= 300 ||
+          response.bodyBytes.isEmpty ||
+          response.bodyBytes.length > 5 * 1024 * 1024 ||
+          (contentType.isNotEmpty && !contentType.startsWith('image/'))) {
+        return null;
+      }
+      return pw.MemoryImage(response.bodyBytes);
+    } catch (_) {
+      // Kegagalan logo tidak boleh menggagalkan pencetakan transaksi.
+      return null;
+    }
+  }
+
+  static String _orderTypeLabel(String value) {
+    return switch (value.trim().toLowerCase()) {
+      'dine_in' => 'Makan di Tempat',
+      'free_table' => 'Makan di Tempat (Tanpa Meja)',
+      'take_away' => 'Bawa Pulang',
+      'delivery' || 'online_delivery' => 'Pesan Antar',
+      'quick_service' => 'Layanan Cepat',
+      'reservation' => 'Reservasi',
+      _ => value,
+    };
   }
 }

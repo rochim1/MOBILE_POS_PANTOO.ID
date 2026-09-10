@@ -4,19 +4,24 @@ import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/receipt/pos_receipt_document_builder.dart';
+import '../../../core/receipt/pos_receipt_print_service.dart';
 import '../../../domain/models/pos_receipt_template.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import '../../../domain/models/pos_transaction_result.dart';
 import 'package:intl/intl.dart';
-import 'pos_printer_page.dart';
 import '../../widgets/pos_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PosSuccessPage extends StatelessWidget {
   final PosTransactionResult transaction;
-  const PosSuccessPage({super.key, required this.transaction});
+  final bool autoPrint;
+  const PosSuccessPage({
+    super.key,
+    required this.transaction,
+    this.autoPrint = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +36,9 @@ class PosSuccessPage extends StatelessWidget {
           subtitle: 'Transaksi telah selesai diproses',
         ),
       ),
+      bottomSheet: autoPrint
+          ? _AutoPrintTrigger(onPrint: () => _printReceipt(context))
+          : null,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -63,7 +71,7 @@ class PosSuccessPage extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
-                            color: Color(0xFF5DCA74), // Light green
+                            color: Color(0xFF087F75), // Light green
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -111,7 +119,7 @@ class PosSuccessPage extends StatelessWidget {
                                 const SizedBox(height: 16),
                                 const Text(
                                   'Menunggu sinkronisasi server',
-                                  style: TextStyle(color: Colors.orange),
+                                  style: TextStyle(color: AppColors.warning),
                                 ),
                               ],
                             ],
@@ -157,20 +165,14 @@ class PosSuccessPage extends StatelessWidget {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: OutlinedButton.icon(
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const PosPrinterPage(),
-                                        ),
-                                      ),
+                                      onPressed: () => _printReceipt(context),
                                       icon: const Icon(
                                         Icons.print,
                                         color: AppColors.primary,
                                         size: 18,
                                       ),
                                       label: const Text(
-                                        'Atur Struk',
+                                        'Cetak Struk',
                                         style: TextStyle(
                                           color: AppColors.primary,
                                         ),
@@ -305,7 +307,7 @@ class PosSuccessPage extends StatelessWidget {
               ListTile(
                 leading: const Icon(
                   Icons.picture_as_pdf_outlined,
-                  color: Colors.red,
+                  color: AppColors.danger,
                 ),
                 title: const Text('Bagikan sebagai PDF'),
                 subtitle: const Text('Cocok untuk arsip dan cetak ulang'),
@@ -423,15 +425,19 @@ class PosSuccessPage extends StatelessWidget {
     }
   }
 
-  Future<Uint8List> _buildReceiptPdf() async {
+  Future<PosReceiptPrintData> _loadReceiptPrintData() async {
     final result = await sl<PosReceiptRepository>().getReceiptPrintData();
-    final printData = result.fold(
+    return result.fold(
       (_) => const PosReceiptPrintData(
         template: PosReceiptTemplate(),
         company: {},
       ),
       (value) => value,
     );
+  }
+
+  Future<Uint8List> _buildReceiptPdf({PosReceiptPrintData? printData}) async {
+    final resolvedPrintData = printData ?? await _loadReceiptPrintData();
     final rawDate = transaction.date.trim();
     final parsedDate = DateTime.tryParse(rawDate)?.toLocal();
     return PosReceiptDocumentBuilder.build(
@@ -446,6 +452,7 @@ class PosSuccessPage extends StatelessWidget {
         paymentMethod: transaction.paymentMethod,
         salesChannel: transaction.salesChannel,
         customerSegment: transaction.customerSegment,
+        orderType: transaction.orderType,
         promoCode: transaction.promoCode,
         subtotal: transaction.subtotal,
         discount: transaction.discount,
@@ -457,8 +464,8 @@ class PosSuccessPage extends StatelessWidget {
         note: transaction.note,
         items: transaction.items,
       ),
-      template: printData.template,
-      company: printData.company,
+      template: resolvedPrintData.template,
+      company: resolvedPrintData.company,
     );
   }
 
@@ -466,6 +473,25 @@ class PosSuccessPage extends StatelessWidget {
     final pdf = await _buildReceiptPdf();
     final page = await Printing.raster(pdf, pages: const [0], dpi: 180).first;
     return page.toPng();
+  }
+
+  Future<void> _printReceipt(BuildContext context) async {
+    try {
+      final printData = await _loadReceiptPrintData();
+      final bytes = await _buildReceiptPdf(printData: printData);
+      await PosReceiptPrintService(sl()).printPdf(
+        bytes: bytes,
+        name: 'Struk-${transaction.invoice}',
+        format: PosReceiptDocumentBuilder.pageFormatFor(
+          printData.template,
+          transaction.items.length,
+        ),
+      );
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.error(context, 'Gagal membuka layanan print struk');
+      }
+    }
   }
 
   Future<void> _launchOrCopy(BuildContext context, Uri uri) async {
@@ -481,3 +507,25 @@ class PosSuccessPage extends StatelessWidget {
 }
 
 enum _ReceiptFileType { png, pdf }
+
+class _AutoPrintTrigger extends StatefulWidget {
+  final Future<void> Function() onPrint;
+
+  const _AutoPrintTrigger({required this.onPrint});
+
+  @override
+  State<_AutoPrintTrigger> createState() => _AutoPrintTriggerState();
+}
+
+class _AutoPrintTriggerState extends State<_AutoPrintTrigger> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onPrint();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}

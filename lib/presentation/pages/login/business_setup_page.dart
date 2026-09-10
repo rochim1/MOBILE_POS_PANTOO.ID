@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -41,7 +42,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
       (failure) => ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(failure.message),
-          backgroundColor: Colors.red.shade700,
+          backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),
       ),
@@ -60,7 +61,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f8177),
+      backgroundColor: const Color(0xFF087F75),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -133,7 +134,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xffe8f5f3),
+                            color: const Color(0xFFE8F4F1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Row(
@@ -141,7 +142,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                             children: [
                               Icon(
                                 Icons.workspace_premium_outlined,
-                                color: Color(0xff0f8177),
+                                color: Color(0xFF087F75),
                               ),
                               SizedBox(width: 10),
                               Expanded(

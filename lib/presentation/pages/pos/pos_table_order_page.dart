@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/_core.dart';
 import '../../../../injections.dart';
@@ -47,10 +50,399 @@ class PosTableOrderPage extends StatelessWidget {
         BlocProvider(
           create: (_) => sl<PosTableBloc>()..add(LoadTables(storeId: storeId)),
         ),
-        BlocProvider(create: (_) => sl<PosOrderManagementBloc>()),
+        BlocProvider(
+          create: (_) =>
+              sl<PosOrderManagementBloc>()
+                ..add(LoadActiveOrders(storeId: storeId)),
+        ),
       ],
-      child: _PosTableOrderView(storeId: storeId),
+      child: _ActiveOrderListView(storeId: storeId),
     );
+  }
+}
+
+class _ActiveOrderListView extends StatefulWidget {
+  final String storeId;
+
+  const _ActiveOrderListView({required this.storeId});
+
+  @override
+  State<_ActiveOrderListView> createState() => _ActiveOrderListViewState();
+}
+
+class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+  String _status = '';
+  bool _tableView = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _reload() {
+    context.read<PosOrderManagementBloc>().add(
+      LoadActiveOrders(
+        storeId: widget.storeId,
+        search: _searchController.text,
+        status: _status,
+      ),
+    );
+  }
+
+  void _search(String _) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _reload);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bgPrimary,
+      body: Column(
+        children: [
+          _toolbar(),
+          Expanded(
+            child: BlocConsumer<PosOrderManagementBloc, PosOrderManagementState>(
+              listener: (context, state) {
+                if (state.status == PosOrderManagementStatus.failure) {
+                  AppToast.error(context, state.errorMessage);
+                } else if (state.status ==
+                    PosOrderManagementStatus.actionSuccess) {
+                  AppToast.success(context, state.successMessage);
+                }
+              },
+              builder: (context, state) {
+                if (state.status == PosOrderManagementStatus.loading &&
+                    state.orders.isEmpty) {
+                  return const Center(child: LoadingIndicatorWidget());
+                }
+                if (state.orders.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: () async => _reload(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 100),
+                        PosEmptyState(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'Tidak ada pesanan aktif',
+                          message:
+                              'Pesanan yang selesai atau lunas tersedia di Riwayat Transaksi.',
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => _reload(),
+                  child: _tableView
+                      ? _orderTable(state.orders)
+                      : _orderCards(state.orders),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolbar() {
+    return Material(
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final search = TextField(
+              controller: _searchController,
+              onChanged: _search,
+              decoration: const InputDecoration(
+                hintText: 'Cari nomor order atau pelanggan…',
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+            );
+            final controls = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 160,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Semua aktif')),
+                      DropdownMenuItem(value: 'Baru', child: Text('Baru')),
+                      DropdownMenuItem(
+                        value: 'Diproses',
+                        child: Text('Diproses'),
+                      ),
+                      DropdownMenuItem(value: 'Siap', child: Text('Siap')),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _status = value ?? '');
+                      _reload();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  tooltip: _tableView ? 'Tampilan kartu' : 'Tampilan tabel',
+                  onPressed: () => setState(() => _tableView = !_tableView),
+                  icon: Icon(_tableView ? Icons.grid_view : Icons.table_rows),
+                ),
+              ],
+            );
+            if (constraints.maxWidth < 650) {
+              return Column(
+                children: [
+                  search,
+                  const SizedBox(height: 10),
+                  Align(alignment: Alignment.centerRight, child: controls),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: search),
+                const SizedBox(width: 12),
+                controls,
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _orderCards(List<PosOrderDetail> orders) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1000
+            ? 3
+            : constraints.maxWidth >= 650
+            ? 2
+            : 1;
+        return GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: columns == 1 ? 2.5 : 1.65,
+          ),
+          itemCount: orders.length,
+          itemBuilder: (_, index) => _activeOrderCard(orders[index]),
+        );
+      },
+    );
+  }
+
+  Widget _activeOrderCard(PosOrderDetail order) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showActiveOrder(order),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      order.orderNumber ?? '-',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  _statusBadge(order.status),
+                ],
+              ),
+              const SizedBox(height: 9),
+              Text(order.customerName ?? 'Pelanggan umum'),
+              const SizedBox(height: 4),
+              Text(
+                '${order.tableName ?? 'Tanpa meja'} · ${order.items.length} item',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Text(
+                    _date(order.createdAt),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _currency(order.totalAmount ?? 0),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _orderTable(List<PosOrderDetail> orders) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          margin: EdgeInsets.zero,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              showCheckboxColumn: false,
+              columns: const [
+                DataColumn(label: Text('No. Order')),
+                DataColumn(label: Text('Pelanggan / Meja')),
+                DataColumn(label: Text('Waktu')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Total'), numeric: true),
+              ],
+              rows: orders
+                  .map(
+                    (order) => DataRow(
+                      onSelectChanged: (_) => _showActiveOrder(order),
+                      cells: [
+                        DataCell(Text(order.orderNumber ?? '-')),
+                        DataCell(
+                          Text(
+                            '${order.customerName ?? 'Pelanggan umum'}\n${order.tableName ?? 'Tanpa meja'}',
+                          ),
+                        ),
+                        DataCell(Text(_date(order.createdAt))),
+                        DataCell(_statusBadge(order.status)),
+                        DataCell(Text(_currency(order.totalAmount ?? 0))),
+                      ],
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusBadge(String? status) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: AppColors.primaryLight,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      status ?? 'Aktif',
+      style: const TextStyle(
+        color: AppColors.primary,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+
+  void _showActiveOrder(PosOrderDetail order) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                order.orderNumber ?? 'Detail Pesanan',
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
+              Text(
+                '${order.customerName ?? 'Pelanggan umum'} · ${order.tableName ?? 'Tanpa meja'}',
+              ),
+              const Divider(height: 24),
+              ...order.items.map(
+                (item) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(item.productName ?? '-'),
+                  leading: Text('${item.quantity ?? 0}×'),
+                  trailing: Text(
+                    _currency((item.price ?? 0) * (item.quantity ?? 0)),
+                  ),
+                ),
+              ),
+              if (_nextStatus(order.status) case final next?) ...[
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    context.read<PosOrderManagementBloc>().add(
+                      UpdateItemStatus(
+                        orderId: order.id ?? '',
+                        itemId: '',
+                        newStatus: next,
+                        tableId: order.tableId ?? '',
+                        storeId: widget.storeId,
+                        search: _searchController.text,
+                        statusFilter: _status,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.arrow_forward),
+                  label: Text(_nextStatusLabel(next)),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _nextStatus(String? current) => switch (current) {
+    'Baru' => 'preparing',
+    'Diproses' => 'served',
+    'Siap' => 'completed',
+    _ => null,
+  };
+
+  String _nextStatusLabel(String status) => switch (status) {
+    'preparing' => 'Mulai proses',
+    'served' => 'Tandai siap',
+    'completed' => 'Selesaikan pesanan',
+    _ => 'Perbarui status',
+  };
+
+  String _currency(num value) => NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  ).format(value);
+
+  String _date(String? raw) {
+    final date = DateTime.tryParse(raw ?? '')?.toLocal();
+    return date == null ? '-' : DateFormat('dd MMM, HH:mm').format(date);
   }
 }
 
@@ -255,10 +647,10 @@ class _TableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOccupied = table.status.toLowerCase() == 'terisi';
-    final accent = isOccupied ? Colors.orange.shade700 : AppColors.primary;
+    final accent = isOccupied ? AppColors.warning : AppColors.primary;
 
     return Material(
-      color: isOccupied ? Colors.orange.shade50 : Colors.white,
+      color: isOccupied ? AppColors.warningBackground : Colors.white,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -268,7 +660,9 @@ class _TableCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isOccupied ? Colors.orange.shade300 : Colors.grey.shade200,
+              color: isOccupied
+                  ? AppColors.warningBorder
+                  : Colors.grey.shade200,
             ),
           ),
           child: Column(
@@ -284,7 +678,7 @@ class _TableCard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: isOccupied ? Colors.orange : Colors.green,
+                      color: isOccupied ? AppColors.warning : AppColors.success,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
