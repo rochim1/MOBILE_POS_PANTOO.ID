@@ -385,7 +385,13 @@ class PosRepository {
       final rows =
           result.data?['GetPOSPinUsers']?['items'] as List? ?? const [];
       return Right(
-        rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
+        rows.map((row) {
+          final employee = Map<String, dynamic>.from(row as Map);
+          employee['photo_url'] = _clientProvider.resolveMediaUrl(
+            employee['photo_url'],
+          );
+          return employee;
+        }).toList(),
       );
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
@@ -1334,6 +1340,7 @@ class PosRepository {
     double? pajak,
     String? catatan,
     String orderType = 'take_away',
+    String? tableId,
     String salesChannel = 'retail',
     String customerSegment = 'regular',
     String priceLevel = 'retail',
@@ -1376,6 +1383,7 @@ class PosRepository {
       'promo_code': promoCode ?? '',
       'discount_policy': discountPolicy ?? 'stack',
       'tipe_pesanan': orderType,
+      if (tableId != null && tableId.isNotEmpty) 'meja_id': tableId,
       'metode_pembayaran': paymentMethod,
       'uang_diterima': paymentMethod == 'tunai' ? cashReceived : null,
       'payments': paymentMethod == 'split' ? payments : const [],
@@ -1606,6 +1614,7 @@ class PosRepository {
     required String tokoId,
     required String shiftId,
     required String orderType,
+    String? tableId,
     String? customerId,
     String? customerName,
     String? note,
@@ -1632,6 +1641,7 @@ class PosRepository {
               'customer_segment': customerSegment,
               'price_level': priceLevel,
               'tipe_pesanan': orderType,
+              if (tableId != null && tableId.isNotEmpty) 'table_id': tableId,
               'catatan': note ?? '',
               'diskon_persen': discountPercent,
               'pajak_persen': taxPercent,

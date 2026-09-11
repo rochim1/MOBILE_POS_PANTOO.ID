@@ -28,6 +28,8 @@ class PosState extends Equatable {
   final String promoCode;
   final String discountPolicy; // stack, promo_only, manual_only, best_of
   final String orderType;
+  final String? selectedTableId;
+  final String? selectedTableName;
   final String salesChannel;
   final String customerSegment;
   final String priceLevel;
@@ -62,6 +64,8 @@ class PosState extends Equatable {
     this.promoCode = '',
     this.discountPolicy = 'stack',
     this.orderType = 'take_away',
+    this.selectedTableId,
+    this.selectedTableName,
     this.salesChannel = 'retail',
     this.customerSegment = 'regular',
     this.priceLevel = 'retail',
@@ -94,6 +98,9 @@ class PosState extends Equatable {
     String? promoCode,
     String? discountPolicy,
     String? orderType,
+    String? selectedTableId,
+    String? selectedTableName,
+    bool clearSelectedTable = false,
     String? salesChannel,
     String? customerSegment,
     String? priceLevel,
@@ -129,6 +136,12 @@ class PosState extends Equatable {
       promoCode: promoCode ?? this.promoCode,
       discountPolicy: discountPolicy ?? this.discountPolicy,
       orderType: orderType ?? this.orderType,
+      selectedTableId: clearSelectedTable
+          ? null
+          : (selectedTableId ?? this.selectedTableId),
+      selectedTableName: clearSelectedTable
+          ? null
+          : (selectedTableName ?? this.selectedTableName),
       salesChannel: salesChannel ?? this.salesChannel,
       customerSegment: customerSegment ?? this.customerSegment,
       priceLevel: priceLevel ?? this.priceLevel,
@@ -176,9 +189,16 @@ class PosState extends Equatable {
   double get grandTotal {
     final serverTotal = (pricingPreview?['total_after_discount'] as num?)
         ?.toDouble();
-    if (serverTotal != null) return serverTotal + taxAmount;
+    if (serverTotal != null) return _roundPayableTotal(serverTotal + taxAmount);
     final total = subTotal - totalDiscount;
-    return total > 0 ? total + taxAmount : 0;
+    return total > 0 ? _roundPayableTotal(total + taxAmount) : 0;
+  }
+
+  double _roundPayableTotal(double value) {
+    final configured = runtimeConfig['price_rounding']?.toString() ?? 'none';
+    final factor = const {'100': 100, '500': 500, '1000': 1000}[configured];
+    if (factor == null || value <= 0) return value;
+    return (value / factor).ceil() * factor.toDouble();
   }
 
   double get taxableAmount {
@@ -230,6 +250,14 @@ class PosState extends Equatable {
           .toList();
   double get configuredTaxPercent =>
       (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0;
+  String get defaultDiscountPolicy =>
+      runtimeConfig['default_discount_policy']?.toString() ?? 'stack';
+  String get defaultPaymentMethod =>
+      runtimeConfig['default_payment_method']?.toString() ?? 'tunai';
+  String get defaultTransactionNote =>
+      runtimeConfig['default_note']?.toString() ?? '';
+  double get minimumCashTransaction =>
+      (runtimeConfig['minimum_cash_transaction'] as num?)?.toDouble() ?? 0;
 
   @override
   List<Object?> get props => [
@@ -249,6 +277,8 @@ class PosState extends Equatable {
     promoCode,
     discountPolicy,
     orderType,
+    selectedTableId,
+    selectedTableName,
     salesChannel,
     customerSegment,
     priceLevel,

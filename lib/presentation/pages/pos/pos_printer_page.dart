@@ -62,8 +62,6 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   bool _printersLoading = true;
   List<Printer> _printers = const [];
   String _selectedPrinterUrl = '';
-  bool _previewExpanded = false;
-  PosReceiptTemplate? _previewTemplate;
   bool _isTestPrinting = false;
 
   @override
@@ -207,185 +205,221 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
           }
         },
         builder: (context, state) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (state.status == PosReceiptStatus.loading ||
-                    state.status == PosReceiptStatus.initial) ...[
-                  const LinearProgressIndicator(),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Memuat pengaturan struk… Anda tetap dapat melihat halaman ini.',
-                    style: TextStyle(color: Colors.black54, fontSize: 12),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final settings = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (state.status == PosReceiptStatus.loading ||
+                      state.status == PosReceiptStatus.initial) ...[
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Memuat pengaturan struk… Anda tetap dapat melihat halaman ini.',
+                      style: TextStyle(color: Colors.black54, fontSize: 12),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (state.status == PosReceiptStatus.failure) ...[
+                    Material(
+                      color: AppColors.dangerBackground,
+                      borderRadius: BorderRadius.circular(10),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.error_outline,
+                          color: AppColors.danger,
+                        ),
+                        title: const Text('Pengaturan struk gagal dimuat'),
+                        subtitle: Text(state.errorMessage),
+                        trailing: TextButton(
+                          onPressed: () => context.read<PosReceiptBloc>().add(
+                            LoadReceiptTemplate(),
+                          ),
+                          child: const Text('Coba lagi'),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildSection(
+                    title: 'Header Struk',
+                    icon: Icons.title,
+                    children: [
+                      _buildSwitch(
+                        'Tampilkan Logo Toko',
+                        _showLogo,
+                        (v) => setState(() => _showLogo = v),
+                      ),
+                      _buildTextField(
+                        'Judul (Baris 1)',
+                        _headerTitleController,
+                      ),
+                      _buildTextField(
+                        'Sub Judul (Baris 2)',
+                        _headerSubtitleController,
+                      ),
+                      _buildTextField('Baris 3', _headerLine3Controller),
+                      _buildTextField('Baris 4', _headerLine4Controller),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                ],
-                if (state.status == PosReceiptStatus.failure) ...[
-                  Material(
-                    color: AppColors.dangerBackground,
-                    borderRadius: BorderRadius.circular(10),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.error_outline,
-                        color: AppColors.danger,
+                  _buildSection(
+                    title: 'Kolom Ditampilkan',
+                    icon: Icons.view_list_outlined,
+                    children: [
+                      _buildSwitch(
+                        'Nomor Invoice',
+                        _showInvoice,
+                        (v) => setState(() => _showInvoice = v),
                       ),
-                      title: const Text('Pengaturan struk gagal dimuat'),
-                      subtitle: Text(state.errorMessage),
-                      trailing: TextButton(
-                        onPressed: () => context.read<PosReceiptBloc>().add(
-                          LoadReceiptTemplate(),
-                        ),
-                        child: const Text('Coba lagi'),
+                      _buildSwitch(
+                        'Tanggal & Waktu',
+                        _showTanggal,
+                        (v) => setState(() => _showTanggal = v),
                       ),
-                    ),
+                      _buildSwitch(
+                        'Nama Kasir',
+                        _showKasir,
+                        (v) => setState(() => _showKasir = v),
+                      ),
+                      _buildSwitch(
+                        'Nama Toko / Outlet',
+                        _showToko,
+                        (v) => setState(() => _showToko = v),
+                      ),
+                      _buildSwitch(
+                        'Nama Pelanggan',
+                        _showPelanggan,
+                        (v) => setState(() => _showPelanggan = v),
+                      ),
+                      _buildSwitch(
+                        'Channel Penjualan',
+                        _showChannel,
+                        (v) => setState(() => _showChannel = v),
+                      ),
+                      _buildSwitch(
+                        'Segmen Pelanggan',
+                        _showSegment,
+                        (v) => setState(() => _showSegment = v),
+                      ),
+                      _buildSwitch(
+                        'Jenis Pesanan',
+                        _showOrderType,
+                        (v) => setState(() => _showOrderType = v),
+                      ),
+                      _buildSwitch(
+                        'Informasi Promo',
+                        _showPromo,
+                        (v) => setState(() => _showPromo = v),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                ],
-                _buildSection(
-                  title: 'Header Struk',
-                  icon: Icons.title,
-                  children: [
-                    _buildSwitch(
-                      'Tampilkan Logo Toko',
-                      _showLogo,
-                      (v) => setState(() => _showLogo = v),
-                    ),
-                    _buildTextField('Judul (Baris 1)', _headerTitleController),
-                    _buildTextField(
-                      'Sub Judul (Baris 2)',
-                      _headerSubtitleController,
-                    ),
-                    _buildTextField('Baris 3', _headerLine3Controller),
-                    _buildTextField('Baris 4', _headerLine4Controller),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildSection(
-                  title: 'Kolom Ditampilkan',
-                  icon: Icons.view_list_outlined,
-                  children: [
-                    _buildSwitch(
-                      'Nomor Invoice',
-                      _showInvoice,
-                      (v) => setState(() => _showInvoice = v),
-                    ),
-                    _buildSwitch(
-                      'Tanggal & Waktu',
-                      _showTanggal,
-                      (v) => setState(() => _showTanggal = v),
-                    ),
-                    _buildSwitch(
-                      'Nama Kasir',
-                      _showKasir,
-                      (v) => setState(() => _showKasir = v),
-                    ),
-                    _buildSwitch(
-                      'Nama Toko / Outlet',
-                      _showToko,
-                      (v) => setState(() => _showToko = v),
-                    ),
-                    _buildSwitch(
-                      'Nama Pelanggan',
-                      _showPelanggan,
-                      (v) => setState(() => _showPelanggan = v),
-                    ),
-                    _buildSwitch(
-                      'Channel Penjualan',
-                      _showChannel,
-                      (v) => setState(() => _showChannel = v),
-                    ),
-                    _buildSwitch(
-                      'Segmen Pelanggan',
-                      _showSegment,
-                      (v) => setState(() => _showSegment = v),
-                    ),
-                    _buildSwitch(
-                      'Jenis Pesanan',
-                      _showOrderType,
-                      (v) => setState(() => _showOrderType = v),
-                    ),
-                    _buildSwitch(
-                      'Informasi Promo',
-                      _showPromo,
-                      (v) => setState(() => _showPromo = v),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildSection(
-                  title: 'Footer Struk',
-                  icon: Icons.horizontal_rule,
-                  children: [
-                    _buildTextField('Catatan Bawah 1', _footerLine1Controller),
-                    _buildTextField('Catatan Bawah 2', _footerLine2Controller),
-                    _buildTextField('Catatan Bawah 3', _footerLine3Controller),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildSection(
-                  title: 'Pengaturan Cetak',
-                  icon: Icons.print_outlined,
-                  children: [
-                    _buildDropdown(
-                      label: 'Lebar Kertas',
-                      value: _paperWidth.toString(),
-                      items: const ['58', '80'],
-                      onChanged: (val) =>
-                          setState(() => _paperWidth = int.parse(val!)),
-                      suffix: 'mm',
-                    ),
-                    _buildDropdown(
-                      label: 'Ukuran Font Default',
-                      value: _fontSize.toString(),
-                      items: const ['10', '11', '12', '13', '14'],
-                      onChanged: (val) =>
-                          setState(() => _fontSize = int.parse(val!)),
-                      suffix: 'pt',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildPrinterDeviceSection(state.company),
-                const SizedBox(height: 16),
-                _buildReceiptPreview(state.company),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed:
-                      state.status == PosReceiptStatus.saving ||
-                          state.status == PosReceiptStatus.loading ||
-                          state.status == PosReceiptStatus.initial
-                      ? null
-                      : _saveSettings,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  _buildSection(
+                    title: 'Footer Struk',
+                    icon: Icons.horizontal_rule,
+                    children: [
+                      _buildTextField(
+                        'Catatan Bawah 1',
+                        _footerLine1Controller,
+                      ),
+                      _buildTextField(
+                        'Catatan Bawah 2',
+                        _footerLine2Controller,
+                      ),
+                      _buildTextField(
+                        'Catatan Bawah 3',
+                        _footerLine3Controller,
+                      ),
+                    ],
                   ),
-                  child: state.status == PosReceiptStatus.saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                  const SizedBox(height: 16),
+                  _buildSection(
+                    title: 'Pengaturan Cetak',
+                    icon: Icons.print_outlined,
+                    children: [
+                      _buildDropdown(
+                        label: 'Lebar Kertas',
+                        value: _paperWidth.toString(),
+                        items: const ['58', '80'],
+                        onChanged: (val) =>
+                            setState(() => _paperWidth = int.parse(val!)),
+                        suffix: 'mm',
+                      ),
+                      _buildDropdown(
+                        label: 'Ukuran Font Default',
+                        value: _fontSize.toString(),
+                        items: const [
+                          '8', '9', '10', '11', '12', '13', '14', '15',
+                          '16', '17', '18',
+                        ],
+                        onChanged: (val) =>
+                            setState(() => _fontSize = int.parse(val!)),
+                        suffix: 'pt',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPrinterDeviceSection(state.company),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed:
+                        state.status == PosReceiptStatus.saving ||
+                            state.status == PosReceiptStatus.loading ||
+                            state.status == PosReceiptStatus.initial
+                        ? null
+                        : _saveSettings,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: state.status == PosReceiptStatus.saving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Simpan Template Struk',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
-                      : const Text(
-                          'Simpan Template Struk',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              );
+              final preview = _buildReceiptPreview(state.company);
+              final wide = constraints.maxWidth >= 980;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 6, child: settings),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 4, child: preview),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          settings,
+                          const SizedBox(height: 16),
+                          preview,
+                        ],
+                      ),
+              );
+            },
           );
         },
       ),
@@ -540,38 +574,17 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   );
 
   Widget _buildReceiptPreview(Map<String, String> company) {
-    final previewTemplate = _previewTemplate ?? _draftTemplate;
+    final previewTemplate = _draftTemplate;
     return _buildSection(
-      title: 'Preview & Tes Cetak',
+      title: 'Preview Struk',
       icon: Icons.receipt_long_outlined,
       children: [
         const Text(
-          'Preview menggunakan renderer yang sama dengan struk transaksi.',
+          'Preview diperbarui langsung mengikuti pengaturan di sebelah kiri.',
           style: TextStyle(color: Colors.black54),
         ),
         const SizedBox(height: 12),
-        if (!_previewExpanded)
-          OutlinedButton.icon(
-            onPressed: () => setState(() {
-              _previewTemplate = _draftTemplate;
-              _previewExpanded = true;
-            }),
-            icon: const Icon(Icons.visibility_outlined),
-            label: const Text('Tampilkan preview struk'),
-          )
-        else ...[
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => setState(() {
-                _previewTemplate = _draftTemplate;
-              }),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Perbarui preview'),
-            ),
-          ),
-          _buildLightweightReceiptPreview(previewTemplate, company),
-        ],
+        _buildLightweightReceiptPreview(previewTemplate, company),
       ],
     );
   }
@@ -585,11 +598,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       symbol: 'Rp ',
       decimalDigits: 0,
     );
-    final title = (template.headerTitle ?? '').trim().isNotEmpty
-        ? template.headerTitle!.trim()
-        : (company['nama_instansi'] ?? '').trim().isNotEmpty
-        ? company['nama_instansi']!.trim()
-        : 'PANTOO POS';
+    final title = _interpolate(template.headerTitle, company);
     final receiptWidth = template.paperWidth == 80 ? 380.0 : 300.0;
 
     Widget line(String label, String value, {bool bold = false}) => Padding(
@@ -637,24 +646,33 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (template.showLogo != false)
-                    const Icon(
-                      Icons.storefront_outlined,
-                      size: 34,
-                      color: AppColors.primary,
+                  if (template.showLogo != false &&
+                      (company['logo'] ?? '').trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Image.network(
+                        company['logo']!,
+                        height: 60,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
                     ),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                  if (title.isNotEmpty)
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   for (final value in [
                     template.headerSubtitle,
                     template.headerLine3,
                     template.headerLine4,
                   ])
-                    if ((value ?? '').trim().isNotEmpty)
-                      Text(value!.trim(), textAlign: TextAlign.center),
+                    if (_interpolate(value, company).isNotEmpty)
+                      Text(
+                        _interpolate(value, company),
+                        textAlign: TextAlign.center,
+                      ),
                   const Divider(height: 18),
                   if (template.showInvoice != false)
                     const Text('No: INV-20260909-001'),
@@ -662,7 +680,8 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                     const Text('Tanggal: 09/09/2026 14:30'),
                   if (template.showKasir != false)
                     const Text('Kasir: Kasir Pantoo'),
-                  if (template.showToko == true) const Text('Toko: Toko Utama'),
+                  if (template.showToko != false)
+                    const Text('Toko: Toko Utama'),
                   if (template.showPelanggan != false)
                     const Text('Pelanggan: Pelanggan Umum'),
                   if (template.showChannel == true)
@@ -698,17 +717,11 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                     template.footerLine2,
                     template.footerLine3,
                   ])
-                    if ((value ?? '').trim().isNotEmpty)
-                      Text(value!.trim(), textAlign: TextAlign.center),
-                  if ([
-                    template.footerLine1,
-                    template.footerLine2,
-                    template.footerLine3,
-                  ].every((value) => (value ?? '').trim().isEmpty))
-                    const Text(
-                      'Terima kasih atas kunjungan Anda',
-                      textAlign: TextAlign.center,
-                    ),
+                    if (_interpolate(value, company).isNotEmpty)
+                      Text(
+                        _interpolate(value, company),
+                        textAlign: TextAlign.center,
+                      ),
                 ],
               ),
             ),
@@ -716,6 +729,19 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         ),
       ),
     );
+  }
+
+  String _interpolate(String? raw, Map<String, String> company) {
+    var value = raw?.trim() ?? '';
+    final aliases = <String, String>{
+      ...company,
+      'telpon_nomor': company['telpon_number'] ?? '',
+      'npwp': company['NPWP'] ?? '',
+    };
+    aliases.forEach((key, replacement) {
+      value = value.replaceAll('{{$key}}', replacement);
+    });
+    return value.replaceAll(RegExp(r'\{\{[^}]+\}\}'), '').trim();
   }
 
   Widget _buildPrinterDeviceSection(Map<String, String> company) {

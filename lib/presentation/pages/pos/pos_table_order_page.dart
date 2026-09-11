@@ -20,7 +20,11 @@ import '../../../../domain/models/pos_order_detail.dart';
 import '../../bloc/pos/pos_bloc.dart';
 
 class PosTableOrderPage extends StatelessWidget {
-  const PosTableOrderPage({super.key});
+  final bool? _isGridView;
+  bool get isGridView => _isGridView ?? true;
+
+  const PosTableOrderPage({super.key, bool? isGridView})
+    : _isGridView = isGridView;
 
   @override
   Widget build(BuildContext context) {
@@ -56,15 +60,18 @@ class PosTableOrderPage extends StatelessWidget {
                 ..add(LoadActiveOrders(storeId: storeId)),
         ),
       ],
-      child: _ActiveOrderListView(storeId: storeId),
+      child: _ActiveOrderListView(storeId: storeId, isGridView: isGridView),
     );
   }
 }
 
 class _ActiveOrderListView extends StatefulWidget {
   final String storeId;
+  final bool? _isGridView;
+  bool get isGridView => _isGridView ?? true;
 
-  const _ActiveOrderListView({required this.storeId});
+  const _ActiveOrderListView({required this.storeId, bool? isGridView})
+    : _isGridView = isGridView;
 
   @override
   State<_ActiveOrderListView> createState() => _ActiveOrderListViewState();
@@ -73,12 +80,22 @@ class _ActiveOrderListView extends StatefulWidget {
 class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   final _searchController = TextEditingController();
   Timer? _debounce;
+  Timer? _durationTicker;
   String _status = '';
-  bool _tableView = false;
+  String _sort = 'newest';
+
+  @override
+  void initState() {
+    super.initState();
+    _durationTicker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _durationTicker?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -137,11 +154,12 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     ),
                   );
                 }
+                final orders = _sortedOrders(state.orders);
                 return RefreshIndicator(
                   onRefresh: () async => _reload(),
-                  child: _tableView
-                      ? _orderTable(state.orders)
-                      : _orderCards(state.orders),
+                  child: widget.isGridView
+                      ? _orderCards(orders)
+                      : _orderTable(orders),
                 );
               },
             ),
@@ -168,14 +186,17 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 border: OutlineInputBorder(),
               ),
             );
-            final controls = Row(
-              mainAxisSize: MainAxisSize.min,
+            final controls = Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
               children: [
                 SizedBox(
-                  width: 160,
+                  width: 150,
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     isDense: true,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Status',
                       border: OutlineInputBorder(),
@@ -195,11 +216,49 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  tooltip: _tableView ? 'Tampilan kartu' : 'Tampilan tabel',
-                  onPressed: () => setState(() => _tableView = !_tableView),
-                  icon: Icon(_tableView ? Icons.grid_view : Icons.table_rows),
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _sort,
+                    isDense: true,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Urutkan',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'newest',
+                        child: Text(
+                          'Pesanan terbaru',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'oldest',
+                        child: Text(
+                          'Pesanan terlama',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'longest',
+                        child: Text(
+                          'Durasi terlama',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'highest_total',
+                        child: Text(
+                          'Total terbesar',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _sort = value ?? 'newest'),
+                  ),
                 ),
               ],
             );
@@ -240,16 +299,16 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             crossAxisCount: columns,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: columns == 1 ? 2.5 : 1.65,
+            mainAxisExtent: 166,
           ),
           itemCount: orders.length,
-          itemBuilder: (_, index) => _activeOrderCard(orders[index]),
+          itemBuilder: (_, index) => _activeOrderCard(orders[index], index),
         );
       },
     );
   }
 
-  Widget _activeOrderCard(PosOrderDetail order) {
+  Widget _activeOrderCard(PosOrderDetail order, int index) {
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -262,6 +321,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             children: [
               Row(
                 children: [
+                  Text(
+                    '${index + 1}.',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       order.orderNumber ?? '-',
@@ -279,19 +346,47 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 '${order.tableName ?? 'Tanpa meja'} · ${order.items.length} item',
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
-              const Spacer(),
+              const SizedBox(height: 4),
               Row(
                 children: [
-                  Text(
-                    _date(order.createdAt),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
+                  const Icon(
+                    Icons.schedule_outlined,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      '${_orderDate(order.createdAt)} · ${_orderTime(order.createdAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _duration(order.createdAt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     _currency(order.totalAmount ?? 0),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ],
@@ -304,45 +399,62 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   Widget _orderTable(List<PosOrderDetail> orders) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          margin: EdgeInsets.zero,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              showCheckboxColumn: false,
-              columns: const [
-                DataColumn(label: Text('No. Order')),
-                DataColumn(label: Text('Pelanggan / Meja')),
-                DataColumn(label: Text('Waktu')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Total'), numeric: true),
-              ],
-              rows: orders
-                  .map(
-                    (order) => DataRow(
-                      onSelectChanged: (_) => _showActiveOrder(order),
-                      cells: [
-                        DataCell(Text(order.orderNumber ?? '-')),
-                        DataCell(
-                          Text(
-                            '${order.customerName ?? 'Pelanggan umum'}\n${order.tableName ?? 'Tanpa meja'}',
-                          ),
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: constraints.maxWidth - 32,
+                ),
+                child: DataTable(
+                  showCheckboxColumn: false,
+                  columns: const [
+                    DataColumn(label: Text('No.')),
+                    DataColumn(label: Text('No. Order')),
+                    DataColumn(label: Text('Pelanggan / Meja')),
+                    DataColumn(label: Text('Tanggal Pesan')),
+                    DataColumn(label: Text('Jam Pesan')),
+                    DataColumn(label: Text('Durasi')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Total'), numeric: true),
+                  ],
+                  rows: orders.indexed
+                      .map(
+                        (entry) => DataRow(
+                          key: ValueKey(entry.$2.id),
+                          onSelectChanged: (_) => _showActiveOrder(entry.$2),
+                          cells: [
+                            DataCell(Text('${entry.$1 + 1}')),
+                            DataCell(Text(entry.$2.orderNumber ?? '-')),
+                            DataCell(
+                              Text(
+                                '${entry.$2.customerName ?? 'Pelanggan umum'}\n${entry.$2.tableName ?? 'Tanpa meja'}',
+                              ),
+                            ),
+                            DataCell(Text(_orderDate(entry.$2.createdAt))),
+                            DataCell(Text(_orderTime(entry.$2.createdAt))),
+                            DataCell(Text(_duration(entry.$2.createdAt))),
+                            DataCell(_statusBadge(entry.$2.status)),
+                            DataCell(
+                              Text(_currency(entry.$2.totalAmount ?? 0)),
+                            ),
+                          ],
                         ),
-                        DataCell(Text(_date(order.createdAt))),
-                        DataCell(_statusBadge(order.status)),
-                        DataCell(Text(_currency(order.totalAmount ?? 0))),
-                      ],
-                    ),
-                  )
-                  .toList(),
+                      )
+                      .toList(),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -380,6 +492,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               ),
               Text(
                 '${order.customerName ?? 'Pelanggan umum'} · ${order.tableName ?? 'Tanpa meja'}',
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Dipesan ${_orderDate(order.createdAt)} pukul ${_orderTime(order.createdAt)} · ${_duration(order.createdAt)}',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               const Divider(height: 24),
               ...order.items.map(
@@ -440,9 +560,72 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     decimalDigits: 0,
   ).format(value);
 
-  String _date(String? raw) {
-    final date = DateTime.tryParse(raw ?? '')?.toLocal();
-    return date == null ? '-' : DateFormat('dd MMM, HH:mm').format(date);
+  DateTime? _parseTimestamp(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty) return null;
+    final parsed = DateTime.tryParse(value);
+    if (parsed != null) return parsed.toLocal();
+    final milliseconds = int.tryParse(value);
+    if (milliseconds == null) return null;
+    final epochMilliseconds = value.length <= 10
+        ? milliseconds * 1000
+        : milliseconds;
+    return DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
+  }
+
+  List<PosOrderDetail> _sortedOrders(List<PosOrderDetail> source) {
+    final orders = List<PosOrderDetail>.of(source);
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    final unknownLast = DateTime(9999);
+    switch (_sort) {
+      case 'oldest':
+        orders.sort(
+          (a, b) => (_parseTimestamp(a.createdAt) ?? unknownLast).compareTo(
+            _parseTimestamp(b.createdAt) ?? unknownLast,
+          ),
+        );
+      case 'longest':
+        orders.sort(
+          (a, b) => (_parseTimestamp(a.createdAt) ?? unknownLast).compareTo(
+            _parseTimestamp(b.createdAt) ?? unknownLast,
+          ),
+        );
+      case 'highest_total':
+        orders.sort(
+          (a, b) => (b.totalAmount ?? 0).compareTo(a.totalAmount ?? 0),
+        );
+      default:
+        orders.sort(
+          (a, b) => (_parseTimestamp(b.createdAt) ?? epoch).compareTo(
+            _parseTimestamp(a.createdAt) ?? epoch,
+          ),
+        );
+    }
+    return orders;
+  }
+
+  String _orderDate(String? raw) {
+    final date = _parseTimestamp(raw);
+    return date == null ? '-' : DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  String _orderTime(String? raw) {
+    final date = _parseTimestamp(raw);
+    return date == null ? '-' : DateFormat('HH:mm').format(date);
+  }
+
+  String _duration(String? raw) {
+    final startedAt = _parseTimestamp(raw);
+    if (startedAt == null) return 'Baru saja';
+    final elapsed = DateTime.now().difference(startedAt);
+    if (elapsed.isNegative || elapsed.inMinutes < 1) return '< 1 menit';
+    if (elapsed.inDays > 0) {
+      return '${elapsed.inDays} hari ${elapsed.inHours.remainder(24)} jam';
+    }
+    if (elapsed.inHours > 0) {
+      return '${elapsed.inHours} jam ${elapsed.inMinutes.remainder(60)} menit';
+    }
+    return '${elapsed.inMinutes} menit';
   }
 }
 

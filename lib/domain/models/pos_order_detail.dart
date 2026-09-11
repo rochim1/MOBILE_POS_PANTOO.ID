@@ -18,14 +18,19 @@ class PosOrderItem extends Equatable {
   });
 
   factory PosOrderItem.fromJson(Map<String, dynamic> json) {
+    final rawQuantity = json['qty'] ?? json['quantity'];
+    final rawPrice = json['harga_satuan'] ?? json['price'];
     return PosOrderItem(
-      id: json['_id'] as String?,
-      productName: (json['nama'] ?? json['product_name']) as String?,
-      quantity: (json['qty'] as num?)?.toInt() ?? json['quantity'] as int?,
-      price: (json['harga_satuan'] as num? ?? json['price'] as num?)
-          ?.toDouble(),
-      notes: (json['catatan'] ?? json['notes']) as String?,
-      status: json['status'] as String?,
+      id: _text(json['_id']),
+      productName: _text(json['nama'] ?? json['product_name']),
+      quantity: rawQuantity is num
+          ? rawQuantity.toInt()
+          : int.tryParse(_text(rawQuantity) ?? ''),
+      price: rawPrice is num
+          ? rawPrice.toDouble()
+          : double.tryParse(_text(rawPrice) ?? ''),
+      notes: _text(json['catatan'] ?? json['notes']),
+      status: _text(json['status']),
     );
   }
 
@@ -57,22 +62,28 @@ class PosOrderDetail extends Equatable {
   });
 
   factory PosOrderDetail.fromJson(Map<String, dynamic> json) {
+    final rawTotal = json['grand_total'] ?? json['total_amount'];
+    final rawItems = json['items'];
     return PosOrderDetail(
-      id: json['_id'] as String?,
-      orderNumber: (json['order_no'] ?? json['order_number']) as String?,
-      customerName:
-          (json['pelanggan_nama'] ?? json['customer_name']) as String?,
-      status: json['status'] as String?,
-      totalAmount: (json['grand_total'] as num? ?? json['total_amount'] as num?)
-          ?.toDouble(),
-      tableId: json['table_id'] as String?,
+      id: _text(json['_id']),
+      orderNumber: _text(json['order_no'] ?? json['order_number']),
+      customerName: _text(json['pelanggan_nama'] ?? json['customer_name']),
+      status: _text(json['status']),
+      totalAmount: rawTotal is num
+          ? rawTotal.toDouble()
+          : double.tryParse(_text(rawTotal) ?? ''),
+      tableId: _text(json['table_id']),
       tableName: (json['table'] as Map?)?['name']?.toString(),
-      items:
-          (json['items'] as List<dynamic>?)
-              ?.map((e) => PosOrderItem.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      createdAt: json['createdAt'] as String?,
+      items: rawItems is List
+          ? rawItems
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      PosOrderItem.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .toList()
+          : const [],
+      createdAt: _text(json['createdAt']),
     );
   }
 
@@ -88,4 +99,15 @@ class PosOrderDetail extends Equatable {
     items,
     createdAt,
   ];
+}
+
+String? _text(dynamic value) {
+  if (value == null) return null;
+  final text = switch (value) {
+    String string => string.trim(),
+    num number => number.toString(),
+    bool boolean => boolean.toString(),
+    _ => '',
+  };
+  return text.isEmpty || text == 'null' || text == 'undefined' ? null : text;
 }

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'presentation/pages/intro/intro_page.dart';
 import 'presentation/bloc/lock/lock_cubit.dart';
 import 'presentation/widgets/inactivity_wrapper.dart';
+import 'domain/repositories/pos_repository.dart';
 
 import 'package:chucker_flutter/chucker_flutter.dart';
 
@@ -33,13 +34,24 @@ class App extends StatelessWidget {
             listener: (context, state) async {
               if (state.status == AuthStatus.authenticated) {
                 final prefs = sl<SharedPreferences>();
+                final lockCubit = context.read<AppLockCubit>();
                 final needsWorkspace =
                     prefs.getBool('needs_workspace_setup') == true ||
                     (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
                 if (needsWorkspace) {
-                  context.read<AppLockCubit>().reset();
+                  lockCubit.reset();
                 } else {
-                  await context.read<AppLockCubit>().lock();
+                  final lockStatus = await sl<PosRepository>()
+                      .getMyPOSLockStatus();
+                  final lockEnabled = lockStatus.fold(
+                    (_) => true,
+                    (status) => status['enabled'] != false,
+                  );
+                  if (lockEnabled) {
+                    await lockCubit.lock();
+                  } else {
+                    lockCubit.reset();
+                  }
                 }
                 navigatorKey.currentState?.pushAndRemoveUntil(
                   MaterialPageRoute(

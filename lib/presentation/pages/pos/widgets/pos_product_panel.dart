@@ -10,10 +10,11 @@ import '../../../bloc/pos/pos_state.dart';
 import '../../../widgets/app_toast.dart';
 import '../../../../domain/models/pos_product.dart';
 import '../../../../domain/models/pos_customer.dart';
+import '../../../../domain/models/pos_table.dart';
 import '../../../../domain/repositories/pos_repository.dart';
+import '../../../../domain/repositories/pos_table_repository.dart';
 import '../../../../injections.dart';
 import '../pos_barcode_scanner_page.dart';
-import '../pos_table_order_page.dart';
 import 'pos_quick_customer_dialog.dart';
 
 class PosProductPanel extends StatefulWidget {
@@ -402,18 +403,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
     return PopupMenuButton<String>(
       tooltip: 'Tipe pemenuhan: ${_orderTypeLabel(selectedOrderType)}',
       initialValue: selectedOrderType,
-      onSelected: (value) {
-        if (value == '__table') {
-          final posBloc = context.read<PosBloc>();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: posBloc,
-                child: const PosTableOrderPage(),
-              ),
-            ),
-          );
+      onSelected: (value) async {
+        if (value == 'dine_in') {
+          await _selectTable(context, state);
           return;
         }
         if (value == '__served_by') {
@@ -429,7 +421,6 @@ class _PosProductPanelState extends State<PosProductPanel> {
         context.read<PosBloc>().add(UpdateOrderType(value));
       },
       itemBuilder: (_) {
-        final features = state.runtimeConfig['features'] as Map? ?? const {};
         return [
           const PopupMenuItem<String>(
             enabled: false,
@@ -439,14 +430,6 @@ class _PosProductPanelState extends State<PosProductPanel> {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
-          if (features['use_tables'] == true)
-            const PopupMenuItem<String>(
-              value: '__table',
-              child: _OrderMenuRow(
-                icon: Icons.table_restaurant_outlined,
-                label: 'Meja',
-              ),
-            ),
           ...orderTypes.map(
             (type) => PopupMenuItem<String>(
               value: type.value,
@@ -501,7 +484,10 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _orderTypeLabel(selectedOrderType),
+                      selectedOrderType == 'dine_in' &&
+                              state.selectedTableName != null
+                          ? 'Meja · ${state.selectedTableName}'
+                          : _orderTypeLabel(selectedOrderType),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -513,6 +499,42 @@ class _PosProductPanelState extends State<PosProductPanel> {
     );
   }
 
+  Future<void> _selectTable(BuildContext context, PosState state) async {
+    final storeId = state.activeShift?['toko_id']?.toString() ?? '';
+    if (storeId.isEmpty) {
+      AppToast.warning(context, 'Buka shift sebelum memilih meja.');
+      return;
+    }
+
+    final result = await sl<PosTableRepository>().getTables(storeId: storeId);
+    if (!context.mounted) return;
+    final tables = result.fold<List<PosTableModel>>((failure) {
+      AppToast.error(context, failure.message);
+      return const [];
+    }, (items) => items);
+    if (tables.isEmpty) {
+      AppToast.warning(
+        context,
+        'Belum ada meja aktif pada toko ini. Tambahkan meja dari Pesanan Aktif & Meja.',
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<PosTableModel>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _TablePickerSheet(
+        tables: tables,
+        selectedTableId: state.selectedTableId,
+      ),
+    );
+    if (selected == null || !context.mounted) return;
+    context.read<PosBloc>().add(
+      SelectOrderTable(tableId: selected.id, tableName: selected.name),
+    );
+  }
+
   List<({String value, String label, IconData icon})> _availableOrderTypes(
     PosState state,
   ) {
@@ -521,10 +543,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
     final features = state.runtimeConfig['features'] as Map? ?? const {};
     final isRestaurant = profile == 'restoran';
     return [
-      if (isRestaurant && features['use_tables'] == true)
+      // Meja adalah kapabilitas operasional, bukan hanya label profil bisnis.
+      // Profil retail/custom juga dapat mengaktifkan meja dari pengaturan POS.
+      if (features['use_tables'] == true)
         (
           value: 'dine_in',
-          label: 'Makan di Tempat',
+          label: 'Makan di Tempat (Pilih Meja)',
           icon: Icons.restaurant_outlined,
         ),
       if (isRestaurant)
@@ -967,6 +991,149 @@ class _PosProductPanelState extends State<PosProductPanel> {
     final selected = result.customer!;
     posBloc.add(SelectCustomer(selected));
     AppToast.success(context, '${selected.name} dipilih');
+  }
+}
+
+class _TablePickerSheet extends StatefulWidget {
+  final List<PosTableModel> tables;
+  final String? selectedTableId;
+
+  const _TablePickerSheet({
+    required this.tables,
+    required this.selectedTableId,
+  });
+
+  @override
+  State<_TablePickerSheet> createState() => _TablePickerSheetState();
+}
+
+class _TablePickerSheetState extends State<_TablePickerSheet> {
+  String _search = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _search.trim().toLowerCase();
+    final tables = widget.tables
+        .where(
+          (table) => query.isEmpty || table.name.toLowerCase().contains(query),
+        )
+        .toList();
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.72,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'Pilih meja untuk pesanan',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                autofocus: true,
+                onChanged: (value) => setState(() => _search = value),
+                decoration: const InputDecoration(
+                  labelText: 'Cari meja',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: tables.isEmpty
+                  ? const Center(child: Text('Meja tidak ditemukan'))
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 210,
+                            mainAxisExtent: 108,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
+                      itemCount: tables.length,
+                      itemBuilder: (context, index) {
+                        final table = tables[index];
+                        final occupied =
+                            table.status.toLowerCase() == 'terisi' ||
+                            table.activeOrderId != null;
+                        final selected = table.id == widget.selectedTableId;
+                        return Material(
+                          color: selected
+                              ? AppColors.primarySoft
+                              : occupied
+                              ? Colors.grey.shade100
+                              : Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppColors.primary
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          child: InkWell(
+                            onTap: occupied
+                                ? null
+                                : () => Navigator.pop(context, table),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.table_restaurant_outlined,
+                                        color: AppColors.primary,
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        occupied ? 'Terisi' : 'Tersedia',
+                                        style: TextStyle(
+                                          color: occupied
+                                              ? Colors.orange.shade800
+                                              : AppColors.success,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    table.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${table.capacity} kursi',
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

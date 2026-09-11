@@ -9,7 +9,11 @@ import 'pos_table_order_page.dart';
 /// Satu pintu UI untuk order dine-in dan master meja. API keduanya tetap
 /// terpisah supaya lifecycle transaksi tidak tercampur dengan CRUD meja.
 class PosOrderTableHubPage extends StatefulWidget {
-  const PosOrderTableHubPage({super.key});
+  final bool? _isGridView;
+  bool get isGridView => _isGridView ?? true;
+
+  const PosOrderTableHubPage({super.key, bool? isGridView})
+    : _isGridView = isGridView;
 
   @override
   State<PosOrderTableHubPage> createState() => _PosOrderTableHubPageState();
@@ -59,8 +63,11 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
         const Divider(height: 1),
         Expanded(
           child: selectedTab == 0
-              ? const PosTableOrderPage()
-              : const PosTableManagementPage(),
+              ? PosTableOrderPage(isGridView: widget.isGridView)
+              : PosTableManagementPage(
+                  isGridView: widget.isGridView,
+                  onOpenOrders: () => setState(() => _tab = 0),
+                ),
         ),
       ],
     );

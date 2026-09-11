@@ -9,6 +9,14 @@ class PosTableQueries {
           capacity
           status
           status_aktif
+          active_order_id
+          active_order_no
+          active_order_status
+          active_order_source
+          active_customer_name
+          active_order_created_at
+          active_order_total
+          active_order_item_count
           createdAt
           updatedAt
         }
@@ -28,6 +36,14 @@ class PosTableQueries {
         capacity
         status
         status_aktif
+        active_order_id
+        active_order_no
+        active_order_status
+        active_order_source
+        active_customer_name
+        active_order_created_at
+        active_order_total
+        active_order_item_count
         createdAt
         updatedAt
       }

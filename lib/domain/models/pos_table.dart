@@ -7,6 +7,14 @@ class PosTableModel extends Equatable {
   final int capacity;
   final String status; // Tersedia / Terisi
   final bool statusAktif;
+  final String? activeOrderId;
+  final String? activeOrderNo;
+  final String? activeOrderStatus;
+  final String? activeOrderSource;
+  final String? activeCustomerName;
+  final String? activeOrderCreatedAt;
+  final double activeOrderTotal;
+  final int activeOrderItemCount;
   final String? createdAt;
   final String? updatedAt;
 
@@ -17,6 +25,14 @@ class PosTableModel extends Equatable {
     this.capacity = 4,
     this.status = 'Tersedia',
     this.statusAktif = true,
+    this.activeOrderId,
+    this.activeOrderNo,
+    this.activeOrderStatus,
+    this.activeOrderSource,
+    this.activeCustomerName,
+    this.activeOrderCreatedAt,
+    this.activeOrderTotal = 0,
+    this.activeOrderItemCount = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -30,6 +46,16 @@ class PosTableModel extends Equatable {
       status: json['status']?.toString() ?? 'Tersedia',
       statusAktif:
           json['status_aktif'] == true || json['status_aktif'] == 'active',
+      activeOrderId: json['active_order_id']?.toString(),
+      activeOrderNo: json['active_order_no']?.toString(),
+      activeOrderStatus: json['active_order_status']?.toString(),
+      activeOrderSource: json['active_order_source']?.toString(),
+      activeCustomerName: json['active_customer_name']?.toString(),
+      activeOrderCreatedAt: json['active_order_created_at']?.toString(),
+      activeOrderTotal:
+          double.tryParse(json['active_order_total']?.toString() ?? '') ?? 0,
+      activeOrderItemCount:
+          int.tryParse(json['active_order_item_count']?.toString() ?? '') ?? 0,
       createdAt: json['createdAt']?.toString(),
       updatedAt: json['updatedAt']?.toString(),
     );
@@ -43,6 +69,14 @@ class PosTableModel extends Equatable {
       'capacity': capacity,
       'status': status,
       'status_aktif': statusAktif,
+      'active_order_id': activeOrderId,
+      'active_order_no': activeOrderNo,
+      'active_order_status': activeOrderStatus,
+      'active_order_source': activeOrderSource,
+      'active_customer_name': activeCustomerName,
+      'active_order_created_at': activeOrderCreatedAt,
+      'active_order_total': activeOrderTotal,
+      'active_order_item_count': activeOrderItemCount,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -55,6 +89,14 @@ class PosTableModel extends Equatable {
     int? capacity,
     String? status,
     bool? statusAktif,
+    String? activeOrderId,
+    String? activeOrderNo,
+    String? activeOrderStatus,
+    String? activeOrderSource,
+    String? activeCustomerName,
+    String? activeOrderCreatedAt,
+    double? activeOrderTotal,
+    int? activeOrderItemCount,
     String? createdAt,
     String? updatedAt,
   }) {
@@ -65,6 +107,14 @@ class PosTableModel extends Equatable {
       capacity: capacity ?? this.capacity,
       status: status ?? this.status,
       statusAktif: statusAktif ?? this.statusAktif,
+      activeOrderId: activeOrderId ?? this.activeOrderId,
+      activeOrderNo: activeOrderNo ?? this.activeOrderNo,
+      activeOrderStatus: activeOrderStatus ?? this.activeOrderStatus,
+      activeOrderSource: activeOrderSource ?? this.activeOrderSource,
+      activeCustomerName: activeCustomerName ?? this.activeCustomerName,
+      activeOrderCreatedAt: activeOrderCreatedAt ?? this.activeOrderCreatedAt,
+      activeOrderTotal: activeOrderTotal ?? this.activeOrderTotal,
+      activeOrderItemCount: activeOrderItemCount ?? this.activeOrderItemCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -78,6 +128,14 @@ class PosTableModel extends Equatable {
     capacity,
     status,
     statusAktif,
+    activeOrderId,
+    activeOrderNo,
+    activeOrderStatus,
+    activeOrderSource,
+    activeCustomerName,
+    activeOrderCreatedAt,
+    activeOrderTotal,
+    activeOrderItemCount,
     createdAt,
     updatedAt,
   ];

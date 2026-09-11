@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_table.dart';
@@ -11,7 +14,12 @@ import 'package:mobile_pos_pantoo/presentation/widgets/pos_ui.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 
 class PosTableManagementPage extends StatelessWidget {
-  const PosTableManagementPage({super.key});
+  final bool? _isGridView;
+  final VoidCallback? onOpenOrders;
+  bool get isGridView => _isGridView ?? true;
+
+  const PosTableManagementPage({super.key, bool? isGridView, this.onOpenOrders})
+    : _isGridView = isGridView;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +45,11 @@ class PosTableManagementPage extends StatelessWidget {
     return BlocProvider(
       create: (_) =>
           PosTableBloc(repository: sl())..add(LoadTables(storeId: storeId)),
-      child: _PosTableManagementView(storeId: storeId),
+      child: _PosTableManagementView(
+        storeId: storeId,
+        isGridView: isGridView,
+        onOpenOrders: onOpenOrders,
+      ),
     );
   }
 }
@@ -80,8 +92,15 @@ class _TableAccessMessage extends StatelessWidget {
 
 class _PosTableManagementView extends StatefulWidget {
   final String storeId;
+  final bool? _isGridView;
+  final VoidCallback? onOpenOrders;
+  bool get isGridView => _isGridView ?? true;
 
-  const _PosTableManagementView({required this.storeId});
+  const _PosTableManagementView({
+    required this.storeId,
+    bool? isGridView,
+    this.onOpenOrders,
+  }) : _isGridView = isGridView;
 
   @override
   State<_PosTableManagementView> createState() =>
@@ -90,22 +109,47 @@ class _PosTableManagementView extends StatefulWidget {
 
 class _PosTableManagementViewState extends State<_PosTableManagementView> {
   final TextEditingController _searchController = TextEditingController();
-  bool _isGridView = true;
+  Timer? _searchDebounce;
+  Timer? _durationTicker;
+  Timer? _occupancyRefreshTimer;
   int? _selectedCapacity;
+  String _statusFilter = '';
+  String _sort = 'occupied_first';
 
   bool get _isTablet => MediaQuery.of(context).size.width >= 600;
 
   @override
+  void initState() {
+    super.initState();
+    _durationTicker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    _occupancyRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) {
+        if (mounted) _reload();
+      },
+    );
+  }
+
+  @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _durationTicker?.cancel();
+    _occupancyRefreshTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _onSearch(String value) {
-    context.read<PosTableBloc>().add(
-      LoadTables(storeId: widget.storeId, search: value),
-    );
+    setState(() {});
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _reload);
   }
+
+  void _reload() => context.read<PosTableBloc>().add(
+    LoadTables(storeId: widget.storeId, search: _searchController.text),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -126,11 +170,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           final activeCapacity = sortedCapacities.contains(_selectedCapacity)
               ? _selectedCapacity
               : null;
-          final visibleTables = activeCapacity == null
-              ? state.tables
-              : state.tables
-                    .where((table) => table.capacity == activeCapacity)
-                    .toList();
+          final visibleTables = _visibleTables(state.tables, activeCapacity);
           return Column(
             children: [
               _buildSearchBar(),
@@ -201,48 +241,102 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
 
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearch,
-              decoration: InputDecoration(
-                hintText: 'Cari meja...',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearch('');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.bgSecondary,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final search = TextField(
+            controller: _searchController,
+            onChanged: _onSearch,
+            decoration: const InputDecoration(
+              hintText: 'Cari meja...',
+              prefixIcon: Icon(Icons.search, color: Colors.grey),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          );
+          final filters = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              SizedBox(
+                width: 145,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _statusFilter,
+                  isDense: true,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Status meja',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Semua')),
+                    DropdownMenuItem(value: 'Terisi', child: Text('Terisi')),
+                    DropdownMenuItem(
+                      value: 'Tersedia',
+                      child: Text('Tersedia'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _statusFilter = value ?? ''),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filledTonal(
-            onPressed: () => setState(() => _isGridView = !_isGridView),
-            icon: Icon(
-              _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-            ),
-            tooltip: _isGridView ? 'Tampilan List' : 'Tampilan Grid',
-          ),
-        ],
+              SizedBox(
+                width: 168,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _sort,
+                  isDense: true,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Urutkan',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'occupied_first',
+                      child: Text(
+                        'Terisi dahulu',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(value: 'name', child: Text('Nama meja')),
+                    DropdownMenuItem(
+                      value: 'longest',
+                      child: Text(
+                        'Durasi terlama',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'capacity',
+                      child: Text('Kapasitas'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _sort = value ?? 'occupied_first'),
+                ),
+              ),
+            ],
+          );
+          if (constraints.maxWidth < 650) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [search, const SizedBox(height: 8), filters],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: search),
+              const SizedBox(width: 10),
+              filters,
+            ],
+          );
+        },
       ),
     );
   }
@@ -272,7 +366,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       );
     }
 
-    if (_isGridView) {
+    if (widget.isGridView) {
       return _buildGridView(visibleTables);
     }
     return _buildListView(visibleTables);
@@ -294,7 +388,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
             crossAxisCount: (constraints.maxWidth / 170).floor().clamp(2, 6),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.35,
+            mainAxisExtent: 184,
           ),
           itemCount: tables.length,
           itemBuilder: (context, index) => _buildGridCard(tables[index]),
@@ -311,7 +405,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       color: isAvailable ? Colors.white : AppColors.warningBackground,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
-        onTap: () => _showTableForm(context, table: table),
+        onTap: () => isAvailable
+            ? _showTableForm(context, table: table)
+            : _showOccupiedTable(context, table),
         onLongPress: () => _showTableActions(context, table),
         borderRadius: BorderRadius.circular(10),
         child: Container(
@@ -355,6 +451,42 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   ),
                 ],
               ),
+              if (!isAvailable) ...[
+                const SizedBox(height: 5),
+                Text(
+                  '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : 'Pelanggan umum'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${_formatTime(table.activeOrderCreatedAt)} · ${_duration(table.activeOrderCreatedAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _currency(table.activeOrderTotal),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -383,7 +515,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     final isAvailable = table.status == 'Tersedia';
     return Dismissible(
       key: Key(table.id),
-      direction: DismissDirection.endToStart,
+      direction: isAvailable
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
@@ -420,7 +554,11 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            'Kapasitas: ${table.capacity} kursi',
+            isAvailable
+                ? 'Kapasitas: ${table.capacity} kursi'
+                : '${table.activeOrderNo ?? 'Pesanan aktif'} · ${_formatTime(table.activeOrderCreatedAt)} · ${_duration(table.activeOrderCreatedAt)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
           trailing: Row(
@@ -431,20 +569,29 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
                 onSelected: (value) => _handleMenuAction(value, table),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text(
-                      'Hapus',
-                      style: TextStyle(color: AppColors.danger),
-                    ),
-                  ),
-                ],
+                itemBuilder: (_) => isAvailable
+                    ? const [
+                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            'Hapus',
+                            style: TextStyle(color: AppColors.danger),
+                          ),
+                        ),
+                      ]
+                    : const [
+                        PopupMenuItem(
+                          value: 'order',
+                          child: Text('Lihat pesanan aktif'),
+                        ),
+                      ],
               ),
             ],
           ),
-          onTap: () => _showTableForm(context, table: table),
+          onTap: () => isAvailable
+              ? _showTableForm(context, table: table)
+              : _showOccupiedTable(context, table),
         ),
       ),
     );
@@ -472,6 +619,145 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     );
   }
 
+  List<PosTableModel> _visibleTables(
+    List<PosTableModel> source,
+    int? capacity,
+  ) {
+    final result = source.where((table) {
+      if (capacity != null && table.capacity != capacity) return false;
+      if (_statusFilter.isNotEmpty && table.status != _statusFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
+    final farFuture = DateTime(9999);
+    result.sort((a, b) {
+      switch (_sort) {
+        case 'name':
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case 'longest':
+          return (_parseTimestamp(a.activeOrderCreatedAt) ?? farFuture)
+              .compareTo(_parseTimestamp(b.activeOrderCreatedAt) ?? farFuture);
+        case 'capacity':
+          final byCapacity = b.capacity.compareTo(a.capacity);
+          return byCapacity != 0
+              ? byCapacity
+              : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        default:
+          final aOccupied = a.status.toLowerCase() == 'terisi' ? 0 : 1;
+          final bOccupied = b.status.toLowerCase() == 'terisi' ? 0 : 1;
+          final byStatus = aOccupied.compareTo(bOccupied);
+          return byStatus != 0
+              ? byStatus
+              : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      }
+    });
+    return result;
+  }
+
+  DateTime? _parseTimestamp(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty) return null;
+    final parsed = DateTime.tryParse(value);
+    if (parsed != null) return parsed.toLocal();
+    final epoch = int.tryParse(value);
+    if (epoch == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(
+      value.length <= 10 ? epoch * 1000 : epoch,
+    ).toLocal();
+  }
+
+  String _formatTime(String? raw) {
+    final date = _parseTimestamp(raw);
+    return date == null ? '-' : DateFormat('dd/MM, HH:mm').format(date);
+  }
+
+  String _duration(String? raw) {
+    final date = _parseTimestamp(raw);
+    if (date == null) return '-';
+    final elapsed = DateTime.now().difference(date);
+    if (elapsed.isNegative || elapsed.inMinutes < 1) return '< 1 menit';
+    if (elapsed.inDays > 0) return '${elapsed.inDays} hari';
+    if (elapsed.inHours > 0) {
+      return '${elapsed.inHours}j ${elapsed.inMinutes.remainder(60)}m';
+    }
+    return '${elapsed.inMinutes} menit';
+  }
+
+  String _currency(num value) => NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  ).format(value);
+
+  void _showOccupiedTable(BuildContext context, PosTableModel table) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                table.name,
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : 'Pelanggan umum'}',
+              ),
+              const Divider(height: 24),
+              _detailRow('Status pesanan', table.activeOrderStatus ?? 'Aktif'),
+              _detailRow(
+                'Waktu pesan',
+                _formatTime(table.activeOrderCreatedAt),
+              ),
+              _detailRow('Durasi', _duration(table.activeOrderCreatedAt)),
+              _detailRow('Jumlah item', '${table.activeOrderItemCount} item'),
+              _detailRow('Total', _currency(table.activeOrderTotal)),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: widget.onOpenOrders == null
+                    ? null
+                    : () {
+                        Navigator.pop(sheetContext);
+                        widget.onOpenOrders!();
+                      },
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Buka Pesanan Aktif'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+
   void _handleMenuAction(String action, PosTableModel table) {
     switch (action) {
       case 'edit':
@@ -480,10 +766,17 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       case 'delete':
         _confirmDelete(context, table);
         break;
+      case 'order':
+        _showOccupiedTable(context, table);
+        break;
     }
   }
 
   void _showTableActions(BuildContext context, PosTableModel table) {
+    if (table.status.toLowerCase() == 'terisi') {
+      _showOccupiedTable(context, table);
+      return;
+    }
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -538,6 +831,14 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     BuildContext context,
     PosTableModel table,
   ) async {
+    if (table.status.toLowerCase() == 'terisi' ||
+        table.activeOrderId?.isNotEmpty == true) {
+      AppToast.error(
+        context,
+        'Meja masih memiliki pesanan aktif dan tidak dapat dihapus.',
+      );
+      return false;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(

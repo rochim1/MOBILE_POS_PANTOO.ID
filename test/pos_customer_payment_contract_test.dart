@@ -46,6 +46,20 @@ void main() {
 
     expect(cashier, contains('initialCustomer:'));
     expect(payment, contains('customerOverride: widget.initialCustomer'));
-    expect(bloc, contains('state.selectedCustomer ?? event.customerOverride'));
+    expect(bloc, contains('stateCustomer.id.trim().isNotEmpty'));
+    expect(bloc, contains(': event.customerOverride'));
+  });
+
+  test('memilih pelanggan membersihkan kegagalan pembayaran sebelumnya', () {
+    final bloc = File(
+      'lib/presentation/bloc/pos/pos_bloc.dart',
+    ).readAsStringSync();
+
+    final handlerStart = bloc.indexOf('void _onSelectCustomer');
+    final handlerEnd = bloc.indexOf('void _onUpdateSalesContext', handlerStart);
+    final handler = bloc.substring(handlerStart, handlerEnd);
+
+    expect(handler, contains('status: PosStatus.success'));
+    expect(handler, contains("errorMessage: ''"));
   });
 }

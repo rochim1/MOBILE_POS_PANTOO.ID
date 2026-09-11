@@ -372,10 +372,10 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildStatCard(_StatCardData data) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -384,13 +384,13 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: data.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(data.icon, color: data.color, size: 19),
+                child: Icon(data.icon, color: data.color, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -443,8 +443,6 @@ class _HomePageState extends State<HomePage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 7),
-          Container(height: 2, color: data.color),
         ],
       ),
     );
@@ -940,50 +938,40 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: AppColors.dangerBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.dangerBorder),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.dangerBackground,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.warning_amber_rounded,
-              color: AppColors.danger,
-            ),
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.danger,
+            size: 20,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 9),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Peringatan Stok Menipis',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.danger,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${lowStockProducts.length} produk memiliki stok kurang dari 5. Segera lakukan re-stock.',
-                  style: const TextStyle(color: AppColors.danger, fontSize: 13),
-                ),
-              ],
+            child: Text(
+              '${lowStockProducts.length} produk memiliki stok menipis dan perlu diperiksa.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.danger,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           TextButton(
             onPressed: () => widget.onNavigate?.call(7),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 34),
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+            ),
             child: const Text(
-              'Lihat',
+              'Periksa',
               style: TextStyle(
                 color: AppColors.danger,
                 fontWeight: FontWeight.bold,

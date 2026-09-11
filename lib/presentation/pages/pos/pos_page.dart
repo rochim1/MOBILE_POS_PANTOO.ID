@@ -9,6 +9,8 @@ import '../../bloc/pos/pos_state.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_full_width_tabs.dart';
+import '../../../../domain/repositories/pos_repository.dart';
+import '../../../../injections.dart';
 import 'widgets/pos_product_panel.dart';
 import 'widgets/pos_cart_panel.dart';
 import 'pos_payment_page.dart';
@@ -19,23 +21,29 @@ import 'widgets/pos_cashier_tour.dart';
 
 class PosPage extends StatelessWidget {
   final PosCashierTourTargets? tourTargets;
-  const PosPage({super.key, this.tourTargets});
+  final VoidCallback? onOpenTableOrders;
+  const PosPage({super.key, this.tourTargets, this.onOpenTableOrders});
 
   @override
   Widget build(BuildContext context) {
-    return PosPageView(tourTargets: tourTargets);
+    return PosPageView(
+      tourTargets: tourTargets,
+      onOpenTableOrders: onOpenTableOrders,
+    );
   }
 }
 
 class PosPageView extends StatefulWidget {
   final PosCashierTourTargets? tourTargets;
-  const PosPageView({super.key, this.tourTargets});
+  final VoidCallback? onOpenTableOrders;
+  const PosPageView({super.key, this.tourTargets, this.onOpenTableOrders});
 
   @override
   State<PosPageView> createState() => _PosPageViewState();
 }
 
 class _PosPageViewState extends State<PosPageView> {
+  bool _savingTableOrder = false;
   String _selectedCategory = 'Semua Kategori';
   final List<String> _categories = [
     'Semua Kategori',
@@ -69,6 +77,19 @@ class _PosPageViewState extends State<PosPageView> {
           const SingleActivator(LogicalKeyboardKey.f4): () {
             final bloc = context.read<PosBloc>();
             if (bloc.state.cart.isEmpty) return;
+            if (bloc.state.orderType == 'dine_in' &&
+                (bloc.state.selectedTableId == null ||
+                    bloc.state.selectedTableId!.isEmpty)) {
+              AppToast.warning(
+                context,
+                'Pilih meja dari menu tipe pemenuhan terlebih dahulu.',
+              );
+              return;
+            }
+            if (bloc.state.orderType == 'dine_in') {
+              _saveTableOrder(context, bloc.state);
+              return;
+            }
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -465,10 +486,23 @@ class _PosPageViewState extends State<PosPageView> {
               key: widget.tourTargets?.payment,
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: state.cart.isEmpty
+                onPressed: state.cart.isEmpty || _savingTableOrder
                     ? null
                     : () {
                         final posBloc = context.read<PosBloc>();
+                        if (posBloc.state.orderType == 'dine_in' &&
+                            (posBloc.state.selectedTableId == null ||
+                                posBloc.state.selectedTableId!.isEmpty)) {
+                          AppToast.warning(
+                            context,
+                            'Pilih meja dari menu tipe pemenuhan terlebih dahulu.',
+                          );
+                          return;
+                        }
+                        if (posBloc.state.orderType == 'dine_in') {
+                          _saveTableOrder(context, posBloc.state);
+                          return;
+                        }
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -506,11 +540,15 @@ class _PosPageViewState extends State<PosPageView> {
                         ),
                       ),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Center(
                         child: Text(
-                          'Bayar',
-                          style: TextStyle(
+                          _savingTableOrder
+                              ? 'Menyimpan...'
+                              : state.orderType == 'dine_in'
+                              ? 'Simpan ke Meja'
+                              : 'Bayar',
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
                             color: Colors.white,
@@ -723,4 +761,44 @@ class _PosPageViewState extends State<PosPageView> {
   }
 
   Future<void> _showHeldOrders(BuildContext context) => _holdOrder(context);
+
+  Future<void> _saveTableOrder(BuildContext context, PosState state) async {
+    if (_savingTableOrder) return;
+    setState(() => _savingTableOrder = true);
+    final result = await sl<PosRepository>().createUnpaidInvoice(
+      cart: state.cart,
+      tokoId: state.activeShift?['toko_id']?.toString() ?? '',
+      shiftId: state.activeShift?['_id']?.toString() ?? '',
+      orderType: 'dine_in',
+      tableId: state.selectedTableId,
+      customerId: state.selectedCustomer?.id,
+      customerName: state.selectedCustomer?.name,
+      discountPercent: state.subTotal > 0
+          ? (state.totalDiscount / state.subTotal * 100)
+                .clamp(0, 100)
+                .toDouble()
+          : 0,
+      taxPercent: state.taxPercent,
+      salesChannel: state.salesChannel,
+      customerSegment: state.customerSegment,
+      priceLevel: state.priceLevel,
+      itemPrices: {
+        for (final product in state.cart.keys)
+          product.id: state.unitPriceFor(product),
+      },
+    );
+    if (!mounted) return;
+    setState(() => _savingTableOrder = false);
+    result.fold((failure) => AppToast.error(context, failure.message), (order) {
+      final tableName = state.selectedTableName ?? 'terpilih';
+      context.read<PosBloc>()
+        ..add(ClearCart())
+        ..add(RefreshOrders());
+      AppToast.success(
+        context,
+        'Pesanan ${order['order_no'] ?? ''} tersimpan di meja $tableName.',
+      );
+      widget.onOpenTableOrders?.call();
+    });
+  }
 }

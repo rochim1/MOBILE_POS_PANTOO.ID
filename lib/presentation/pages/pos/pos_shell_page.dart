@@ -37,6 +37,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_inventory_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_notification_repository.dart';
+import '../../widgets/pos_employee_avatar.dart';
 
 class PosShellPage extends StatefulWidget {
   final bool prepareDashboard;
@@ -55,11 +56,14 @@ class PosShellPage extends StatefulWidget {
 class _PosShellPageState extends State<PosShellPage>
     with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  int _tableOrdersRefresh = 0;
   // 0 = expanded, 1 = icons only, 2 = completely hidden.
   int _sidebarMode = 1;
   bool _productGridView = true;
   bool _stockGridView = true;
   bool _historyGridView = false;
+  bool? _orderTableGridView;
+  bool get _useOrderTableGridView => _orderTableGridView ?? true;
   bool _posDataRequested = false;
   bool _showUnlockLoading = false;
   late bool _showSetupGuide;
@@ -354,7 +358,13 @@ class _PosShellPageState extends State<PosShellPage>
         setState(() => _selectedIndex = index);
       },
     ),
-    PosPage(tourTargets: _cashierTourTargets),
+    PosPage(
+      tourTargets: _cashierTourTargets,
+      onOpenTableOrders: () => setState(() {
+        _tableOrdersRefresh++;
+        _selectedIndex = 5;
+      }),
+    ),
     PosProductPage(isGridView: _productGridView),
     PosOrderPage(isGridView: _historyGridView),
     PosMoreMenuPage(
@@ -363,8 +373,14 @@ class _PosShellPageState extends State<PosShellPage>
         setState(() => _selectedIndex = index);
       },
     ),
-    const PosOrderTableHubPage(),
-    const PosOrderTableHubPage(),
+    PosOrderTableHubPage(
+      key: ValueKey('table-orders-$_tableOrdersRefresh'),
+      isGridView: _useOrderTableGridView,
+    ),
+    PosOrderTableHubPage(
+      key: ValueKey('table-orders-legacy-$_tableOrdersRefresh'),
+      isGridView: _useOrderTableGridView,
+    ),
     PosInventoryPage(
       key: ValueKey('inventory-$_inventoryInitialSection'),
       isGridView: _stockGridView,
@@ -659,31 +675,31 @@ class _PosShellPageState extends State<PosShellPage>
 
                           final activeEmployeeName =
                               lockState.activeEmployeeName;
+                          final activeEmployee = lockState.employees
+                              .where(
+                                (employee) =>
+                                    employee['_id']?.toString() ==
+                                    lockState.activeEmployeeId,
+                              )
+                              .firstOrNull;
                           final username =
                               activeEmployeeName ??
                               context.watch<AuthCubit>().state.username ??
                               'Pengguna';
-                          final initial = username.isNotEmpty
-                              ? username
-                                    .substring(0, username.length >= 2 ? 2 : 1)
-                                    .toUpperCase()
-                              : 'US';
 
                           return Row(
                             children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: AppColors.warningBorder,
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: isMobile ? 8 : 0,
+                                ),
+                                child: PosEmployeeAvatar(
+                                  employee: activeEmployee,
+                                  radius: 18,
+                                  fallbackColor: AppColors.warningBorder,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: isMobile ? 4 : 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,6 +871,23 @@ class _PosShellPageState extends State<PosShellPage>
                         ),
                         onPressed: () {
                           setState(() => _historyGridView = !_historyGridView);
+                        },
+                      ),
+                    if (_selectedIndex == 5 || _selectedIndex == 6)
+                      IconButton(
+                        tooltip: _useOrderTableGridView
+                            ? 'Tampilkan sebagai list'
+                            : 'Tampilkan sebagai grid',
+                        icon: Icon(
+                          _useOrderTableGridView
+                              ? Icons.view_list_rounded
+                              : Icons.grid_view_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(
+                            () => _orderTableGridView = !_useOrderTableGridView,
+                          );
                         },
                       ),
                     const SizedBox(width: 8),

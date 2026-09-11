@@ -69,7 +69,7 @@ class PosReceiptDocumentBuilder {
       decimalDigits: 0,
     );
     final pageFormat = pageFormatFor(template, data.items.length);
-    final fontSize = (template.fontSize ?? 10).clamp(8, 13).toDouble();
+    final fontSize = (template.fontSize ?? 12).clamp(8, 18).toDouble();
     final headerTitle = _resolve(template.headerTitle, company);
     final headerLines = [
       template.headerSubtitle,
@@ -102,14 +102,15 @@ class PosReceiptDocumentBuilder {
                 ),
                 pw.SizedBox(height: 3),
               ],
-              pw.Text(
-                headerTitle.isNotEmpty ? headerTitle : 'PANTOO POS',
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                  fontSize: fontSize + 3,
-                  fontWeight: pw.FontWeight.bold,
+              if (headerTitle.isNotEmpty)
+                pw.Text(
+                  headerTitle,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontSize: fontSize + 3,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
-              ),
               ...headerLines.map(
                 (line) => pw.Text(line, textAlign: pw.TextAlign.center),
               ),
@@ -120,7 +121,7 @@ class PosReceiptDocumentBuilder {
                 pw.Text('Tanggal: ${data.dateLabel}'),
               if (template.showKasir != false && data.cashierName.isNotEmpty)
                 pw.Text('Kasir: ${data.cashierName}'),
-              if (template.showToko == true && data.storeName.isNotEmpty)
+              if (template.showToko != false && data.storeName.isNotEmpty)
                 pw.Text('Toko: ${data.storeName}'),
               if (template.showPelanggan != false &&
                   data.customerName.isNotEmpty)
@@ -184,11 +185,6 @@ class PosReceiptDocumentBuilder {
               ...footerLines.map(
                 (line) => pw.Text(line, textAlign: pw.TextAlign.center),
               ),
-              if (footerLines.isEmpty)
-                pw.Text(
-                  'Terima kasih atas kunjungan Anda',
-                  textAlign: pw.TextAlign.center,
-                ),
             ],
           ),
         ),

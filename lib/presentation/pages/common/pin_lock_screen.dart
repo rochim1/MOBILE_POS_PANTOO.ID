@@ -9,6 +9,7 @@ import '../../bloc/lock/lock_state.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
+import '../../widgets/pos_employee_avatar.dart';
 
 class PinLockScreen extends StatefulWidget {
   const PinLockScreen({super.key});
@@ -358,15 +359,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                             employee['is_login_user'] == true &&
                             employee['has_pin'] != true;
                         return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.primary.withValues(
-                              alpha: 0.12,
-                            ),
-                            child: const Icon(
-                              Icons.person_outline,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                          leading: PosEmployeeAvatar(employee: employee),
                           title: Text(
                             _employeeName(employee),
                             style: const TextStyle(fontWeight: FontWeight.w600),
@@ -507,8 +500,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       ),
                                                   child: Row(
                                                     children: [
-                                                      const Icon(
-                                                        Icons.badge_outlined,
+                                                      PosEmployeeAvatar(
+                                                        employee:
+                                                            selectedEmployee,
+                                                        radius: 15,
                                                       ),
                                                       const SizedBox(width: 12),
                                                       Expanded(

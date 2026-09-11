@@ -47,6 +47,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<LoadDashboardData>(_onLoadDashboardData);
     on<RefreshPricingPreview>(_onRefreshPricingPreview);
     on<UpdateOrderType>(_onUpdateOrderType);
+    on<SelectOrderTable>(_onSelectOrderTable);
     on<UpdateSalesContext>(_onUpdateSalesContext);
     on<ToggleFavoriteProduct>(_onToggleFavoriteProduct);
   }
@@ -283,6 +284,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           priceLevel:
               runtimeConfig['default_price_level']?.toString() ?? 'retail',
           taxPercent: (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
+          discountPolicy:
+              runtimeConfig['default_discount_policy']?.toString() ?? 'stack',
           favoriteProductIds: favoriteProductIds,
           errorMessage: '',
         ),
@@ -395,8 +398,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         cart: const {},
         manualDiscountPercent: 0,
         promoCode: '',
-        discountPolicy: 'stack',
+        discountPolicy: state.defaultDiscountPolicy,
         orderType: _defaultOrderType(state.runtimeConfig),
+        clearSelectedTable: true,
         salesChannel: state.defaultSalesChannel,
         customerSegment: state.defaultCustomerSegment,
         priceLevel: state.defaultPriceLevel,
@@ -438,6 +442,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       promoCode: state.promoCode,
       discountPolicy: state.discountPolicy,
       orderType: state.orderType,
+      tableId: state.selectedTableId,
+      tableName: state.selectedTableName,
       salesChannel: state.salesChannel,
       customerSegment: state.customerSegment,
       priceLevel: state.priceLevel,
@@ -464,8 +470,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         cart: const {},
         manualDiscountPercent: 0,
         promoCode: '',
-        discountPolicy: 'stack',
+        discountPolicy: state.defaultDiscountPolicy,
         orderType: _defaultOrderType(state.runtimeConfig),
+        clearSelectedTable: true,
         salesChannel: state.defaultSalesChannel,
         customerSegment: state.defaultCustomerSegment,
         priceLevel: state.defaultPriceLevel,
@@ -532,6 +539,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         promoCode: event.order.promoCode,
         discountPolicy: event.order.discountPolicy,
         orderType: event.order.orderType,
+        selectedTableId: event.order.tableId,
+        selectedTableName: event.order.tableName,
+        clearSelectedTable: event.order.tableId == null,
         salesChannel: event.order.salesChannel,
         customerSegment: event.order.customerSegment,
         priceLevel: event.order.priceLevel,
@@ -573,7 +583,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     Emitter<PosState> emit,
   ) async {
     if (state.cart.isEmpty) return;
-    final selectedCustomer = state.selectedCustomer ?? event.customerOverride;
+    final stateCustomer = state.selectedCustomer;
+    final selectedCustomer =
+        stateCustomer != null && stateCustomer.id.trim().isNotEmpty
+        ? stateCustomer
+        : event.customerOverride;
     final features = state.runtimeConfig['features'] as Map?;
     if (features?['require_customer'] == true &&
         (selectedCustomer == null || selectedCustomer.id.trim().isEmpty)) {
@@ -610,6 +624,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         expiredSaleAuthorizerUsername: event.expiredSaleAuthorizerUsername,
         expiredSaleAuthorizerPin: event.expiredSaleAuthorizerPin,
         orderType: state.orderType,
+        tableId: state.selectedTableId,
         salesChannel: state.salesChannel,
         customerSegment: state.customerSegment,
         priceLevel: state.priceLevel,
@@ -633,8 +648,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
             cart: const {},
             manualDiscountPercent: 0,
             promoCode: '',
-            discountPolicy: 'stack',
+            discountPolicy: state.defaultDiscountPolicy,
             orderType: _defaultOrderType(state.runtimeConfig),
+            clearSelectedTable: true,
             salesChannel: state.defaultSalesChannel,
             customerSegment: state.defaultCustomerSegment,
             priceLevel: state.defaultPriceLevel,
@@ -670,8 +686,25 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       'reservation',
     };
     if (supported.contains(event.orderType)) {
-      emit(state.copyWith(orderType: event.orderType));
+      emit(
+        state.copyWith(
+          orderType: event.orderType,
+          clearSelectedTable: event.orderType != 'dine_in',
+        ),
+      );
     }
+  }
+
+  void _onSelectOrderTable(SelectOrderTable event, Emitter<PosState> emit) {
+    final hasTable = event.tableId != null && event.tableId!.trim().isNotEmpty;
+    emit(
+      state.copyWith(
+        orderType: hasTable ? 'dine_in' : state.orderType,
+        selectedTableId: event.tableId,
+        selectedTableName: event.tableName,
+        clearSelectedTable: !hasTable,
+      ),
+    );
   }
 
   void _onSelectCustomer(SelectCustomer event, Emitter<PosState> emit) {
@@ -686,6 +719,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         priceLevel: level,
         customerSegment: 'regular',
         clearPricingPreview: true,
+        status: PosStatus.success,
+        errorMessage: '',
       ),
     );
     add(RefreshPricingPreview());

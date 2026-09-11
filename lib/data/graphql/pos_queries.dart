@@ -62,6 +62,18 @@ class PosQueries {
         sales_channel_options
         price_level_options
         tax_percent
+        default_payment_method
+        default_discount_policy
+        default_note
+        minimum_cash_transaction
+        price_rounding
+        invoice_prefix
+        auto_print_receipt
+        allow_cashier_price_edit
+        allow_out_of_shift
+        pos_lock_enabled
+        pos_lock_on_background
+        pos_auto_lock_minutes
         expired_sale_policy
         features {
           use_tables
@@ -176,7 +188,7 @@ class PosQueries {
   static const String getPOSPinUsers = r'''
     query GetPOSPinUsers($search: String, $hasPin: Boolean, $pagination: pagination) {
       GetPOSPinUsers(search: $search, has_pin: $hasPin, pagination: $pagination) {
-        items { _id name username has_pin failed_attempts locked_until }
+        items { _id name username photo_url has_pin failed_attempts locked_until }
       }
     }
   ''';

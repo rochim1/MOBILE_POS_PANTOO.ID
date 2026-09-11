@@ -13,6 +13,8 @@ class HoldOrder {
   final String promoCode;
   final String discountPolicy;
   final String orderType;
+  final String? tableId;
+  final String? tableName;
   final String salesChannel;
   final String customerSegment;
   final String priceLevel;
@@ -28,6 +30,8 @@ class HoldOrder {
     required this.promoCode,
     required this.discountPolicy,
     required this.orderType,
+    this.tableId,
+    this.tableName,
     this.salesChannel = 'retail',
     this.customerSegment = 'regular',
     this.priceLevel = 'retail',
@@ -55,6 +59,8 @@ class HoldOrder {
       promoCode: json['promoCode']?.toString() ?? '',
       discountPolicy: json['discountPolicy']?.toString() ?? 'stack',
       orderType: json['orderType']?.toString() ?? 'take_away',
+      tableId: json['tableId']?.toString(),
+      tableName: json['tableName']?.toString(),
       salesChannel: json['salesChannel']?.toString() ?? 'retail',
       customerSegment: json['customerSegment']?.toString() ?? 'regular',
       priceLevel: json['priceLevel']?.toString() ?? 'retail',
@@ -76,6 +82,8 @@ class HoldOrder {
     'promoCode': promoCode,
     'discountPolicy': discountPolicy,
     'orderType': orderType,
+    'tableId': tableId,
+    'tableName': tableName,
     'salesChannel': salesChannel,
     'customerSegment': customerSegment,
     'priceLevel': priceLevel,

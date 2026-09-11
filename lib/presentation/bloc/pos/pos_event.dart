@@ -147,6 +147,14 @@ class UpdateOrderType extends PosEvent {
   List<Object> get props => [orderType];
 }
 
+class SelectOrderTable extends PosEvent {
+  final String? tableId;
+  final String? tableName;
+  const SelectOrderTable({this.tableId, this.tableName});
+  @override
+  List<Object?> get props => [tableId, tableName];
+}
+
 class UpdateSalesContext extends PosEvent {
   final String salesChannel;
   final String customerSegment;

@@ -35,13 +35,29 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     super.initState();
     _invoiceNote = widget.pendingOrder?.note ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.initialCustomer == null) return;
+      if (!mounted) return;
       final bloc = context.read<PosBloc>();
-      if (bloc.state.selectedCustomer?.id != widget.initialCustomer!.id) {
+      final state = bloc.state;
+      if (_invoiceNote.isEmpty) {
+        _invoiceNote = state.defaultTransactionNote;
+      }
+      _paymentMethod = _paymentMethodLabel(state.defaultPaymentMethod);
+      setState(() {});
+      if (widget.initialCustomer != null &&
+          state.selectedCustomer?.id != widget.initialCustomer!.id) {
         bloc.add(SelectCustomer(widget.initialCustomer));
       }
     });
   }
+
+  String _paymentMethodLabel(String value) => switch (value.toLowerCase()) {
+    'transfer' => 'Transfer',
+    'qris' => 'QRIS',
+    'debit' => 'Kartu Debit',
+    'kartu_kredit' || 'credit_card' => 'Kartu Kredit',
+    'e_wallet' => 'E-Wallet',
+    _ => 'Tunai',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +205,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           final discount =
               widget.pendingOrder?.discountAmount ?? state.totalDiscount;
           final tax = widget.pendingOrder?.taxAmount ?? state.taxAmount;
+          final belowCashMinimum =
+              _paymentMethod == 'Tunai' &&
+              state.minimumCashTransaction > 0 &&
+              total < state.minimumCashTransaction;
           return LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 760;
@@ -256,7 +276,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               Expanded(
                                 child: _buildActionButton(
                                   Icons.receipt_long,
-                                  'Jadikan Invoice',
+                                  state.orderType == 'dine_in'
+                                      ? 'Simpan ke Meja'
+                                      : 'Jadikan Invoice',
                                   onPressed:
                                       _creatingInvoice ||
                                           widget.pendingOrder != null
@@ -574,12 +596,26 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               ],
                             ),
                           ),
+                          if (belowCashMinimum)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              color: AppColors.warningBackground,
+                              child: Text(
+                                'Minimum transaksi tunai ${_money(state.minimumCashTransaction)}. Pilih metode lain atau tambah transaksi.',
+                                style: const TextStyle(
+                                  color: AppColors.warning,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed:
                                   (state.status == PosStatus.loading ||
-                                      _payingPendingInvoice)
+                                      _payingPendingInvoice ||
+                                      belowCashMinimum)
                                   ? null
                                   : ((_paymentMethod == 'Pisah Bayar' &&
                                             (_splitPayments.fold<double>(
@@ -950,19 +986,26 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   }
 
   Future<void> _createInvoice(BuildContext context, PosState state) async {
-    if (state.orderType == 'dine_in') {
+    if (state.orderType == 'dine_in' &&
+        (state.selectedTableId == null || state.selectedTableId!.isEmpty)) {
       AppToast.warning(
         context,
-        'Invoice dine-in harus dibuat dari Pesanan Aktif & Meja agar meja tercatat.',
+        'Pilih meja terlebih dahulu dari halaman kasir.',
       );
       return;
     }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Jadikan Invoice?'),
-        content: const Text(
-          'Pesanan akan disimpan sebagai tagihan belum dibayar. Stok belum dipotong sampai invoice dibayar dari Daftar Order.',
+        title: Text(
+          state.orderType == 'dine_in'
+              ? 'Simpan pesanan ke meja?'
+              : 'Jadikan Invoice?',
+        ),
+        content: Text(
+          state.orderType == 'dine_in'
+              ? 'Pesanan akan dicatat pada meja ${state.selectedTableName}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.'
+              : 'Pesanan akan disimpan sebagai tagihan belum dibayar. Stok belum dipotong sampai invoice dibayar dari Daftar Order.',
         ),
         actions: [
           TextButton(
@@ -971,7 +1014,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Buat Invoice'),
+            child: Text(
+              state.orderType == 'dine_in' ? 'Simpan ke Meja' : 'Buat Invoice',
+            ),
           ),
         ],
       ),
@@ -984,6 +1029,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       tokoId: activeShift?['toko_id']?.toString() ?? '',
       shiftId: activeShift?['_id']?.toString() ?? '',
       orderType: state.orderType,
+      tableId: state.selectedTableId,
       customerId: state.selectedCustomer?.id ?? widget.initialCustomer?.id,
       customerName:
           state.selectedCustomer?.name ?? widget.initialCustomer?.name,
@@ -1011,7 +1057,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       context.read<PosBloc>().add(RefreshOrders());
       AppToast.success(
         context,
-        'Invoice ${invoice['order_no'] ?? ''} berhasil dibuat.',
+        state.orderType == 'dine_in'
+            ? 'Pesanan meja ${state.selectedTableName ?? ''} berhasil disimpan.'
+            : 'Invoice ${invoice['order_no'] ?? ''} berhasil dibuat.',
       );
       Navigator.pop(context);
     });

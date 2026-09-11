@@ -51,6 +51,15 @@ void main() {
     expect(state.grandTotal, 19980);
   });
 
+  test('configured rounding matches the backend upward rounding rule', () {
+    final state = PosState(
+      cart: {product: 1},
+      runtimeConfig: const {'price_rounding': '500'},
+      taxPercent: 11,
+    );
+    expect(state.grandTotal, 11500);
+  });
+
   test('promo and cashier selections use server-backed state', () {
     const state = PosState(
       orderType: 'delivery',
