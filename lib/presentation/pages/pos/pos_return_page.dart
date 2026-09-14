@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -32,6 +34,14 @@ class PosReturnView extends StatefulWidget {
 class _PosReturnViewState extends State<PosReturnView> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = '';
+  Timer? _searchDebounce;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   String _formatCurrency(num value) {
     return NumberFormat.currency(
@@ -88,8 +98,15 @@ class _PosReturnViewState extends State<PosReturnView> {
                       ),
                     ),
                     onChanged: (val) {
-                      context.read<PosReturnBloc>().add(
-                        LoadReturns(search: val, status: _selectedStatus),
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(
+                        const Duration(milliseconds: 350),
+                        () {
+                          if (!mounted) return;
+                          context.read<PosReturnBloc>().add(
+                            LoadReturns(search: val, status: _selectedStatus),
+                          );
+                        },
                       );
                     },
                   ),
@@ -288,9 +305,15 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 children: [
                                   if (status == 'draft')
                                     TextButton(
-                                      onPressed: () => context
-                                          .read<PosReturnBloc>()
-                                          .add(ApproveReturn(item['_id'])),
+                                      onPressed: () => _confirmAction(
+                                        title: 'Setujui retur?',
+                                        message:
+                                            'Retur ${item['no_retur'] ?? ''} akan siap diproses.',
+                                        confirmLabel: 'Setujui',
+                                        onConfirmed: () => context
+                                            .read<PosReturnBloc>()
+                                            .add(ApproveReturn(item['_id'])),
+                                      ),
                                       child: const Text(
                                         'Approve',
                                         style: TextStyle(color: AppColors.info),
@@ -300,9 +323,16 @@ class _PosReturnViewState extends State<PosReturnView> {
                                     const SizedBox(width: 8),
                                   if (status == 'draft')
                                     TextButton(
-                                      onPressed: () => context
-                                          .read<PosReturnBloc>()
-                                          .add(DeleteReturn(item['_id'])),
+                                      onPressed: () => _confirmAction(
+                                        title: 'Hapus draft retur?',
+                                        message:
+                                            'Draft ${item['no_retur'] ?? ''} akan dihapus dan tidak dapat diproses.',
+                                        confirmLabel: 'Hapus',
+                                        destructive: true,
+                                        onConfirmed: () => context
+                                            .read<PosReturnBloc>()
+                                            .add(DeleteReturn(item['_id'])),
+                                      ),
                                       child: const Text(
                                         'Hapus',
                                         style: TextStyle(
@@ -312,9 +342,15 @@ class _PosReturnViewState extends State<PosReturnView> {
                                     ),
                                   if (status == 'approved')
                                     ElevatedButton(
-                                      onPressed: () => context
-                                          .read<PosReturnBloc>()
-                                          .add(ProcessReturn(item['_id'])),
+                                      onPressed: () => _confirmAction(
+                                        title: 'Proses retur?',
+                                        message:
+                                            'Refund dan pergerakan stok akan dijalankan sesuai detail retur.',
+                                        confirmLabel: 'Proses Retur',
+                                        onConfirmed: () => context
+                                            .read<PosReturnBloc>()
+                                            .add(ProcessReturn(item['_id'])),
+                                      ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.success,
                                         shape: RoundedRectangleBorder(
@@ -348,13 +384,63 @@ class _PosReturnViewState extends State<PosReturnView> {
   Future<void> _openAddReturn() async {
     final bloc = context.read<PosReturnBloc>();
     bloc.add(ClearReturnForm());
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            BlocProvider.value(value: bloc, child: const PosAddReturnPage()),
-      ),
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final size = MediaQuery.sizeOf(dialogContext);
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: size.width < 700 ? 12 : 32,
+            vertical: size.height < 700 ? 12 : 28,
+          ),
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 980,
+              maxHeight: size.height - (size.height < 700 ? 24 : 56),
+            ),
+            child: BlocProvider.value(
+              value: bloc,
+              child: const PosAddReturnPage(),
+            ),
+          ),
+        );
+      },
     );
     if (result == true) bloc.add(const LoadReturns());
+  }
+
+  Future<void> _confirmAction({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required VoidCallback onConfirmed,
+    bool destructive = false,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: destructive
+                ? FilledButton.styleFrom(backgroundColor: AppColors.danger)
+                : null,
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) onConfirmed();
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../bloc/pos/pos_bloc.dart';
@@ -35,6 +36,8 @@ class PosCartPanel extends StatelessWidget {
               product,
               qty,
               state.unitPriceFor(product),
+              allowPriceEdit:
+                  state.runtimeConfig['allow_cashier_price_edit'] == true,
             );
           },
         );
@@ -46,8 +49,9 @@ class PosCartPanel extends StatelessWidget {
     BuildContext context,
     PosProduct product,
     int quantity,
-    double unitPrice,
-  ) {
+    double unitPrice, {
+    required bool allowPriceEdit,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -132,10 +136,41 @@ class PosCartPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '@ Rp ${unitPrice.toStringAsFixed(0)}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
+                  InkWell(
+                    onTap: allowPriceEdit
+                        ? () => _editUnitPrice(context, product, unitPrice)
+                        : null,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '@ Rp ${unitPrice.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: allowPriceEdit
+                                    ? AppColors.primary
+                                    : Colors.grey,
+                                fontSize: 12,
+                                fontWeight: allowPriceEdit
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (allowPriceEdit) ...[
+                            const SizedBox(width: 3),
+                            const Icon(Icons.edit_outlined, size: 14),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -153,5 +188,53 @@ class PosCartPanel extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _editUnitPrice(
+    BuildContext context,
+    PosProduct product,
+    double currentPrice,
+  ) async {
+    final controller = TextEditingController(
+      text: currentPrice.toStringAsFixed(0),
+    );
+    final price = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Ubah harga satuan'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,2}')),
+          ],
+          decoration: InputDecoration(
+            labelText: 'Harga ${product.name}',
+            prefixText: 'Rp ',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = double.tryParse(
+                controller.text.replaceAll(',', '.'),
+              );
+              if (value == null || value <= 0) return;
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Terapkan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (price == null || !context.mounted) return;
+    context.read<PosBloc>().add(UpdateCartUnitPrice(product, price));
   }
 }

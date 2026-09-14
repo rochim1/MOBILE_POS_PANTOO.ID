@@ -109,4 +109,49 @@ class PosOrderRepository {
       return Left(AppErrorHandler.handle(e));
     }
   }
+
+  Future<Either<Failure, bool>> updateOrderItems(
+    String orderId,
+    List<Map<String, dynamic>> items,
+  ) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.updateOrderItems),
+          variables: {'orderId': orderId, 'items': items},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['UpdatePOSOrderItems'] is Map
+          ? const Right(true)
+          : const Left(ServerFailure('Perubahan pesanan tidak dapat diproses'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> updateServiceOrderStatus(
+    String orderId,
+    String status, {
+    String note = '',
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.updateServiceOrderStatus),
+          variables: {'orderId': orderId, 'status': status, 'note': note},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['UpdatePOSServiceOrderStatus'] is Map
+          ? const Right(true)
+          : const Left(ServerFailure('Status layanan tidak dapat diproses'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
 }

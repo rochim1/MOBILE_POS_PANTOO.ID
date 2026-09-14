@@ -175,6 +175,7 @@ class PosRepository {
       },
       'permissions': fallbackPermissions,
     };
+    Map<String, dynamic>? cachedConfig;
     final cachedJson = _prefs.getString('pos_runtime_config');
     if (cachedJson != null && cachedJson.isNotEmpty) {
       try {
@@ -185,7 +186,7 @@ class PosRepository {
             cached['permissions'] as Map? ?? const {},
           ),
         };
-        return cached;
+        cachedConfig = cached;
       } catch (_) {
         await _prefs.remove('pos_runtime_config');
       }
@@ -202,7 +203,7 @@ class PosRepository {
           'Runtime permission POS gagal dimuat; memakai navigasi operasional',
           error: result.exception,
         );
-        return fallback;
+        return cachedConfig ?? fallback;
       }
       final config = Map<String, dynamic>.from(
         result.data!['GetPOSRuntimeConfig'],
@@ -214,6 +215,7 @@ class PosRepository {
         ...fallbackPermissions,
         ...serverPermissions,
       };
+      await _prefs.setString('pos_runtime_config', jsonEncode(config));
       return config;
     } catch (error, stackTrace) {
       appLogger.e(
@@ -221,7 +223,7 @@ class PosRepository {
         error: error,
         stackTrace: stackTrace,
       );
-      return fallback;
+      return cachedConfig ?? fallback;
     }
   }
 
@@ -244,10 +246,51 @@ class PosRepository {
   String get _heldOrderUserKey =>
       '${_prefs.getString('instansi_id') ?? ''}:${_prefs.getString('username')?.trim().toLowerCase() ?? ''}';
 
+  String get _heldOrdersPreferenceKey =>
+      'pos_held_orders_v1:$_heldOrderUserKey';
+
+  List<Map<String, dynamic>> _heldOrderPreferenceRows() {
+    try {
+      final decoded = jsonDecode(
+        _prefs.getString(_heldOrdersPreferenceKey) ?? '[]',
+      );
+      return decoded is List
+          ? decoded
+                .whereType<Map>()
+                .map((row) => Map<String, dynamic>.from(row))
+                .toList()
+          : <Map<String, dynamic>>[];
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
   Future<List<HoldOrder>> getHeldOrders({
     required String storeId,
     required String shiftId,
   }) async {
+    if (!supportsOfflineDatabase) {
+      final rows =
+          _heldOrderPreferenceRows()
+              .where(
+                (row) =>
+                    row['store_id']?.toString() == storeId &&
+                    row['shift_id']?.toString() == shiftId,
+              )
+              .toList()
+            ..sort(
+              (a, b) => (b['created_at']?.toString() ?? '').compareTo(
+                a['created_at']?.toString() ?? '',
+              ),
+            );
+      return rows
+          .map((row) => row['payload'])
+          .whereType<Map>()
+          .map(
+            (payload) => HoldOrder.fromJson(Map<String, dynamic>.from(payload)),
+          )
+          .toList();
+    }
     try {
       final db = await PosLocalDatabase.instance.database;
       final rows = await db.query(
@@ -274,6 +317,25 @@ class PosRepository {
     required HoldOrder order,
     required String shiftId,
   }) async {
+    if (!supportsOfflineDatabase) {
+      final rows = _heldOrderPreferenceRows()
+        ..removeWhere((row) => row['id']?.toString() == order.id)
+        ..add({
+          'id': order.id,
+          'payload': order.toJson(),
+          'store_id': order.store.id,
+          'shift_id': shiftId,
+          'created_at': order.time.toIso8601String(),
+        });
+      final saved = await _prefs.setString(
+        _heldOrdersPreferenceKey,
+        jsonEncode(rows),
+      );
+      if (!saved) {
+        throw StateError('Penyimpanan browser menolak data pesanan');
+      }
+      return;
+    }
     final db = await PosLocalDatabase.instance.database;
     await db.insert('held_orders', {
       'id': order.id,
@@ -286,6 +348,12 @@ class PosRepository {
   }
 
   Future<void> deleteHeldOrder(String id) async {
+    if (!supportsOfflineDatabase) {
+      final rows = _heldOrderPreferenceRows()
+        ..removeWhere((row) => row['id']?.toString() == id);
+      await _prefs.setString(_heldOrdersPreferenceKey, jsonEncode(rows));
+      return;
+    }
     final db = await PosLocalDatabase.instance.database;
     await db.delete('held_orders', where: 'id = ?', whereArgs: [id]);
   }
@@ -1167,6 +1235,7 @@ class PosRepository {
     required String method,
     double? cashReceived,
     List<Map<String, dynamic>> splitPayments = const [],
+    String? customerId,
   }) async {
     try {
       final result = await _clientProvider.client.mutate(
@@ -1177,6 +1246,7 @@ class PosRepository {
             'method': method,
             'cashReceived': cashReceived,
             'splitPayments': splitPayments,
+            'customerId': customerId,
           },
         ),
       );
@@ -1324,6 +1394,7 @@ class PosRepository {
 
   Future<Either<Failure, PosTransactionResult>> submitTransaction({
     required Map<PosProduct, int> cart,
+    Map<String, double> unitPrices = const {},
     required double total,
     required String paymentMethod,
     required String tokoId,
@@ -1348,6 +1419,7 @@ class PosRepository {
     String expiredSaleAuthorizerUsername = '',
     String expiredSaleAuthorizerPin = '',
     String operatorSessionToken = '',
+    Map<String, dynamic>? serviceOrder,
   }) async {
     final items = cart.entries
         .map(
@@ -1355,6 +1427,8 @@ class PosRepository {
             'inventaris_id': e.key.id,
             'unit': e.key.saleUnit,
             'qty': e.value.toDouble(),
+            if (unitPrices[e.key.id] != null)
+              'harga_jual': unitPrices[e.key.id],
           },
         )
         .toList();
@@ -1365,8 +1439,9 @@ class PosRepository {
             'nama_inventaris': entry.key.name,
             'unit': entry.key.saleUnit,
             'qty': entry.value,
-            'harga_jual': entry.key.price,
-            'subtotal': entry.key.price * entry.value,
+            'harga_jual': unitPrices[entry.key.id] ?? entry.key.price,
+            'subtotal':
+                (unitPrices[entry.key.id] ?? entry.key.price) * entry.value,
           },
         )
         .toList();
@@ -1384,6 +1459,7 @@ class PosRepository {
       'discount_policy': discountPolicy ?? 'stack',
       'tipe_pesanan': orderType,
       if (tableId != null && tableId.isNotEmpty) 'meja_id': tableId,
+      if (serviceOrder != null) 'service_order': serviceOrder,
       'metode_pembayaran': paymentMethod,
       'uang_diterima': paymentMethod == 'tunai' ? cashReceived : null,
       'payments': paymentMethod == 'split' ? payments : const [],
@@ -1409,7 +1485,8 @@ class PosRepository {
     final clientSnapshot = <String, dynamic>{
       'subtotal': cart.entries.fold<double>(
         0,
-        (sum, entry) => sum + (entry.key.price * entry.value),
+        (sum, entry) =>
+            sum + ((unitPrices[entry.key.id] ?? entry.key.price) * entry.value),
       ),
       'manual_discount': diskon ?? 0,
       'tax': pajak ?? 0,
@@ -1430,8 +1507,9 @@ class PosRepository {
               'name': entry.key.name,
               'unit': entry.key.saleUnit,
               'qty': entry.value,
-              'unit_price': entry.key.price,
-              'subtotal': entry.key.price * entry.value,
+              'unit_price': unitPrices[entry.key.id] ?? entry.key.price,
+              'subtotal':
+                  (unitPrices[entry.key.id] ?? entry.key.price) * entry.value,
             },
           )
           .toList(),
@@ -1624,6 +1702,7 @@ class PosRepository {
     String customerSegment = 'regular',
     String priceLevel = 'retail',
     Map<String, double> itemPrices = const {},
+    Map<String, dynamic>? serviceOrder,
   }) async {
     try {
       final result = await _clientProvider.client.mutate(
@@ -1646,6 +1725,7 @@ class PosRepository {
               'diskon_persen': discountPercent,
               'pajak_persen': taxPercent,
               'source': 'kasir',
+              if (serviceOrder != null) 'service_order': serviceOrder,
               'items': cart.entries
                   .map(
                     (entry) => {
@@ -1678,6 +1758,7 @@ class PosRepository {
 
   Future<Either<Failure, Map<String, dynamic>>> previewPricing({
     required Map<PosProduct, int> cart,
+    Map<String, double> unitPrices = const {},
     required String tokoId,
     required String promoCode,
     required String discountPolicy,
@@ -1710,6 +1791,8 @@ class PosRepository {
                       'inventaris_id': entry.key.id,
                       'unit': entry.key.saleUnit,
                       'qty': entry.value.toDouble(),
+                      if (unitPrices[entry.key.id] != null)
+                        'harga_jual': unitPrices[entry.key.id],
                     },
                   )
                   .toList(),

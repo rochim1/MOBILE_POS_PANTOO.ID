@@ -31,6 +31,20 @@ void main() {
     expect(state.grandTotal, 18000);
   });
 
+  test('manual cashier price overrides catalog and preview price', () {
+    final state = PosState(
+      cart: {product: 2},
+      manualUnitPrices: const {'p1': 12500},
+      pricingPreview: const {
+        'items': [
+          {'inventaris_id': 'p1', 'harga_jual': 9000},
+        ],
+      },
+    );
+    expect(state.unitPriceFor(product), 12500);
+    expect(state.baseSubtotal, 25000);
+  });
+
   test('server price level and configured tax form the payable total', () {
     final state = PosState(
       cart: {product: 2},

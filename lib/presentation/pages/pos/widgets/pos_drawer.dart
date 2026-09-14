@@ -182,6 +182,7 @@ class _PosDrawerState extends State<PosDrawer> {
       runtimeConfig['permissions'] as Map? ?? const {},
     );
     final useTables = features['use_tables'] == true;
+    final useKitchenFlow = features['use_kitchen_flow'] == true;
     final viewTables = permissions['view_tables'] == true;
     final trackStock = features['track_stock'] != false;
     final canViewStock =
@@ -214,6 +215,8 @@ class _PosDrawerState extends State<PosDrawer> {
             'Pesanan Aktif & Meja',
             5,
           ),
+        if (useKitchenFlow && viewTables)
+          _buildShellItem(Icons.soup_kitchen_outlined, 'Tampilan Dapur', 18),
 
         // ---- Manajemen ----
         _buildSectionHeader('MANAJEMEN'),

@@ -322,14 +322,17 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                       _buildTextField(
                         'Catatan Bawah 1',
                         _footerLine1Controller,
+                        maxLines: 3,
                       ),
                       _buildTextField(
                         'Catatan Bawah 2',
                         _footerLine2Controller,
+                        maxLines: 3,
                       ),
                       _buildTextField(
                         'Catatan Bawah 3',
                         _footerLine3Controller,
+                        maxLines: 3,
                       ),
                     ],
                   ),
@@ -350,8 +353,17 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         label: 'Ukuran Font Default',
                         value: _fontSize.toString(),
                         items: const [
-                          '8', '9', '10', '11', '12', '13', '14', '15',
-                          '16', '17', '18',
+                          '8',
+                          '9',
+                          '10',
+                          '11',
+                          '12',
+                          '13',
+                          '14',
+                          '15',
+                          '16',
+                          '17',
+                          '18',
                         ],
                         onChanged: (val) =>
                             setState(() => _fontSize = int.parse(val!)),
@@ -468,12 +480,24 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: controller,
         onChanged: (_) => setState(() {}),
+        minLines: maxLines > 1 ? 2 : 1,
+        maxLines: maxLines,
+        keyboardType: maxLines > 1
+            ? TextInputType.multiline
+            : TextInputType.text,
+        textInputAction: maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.done,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

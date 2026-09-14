@@ -32,6 +32,7 @@ void main() {
       id: 'HOLD-TEST',
       time: DateTime.utc(2026, 8, 13, 10),
       cart: {product: 3},
+      manualUnitPrices: const {'product-1': 17500},
       customer: customer,
       store: store,
       notes: 'Tanpa plastik',
@@ -52,6 +53,7 @@ void main() {
     expect(restored.cart.keys.single.id, 'product-1');
     expect(restored.cart.keys.single.imageUrl, product.imageUrl);
     expect(restored.cart.values.single, 3);
+    expect(restored.manualUnitPrices['product-1'], 17500);
     expect(restored.discountPolicy, 'best_of_manual_or_promo');
     expect(restored.salesChannel, 'marketplace');
     expect(restored.customerSegment, 'reseller');

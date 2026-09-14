@@ -36,7 +36,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<RemoveFromCart>(_onRemoveFromCart);
     on<RemoveCartItem>(_onRemoveCartItem);
     on<UpdateQuantity>(_onUpdateQuantity);
+    on<UpdateCartUnitPrice>(_onUpdateCartUnitPrice);
     on<ClearCart>(_onClearCart);
+    on<EditActiveOrder>(_onEditActiveOrder);
     on<SelectCustomer>(_onSelectCustomer);
     on<HoldCurrentOrder>(_onHoldCurrentOrder);
     on<RestoreHeldOrder>(_onRestoreHeldOrder);
@@ -257,12 +259,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         branchId: activeStore.branchId,
       );
       final favoriteProductIds = await posRepository.getFavoriteProductIds();
-      final heldOrders = activeShift == null
-          ? <HoldOrder>[]
-          : await posRepository.getHeldOrders(
-              storeId: activeStore.id,
-              shiftId: activeShift['_id']?.toString() ?? '',
-            );
+      final heldOrders = await posRepository.getHeldOrders(
+        storeId: activeStore.id,
+        shiftId: activeShift?['_id']?.toString() ?? '',
+      );
 
       emit(
         state.copyWith(
@@ -332,15 +332,18 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onRemoveFromCart(RemoveFromCart event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
+    final prices = Map<String, double>.of(state.manualUnitPrices);
     final currentQty = newCart[event.product] ?? 0;
     if (currentQty <= 1) {
       newCart.remove(event.product);
+      prices.remove(event.product.id);
     } else {
       newCart[event.product] = currentQty - 1;
     }
     emit(
       state.copyWith(
         cart: newCart,
+        manualUnitPrices: prices,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -350,9 +353,34 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onRemoveCartItem(RemoveCartItem event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart)..remove(event.product);
+    final prices = Map<String, double>.of(state.manualUnitPrices)
+      ..remove(event.product.id);
     emit(
       state.copyWith(
         cart: newCart,
+        manualUnitPrices: prices,
+        status: PosStatus.success,
+        clearPricingPreview: true,
+      ),
+    );
+    add(RefreshPricingPreview());
+  }
+
+  void _onUpdateCartUnitPrice(
+    UpdateCartUnitPrice event,
+    Emitter<PosState> emit,
+  ) {
+    if (state.runtimeConfig['allow_cashier_price_edit'] != true ||
+        event.price <= 0 ||
+        !state.cart.containsKey(event.product)) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        manualUnitPrices: {
+          ...state.manualUnitPrices,
+          event.product.id: event.price,
+        },
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -362,6 +390,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onUpdateQuantity(UpdateQuantity event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
+    final prices = Map<String, double>.of(state.manualUnitPrices);
     final currentQty = newCart[event.product] ?? 0;
     final nextQty = currentQty + event.delta;
 
@@ -379,12 +408,14 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       return;
     } else if (nextQty <= 0) {
       newCart.remove(event.product);
+      prices.remove(event.product.id);
     } else {
       newCart[event.product] = nextQty;
     }
     emit(
       state.copyWith(
         cart: newCart,
+        manualUnitPrices: prices,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -396,6 +427,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     emit(
       state.copyWith(
         cart: const {},
+        manualUnitPrices: const {},
         manualDiscountPercent: 0,
         promoCode: '',
         discountPolicy: state.defaultDiscountPolicy,
@@ -406,10 +438,55 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         priceLevel: state.defaultPriceLevel,
         taxPercent: state.configuredTaxPercent,
         clearSelectedCustomer: true,
+        clearEditingOrder: true,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
     );
+  }
+
+  void _onEditActiveOrder(EditActiveOrder event, Emitter<PosState> emit) {
+    final order = event.order;
+    final productsById = {
+      for (final product in state.products) product.id: product,
+    };
+    final cart = <PosProduct, int>{};
+    for (final item in order.items) {
+      final product =
+          productsById[item.productId] ??
+          ((item.productId ?? '').isEmpty
+              ? null
+              : PosProduct(
+                  id: item.productId!,
+                  code: item.productCode ?? '',
+                  name: item.productName ?? 'Produk',
+                  category: 'Pesanan aktif',
+                  price: item.price ?? 0,
+                  stock: 0,
+                  tracksStock: false,
+                  baseUnit: item.unit ?? 'unit',
+                ));
+      final quantity = item.quantity ?? 0;
+      if (product != null && quantity > 0) cart[product] = quantity;
+    }
+    final matchingCustomers = state.customers.where(
+      (customer) => customer.id == order.customerId,
+    );
+    emit(
+      state.copyWith(
+        cart: cart,
+        orderType: 'dine_in',
+        selectedTableId: order.tableId,
+        selectedTableName: order.tableName,
+        selectedCustomer: matchingCustomers.firstOrNull,
+        clearSelectedCustomer: matchingCustomers.isEmpty,
+        editingOrderId: order.id,
+        editingOrderNumber: order.orderNumber,
+        status: PosStatus.success,
+        clearPricingPreview: true,
+      ),
+    );
+    add(RefreshPricingPreview());
   }
 
   Future<void> _onHoldCurrentOrder(
@@ -419,13 +496,15 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     if (state.cart.isEmpty) return;
     final activeStoreId = state.activeShift?['toko_id']?.toString();
     final activeStores = state.stores.where(
-      (store) => store.id == activeStoreId,
+      (store) => activeStoreId != null
+          ? store.id == activeStoreId
+          : store.status.toLowerCase() == 'active',
     );
     if (activeStores.isEmpty) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
-          errorMessage: 'Toko shift aktif tidak ditemukan',
+          errorMessage: 'Toko aktif tidak ditemukan',
         ),
       );
       return;
@@ -435,6 +514,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       id: 'HOLD-${const Uuid().v4().substring(0, 6).toUpperCase()}',
       time: DateTime.now(),
       cart: Map.of(state.cart),
+      manualUnitPrices: Map.of(state.manualUnitPrices),
       customer: state.selectedCustomer,
       store: activeStores.first,
       notes: event.notes,
@@ -468,6 +548,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       state.copyWith(
         heldOrders: newHeldOrders,
         cart: const {},
+        manualUnitPrices: const {},
         manualDiscountPercent: 0,
         promoCode: '',
         discountPolicy: state.defaultDiscountPolicy,
@@ -488,14 +569,26 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RefreshPricingPreview event,
     Emitter<PosState> emit,
   ) async {
-    if (state.cart.isEmpty || state.activeShift == null) {
+    if (state.cart.isEmpty) {
+      emit(state.copyWith(clearPricingPreview: true));
+      return;
+    }
+    final storeId =
+        state.activeShift?['toko_id']?.toString() ??
+        state.stores
+            .where((store) => store.status.toLowerCase() == 'active')
+            .firstOrNull
+            ?.id ??
+        '';
+    if (storeId.isEmpty) {
       emit(state.copyWith(clearPricingPreview: true));
       return;
     }
     final requestedSubtotal = state.subTotal;
     final result = await posRepository.previewPricing(
       cart: state.cart,
-      tokoId: state.activeShift!['toko_id'].toString(),
+      tokoId: storeId,
+      unitPrices: state.manualUnitPrices,
       promoCode: state.promoCode,
       discountPolicy: state.discountPolicy,
       manualDiscount: state.manualDiscount,
@@ -535,6 +628,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     emit(
       state.copyWith(
         cart: event.order.cart,
+        manualUnitPrices: event.order.manualUnitPrices,
         manualDiscountPercent: event.order.manualDiscountPercent,
         promoCode: event.order.promoCode,
         discountPolicy: event.order.discountPolicy,
@@ -589,12 +683,20 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         ? stateCustomer
         : event.customerOverride;
     final features = state.runtimeConfig['features'] as Map?;
-    if (features?['require_customer'] == true &&
+    final fulfillmentRequiresCustomer = const {
+      'delivery',
+      'online_delivery',
+      'reservation',
+    }.contains(state.orderType);
+    if ((features?['require_customer'] == true ||
+            fulfillmentRequiresCustomer) &&
         (selectedCustomer == null || selectedCustomer.id.trim().isEmpty)) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
-          errorMessage: 'Pelanggan wajib dipilih untuk profil POS ini',
+          errorMessage: fulfillmentRequiresCustomer
+              ? 'Pelanggan wajib dipilih untuk tipe pemenuhan ini'
+              : 'Pelanggan wajib dipilih untuk profil POS ini',
         ),
       );
       return;
@@ -602,16 +704,30 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
     emit(state.copyWith(status: PosStatus.loading));
     try {
-      final tokoId = state.activeShift != null
-          ? state.activeShift!['toko_id']
-          : (state.stores.isNotEmpty ? state.stores.first.id : '');
+      final tokoId =
+          state.activeShift?['toko_id']?.toString() ??
+          state.stores
+              .where((store) => store.status.toLowerCase() == 'active')
+              .firstOrNull
+              ?.id ??
+          '';
+      if (tokoId.isEmpty) {
+        emit(
+          state.copyWith(
+            status: PosStatus.failure,
+            errorMessage: 'Toko aktif belum tersedia untuk transaksi',
+          ),
+        );
+        return;
+      }
 
       final result = await posRepository.submitTransaction(
         cart: state.cart,
         total: state.grandTotal,
         paymentMethod: event.paymentMethod,
         tokoId: tokoId,
-        shiftId: state.activeShift!['_id'].toString(),
+        shiftId: state.activeShift?['_id']?.toString() ?? '',
+        unitPrices: state.manualUnitPrices,
         cashReceived: event.cashReceived,
         payments: event.payments,
         promoCode: state.promoCode.isNotEmpty ? state.promoCode : null,
@@ -633,6 +749,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         pelangganName: selectedCustomer?.name,
         pelangganPhone: selectedCustomer?.phone,
         pelangganEmail: selectedCustomer?.email,
+        serviceOrder: event.serviceOrder,
       );
 
       result.fold(
@@ -646,6 +763,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           state.copyWith(
             status: PosStatus.paymentSuccess,
             cart: const {},
+            manualUnitPrices: const {},
             manualDiscountPercent: 0,
             promoCode: '',
             discountPolicy: state.defaultDiscountPolicy,

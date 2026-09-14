@@ -419,6 +419,10 @@ class _PosProductPanelState extends State<PosProductPanel> {
           return;
         }
         context.read<PosBloc>().add(UpdateOrderType(value));
+        if (const {'delivery', 'reservation'}.contains(value) &&
+            state.selectedCustomer == null) {
+          await _selectCustomer(context);
+        }
       },
       itemBuilder: (_) {
         return [
@@ -752,6 +756,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     right: 2,
                     top: 2,
                     child: IconButton(
+                      tooltip: 'Tambah atau hapus dari favorit',
                       onPressed: () => context.read<PosBloc>().add(
                         ToggleFavoriteProduct(product.id),
                       ),

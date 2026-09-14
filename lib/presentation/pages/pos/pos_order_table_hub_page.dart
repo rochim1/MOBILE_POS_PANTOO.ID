@@ -5,14 +5,16 @@ import '../../bloc/pos/pos_bloc.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 import 'pos_table_management_page.dart';
 import 'pos_table_order_page.dart';
+import '../../../../domain/models/pos_order_detail.dart';
 
 /// Satu pintu UI untuk order dine-in dan master meja. API keduanya tetap
 /// terpisah supaya lifecycle transaksi tidak tercampur dengan CRUD meja.
 class PosOrderTableHubPage extends StatefulWidget {
+  final ValueChanged<PosOrderDetail>? onEditOrder;
   final bool? _isGridView;
   bool get isGridView => _isGridView ?? true;
 
-  const PosOrderTableHubPage({super.key, bool? isGridView})
+  const PosOrderTableHubPage({super.key, bool? isGridView, this.onEditOrder})
     : _isGridView = isGridView;
 
   @override
@@ -63,7 +65,10 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
         const Divider(height: 1),
         Expanded(
           child: selectedTab == 0
-              ? PosTableOrderPage(isGridView: widget.isGridView)
+              ? PosTableOrderPage(
+                  isGridView: widget.isGridView,
+                  onEditOrder: widget.onEditOrder,
+                )
               : PosTableManagementPage(
                   isGridView: widget.isGridView,
                   onOpenOrders: () => setState(() => _tab = 0),

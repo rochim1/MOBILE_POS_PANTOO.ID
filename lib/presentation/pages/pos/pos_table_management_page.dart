@@ -124,12 +124,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     _durationTicker = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
-    _occupancyRefreshTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) {
-        if (mounted) _reload();
-      },
-    );
+    _occupancyRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _reload();
+    });
   }
 
   @override

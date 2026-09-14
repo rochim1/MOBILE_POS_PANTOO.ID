@@ -17,13 +17,17 @@ import '../../widgets/pos_ui.dart';
 import '../../widgets/loading_indicator_widget.dart';
 import '../../../../domain/models/pos_table.dart';
 import '../../../../domain/models/pos_order_detail.dart';
+import '../../../../domain/models/pos_order.dart';
+import '../../../../domain/repositories/pos_order_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
+import 'pos_payment_page.dart';
 
 class PosTableOrderPage extends StatelessWidget {
+  final ValueChanged<PosOrderDetail>? onEditOrder;
   final bool? _isGridView;
   bool get isGridView => _isGridView ?? true;
 
-  const PosTableOrderPage({super.key, bool? isGridView})
+  const PosTableOrderPage({super.key, bool? isGridView, this.onEditOrder})
     : _isGridView = isGridView;
 
   @override
@@ -60,18 +64,26 @@ class PosTableOrderPage extends StatelessWidget {
                 ..add(LoadActiveOrders(storeId: storeId)),
         ),
       ],
-      child: _ActiveOrderListView(storeId: storeId, isGridView: isGridView),
+      child: _ActiveOrderListView(
+        storeId: storeId,
+        isGridView: isGridView,
+        onEditOrder: onEditOrder,
+      ),
     );
   }
 }
 
 class _ActiveOrderListView extends StatefulWidget {
+  final ValueChanged<PosOrderDetail>? onEditOrder;
   final String storeId;
   final bool? _isGridView;
   bool get isGridView => _isGridView ?? true;
 
-  const _ActiveOrderListView({required this.storeId, bool? isGridView})
-    : _isGridView = isGridView;
+  const _ActiveOrderListView({
+    required this.storeId,
+    bool? isGridView,
+    this.onEditOrder,
+  }) : _isGridView = isGridView;
 
   @override
   State<_ActiveOrderListView> createState() => _ActiveOrderListViewState();
@@ -82,6 +94,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   Timer? _debounce;
   Timer? _durationTicker;
   String _status = '';
+  String _fulfillment = '';
   String _sort = 'newest';
 
   @override
@@ -154,11 +167,19 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     ),
                   );
                 }
-                final orders = _sortedOrders(state.orders);
+                final orders = _sortedOrders(
+                  state.orders
+                      .where(
+                        (order) =>
+                            _fulfillment.isEmpty ||
+                            order.orderType == _fulfillment,
+                      )
+                      .toList(),
+                );
                 return RefreshIndicator(
                   onRefresh: () async => _reload(),
                   child: widget.isGridView
-                      ? _orderCards(orders)
+                      ? _orderKanban(orders)
                       : _orderTable(orders),
                 );
               },
@@ -191,6 +212,44 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               runSpacing: 8,
               alignment: WrapAlignment.end,
               children: [
+                SizedBox(
+                  width: 180,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _fulfillment,
+                    isDense: true,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipe Pemenuhan',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Semua tipe')),
+                      DropdownMenuItem(value: 'dine_in', child: Text('Meja')),
+                      DropdownMenuItem(
+                        value: 'free_table',
+                        child: Text('Tanpa meja'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'take_away',
+                        child: Text('Bawa pulang'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'delivery',
+                        child: Text('Pesan antar'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'quick_service',
+                        child: Text('Layanan cepat'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'reservation',
+                        child: Text('Reservasi'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _fulfillment = value ?? ''),
+                  ),
+                ),
                 SizedBox(
                   width: 150,
                   child: DropdownButtonFormField<String>(
@@ -284,29 +343,161 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     );
   }
 
-  Widget _orderCards(List<PosOrderDetail> orders) {
+  Widget _orderKanban(List<PosOrderDetail> orders) {
+    const statuses = ['Baru', 'Diproses', 'Siap'];
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1000
-            ? 3
-            : constraints.maxWidth >= 650
-            ? 2
-            : 1;
-        return GridView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            mainAxisExtent: 166,
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.all(12),
+        child: SizedBox(
+          width: constraints.maxWidth < 900 ? 900 : constraints.maxWidth - 24,
+          height: constraints.maxHeight - 24,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: statuses.map((status) {
+              final columnOrders = orders
+                  .where((order) => order.status == status)
+                  .toList();
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: DragTarget<PosOrderDetail>(
+                    onWillAcceptWithDetails: (details) =>
+                        _canMoveTo(details.data, status),
+                    onAcceptWithDetails: (details) =>
+                        _moveOrder(details.data, status),
+                    builder: (context, candidates, rejected) => Container(
+                      decoration: BoxDecoration(
+                        color: candidates.isNotEmpty
+                            ? _orderStatusColor(status).withValues(alpha: .12)
+                            : AppColors.bgSecondary,
+                        border: Border.all(
+                          color: candidates.isNotEmpty
+                              ? _orderStatusColor(status)
+                              : AppColors.border,
+                          width: candidates.isNotEmpty ? 2 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 11,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _orderStatusColor(
+                                status,
+                              ).withValues(alpha: .12),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(11),
+                              ),
+                            ),
+                            child: Text(
+                              '${_orderStatusLabel(status)} · ${columnOrders.length}',
+                              style: TextStyle(
+                                color: _orderStatusColor(status),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: columnOrders.isEmpty
+                                ? const Center(
+                                    child: Text(
+                                      'Tarik pesanan ke sini',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    padding: const EdgeInsets.all(8),
+                                    itemCount: columnOrders.length,
+                                    itemBuilder: (_, index) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: _draggableOrderCard(
+                                        columnOrders[index],
+                                        orders.indexOf(columnOrders[index]),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
-          itemCount: orders.length,
-          itemBuilder: (_, index) => _activeOrderCard(orders[index], index),
-        );
-      },
+        ),
+      ),
     );
   }
+
+  Widget _draggableOrderCard(PosOrderDetail order, int index) {
+    final canDrag = order.status == 'Baru' || order.status == 'Diproses';
+    if (!canDrag) return _activeOrderCard(order, index);
+    return Draggable<PosOrderDetail>(
+      data: order,
+      maxSimultaneousDrags: 1,
+      feedback: Material(
+        color: Colors.transparent,
+        child: SizedBox(
+          width: 280,
+          child: Card(
+            elevation: 10,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Text(
+                order.orderNumber ?? 'Order',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: .35,
+        child: _activeOrderCard(order, index),
+      ),
+      child: _activeOrderCard(order, index),
+    );
+  }
+
+  bool _canMoveTo(PosOrderDetail order, String target) =>
+      {'Baru': 'Diproses', 'Diproses': 'Siap'}[order.status] == target;
+
+  void _moveOrder(PosOrderDetail order, String status) {
+    context.read<PosOrderManagementBloc>().add(
+      UpdateItemStatus(
+        orderId: order.id ?? '',
+        itemId: '',
+        newStatus: status,
+        tableId: order.tableId ?? '',
+        storeId: widget.storeId,
+        search: _searchController.text,
+        statusFilter: _status,
+      ),
+    );
+  }
+
+  String _orderStatusLabel(String status) => switch (status) {
+    'Baru' => 'Pesanan Baru',
+    'Diproses' => 'Sedang Dibuat',
+    'Siap' => 'Siap Disajikan',
+    _ => status,
+  };
+
+  Color _orderStatusColor(String status) => switch (status) {
+    'Diproses' => AppColors.warning,
+    'Siap' => AppColors.success,
+    _ => AppColors.info,
+  };
 
   Widget _activeOrderCard(PosOrderDetail order, int index) {
     return Card(
@@ -343,7 +534,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               Text(order.customerName ?? 'Pelanggan umum'),
               const SizedBox(height: 4),
               Text(
-                '${order.tableName ?? 'Tanpa meja'} · ${order.items.length} item',
+                '${_fulfillmentLabel(order)} · ${order.items.length} item',
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 4),
@@ -435,7 +626,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             DataCell(Text(entry.$2.orderNumber ?? '-')),
                             DataCell(
                               Text(
-                                '${entry.$2.customerName ?? 'Pelanggan umum'}\n${entry.$2.tableName ?? 'Tanpa meja'}',
+                                '${entry.$2.customerName ?? 'Pelanggan umum'}\n${_fulfillmentLabel(entry.$2)}',
                               ),
                             ),
                             DataCell(Text(_orderDate(entry.$2.createdAt))),
@@ -473,6 +664,15 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       ),
     ),
   );
+
+  String _fulfillmentLabel(PosOrderDetail order) => switch (order.orderType) {
+    'dine_in' => 'Meja ${order.tableName ?? '-'}',
+    'free_table' => 'Makan di tempat · Tanpa meja',
+    'delivery' || 'online_delivery' => 'Pesan antar',
+    'quick_service' => 'Layanan cepat',
+    'reservation' => 'Reservasi',
+    _ => 'Bawa pulang',
+  };
 
   void _showActiveOrder(PosOrderDetail order) {
     showModalBottomSheet<void>(
@@ -512,25 +712,83 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   ),
                 ),
               ),
+              if (order.serviceOrder case final service?) ...[
+                const Divider(height: 24),
+                Text(
+                  'Proses layanan',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${service['service_mode'] ?? 'Layanan'} · ${service['weight_kg'] ?? 0} kg · ${service['item_count'] ?? 0} item',
+                ),
+                if ((service['bag_tag']?.toString() ?? '').isNotEmpty)
+                  Text('Tag: ${service['bag_tag']}'),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _serviceNext(service['status']?.toString())
+                      .map(
+                        (status) => OutlinedButton(
+                          onPressed: () async {
+                            Navigator.pop(sheetContext);
+                            await _updateServiceStatus(order, status);
+                          },
+                          child: Text(_serviceStatusLabel(status)),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+              if (order.status == 'Baru' && order.paymentStatus != 'lunas') ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    if (widget.onEditOrder case final openEditor?) {
+                      openEditor(order);
+                    } else {
+                      _editOrder(order);
+                    }
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Ubah Pesanan'),
+                ),
+              ],
               if (_nextStatus(order.status) case final next?) ...[
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    context.read<PosOrderManagementBloc>().add(
-                      UpdateItemStatus(
-                        orderId: order.id ?? '',
-                        itemId: '',
-                        newStatus: next,
-                        tableId: order.tableId ?? '',
-                        storeId: widget.storeId,
-                        search: _searchController.text,
-                        statusFilter: _status,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.arrow_forward),
-                  label: Text(_nextStatusLabel(next)),
+                  onPressed:
+                      next == 'completed' && order.paymentStatus != 'lunas'
+                      ? () {
+                          Navigator.pop(sheetContext);
+                          _openPayment(order);
+                        }
+                      : () {
+                          Navigator.pop(sheetContext);
+                          context.read<PosOrderManagementBloc>().add(
+                            UpdateItemStatus(
+                              orderId: order.id ?? '',
+                              itemId: '',
+                              newStatus: next,
+                              tableId: order.tableId ?? '',
+                              storeId: widget.storeId,
+                              search: _searchController.text,
+                              statusFilter: _status,
+                            ),
+                          );
+                        },
+                  icon: Icon(
+                    next == 'completed' && order.paymentStatus != 'lunas'
+                        ? Icons.payments_outlined
+                        : Icons.arrow_forward,
+                  ),
+                  label: Text(
+                    next == 'completed' && order.paymentStatus != 'lunas'
+                        ? 'Bayar & Selesaikan'
+                        : _nextStatusLabel(next),
+                  ),
                 ),
               ],
             ],
@@ -538,6 +796,261 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         ),
       ),
     );
+  }
+
+  List<String> _serviceNext(String? status) => switch (status) {
+    'estimasi' => const ['diterima', 'batal'],
+    'diterima' => const ['ditimbang', 'disortir', 'dikerjakan', 'batal'],
+    'ditimbang' => const ['disortir', 'batal'],
+    'disortir' => const ['dicuci', 'dikerjakan', 'batal'],
+    'dicuci' => const ['dikeringkan', 'batal'],
+    'dikeringkan' => const ['disetrika', 'qc', 'batal'],
+    'disetrika' => const ['qc', 'batal'],
+    'qc' => const ['dikemas', 'selesai', 'batal'],
+    'dikemas' => const ['siap_diambil', 'selesai', 'batal'],
+    'dikerjakan' => const ['selesai', 'batal'],
+    'selesai' => const ['siap_diambil', 'diambil'],
+    'siap_diambil' => const ['diambil'],
+    _ => const [],
+  };
+
+  String _serviceStatusLabel(String value) =>
+      const {
+        'diterima': 'Diterima',
+        'ditimbang': 'Ditimbang',
+        'disortir': 'Disortir',
+        'dicuci': 'Dicuci',
+        'dikeringkan': 'Dikeringkan',
+        'disetrika': 'Disetrika',
+        'qc': 'Quality Control',
+        'dikemas': 'Dikemas',
+        'dikerjakan': 'Dikerjakan',
+        'selesai': 'Selesai produksi',
+        'siap_diambil': 'Siap diambil',
+        'diambil': 'Sudah diambil',
+        'batal': 'Batalkan',
+      }[value] ??
+      value;
+
+  Future<void> _updateServiceStatus(PosOrderDetail order, String status) async {
+    final result = await sl<PosOrderRepository>().updateServiceOrderStatus(
+      order.id ?? '',
+      status,
+    );
+    if (!mounted) return;
+    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      AppToast.success(context, 'Status layanan diperbarui');
+      context.read<PosOrderManagementBloc>().add(
+        LoadActiveOrders(
+          storeId: widget.storeId,
+          search: _searchController.text,
+          status: _status,
+        ),
+      );
+    });
+  }
+
+  Future<void> _editOrder(PosOrderDetail order) async {
+    final products = context.read<PosBloc>().state.products;
+    final quantities = <String, int>{
+      for (final item in order.items)
+        if ((item.productId ?? '').isNotEmpty)
+          item.productId!: item.quantity ?? 0,
+    };
+    var search = '';
+    var saving = false;
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final needle = search.trim().toLowerCase();
+          final filtered = products
+              .where(
+                (product) =>
+                    needle.isEmpty ||
+                    product.name.toLowerCase().contains(needle) ||
+                    product.code.toLowerCase().contains(needle) ||
+                    product.barcode.toLowerCase().contains(needle),
+              )
+              .toList();
+          final totalItems = quantities.values.fold<int>(0, (a, b) => a + b);
+          return FractionallySizedBox(
+            heightFactor: .88,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Ubah Pesanan',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              '${order.orderNumber ?? ''} · $totalItems item',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: saving
+                            ? null
+                            : () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    onChanged: (value) => setSheetState(() => search = value),
+                    decoration: const InputDecoration(
+                      labelText: 'Cari menu',
+                      hintText: 'Nama, kode, atau barcode',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(child: Text('Menu tidak ditemukan'))
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final product = filtered[index];
+                            final qty = quantities[product.id] ?? 0;
+                            return ListTile(
+                              title: Text(product.name),
+                              subtitle: Text(
+                                '${_currency(product.price)} · Stok ${product.stock.toStringAsFixed(0)}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Kurangi',
+                                    onPressed: qty <= 0
+                                        ? null
+                                        : () => setSheetState(() {
+                                            if (qty == 1) {
+                                              quantities.remove(product.id);
+                                            } else {
+                                              quantities[product.id] = qty - 1;
+                                            }
+                                          }),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 28,
+                                    child: Text(
+                                      '$qty',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Tambah',
+                                    onPressed: () => setSheetState(
+                                      () => quantities[product.id] = qty + 1,
+                                    ),
+                                    icon: const Icon(Icons.add_circle_outline),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: saving || quantities.isEmpty
+                          ? null
+                          : () async {
+                              setSheetState(() => saving = true);
+                              final originalByProduct = {
+                                for (final item in order.items)
+                                  if ((item.productId ?? '').isNotEmpty)
+                                    item.productId!: item,
+                              };
+                              final productById = {
+                                for (final product in products)
+                                  product.id: product,
+                              };
+                              final payload = quantities.entries.map((entry) {
+                                final product = productById[entry.key];
+                                final original = originalByProduct[entry.key];
+                                return <String, dynamic>{
+                                  'produk_id': entry.key,
+                                  'nama':
+                                      product?.name ?? original?.productName,
+                                  'kode':
+                                      product?.code ?? original?.productCode,
+                                  'qty': entry.value,
+                                  'unit':
+                                      product?.saleUnit ??
+                                      original?.unit ??
+                                      'unit',
+                                  'harga_satuan':
+                                      product?.price ?? original?.price ?? 0,
+                                  if ((original?.notes ?? '').isNotEmpty)
+                                    'catatan': original!.notes,
+                                };
+                              }).toList();
+                              final result = await sl<PosOrderRepository>()
+                                  .updateOrderItems(order.id ?? '', payload);
+                              if (!sheetContext.mounted) return;
+                              result.fold((failure) {
+                                setSheetState(() => saving = false);
+                                AppToast.error(sheetContext, failure.message);
+                              }, (_) => Navigator.pop(sheetContext, true));
+                            },
+                      icon: saving
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text(saving ? 'Menyimpan...' : 'Simpan Perubahan'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    if (saved == true && mounted) {
+      AppToast.success(context, 'Pesanan berhasil diperbarui');
+      _reload();
+    }
   }
 
   String? _nextStatus(String? current) => switch (current) {
@@ -553,6 +1066,50 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     'completed' => 'Selesaikan pesanan',
     _ => 'Perbarui status',
   };
+
+  Future<void> _openPayment(PosOrderDetail order) async {
+    final posBloc = context.read<PosBloc>();
+    final pendingOrder = PosOrder(
+      id: order.id ?? '',
+      invoice: order.orderNumber ?? '-',
+      date: order.createdAt ?? '-',
+      customer: order.customerName ?? 'Pelanggan umum',
+      cashierName: 'Kasir',
+      paymentMethod: '-',
+      orderType: 'dine_in',
+      total: order.totalAmount ?? 0,
+      subtotal: order.subtotal ?? order.totalAmount ?? 0,
+      discountAmount: order.discountAmount ?? 0,
+      taxAmount: order.taxAmount ?? 0,
+      note: order.note ?? '',
+      status: order.status ?? 'Siap',
+      paymentStatus: order.paymentStatus,
+      isInvoice: true,
+      source: 'kasir',
+      items: order.items
+          .map(
+            (item) => <String, dynamic>{
+              '_id': item.id,
+              'nama': item.productName ?? '-',
+              'qty': item.quantity ?? 0,
+              'harga_satuan': item.price ?? 0,
+              'subtotal': (item.price ?? 0) * (item.quantity ?? 0),
+              'catatan': item.notes ?? '',
+            },
+          )
+          .toList(),
+    );
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: posBloc,
+          child: PosPaymentPage(pendingOrder: pendingOrder),
+        ),
+      ),
+    );
+    if (mounted) _reload();
+  }
 
   String _currency(num value) => NumberFormat.currency(
     locale: 'id_ID',

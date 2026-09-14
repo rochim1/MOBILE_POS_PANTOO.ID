@@ -20,8 +20,11 @@ class PosState extends Equatable {
   final bool ordersHasMore;
   final bool ordersLoadingMore;
   final PosCustomer? selectedCustomer;
+  final String? editingOrderId;
+  final String? editingOrderNumber;
 
   final Map<PosProduct, int> cart;
+  final Map<String, double> manualUnitPrices;
   final List<HoldOrder> heldOrders;
 
   final double manualDiscountPercent;
@@ -58,7 +61,10 @@ class PosState extends Equatable {
     this.ordersHasMore = false,
     this.ordersLoadingMore = false,
     this.selectedCustomer,
+    this.editingOrderId,
+    this.editingOrderNumber,
     this.cart = const {},
+    this.manualUnitPrices = const {},
     this.heldOrders = const [],
     this.manualDiscountPercent = 0,
     this.promoCode = '',
@@ -92,7 +98,11 @@ class PosState extends Equatable {
     bool? ordersLoadingMore,
     PosCustomer? selectedCustomer,
     bool clearSelectedCustomer = false,
+    String? editingOrderId,
+    String? editingOrderNumber,
+    bool clearEditingOrder = false,
     Map<PosProduct, int>? cart,
+    Map<String, double>? manualUnitPrices,
     List<HoldOrder>? heldOrders,
     double? manualDiscountPercent,
     String? promoCode,
@@ -129,7 +139,14 @@ class PosState extends Equatable {
       selectedCustomer: clearSelectedCustomer
           ? null
           : (selectedCustomer ?? this.selectedCustomer),
+      editingOrderId: clearEditingOrder
+          ? null
+          : (editingOrderId ?? this.editingOrderId),
+      editingOrderNumber: clearEditingOrder
+          ? null
+          : (editingOrderNumber ?? this.editingOrderNumber),
       cart: cart ?? this.cart,
+      manualUnitPrices: manualUnitPrices ?? this.manualUnitPrices,
       heldOrders: heldOrders ?? this.heldOrders,
       manualDiscountPercent:
           manualDiscountPercent ?? this.manualDiscountPercent,
@@ -162,7 +179,7 @@ class PosState extends Equatable {
   // Computed properties
   double get baseSubtotal => cart.entries.fold(
     0,
-    (sum, entry) => sum + (entry.key.price * entry.value),
+    (sum, entry) => sum + (unitPriceFor(entry.key) * entry.value),
   );
 
   double get subTotal =>
@@ -211,6 +228,8 @@ class PosState extends Equatable {
   double get taxAmount => (taxableAmount * taxPercent / 100).roundToDouble();
 
   double unitPriceFor(PosProduct product) {
+    final manualPrice = manualUnitPrices[product.id];
+    if (manualPrice != null) return manualPrice;
     final items = pricingPreview?['items'] as List?;
     final match = items?.whereType<Map>().where(
       (item) => item['inventaris_id']?.toString() == product.id,
@@ -271,7 +290,10 @@ class PosState extends Equatable {
     ordersHasMore,
     ordersLoadingMore,
     selectedCustomer,
+    editingOrderId,
+    editingOrderNumber,
     cart,
+    manualUnitPrices,
     heldOrders,
     manualDiscountPercent,
     promoCode,

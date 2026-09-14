@@ -2,18 +2,24 @@ import 'package:equatable/equatable.dart';
 
 class PosOrderItem extends Equatable {
   final String? id;
+  final String? productId;
   final String? productName;
+  final String? productCode;
   final int? quantity;
   final double? price;
   final String? notes;
+  final String? unit;
   final String? status; // e.g., 'pending', 'preparing', 'served', 'cancelled'
 
   const PosOrderItem({
     this.id,
+    this.productId,
     this.productName,
+    this.productCode,
     this.quantity,
     this.price,
     this.notes,
+    this.unit,
     this.status,
   });
 
@@ -22,7 +28,9 @@ class PosOrderItem extends Equatable {
     final rawPrice = json['harga_satuan'] ?? json['price'];
     return PosOrderItem(
       id: _text(json['_id']),
+      productId: _text(json['produk_id']),
       productName: _text(json['nama'] ?? json['product_name']),
+      productCode: _text(json['kode']),
       quantity: rawQuantity is num
           ? rawQuantity.toInt()
           : int.tryParse(_text(rawQuantity) ?? ''),
@@ -30,48 +38,92 @@ class PosOrderItem extends Equatable {
           ? rawPrice.toDouble()
           : double.tryParse(_text(rawPrice) ?? ''),
       notes: _text(json['catatan'] ?? json['notes']),
+      unit: _text(json['unit']),
       status: _text(json['status']),
     );
   }
 
   @override
-  List<Object?> get props => [id, productName, quantity, price, notes, status];
+  List<Object?> get props => [
+    id,
+    productId,
+    productName,
+    productCode,
+    quantity,
+    price,
+    notes,
+    unit,
+    status,
+  ];
 }
 
 class PosOrderDetail extends Equatable {
   final String? id;
   final String? orderNumber;
   final String? customerName;
+  final String? customerId;
+  final String? orderType;
   final String? status; // e.g., 'active', 'completed', 'cancelled'
+  final String? _paymentStatus;
+  String get paymentStatus => _paymentStatus ?? 'belum_bayar';
   final double? totalAmount;
+  final double? subtotal;
+  final double? discountAmount;
+  final double? taxAmount;
+  final String? note;
   final String? tableId;
   final String? tableName;
   final List<PosOrderItem> items;
   final String? createdAt;
+  final Map<String, dynamic>? serviceOrder;
 
   const PosOrderDetail({
     this.id,
     this.orderNumber,
     this.customerName,
+    this.customerId,
+    this.orderType,
     this.status,
+    String? paymentStatus = 'belum_bayar',
     this.totalAmount,
+    this.subtotal,
+    this.discountAmount,
+    this.taxAmount,
+    this.note,
     this.tableId,
     this.tableName,
     this.items = const [],
     this.createdAt,
-  });
+    this.serviceOrder,
+  }) : _paymentStatus = paymentStatus;
 
   factory PosOrderDetail.fromJson(Map<String, dynamic> json) {
     final rawTotal = json['grand_total'] ?? json['total_amount'];
+    final rawSubtotal = json['subtotal'];
+    final rawDiscount = json['diskon_amount'];
+    final rawTax = json['pajak_amount'];
     final rawItems = json['items'];
     return PosOrderDetail(
       id: _text(json['_id']),
       orderNumber: _text(json['order_no'] ?? json['order_number']),
       customerName: _text(json['pelanggan_nama'] ?? json['customer_name']),
+      customerId: _text(json['pelanggan_id']),
+      orderType: _text(json['tipe_pesanan']) ?? 'take_away',
       status: _text(json['status']),
+      paymentStatus: _text(json['status_pembayaran']) ?? 'belum_bayar',
       totalAmount: rawTotal is num
           ? rawTotal.toDouble()
           : double.tryParse(_text(rawTotal) ?? ''),
+      subtotal: rawSubtotal is num
+          ? rawSubtotal.toDouble()
+          : double.tryParse(_text(rawSubtotal) ?? ''),
+      discountAmount: rawDiscount is num
+          ? rawDiscount.toDouble()
+          : double.tryParse(_text(rawDiscount) ?? ''),
+      taxAmount: rawTax is num
+          ? rawTax.toDouble()
+          : double.tryParse(_text(rawTax) ?? ''),
+      note: _text(json['catatan']),
       tableId: _text(json['table_id']),
       tableName: (json['table'] as Map?)?['name']?.toString(),
       items: rawItems is List
@@ -84,6 +136,9 @@ class PosOrderDetail extends Equatable {
                 .toList()
           : const [],
       createdAt: _text(json['createdAt']),
+      serviceOrder: json['service_order'] is Map
+          ? Map<String, dynamic>.from(json['service_order'] as Map)
+          : null,
     );
   }
 
@@ -92,12 +147,20 @@ class PosOrderDetail extends Equatable {
     id,
     orderNumber,
     customerName,
+    customerId,
+    orderType,
     status,
+    paymentStatus,
     totalAmount,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    note,
     tableId,
     tableName,
     items,
     createdAt,
+    serviceOrder,
   ];
 }
 

@@ -10,6 +10,7 @@ import '../../widgets/skeleton_loading.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 import '../../../../domain/repositories/pos_repository.dart';
+import '../../../../domain/repositories/pos_order_repository.dart';
 import '../../../../injections.dart';
 import 'widgets/pos_product_panel.dart';
 import 'widgets/pos_cart_panel.dart';
@@ -103,7 +104,8 @@ class _PosPageViewState extends State<PosPageView> {
             );
           },
           const SingleActivator(LogicalKeyboardKey.f8): () {
-            if (context.read<PosBloc>().state.cart.isNotEmpty) {
+            final state = context.read<PosBloc>().state;
+            if (state.cart.isNotEmpty && state.editingOrderId == null) {
               _holdOrder(context);
             }
           },
@@ -214,7 +216,11 @@ class _PosPageViewState extends State<PosPageView> {
                       return const PosPageSkeleton();
                     }
 
-                    if (state.activeShift == null && state.stores.isNotEmpty) {
+                    final allowOutOfShift =
+                        state.runtimeConfig['allow_out_of_shift'] == true;
+                    if (state.activeShift == null &&
+                        state.stores.isNotEmpty &&
+                        !allowOutOfShift) {
                       return const ShiftManagementPanel();
                     }
 
@@ -384,39 +390,45 @@ class _PosPageViewState extends State<PosPageView> {
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: state.cart.isEmpty
-                          ? null
-                          : () => _confirmClearCart(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    child: Tooltip(
+                      message: 'Kosongkan seluruh keranjang',
+                      child: OutlinedButton(
+                        onPressed: state.cart.isEmpty
+                            ? null
+                            : () => _confirmClearCart(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.delete_outline,
-                        color: Colors.grey,
+                        child: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: state.cart.isEmpty
-                          ? null
-                          : () => _showDiscountDialog(context, state),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    child: Tooltip(
+                      message: 'Atur diskon manual dan kode promo',
+                      child: OutlinedButton(
+                        onPressed: state.cart.isEmpty
+                            ? null
+                            : () => _showDiscountDialog(context, state),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.discount_outlined,
-                        color: AppColors.primary,
+                        child: const Icon(
+                          Icons.discount_outlined,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -448,33 +460,41 @@ class _PosPageViewState extends State<PosPageView> {
                     flex: 2,
                     child: KeyedSubtree(
                       key: widget.tourTargets?.saveOrder,
-                      child: OutlinedButton(
-                        onPressed: state.cart.isEmpty
-                            ? null
-                            : () => _holdOrder(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 4,
-                          ),
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.download, color: Colors.grey, size: 18),
-                            SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                'Simpan',
-                                style: TextStyle(color: Colors.grey),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                      child: Tooltip(
+                        message: 'Simpan sementara untuk dilanjutkan nanti',
+                        child: OutlinedButton(
+                          onPressed:
+                              state.cart.isEmpty || state.editingOrderId != null
+                              ? null
+                              : () => _holdOrder(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 4,
                             ),
-                          ],
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.download,
+                                color: Colors.grey,
+                                size: 18,
+                              ),
+                              SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Simpan',
+                                  style: TextStyle(color: Colors.grey),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -545,6 +565,8 @@ class _PosPageViewState extends State<PosPageView> {
                         child: Text(
                           _savingTableOrder
                               ? 'Menyimpan...'
+                              : state.editingOrderId != null
+                              ? 'Simpan Perubahan'
                               : state.orderType == 'dine_in'
                               ? 'Simpan ke Meja'
                               : 'Bayar',
@@ -709,9 +731,18 @@ class _PosPageViewState extends State<PosPageView> {
               ...bloc.state.heldOrders.map(
                 (order) => ListTile(
                   leading: const Icon(Icons.restore),
-                  title: Text(order.id),
+                  title: Text(
+                    order.notes.isNotEmpty
+                        ? order.notes
+                        : 'Pesanan ${order.customer?.name ?? 'tersimpan'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   subtitle: Text(
-                    '${order.cart.length} produk${order.notes.isNotEmpty ? ' · ${order.notes}' : ''}',
+                    '${order.id} · ${order.cart.length} produk',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   onTap: () {
                     bloc.add(RestoreHeldOrder(order));
@@ -738,7 +769,12 @@ class _PosPageViewState extends State<PosPageView> {
         title: const Text('Simpan pesanan'),
         content: TextField(
           controller: notesController,
-          decoration: const InputDecoration(labelText: 'Catatan (opsional)'),
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Nama pesanan',
+            hintText: 'Contoh: Pesanan Pak Budi',
+            helperText: 'Nama ini ditampilkan sebagai judul pesanan tersimpan.',
+          ),
         ),
         actions: [
           TextButton(
@@ -765,6 +801,35 @@ class _PosPageViewState extends State<PosPageView> {
   Future<void> _saveTableOrder(BuildContext context, PosState state) async {
     if (_savingTableOrder) return;
     setState(() => _savingTableOrder = true);
+    if (state.editingOrderId != null) {
+      final items = state.cart.entries
+          .map(
+            (entry) => <String, dynamic>{
+              'produk_id': entry.key.id,
+              'nama': entry.key.name,
+              'kode': entry.key.code,
+              'qty': entry.value,
+              'unit': entry.key.saleUnit,
+              'harga_satuan': state.unitPriceFor(entry.key),
+            },
+          )
+          .toList();
+      final update = await sl<PosOrderRepository>().updateOrderItems(
+        state.editingOrderId!,
+        items,
+      );
+      if (!mounted) return;
+      setState(() => _savingTableOrder = false);
+      update.fold((failure) => AppToast.error(context, failure.message), (_) {
+        final number = state.editingOrderNumber ?? '';
+        context.read<PosBloc>()
+          ..add(ClearCart())
+          ..add(RefreshOrders());
+        AppToast.success(context, 'Pesanan $number berhasil diperbarui.');
+        widget.onOpenTableOrders?.call();
+      });
+      return;
+    }
     final result = await sl<PosRepository>().createUnpaidInvoice(
       cart: state.cart,
       tokoId: state.activeShift?['toko_id']?.toString() ?? '',

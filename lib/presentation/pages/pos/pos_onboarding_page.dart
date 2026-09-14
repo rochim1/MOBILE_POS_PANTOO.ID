@@ -278,6 +278,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       'restoran': 'Restoran / Cafe',
       'bengkel': 'Bengkel',
       'jasa': 'Jasa',
+      'laundry': 'Laundry',
       'custom': 'Custom',
       'dine_in': 'Makan di Tempat',
       'free_table': 'Makan di Tempat (Tanpa Meja)',
@@ -332,6 +333,12 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
         'use_technicians': true,
         'require_customer': true,
         'track_stock': false,
+      },
+      'laundry': {
+        ...base,
+        'use_service_order': true,
+        'use_delivery': true,
+        'require_customer': true,
       },
     };
     setState(() {
@@ -471,7 +478,14 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    const profiles = ['retail', 'restoran', 'bengkel', 'jasa', 'custom'];
+    const profiles = [
+      'retail',
+      'restoran',
+      'bengkel',
+      'jasa',
+      'laundry',
+      'custom',
+    ];
     const fulfillments = [
       'dine_in',
       'free_table',

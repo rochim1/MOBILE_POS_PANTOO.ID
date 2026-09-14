@@ -6,6 +6,7 @@ class HoldOrder {
   final String id;
   final DateTime time;
   final Map<PosProduct, int> cart;
+  final Map<String, double> manualUnitPrices;
   final PosCustomer? customer;
   final PosStore store;
   final String notes;
@@ -23,6 +24,7 @@ class HoldOrder {
     required this.id,
     required this.time,
     required this.cart,
+    this.manualUnitPrices = const {},
     required this.customer,
     required this.store,
     required this.notes,
@@ -47,6 +49,14 @@ class HoldOrder {
           PosProduct.fromJson(Map<String, dynamic>.from(row['product'] as Map)):
               (row['quantity'] as num?)?.toInt() ?? 0,
       },
+      manualUnitPrices: Map<String, double>.fromEntries(
+        (json['manualUnitPrices'] as Map? ?? const {}).entries.map(
+          (entry) => MapEntry(
+            entry.key.toString(),
+            (entry.value as num?)?.toDouble() ?? 0,
+          ),
+        ),
+      ),
       customer: json['customer'] == null
           ? null
           : PosCustomer.fromJson(
@@ -75,6 +85,7 @@ class HoldOrder {
           (entry) => {'product': entry.key.toJson(), 'quantity': entry.value},
         )
         .toList(),
+    'manualUnitPrices': manualUnitPrices,
     'customer': customer?.toJson(),
     'store': store.toJson(),
     'notes': notes,

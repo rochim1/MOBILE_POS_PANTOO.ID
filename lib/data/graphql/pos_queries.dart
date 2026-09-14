@@ -101,6 +101,7 @@ class PosQueries {
           view_receipt
           view_stock
           view_tables
+          manage_orders
           manage_products
           adjust_stock
           manage_tables
@@ -582,12 +583,14 @@ class PosQueries {
       $method: String!
       $cashReceived: Float
       $splitPayments: [SplitPaymentInput]
+      $customerId: ID
     ) {
       PayPOSOrder(
         _id: $id
         metode_pembayaran: $method
         uang_diterima: $cashReceived
         split_payments: $splitPayments
+        pelanggan_id: $customerId
       ) {
         _id
         order_no

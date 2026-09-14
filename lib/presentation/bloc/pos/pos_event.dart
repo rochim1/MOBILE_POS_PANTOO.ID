@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import '../../../domain/models/pos_product.dart';
 import '../../../domain/models/pos_customer.dart';
 import '../../../domain/models/hold_order.dart';
+import '../../../domain/models/pos_order_detail.dart';
 
 abstract class PosEvent extends Equatable {
   const PosEvent();
@@ -61,7 +62,22 @@ class UpdateQuantity extends PosEvent {
   List<Object> get props => [product, delta];
 }
 
+class UpdateCartUnitPrice extends PosEvent {
+  final PosProduct product;
+  final double price;
+  const UpdateCartUnitPrice(this.product, this.price);
+  @override
+  List<Object> get props => [product, price];
+}
+
 class ClearCart extends PosEvent {}
+
+class EditActiveOrder extends PosEvent {
+  final PosOrderDetail order;
+  const EditActiveOrder(this.order);
+  @override
+  List<Object?> get props => [order];
+}
 
 class SelectCustomer extends PosEvent {
   final PosCustomer? customer;
@@ -100,6 +116,7 @@ class SubmitPayment extends PosEvent {
   final String expiredSaleAuthorizerUsername;
   final String expiredSaleAuthorizerPin;
   final PosCustomer? customerOverride;
+  final Map<String, dynamic>? serviceOrder;
   const SubmitPayment({
     required this.paymentMethod,
     this.cashReceived = 0,
@@ -109,6 +126,7 @@ class SubmitPayment extends PosEvent {
     this.expiredSaleAuthorizerUsername = '',
     this.expiredSaleAuthorizerPin = '',
     this.customerOverride,
+    this.serviceOrder,
   });
   @override
   List<Object?> get props => [
@@ -120,6 +138,7 @@ class SubmitPayment extends PosEvent {
     expiredSaleAuthorizerUsername,
     expiredSaleAuthorizerPin,
     customerOverride,
+    serviceOrder,
   ];
 }
 

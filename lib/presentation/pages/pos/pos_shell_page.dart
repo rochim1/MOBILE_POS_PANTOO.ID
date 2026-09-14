@@ -24,6 +24,7 @@ import 'pos_purchase_return_page.dart';
 import 'pos_setup_guide_page.dart';
 import 'pos_onboarding_page.dart';
 import 'pos_notification_page.dart';
+import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_drawer.dart';
 import '../home/home_page.dart';
@@ -72,6 +73,7 @@ class _PosShellPageState extends State<PosShellPage>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   Timer? _offlineSyncTimer;
   final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
+  late final PosBloc _posBloc;
   List<Map<String, dynamic>> _navbarNotifications = const [];
   int _unreadNotifications = 0;
   bool _notificationsLoading = false;
@@ -99,11 +101,13 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Antrean Transaksi Offline', icon: Icons.cloud_sync_outlined),
     (label: 'Retur ke Supplier', icon: Icons.assignment_return_outlined),
     (label: 'Pengaturan POS', icon: Icons.settings_outlined),
+    (label: 'Tampilan Dapur', icon: Icons.soup_kitchen_outlined),
   ];
 
   @override
   void initState() {
     super.initState();
+    _posBloc = sl<PosBloc>();
     _showSetupGuide = widget.showSetupGuide;
     _setupCompleted = PosOnboardingPage.isOperationalSetupCompleted(
       sl<SharedPreferences>(),
@@ -111,6 +115,8 @@ class _PosShellPageState extends State<PosShellPage>
     if (widget.prepareDashboard) {
       _posDataRequested = true;
       _showUnlockLoading = true;
+      _posBloc.add(LoadPosData());
+      sl<SyncService>().syncOfflineTransactions();
     }
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -308,6 +314,7 @@ class _PosShellPageState extends State<PosShellPage>
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
     _offlineSyncTimer?.cancel();
+    _posBloc.close();
     super.dispose();
   }
 
@@ -376,10 +383,18 @@ class _PosShellPageState extends State<PosShellPage>
     PosOrderTableHubPage(
       key: ValueKey('table-orders-$_tableOrdersRefresh'),
       isGridView: _useOrderTableGridView,
+      onEditOrder: (order) {
+        _posBloc.add(EditActiveOrder(order));
+        setState(() => _selectedIndex = 1);
+      },
     ),
     PosOrderTableHubPage(
       key: ValueKey('table-orders-legacy-$_tableOrdersRefresh'),
       isGridView: _useOrderTableGridView,
+      onEditOrder: (order) {
+        _posBloc.add(EditActiveOrder(order));
+        setState(() => _selectedIndex = 1);
+      },
     ),
     PosInventoryPage(
       key: ValueKey('inventory-$_inventoryInitialSection'),
@@ -396,6 +411,7 @@ class _PosShellPageState extends State<PosShellPage>
     const PosOfflineQueuePage(),
     const PosPurchaseReturnPage(),
     const PosSettingsPage(),
+    const PosKitchenDisplayPage(),
   ];
 
   void _openSetupGuide(BuildContext blocContext) {
@@ -510,7 +526,8 @@ class _PosShellPageState extends State<PosShellPage>
       await lockCubit.lock();
       return;
     }
-    if (pos.activeShift == null) {
+    if (pos.activeShift == null &&
+        pos.runtimeConfig['allow_out_of_shift'] != true) {
       _navigateSetupTarget(11);
       return;
     }
@@ -587,448 +604,470 @@ class _PosShellPageState extends State<PosShellPage>
     final isMobile = width < 900;
     final isSmallScreen = width < 600;
 
-    return BlocProvider(
-      create: (_) {
-        final bloc = sl<PosBloc>();
-        if (widget.prepareDashboard) {
-          bloc.add(LoadPosData());
-          sl<SyncService>().syncOfflineTransactions();
-        }
-        return bloc;
-      },
-      child: BlocListener<AppLockCubit, AppLockState>(
-        listenWhen: (previous, current) => previous.status != current.status,
-        listener: (context, state) {
-          if (state.status == AppLockStatus.unlocked) {
-            final setupCompleted =
-                PosOnboardingPage.isOperationalSetupCompleted(
-                  sl<SharedPreferences>(),
-                );
-            if (!setupCompleted) {
-              setState(() {
-                _setupCompleted = false;
-                _showSetupGuide = true;
-              });
-            }
-            _loadPOSAfterUnlock(context);
-            _loadNavbarNotifications();
-          } else {
-            _posDataRequested = false;
-            if (_showUnlockLoading) {
-              setState(() => _showUnlockLoading = false);
-            }
-          }
-        },
-        child: BlocListener<PosBloc, PosState>(
-          listener: (context, state) => _finishUnlockLoading(state),
-          child: Stack(
-            children: [
-              Scaffold(
-                resizeToAvoidBottomInset: false,
-                backgroundColor: const Color(0xFFF7F8FA),
-                appBar: AppBar(
-                  elevation: 0,
-                  backgroundColor: AppColors.primary,
-                  titleSpacing: 0,
-                  leading: isMobile
-                      ? Builder(
-                          builder: (context) => IconButton(
-                            tooltip: 'Buka menu',
-                            icon: const Icon(Icons.menu, color: Colors.white),
-                            onPressed: () => Scaffold.of(context).openDrawer(),
-                          ),
-                        )
-                      : IconButton(
-                          tooltip: switch (_sidebarMode) {
-                            0 => 'Ringkas sidebar',
-                            1 => 'Sembunyikan sidebar',
-                            _ => 'Tampilkan sidebar',
-                          },
-                          icon: Icon(switch (_sidebarMode) {
-                            0 => Icons.menu_open,
-                            1 => Icons.menu,
-                            _ => Icons.keyboard_double_arrow_right,
-                          }, color: Colors.white),
-                          onPressed: () {
-                            setState(
-                              () => _sidebarMode = (_sidebarMode + 1) % 3,
-                            );
-                          },
-                        ),
-                  title: BlocBuilder<AppLockCubit, AppLockState>(
-                    builder: (context, lockState) {
-                      return BlocBuilder<PosBloc, PosState>(
-                        builder: (context, state) {
-                          final activeStoreId = state.activeShift?['toko_id']
-                              ?.toString();
-                          final matchingStores = state.stores.where(
-                            (store) => store.id == activeStoreId,
-                          );
-                          final storeName =
-                              state.activeShift?['toko']?['nama_toko']
-                                  ?.toString() ??
-                              (matchingStores.isNotEmpty
-                                  ? matchingStores.first.name
-                                  : (state.stores.length == 1
-                                        ? state.stores.first.name
-                                        : 'Belum ada toko aktif'));
-
-                          final activeEmployeeName =
-                              lockState.activeEmployeeName;
-                          final activeEmployee = lockState.employees
-                              .where(
-                                (employee) =>
-                                    employee['_id']?.toString() ==
-                                    lockState.activeEmployeeId,
-                              )
-                              .firstOrNull;
-                          final username =
-                              activeEmployeeName ??
-                              context.watch<AuthCubit>().state.username ??
-                              'Pengguna';
-
-                          return Row(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  left: isMobile ? 8 : 0,
+    return BlocProvider.value(
+      value: _posBloc,
+      child: Builder(
+        builder: (_) {
+          return BlocListener<AppLockCubit, AppLockState>(
+            listenWhen: (previous, current) =>
+                previous.status != current.status,
+            listener: (context, state) {
+              if (state.status == AppLockStatus.unlocked) {
+                final setupCompleted =
+                    PosOnboardingPage.isOperationalSetupCompleted(
+                      sl<SharedPreferences>(),
+                    );
+                if (!setupCompleted) {
+                  setState(() {
+                    _setupCompleted = false;
+                    _showSetupGuide = true;
+                  });
+                }
+                _loadPOSAfterUnlock(context);
+                _loadNavbarNotifications();
+              } else {
+                _posDataRequested = false;
+                if (_showUnlockLoading) {
+                  setState(() => _showUnlockLoading = false);
+                }
+              }
+            },
+            child: BlocListener<PosBloc, PosState>(
+              listener: (context, state) => _finishUnlockLoading(state),
+              child: Stack(
+                children: [
+                  Scaffold(
+                    resizeToAvoidBottomInset: false,
+                    backgroundColor: const Color(0xFFF7F8FA),
+                    appBar: AppBar(
+                      elevation: 0,
+                      backgroundColor: AppColors.primary,
+                      titleSpacing: 0,
+                      leading: isMobile
+                          ? Builder(
+                              builder: (context) => IconButton(
+                                tooltip: 'Buka menu',
+                                icon: const Icon(
+                                  Icons.menu,
+                                  color: Colors.white,
                                 ),
-                                child: PosEmployeeAvatar(
-                                  employee: activeEmployee,
-                                  radius: 18,
-                                  fallbackColor: AppColors.warningBorder,
-                                ),
+                                onPressed: () =>
+                                    Scaffold.of(context).openDrawer(),
                               ),
-                              SizedBox(width: isMobile ? 4 : 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isMobile
-                                          ? storeName.toString()
-                                          : _destinations[_selectedIndex].label,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                            )
+                          : IconButton(
+                              tooltip: switch (_sidebarMode) {
+                                0 => 'Ringkas sidebar',
+                                1 => 'Sembunyikan sidebar',
+                                _ => 'Tampilkan sidebar',
+                              },
+                              icon: Icon(switch (_sidebarMode) {
+                                0 => Icons.menu_open,
+                                1 => Icons.menu,
+                                _ => Icons.keyboard_double_arrow_right,
+                              }, color: Colors.white),
+                              onPressed: () {
+                                setState(
+                                  () => _sidebarMode = (_sidebarMode + 1) % 3,
+                                );
+                              },
+                            ),
+                      title: BlocBuilder<AppLockCubit, AppLockState>(
+                        builder: (context, lockState) {
+                          return BlocBuilder<PosBloc, PosState>(
+                            builder: (context, state) {
+                              final activeStoreId = state
+                                  .activeShift?['toko_id']
+                                  ?.toString();
+                              final matchingStores = state.stores.where(
+                                (store) => store.id == activeStoreId,
+                              );
+                              final storeName =
+                                  state.activeShift?['toko']?['nama_toko']
+                                      ?.toString() ??
+                                  (matchingStores.isNotEmpty
+                                      ? matchingStores.first.name
+                                      : (state.stores.length == 1
+                                            ? state.stores.first.name
+                                            : 'Belum ada toko aktif'));
+
+                              final activeEmployeeName =
+                                  lockState.activeEmployeeName;
+                              final activeEmployee = lockState.employees
+                                  .where(
+                                    (employee) =>
+                                        employee['_id']?.toString() ==
+                                        lockState.activeEmployeeId,
+                                  )
+                                  .firstOrNull;
+                              final username =
+                                  activeEmployeeName ??
+                                  context.watch<AuthCubit>().state.username ??
+                                  'Pengguna';
+
+                              return Row(
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      left: isMobile ? 8 : 0,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.success,
-                                              shape: BoxShape.circle,
+                                    child: PosEmployeeAvatar(
+                                      employee: activeEmployee,
+                                      radius: 18,
+                                      fallbackColor: AppColors.warningBorder,
+                                    ),
+                                  ),
+                                  SizedBox(width: isMobile ? 4 : 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          isMobile
+                                              ? storeName.toString()
+                                              : _destinations[_selectedIndex]
+                                                    .label,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
                                           ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            isMobile
-                                                ? username
-                                                : '$storeName • $username',
-                                            style: const TextStyle(
-                                              color: Colors.black87,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: const BoxDecoration(
+                                                  color: AppColors.success,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                isMobile
+                                                    ? username
+                                                    : '$storeName • $username',
+                                                style: const TextStyle(
+                                                  color: Colors.black87,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                                  ),
+                                ],
+                              );
+                            },
                           );
-                        },
-                      );
-                    },
-                  ),
-                  actions: [
-                    Builder(
-                      builder: (posBlocContext) => IconButton(
-                        tooltip: 'Checklist kesiapan POS',
-                        icon: Icon(
-                          _showSetupGuide
-                              ? Icons.checklist_rounded
-                              : Icons.fact_check_outlined,
-                          color: Colors.white,
-                        ),
-                        onPressed: () {
-                          if (_showSetupGuide) {
-                            setState(() => _showSetupGuide = false);
-                          } else {
-                            _openSetupGuide(posBlocContext);
-                          }
                         },
                       ),
-                    ),
-                    _notificationButton(),
-                    IconButton(
-                      tooltip: 'Kunci POS',
-                      icon: const Icon(Icons.lock_outline, color: Colors.white),
-                      onPressed: () => context.read<AppLockCubit>().lock(),
-                    ),
-                    if (_selectedIndex == 1) ...[
-                      BlocBuilder<PosBloc, PosState>(
-                        builder: (context, state) {
-                          return IconButton(
+                      actions: [
+                        Builder(
+                          builder: (posBlocContext) => IconButton(
+                            tooltip: 'Checklist kesiapan POS',
                             icon: Icon(
-                              state.isGridView ? Icons.list : Icons.grid_view,
+                              _showSetupGuide
+                                  ? Icons.checklist_rounded
+                                  : Icons.fact_check_outlined,
                               color: Colors.white,
                             ),
                             onPressed: () {
-                              context.read<PosBloc>().add(ToggleGridView());
+                              if (_showSetupGuide) {
+                                setState(() => _showSetupGuide = false);
+                              } else {
+                                _openSetupGuide(posBlocContext);
+                              }
                             },
-                          );
-                        },
-                      ),
-                      if (!isSmallScreen)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10.0,
-                            horizontal: 8.0,
                           ),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedIndex =
-                                    3; // Index for Transaksi (PosOrderPage)
-                              });
+                        ),
+                        _notificationButton(),
+                        IconButton(
+                          tooltip: 'Kunci POS',
+                          icon: const Icon(
+                            Icons.lock_outline,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => context.read<AppLockCubit>().lock(),
+                        ),
+                        if (_selectedIndex == 1) ...[
+                          BlocBuilder<PosBloc, PosState>(
+                            builder: (context, state) {
+                              return IconButton(
+                                icon: Icon(
+                                  state.isGridView
+                                      ? Icons.list
+                                      : Icons.grid_view,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () {
+                                  context.read<PosBloc>().add(ToggleGridView());
+                                },
+                              );
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors
-                                  .teal
-                                  .shade600, // A darker green for the button
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
+                          ),
+                          if (!isSmallScreen)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10.0,
+                                horizontal: 8.0,
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedIndex =
+                                        3; // Index for Transaksi (PosOrderPage)
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors
+                                      .teal
+                                      .shade600, // A darker green for the button
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('Daftar Order'),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.chevron_right, size: 16),
+                                  ],
+                                ),
                               ),
                             ),
-                            child: const Row(
+                        ],
+                        if (_selectedIndex == 2)
+                          IconButton(
+                            tooltip: _productGridView
+                                ? 'Tampilkan sebagai tabel'
+                                : 'Tampilkan sebagai grid',
+                            icon: Icon(
+                              _productGridView
+                                  ? Icons.table_rows
+                                  : Icons.grid_view,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(
+                                () => _productGridView = !_productGridView,
+                              );
+                            },
+                          ),
+                        if (_selectedIndex == 7)
+                          IconButton(
+                            tooltip: _stockGridView
+                                ? 'Tampilkan sebagai tabel'
+                                : 'Tampilkan sebagai grid',
+                            icon: Icon(
+                              _stockGridView
+                                  ? Icons.table_rows
+                                  : Icons.grid_view,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() => _stockGridView = !_stockGridView);
+                            },
+                          ),
+                        if (_selectedIndex == 3)
+                          IconButton(
+                            tooltip: _historyGridView
+                                ? 'Tampilkan sebagai tabel'
+                                : 'Tampilkan sebagai kartu',
+                            icon: Icon(
+                              _historyGridView
+                                  ? Icons.table_rows
+                                  : Icons.view_agenda,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(
+                                () => _historyGridView = !_historyGridView,
+                              );
+                            },
+                          ),
+                        if (_selectedIndex == 5 || _selectedIndex == 6)
+                          IconButton(
+                            tooltip: _useOrderTableGridView
+                                ? 'Tampilkan sebagai list'
+                                : 'Tampilkan sebagai grid',
+                            icon: Icon(
+                              _useOrderTableGridView
+                                  ? Icons.view_list_rounded
+                                  : Icons.grid_view_rounded,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(
+                                () => _orderTableGridView =
+                                    !_useOrderTableGridView,
+                              );
+                            },
+                          ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    drawer: isMobile
+                        ? PosDrawer(
+                            selectedIndex: _selectedIndex,
+                            onIndexChanged: (index) {
+                              setState(() => _selectedIndex = index);
+                            },
+                          )
+                        : null,
+                    body: SafeArea(child: _buildShellBody(isMobile)),
+                    floatingActionButton:
+                        isMobile &&
+                            MediaQuery.of(context).viewInsets.bottom == 0
+                        ? FloatingActionButton(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: const CircleBorder(),
+                            elevation: 4,
+                            onPressed: () {
+                              setState(() {
+                                _selectedIndex = 1;
+                              });
+                            },
+                            child: const Icon(Icons.point_of_sale, size: 28),
+                          )
+                        : null,
+                    floatingActionButtonLocation:
+                        FloatingActionButtonLocation.centerDocked,
+                    bottomNavigationBar: isMobile
+                        ? BottomAppBar(
+                            shape: const CircularNotchedRectangle(),
+                            notchMargin: 8.0,
+                            color: Colors.white,
+                            padding: EdgeInsets.zero,
+                            height: 60,
+                            child: Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildBottomNavItem(
+                                          icon: Icons.home_outlined,
+                                          selectedIcon: Icons.home,
+                                          label: 'Beranda',
+                                          index: 0,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: _buildBottomNavItem(
+                                          icon: Icons.inventory_2_outlined,
+                                          selectedIcon: Icons.inventory_2,
+                                          label: 'Katalog',
+                                          index: 2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 72),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildBottomNavItem(
+                                          icon: Icons.receipt_long_outlined,
+                                          selectedIcon: Icons.receipt_long,
+                                          label: 'Transaksi',
+                                          index: 3,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: _buildBottomNavItem(
+                                          icon: Icons.menu_outlined,
+                                          selectedIcon: Icons.menu,
+                                          label: 'Lainnya',
+                                          index: 4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : null,
+                  ),
+                  if (_showUnlockLoading)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.white,
+                        child: SafeArea(
+                          child: Center(
+                            child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Daftar Order'),
-                                SizedBox(width: 4),
-                                Icon(Icons.chevron_right, size: 16),
+                                SizedBox(
+                                  width: 112,
+                                  height: 112,
+                                  child: ClipRect(
+                                    child: Image.asset(
+                                      'assets/images/pantoo_loading.gif',
+                                      fit: BoxFit.contain,
+                                      gaplessPlayback: true,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                const Text(
+                                  'Mempersiapkan dashboard...',
+                                  textScaler: TextScaler.noScaling,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Mohon tunggu sebentar',
+                                  textScaler: TextScaler.noScaling,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.black54,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         ),
-                    ],
-                    if (_selectedIndex == 2)
-                      IconButton(
-                        tooltip: _productGridView
-                            ? 'Tampilkan sebagai tabel'
-                            : 'Tampilkan sebagai grid',
-                        icon: Icon(
-                          _productGridView ? Icons.table_rows : Icons.grid_view,
-                          color: Colors.white,
-                        ),
-                        onPressed: () {
-                          setState(() => _productGridView = !_productGridView);
-                        },
-                      ),
-                    if (_selectedIndex == 7)
-                      IconButton(
-                        tooltip: _stockGridView
-                            ? 'Tampilkan sebagai tabel'
-                            : 'Tampilkan sebagai grid',
-                        icon: Icon(
-                          _stockGridView ? Icons.table_rows : Icons.grid_view,
-                          color: Colors.white,
-                        ),
-                        onPressed: () {
-                          setState(() => _stockGridView = !_stockGridView);
-                        },
-                      ),
-                    if (_selectedIndex == 3)
-                      IconButton(
-                        tooltip: _historyGridView
-                            ? 'Tampilkan sebagai tabel'
-                            : 'Tampilkan sebagai kartu',
-                        icon: Icon(
-                          _historyGridView
-                              ? Icons.table_rows
-                              : Icons.view_agenda,
-                          color: Colors.white,
-                        ),
-                        onPressed: () {
-                          setState(() => _historyGridView = !_historyGridView);
-                        },
-                      ),
-                    if (_selectedIndex == 5 || _selectedIndex == 6)
-                      IconButton(
-                        tooltip: _useOrderTableGridView
-                            ? 'Tampilkan sebagai list'
-                            : 'Tampilkan sebagai grid',
-                        icon: Icon(
-                          _useOrderTableGridView
-                              ? Icons.view_list_rounded
-                              : Icons.grid_view_rounded,
-                          color: Colors.white,
-                        ),
-                        onPressed: () {
-                          setState(
-                            () => _orderTableGridView = !_useOrderTableGridView,
-                          );
-                        },
-                      ),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-                drawer: isMobile
-                    ? PosDrawer(
-                        selectedIndex: _selectedIndex,
-                        onIndexChanged: (index) {
-                          setState(() => _selectedIndex = index);
-                        },
-                      )
-                    : null,
-                body: SafeArea(child: _buildShellBody(isMobile)),
-                floatingActionButton:
-                    isMobile && MediaQuery.of(context).viewInsets.bottom == 0
-                    ? FloatingActionButton(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: const CircleBorder(),
-                        elevation: 4,
-                        onPressed: () {
-                          setState(() {
-                            _selectedIndex = 1;
-                          });
-                        },
-                        child: const Icon(Icons.point_of_sale, size: 28),
-                      )
-                    : null,
-                floatingActionButtonLocation:
-                    FloatingActionButtonLocation.centerDocked,
-                bottomNavigationBar: isMobile
-                    ? BottomAppBar(
-                        shape: const CircularNotchedRectangle(),
-                        notchMargin: 8.0,
-                        color: Colors.white,
-                        padding: EdgeInsets.zero,
-                        height: 60,
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildBottomNavItem(
-                                      icon: Icons.home_outlined,
-                                      selectedIcon: Icons.home,
-                                      label: 'Beranda',
-                                      index: 0,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: _buildBottomNavItem(
-                                      icon: Icons.inventory_2_outlined,
-                                      selectedIcon: Icons.inventory_2,
-                                      label: 'Katalog',
-                                      index: 2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 72),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildBottomNavItem(
-                                      icon: Icons.receipt_long_outlined,
-                                      selectedIcon: Icons.receipt_long,
-                                      label: 'Transaksi',
-                                      index: 3,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: _buildBottomNavItem(
-                                      icon: Icons.menu_outlined,
-                                      selectedIcon: Icons.menu,
-                                      label: 'Lainnya',
-                                      index: 4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : null,
-              ),
-              if (_showUnlockLoading)
-                Positioned.fill(
-                  child: ColoredBox(
-                    color: Colors.white,
-                    child: SafeArea(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 112,
-                              height: 112,
-                              child: ClipRect(
-                                child: Image.asset(
-                                  'assets/images/pantoo_loading.gif',
-                                  fit: BoxFit.contain,
-                                  gaplessPlayback: true,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'Mempersiapkan dashboard...',
-                              textScaler: TextScaler.noScaling,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Mohon tunggu sebentar',
-                              textScaler: TextScaler.noScaling,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.black54,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1125,6 +1164,7 @@ class _PosShellPageState extends State<PosShellPage>
     );
     bool can(String key) => permissions[key] == true;
     final useTables = features['use_tables'] == true;
+    final useKitchenFlow = features['use_kitchen_flow'] == true;
     final viewTables = permissions['view_tables'] == true;
     final manageTables = permissions['manage_tables'] == true;
     final trackStock = features['track_stock'] != false;
@@ -1146,6 +1186,7 @@ class _PosShellPageState extends State<PosShellPage>
       // Order dan manajemen meja sudah dilebur dalam satu workspace. Tampilkan
       // satu menu bila pengguna memiliki salah satu hak akses terkait.
       if (useTables && (viewTables || manageTables)) _sidebarItem(5),
+      if (useKitchenFlow && viewTables) _sidebarItem(18),
       _sidebarSection('MANAJEMEN'),
       if (can('view_products')) _sidebarItem(2),
       if (canViewInventory) _sidebarItem(7),

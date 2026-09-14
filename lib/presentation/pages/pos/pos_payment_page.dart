@@ -11,6 +11,7 @@ import '../../../../domain/repositories/pos_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/models/pos_customer.dart';
+import 'widgets/pos_quick_customer_dialog.dart';
 
 class PosPaymentPage extends StatefulWidget {
   final PosOrder? pendingOrder;
@@ -29,11 +30,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   String _invoiceNote = '';
   bool _creatingInvoice = false;
   bool _payingPendingInvoice = false;
+  PosCustomer? _paymentCustomer;
+  Map<String, dynamic>? _serviceOrder;
 
   @override
   void initState() {
     super.initState();
     _invoiceNote = widget.pendingOrder?.note ?? '';
+    _paymentCustomer = widget.initialCustomer;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final bloc = context.read<PosBloc>();
@@ -443,32 +447,64 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.account_circle_outlined,
-                                      color: Colors.black54,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.account_circle_outlined,
+                                        color: Colors.black54,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(16),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade100,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                          ),
+                                          child: InkWell(
+                                            onTap: () =>
+                                                _selectPaymentCustomer(state),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 4,
+                                                    vertical: 2,
+                                                  ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      _customerLabel(state),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Icon(
+                                                    Icons.edit_outlined,
+                                                    size: 14,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      child: Text(
-                                        widget.pendingOrder?.customer ??
-                                            state.selectedCustomer?.name ??
-                                            widget.initialCustomer?.name ??
-                                            'Tanpa Pelanggan',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   widget.pendingOrder?.invoice ??
                                       'Transaksi Baru',
@@ -632,7 +668,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                         (_paymentMethod != 'Tunai' &&
                                             _paymentMethod != 'Pisah Bayar') ||
                                         _cashReceived >= total)
-                                  ? () {
+                                  ? () async {
                                       final normalizedMethod =
                                           switch (_paymentMethod) {
                                             'Tunai' => 'tunai',
@@ -645,6 +681,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             _ => '',
                                           };
                                       if (normalizedMethod.isEmpty) return;
+                                      if (!await _ensureServiceOrder(state)) {
+                                        return;
+                                      }
+                                      if (!context.mounted) return;
                                       if (widget.pendingOrder != null) {
                                         _payPendingInvoice(normalizedMethod);
                                       } else {
@@ -656,6 +696,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             note: _invoiceNote,
                                             customerOverride:
                                                 widget.initialCustomer,
+                                            serviceOrder: _serviceOrder,
                                           ),
                                         );
                                       }
@@ -812,19 +853,180 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         expiredSaleAuthorizerUsername: authorization['username']!,
         expiredSaleAuthorizerPin: authorization['pin']!,
         customerOverride: widget.initialCustomer,
+        serviceOrder: _serviceOrder,
       ),
     );
+  }
+
+  Future<bool> _ensureServiceOrder(PosState state) async {
+    final features = state.runtimeConfig['features'] as Map?;
+    if (features?['use_service_order'] != true || widget.pendingOrder != null) {
+      return true;
+    }
+    if (_serviceOrder != null) return true;
+    final profile = state.runtimeConfig['business_profile']?.toString() ?? '';
+    final subject = TextEditingController();
+    final notes = TextEditingController();
+    final weight = TextEditingController();
+    final pieces = TextEditingController();
+    final tag = TextEditingController();
+    String mode = 'kiloan';
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            profile == 'laundry' ? 'Detail cucian' : 'Detail layanan',
+          ),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (profile == 'laundry') ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: mode,
+                      decoration: const InputDecoration(
+                        labelText: 'Model layanan',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'kiloan',
+                          child: Text('Kiloan'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'satuan',
+                          child: Text('Satuan'),
+                        ),
+                        DropdownMenuItem(value: 'paket', child: Text('Paket')),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => mode = value ?? 'kiloan'),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: weight,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Berat (kg)',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: pieces,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Jumlah item',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: tag,
+                      decoration: const InputDecoration(
+                        labelText: 'Tag kantong',
+                      ),
+                    ),
+                  ] else
+                    TextField(
+                      controller: subject,
+                      decoration: const InputDecoration(
+                        labelText: 'Objek layanan *',
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notes,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: profile == 'laundry'
+                          ? 'Kondisi/catatan'
+                          : 'Keluhan *',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final kg =
+                    double.tryParse(weight.text.replaceAll(',', '.')) ?? 0;
+                final count = int.tryParse(pieces.text) ?? 0;
+                if ((profile == 'laundry' && kg <= 0 && count <= 0) ||
+                    (profile != 'laundry' &&
+                        subject.text.trim().isEmpty &&
+                        notes.text.trim().isEmpty)) {
+                  return;
+                }
+                Navigator.pop(dialogContext, {
+                  'service_type': profile == 'laundry' ? 'Laundry' : 'Service',
+                  'service_subject': profile == 'laundry'
+                      ? 'Cucian pelanggan'
+                      : subject.text.trim(),
+                  'complaint': notes.text.trim(),
+                  'condition_notes': profile == 'laundry'
+                      ? notes.text.trim()
+                      : '',
+                  'service_mode': profile == 'laundry' ? mode : '',
+                  'weight_kg': kg,
+                  'item_count': count,
+                  'bag_tag': tag.text.trim(),
+                  'status': 'diterima',
+                });
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    subject.dispose();
+    notes.dispose();
+    weight.dispose();
+    pieces.dispose();
+    tag.dispose();
+    if (result == null) return false;
+    setState(() => _serviceOrder = result);
+    return true;
   }
 
   Future<void> _payPendingInvoice(String method) async {
     final order = widget.pendingOrder;
     if (order == null || _payingPendingInvoice) return;
+    final state = context.read<PosBloc>().state;
+    if (_requiresCustomer(state) && !_hasCustomer(state)) {
+      AppToast.warning(
+        context,
+        'Pilih atau tambahkan pelanggan sebelum membayar',
+      );
+      await _selectPaymentCustomer(state);
+      return;
+    }
     setState(() => _payingPendingInvoice = true);
     final result = await sl<PosRepository>().payPendingOrder(
       orderId: order.id,
       method: method,
       cashReceived: method == 'tunai' ? _cashReceived : order.total,
       splitPayments: method == 'split' ? _splitPayments : const [],
+      customerId:
+          _paymentCustomer?.id ??
+          (widget.pendingOrder == null ? state.selectedCustomer?.id : null),
     );
     if (!mounted) return;
     setState(() => _payingPendingInvoice = false);
@@ -833,6 +1035,132 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       AppToast.success(context, 'Invoice ${order.invoice} berhasil dibayar');
       Navigator.pop(context);
     });
+  }
+
+  bool _requiresCustomer(PosState state) =>
+      (state.runtimeConfig['features'] as Map?)?['require_customer'] == true;
+
+  bool _orderHasNamedCustomer() {
+    final name = widget.pendingOrder?.customer.trim() ?? '';
+    return name.isNotEmpty && name.toLowerCase() != 'pelanggan umum';
+  }
+
+  bool _hasCustomer(PosState state) =>
+      (_paymentCustomer?.id.trim().isNotEmpty ?? false) ||
+      (widget.pendingOrder == null &&
+          (state.selectedCustomer?.id.trim().isNotEmpty ?? false)) ||
+      _orderHasNamedCustomer();
+
+  String _customerLabel(PosState state) =>
+      _paymentCustomer?.name ??
+      (widget.pendingOrder == null ? state.selectedCustomer?.name : null) ??
+      (_orderHasNamedCustomer() ? widget.pendingOrder!.customer : null) ??
+      'Pilih pelanggan';
+
+  Future<void> _selectPaymentCustomer(PosState state) async {
+    final customers = state.customers;
+    final selected = await showModalBottomSheet<PosCustomer>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        var query = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final needle = query.trim().toLowerCase();
+            final filtered = customers
+                .where(
+                  (customer) =>
+                      needle.isEmpty ||
+                      customer.name.toLowerCase().contains(needle) ||
+                      customer.phone.toLowerCase().contains(needle),
+                )
+                .toList();
+            return FractionallySizedBox(
+              heightFactor: .72,
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    child: Row(
+                      children: [
+                        Icon(Icons.people_outline, color: AppColors.primary),
+                        SizedBox(width: 10),
+                        Text(
+                          'Pilih Pelanggan',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: (value) => setSheetState(() => query = value),
+                      decoration: const InputDecoration(
+                        labelText: 'Cari pelanggan',
+                        hintText: 'Nama atau nomor telepon',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          final created = await showPosQuickCustomerDialog(
+                            context,
+                          );
+                          if (created != null && sheetContext.mounted) {
+                            Navigator.pop(sheetContext, created);
+                          }
+                        },
+                        icon: const Icon(Icons.person_add_alt_1),
+                        label: const Text('Tambah pelanggan baru'),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('Pelanggan tidak ditemukan'))
+                        : ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final customer = filtered[index];
+                              return ListTile(
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.person_outline),
+                                ),
+                                title: Text(customer.name),
+                                subtitle: customer.phone.isEmpty
+                                    ? null
+                                    : Text(customer.phone),
+                                onTap: () =>
+                                    Navigator.pop(sheetContext, customer),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _paymentCustomer = selected);
+    context.read<PosBloc>().add(SelectCustomer(selected));
   }
 
   String _activeStoreName(BuildContext context) {
@@ -986,6 +1314,22 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   }
 
   Future<void> _createInvoice(BuildContext context, PosState state) async {
+    if (!await _ensureServiceOrder(state)) return;
+    if (!context.mounted) return;
+    if (const {
+          'delivery',
+          'online_delivery',
+          'reservation',
+        }.contains(state.orderType) &&
+        state.selectedCustomer == null &&
+        widget.initialCustomer == null) {
+      AppToast.warning(
+        context,
+        'Pilih pelanggan untuk tipe pemenuhan ini sebelum membuat invoice.',
+      );
+      await _selectPaymentCustomer(state);
+      return;
+    }
     if (state.orderType == 'dine_in' &&
         (state.selectedTableId == null || state.selectedTableId!.isEmpty)) {
       AppToast.warning(
@@ -1047,6 +1391,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         for (final product in state.cart.keys)
           product.id: state.unitPriceFor(product),
       },
+      serviceOrder: _serviceOrder,
     );
     if (!mounted) return;
     setState(() => _creatingInvoice = false);

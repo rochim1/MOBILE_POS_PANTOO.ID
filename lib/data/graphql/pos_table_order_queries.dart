@@ -7,9 +7,15 @@ class PosTableOrderQueries {
         pagination: $pagination
       ) {
         items {
-          _id order_no pelanggan_nama status status_pembayaran grand_total
+          _id order_no pelanggan_id pelanggan_nama status status_pembayaran
+          subtotal diskon_amount pajak_amount grand_total catatan tipe_pesanan source
           table_id table { _id name }
-          items { _id nama qty harga_satuan subtotal catatan }
+          items { _id produk_id nama kode qty unit harga_satuan subtotal catatan }
+          service_order {
+            service_type service_subject service_mode weight_kg item_count promised_at
+            bag_tag fragrance finishing condition_notes status
+            status_history { status at actor_id actor_name note }
+          }
           createdAt
         }
       }
@@ -22,8 +28,16 @@ class PosTableOrderQueries {
         _id
         order_no
         pelanggan_nama
+        pelanggan_id
         status
+        status_pembayaran
+        subtotal
+        diskon_amount
+        pajak_amount
         grand_total
+        catatan
+        tipe_pesanan
+        source
         table_id
         items {
           _id
@@ -32,6 +46,11 @@ class PosTableOrderQueries {
           qty
           harga_satuan
           catatan
+        }
+        service_order {
+          service_type service_subject service_mode weight_kg item_count promised_at
+          bag_tag fragrance finishing condition_notes status
+          status_history { status at actor_id actor_name note }
         }
         createdAt
       }
@@ -43,6 +62,24 @@ class PosTableOrderQueries {
       UpdatePOSOrderStatus(_id: $orderId, status: $status) {
         _id
         status
+      }
+    }
+  ''';
+
+  static const String updateOrderItems = r'''
+    mutation UpdatePOSOrderItems($orderId: ID!, $items: [POSOrderItemInput!]!) {
+      UpdatePOSOrderItems(_id: $orderId, items: $items) {
+        _id subtotal diskon_amount pajak_amount grand_total
+        items { _id produk_id nama kode qty unit harga_satuan subtotal catatan }
+      }
+    }
+  ''';
+
+  static const String updateServiceOrderStatus = r'''
+    mutation UpdatePOSServiceOrderStatus($orderId: ID!, $status: String!, $note: String) {
+      UpdatePOSServiceOrderStatus(_id: $orderId, status: $status, note: $note) {
+        _id
+        service_order { status status_history { status at actor_id actor_name note } }
       }
     }
   ''';

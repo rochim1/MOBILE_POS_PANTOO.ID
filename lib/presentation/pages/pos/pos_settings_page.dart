@@ -40,6 +40,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   final _invoicePrefixController = TextEditingController();
   final _defaultCatatanController = TextEditingController();
   final _autoLockMinutesController = TextEditingController();
+  final _newChannelController = TextEditingController();
+  final _newPriceLevelController = TextEditingController();
 
   String _businessProfile = 'retail';
   Map<String, bool> _enabledFeatures = const {};
@@ -114,7 +116,107 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     _invoicePrefixController.dispose();
     _defaultCatatanController.dispose();
     _autoLockMinutesController.dispose();
+    _newChannelController.dispose();
+    _newPriceLevelController.dispose();
     super.dispose();
+  }
+
+  void _applyBusinessProfile(String profile) {
+    const base = <String, bool>{
+      'use_tables': false,
+      'use_kitchen_flow': false,
+      'use_service_order': false,
+      'use_appointments': false,
+      'use_technicians': false,
+      'use_vehicle_data': false,
+      'use_delivery': false,
+      'require_customer': false,
+      'track_stock': true,
+    };
+    final features = switch (profile) {
+      'restoran' => {
+        ...base,
+        'use_tables': true,
+        'use_kitchen_flow': true,
+        'use_delivery': true,
+      },
+      'bengkel' => {
+        ...base,
+        'use_service_order': true,
+        'use_appointments': true,
+        'use_technicians': true,
+        'use_vehicle_data': true,
+        'require_customer': true,
+      },
+      'jasa' => {
+        ...base,
+        'use_service_order': true,
+        'use_appointments': true,
+        'use_technicians': true,
+        'require_customer': true,
+        'track_stock': false,
+      },
+      'laundry' => {
+        ...base,
+        'use_service_order': true,
+        'use_delivery': true,
+        'require_customer': true,
+      },
+      'custom' => {...base, ..._enabledFeatures},
+      _ => {...base},
+    };
+    setState(() {
+      _businessProfile = profile;
+      _enabledFeatures = features;
+      if (profile == 'restoran') {
+        _fulfillmentType = 'dine_in';
+      } else if (profile != 'custom') {
+        _fulfillmentType = 'take_away';
+      }
+      if (!_fulfillmentOptions.contains(_fulfillmentType)) {
+        _fulfillmentType = 'take_away';
+      }
+    });
+  }
+
+  String _normalizeOption(String raw) => raw
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+
+  void _addOption({required bool channel}) {
+    final controller = channel
+        ? _newChannelController
+        : _newPriceLevelController;
+    final value = _normalizeOption(controller.text);
+    if (value.isEmpty) {
+      AppToast.error(context, 'Isi nama opsi terlebih dahulu.');
+      return;
+    }
+    setState(() {
+      if (channel) {
+        _channelOptions = <String>{..._channelOptions, value}.toList();
+      } else {
+        _priceLevelOptions = <String>{..._priceLevelOptions, value}.toList();
+      }
+      controller.clear();
+    });
+  }
+
+  void _removeOption(String value, {required bool channel}) {
+    if (value == 'retail') return;
+    setState(() {
+      if (channel) {
+        _channelOptions = _channelOptions.where((e) => e != value).toList();
+        if (_channel == value) _channel = 'retail';
+      } else {
+        _priceLevelOptions = _priceLevelOptions
+            .where((e) => e != value)
+            .toList();
+        if (_priceLevel == value) _priceLevel = 'retail';
+      }
+    });
   }
 
   void _initFields(PosSettingsState state) {
@@ -206,8 +308,10 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       'pembulatan_harga': _pembulatanHarga,
       'default_metode_pembayaran': _metodePembayaran,
       'default_channel_penjualan': _channel,
+      'sales_channel_options': _channelOptions,
       'default_tipe_pesanan': _fulfillmentType,
       'default_price_level': _priceLevel,
+      'price_level_options': _priceLevelOptions,
       'default_discount_policy': _discountPolicy,
       'invoice_prefix': invoicePrefix,
       'default_catatan': _defaultCatatanController.text,
@@ -322,13 +426,17 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           _buildDropdown(
             label: 'Profil Bisnis POS',
             value: _businessProfile,
-            items: const ['retail', 'restoran', 'bengkel', 'jasa', 'custom'],
-            onChanged: (val) => setState(() {
-              _businessProfile = val!;
-              if (!_fulfillmentOptions.contains(_fulfillmentType)) {
-                _fulfillmentType = 'take_away';
-              }
-            }),
+            items: const [
+              'retail',
+              'restoran',
+              'bengkel',
+              'jasa',
+              'laundry',
+              'custom',
+            ],
+            onChanged: (val) {
+              if (val != null) _applyBusinessProfile(val);
+            },
           ),
           const Text(
             'Fitur operasional',
@@ -347,7 +455,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             ),
           ),
           _buildDropdown(
-            label: 'Metode Pembayaran',
+            label: 'Metode Pembayaran Default',
             value: _metodePembayaran,
             items: const [
               'tunai',
@@ -360,16 +468,32 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             onChanged: (val) => setState(() => _metodePembayaran = val!),
           ),
           _buildDropdown(
-            label: 'Channel Penjualan',
+            label: 'Channel Penjualan Default',
             value: _channel,
             items: _channelOptions,
             onChanged: (val) => setState(() => _channel = val!),
+          ),
+          _buildOptionManager(
+            label: 'Channel Penjualan Aktif',
+            description: 'Sumber transaksi yang tersedia di kasir.',
+            values: _channelOptions,
+            controller: _newChannelController,
+            onAdd: () => _addOption(channel: true),
+            onRemove: (value) => _removeOption(value, channel: true),
           ),
           _buildDropdown(
             label: 'Level Harga Default',
             value: _priceLevel,
             items: _priceLevelOptions,
             onChanged: (val) => setState(() => _priceLevel = val!),
+          ),
+          _buildOptionManager(
+            label: 'Level Harga Aktif',
+            description: 'Dipakai bersama oleh katalog inventaris dan kasir.',
+            values: _priceLevelOptions,
+            controller: _newPriceLevelController,
+            onAdd: () => _addOption(channel: false),
+            onRemove: (value) => _removeOption(value, channel: false),
           ),
           _buildDropdown(
             label: 'Jenis Pesanan Default',
@@ -378,7 +502,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             onChanged: (val) => setState(() => _fulfillmentType = val!),
           ),
           _buildDropdown(
-            label: 'Discount Policy',
+            label: 'Kebijakan Diskon',
             value: _discountPolicy,
             items: const [
               'stack',
@@ -574,6 +698,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          hintText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -595,22 +721,146 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        initialValue: safeValue,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 7),
+          DropdownButtonFormField<String>(
+            initialValue: safeValue,
+            decoration: InputDecoration(
+              hintText: 'Pilih $label',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            items: items
+                .map(
+                  (item) => DropdownMenuItem(
+                    value: item,
+                    child: Text(_optionLabel(item)),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
           ),
-        ),
-        items: items
-            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-            .toList(),
-        onChanged: onChanged,
+        ],
       ),
     );
+  }
+
+  Widget _buildOptionManager({
+    required String label,
+    required String description,
+    required List<String> values,
+    required TextEditingController controller,
+    required VoidCallback onAdd,
+    required ValueChanged<String> onRemove,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 3),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: values
+                .map(
+                  (value) => InputChip(
+                    label: Text(_optionLabel(value)),
+                    onDeleted: value == 'retail' ? null : () => onRemove(value),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => onAdd(),
+                  decoration: InputDecoration(
+                    labelText: 'Tambah $label',
+                    hintText: 'Contoh: mitra khusus',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add),
+                label: const Text('Tambah'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(112, 56),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _optionLabel(String value) {
+    const labels = <String, String>{
+      'retail': 'Retail',
+      'restoran': 'Restoran / Kafe',
+      'bengkel': 'Bengkel',
+      'jasa': 'Jasa / Janji Temu',
+      'laundry': 'Laundry',
+      'custom': 'Kustom',
+      'tunai': 'Tunai',
+      'transfer': 'Transfer Bank',
+      'qris': 'QRIS',
+      'debit': 'Kartu Debit',
+      'kartu_kredit': 'Kartu Kredit',
+      'e_wallet': 'Dompet Digital',
+      'take_away': 'Bawa Pulang',
+      'dine_in': 'Makan di Tempat (dengan meja)',
+      'free_table': 'Makan di Tempat (tanpa meja)',
+      'delivery': 'Pengantaran',
+      'quick_service': 'Layanan Cepat',
+      'reservation': 'Reservasi',
+      'stack': 'Gabungkan Diskon Manual + Promo',
+      'promo_only': 'Hanya Promo',
+      'manual_only': 'Hanya Diskon Manual',
+      'best_of_manual_or_promo': 'Diskon Terbaik: Manual atau Promo',
+      'none': 'Tanpa Pembulatan',
+      'block': 'Blokir Sepenuhnya',
+      'allow_with_permission': 'Izinkan dengan Otorisasi',
+    };
+    return labels[value] ??
+        value
+            .split('_')
+            .where((word) => word.isNotEmpty)
+            .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+            .join(' ');
   }
 
   Widget _buildSwitch(String label, bool value, void Function(bool) onChanged) {
