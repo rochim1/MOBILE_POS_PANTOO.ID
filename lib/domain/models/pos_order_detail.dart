@@ -71,6 +71,10 @@ class PosOrderDetail extends Equatable {
   final double? discountAmount;
   final double? taxAmount;
   final String? note;
+  final String? kitchenNote;
+  final String? handoverNote;
+  final String? internalNote;
+  final List<Map<String, dynamic>> statusHistory;
   final String? tableId;
   final String? tableName;
   final List<PosOrderItem> items;
@@ -90,6 +94,10 @@ class PosOrderDetail extends Equatable {
     this.discountAmount,
     this.taxAmount,
     this.note,
+    this.kitchenNote,
+    this.handoverNote,
+    this.internalNote,
+    this.statusHistory = const [],
     this.tableId,
     this.tableName,
     this.items = const [],
@@ -124,6 +132,13 @@ class PosOrderDetail extends Equatable {
           ? rawTax.toDouble()
           : double.tryParse(_text(rawTax) ?? ''),
       note: _text(json['catatan']),
+      kitchenNote: _text(json['kitchen_note']),
+      handoverNote: _text(json['handover_note']),
+      internalNote: _text(json['internal_note']),
+      statusHistory: (json['status_history'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(),
       tableId: _text(json['table_id']),
       tableName: (json['table'] as Map?)?['name']?.toString(),
       items: rawItems is List
@@ -156,6 +171,10 @@ class PosOrderDetail extends Equatable {
     discountAmount,
     taxAmount,
     note,
+    kitchenNote,
+    handoverNote,
+    internalNote,
+    statusHistory,
     tableId,
     tableName,
     items,

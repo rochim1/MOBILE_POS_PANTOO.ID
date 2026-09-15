@@ -11,6 +11,7 @@ import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_category_navigation.dart';
+import '../../widgets/inventory_action_style.dart';
 import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
@@ -746,7 +747,8 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 );
                 final add = FilledButton.icon(
                   onPressed: _can('create') ? () => _openEditor() : null,
-                  icon: const Icon(Icons.add),
+                  style: InventoryActionStyle.primary(),
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text('Tambah'),
                 );
                 final hasOpnameFilter =
@@ -756,6 +758,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 final opnameFilter = IconButton.filledTonal(
                   onPressed: _showOpnameFilters,
                   tooltip: 'Filter lokasi dan tanggal',
+                  style: InventoryActionStyle.filter(),
                   icon: Badge(
                     isLabelVisible: hasOpnameFilter,
                     child: const Icon(Icons.tune_rounded),
@@ -766,6 +769,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 final scrapFilter = IconButton.filledTonal(
                   onPressed: _showScrapFilters,
                   tooltip: 'Filter alasan dan tanggal',
+                  style: InventoryActionStyle.filter(),
                   icon: Badge(
                     isLabelVisible: hasScrapFilter,
                     child: const Icon(Icons.tune_rounded),
@@ -786,7 +790,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                         scrapFilter,
                       ],
                       const SizedBox(width: 10),
-                      SizedBox(height: 56, child: add),
+                      SizedBox(height: InventoryActionStyle.height, child: add),
                     ],
                   );
                 }

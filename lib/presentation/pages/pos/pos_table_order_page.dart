@@ -15,6 +15,7 @@ import '../../bloc/pos_order_management/pos_order_management_state.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/loading_indicator_widget.dart';
+import '../../widgets/skeleton_loading.dart';
 import '../../../../domain/models/pos_table.dart';
 import '../../../../domain/models/pos_order_detail.dart';
 import '../../../../domain/models/pos_order.dart';
@@ -148,7 +149,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               builder: (context, state) {
                 if (state.status == PosOrderManagementStatus.loading &&
                     state.orders.isEmpty) {
-                  return const Center(child: LoadingIndicatorWidget());
+                  return const PosOrderBoardSkeleton();
                 }
                 if (state.orders.isEmpty) {
                   return RefreshIndicator(
@@ -344,13 +345,13 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   Widget _orderKanban(List<PosOrderDetail> orders) {
-    const statuses = ['Baru', 'Diproses', 'Siap'];
+    const statuses = ['Baru', 'Diproses', 'Siap', 'Disajikan'];
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.all(12),
         child: SizedBox(
-          width: constraints.maxWidth < 900 ? 900 : constraints.maxWidth - 24,
+          width: constraints.maxWidth < 1120 ? 1120 : constraints.maxWidth - 24,
           height: constraints.maxHeight - 24,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -440,7 +441,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   Widget _draggableOrderCard(PosOrderDetail order, int index) {
-    final canDrag = order.status == 'Baru' || order.status == 'Diproses';
+    final canDrag =
+        order.status == 'Baru' ||
+        order.status == 'Diproses' ||
+        order.status == 'Siap';
     if (!canDrag) return _activeOrderCard(order, index);
     return Draggable<PosOrderDetail>(
       data: order,
@@ -470,7 +474,12 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   bool _canMoveTo(PosOrderDetail order, String target) =>
-      {'Baru': 'Diproses', 'Diproses': 'Siap'}[order.status] == target;
+      {
+        'Baru': 'Diproses',
+        'Diproses': 'Siap',
+        'Siap': 'Disajikan',
+      }[order.status] ==
+      target;
 
   void _moveOrder(PosOrderDetail order, String status) {
     context.read<PosOrderManagementBloc>().add(
@@ -490,12 +499,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     'Baru' => 'Pesanan Baru',
     'Diproses' => 'Sedang Dibuat',
     'Siap' => 'Siap Disajikan',
+    'Disajikan' => 'Sudah Diserahkan',
     _ => status,
   };
 
   Color _orderStatusColor(String status) => switch (status) {
     'Diproses' => AppColors.warning,
     'Siap' => AppColors.success,
+    'Disajikan' => AppColors.primary,
     _ => AppColors.info,
   };
 
@@ -702,6 +713,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 ),
               ),
               const Divider(height: 24),
+              if (order.note?.isNotEmpty == true)
+                _orderNote('Catatan umum', order.note!),
+              if (order.kitchenNote?.isNotEmpty == true)
+                _orderNote('Untuk dapur', order.kitchenNote!),
+              if (order.handoverNote?.isNotEmpty == true)
+                _orderNote('Penyerahan', order.handoverNote!),
+              if (order.internalNote?.isNotEmpty == true)
+                _orderNote('Internal kasir', order.internalNote!),
               ...order.items.map(
                 (item) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -786,8 +805,38 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   ),
                   label: Text(
                     next == 'completed' && order.paymentStatus != 'lunas'
-                        ? 'Bayar & Selesaikan'
+                        ? 'Bayar pesanan'
+                        : next == 'completed' && order.orderType == 'dine_in'
+                        ? 'Tutup pesanan & kosongkan meja'
                         : _nextStatusLabel(next),
+                  ),
+                ),
+              ],
+              if (order.statusHistory.isNotEmpty) ...[
+                const Divider(height: 24),
+                Text(
+                  'Riwayat status',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                ...order.statusHistory.reversed.map(
+                  (entry) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.history, size: 18),
+                    title: Text(entry['status']?.toString() ?? '-'),
+                    subtitle: Text(
+                      [
+                            entry['actor_name']?.toString(),
+                            entry['note']?.toString(),
+                          ]
+                          .where((value) => value?.trim().isNotEmpty == true)
+                          .join(' · '),
+                    ),
+                    trailing: Text(
+                      _orderTime(entry['at']?.toString()),
+                      style: const TextStyle(fontSize: 11),
+                    ),
                   ),
                 ),
               ],
@@ -797,6 +846,18 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       ),
     );
   }
+
+  Widget _orderNote(String label, String value) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppColors.bgSecondary,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Text('$label: $value'),
+  );
 
   List<String> _serviceNext(String? status) => switch (status) {
     'estimasi' => const ['diterima', 'batal'],
@@ -1056,13 +1117,15 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   String? _nextStatus(String? current) => switch (current) {
     'Baru' => 'preparing',
     'Diproses' => 'served',
-    'Siap' => 'completed',
+    'Siap' => 'delivered',
+    'Disajikan' => 'completed',
     _ => null,
   };
 
   String _nextStatusLabel(String status) => switch (status) {
     'preparing' => 'Mulai proses',
     'served' => 'Tandai siap',
+    'delivered' => 'Tandai sudah disajikan/diserahkan',
     'completed' => 'Selesaikan pesanan',
     _ => 'Perbarui status',
   };
@@ -1492,7 +1555,7 @@ class _OrderDetailsSheet extends StatelessWidget {
                   builder: (context, state) {
                     if (state.status == PosOrderManagementStatus.loading &&
                         state.orders.isEmpty) {
-                      return const Center(child: LoadingIndicatorWidget());
+                      return const PosSkeletonList(count: 4);
                     }
 
                     if (state.orders.isEmpty) {

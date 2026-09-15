@@ -15,7 +15,7 @@ import '../../bloc/pos_order_management/pos_order_management_bloc.dart';
 import '../../bloc/pos_order_management/pos_order_management_event.dart';
 import '../../bloc/pos_order_management/pos_order_management_state.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/loading_indicator_widget.dart';
+import '../../widgets/skeleton_loading.dart';
 import '../../widgets/pos_ui.dart';
 
 class PosKitchenDisplayPage extends StatelessWidget {
@@ -290,7 +290,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                   builder: (context, state) {
                     if (state.status == PosOrderManagementStatus.loading &&
                         state.orders.isEmpty) {
-                      return const Center(child: LoadingIndicatorWidget());
+                      return const PosOrderBoardSkeleton();
                     }
                     final orders = state.orders
                         .where(
@@ -614,32 +614,47 @@ class _KitchenBoardState extends State<_KitchenBoard> {
               ),
               child: Text('Catatan: ${order.note}'),
             ),
+          if (order.kitchenNote?.trim().isNotEmpty == true)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: AppColors.infoBackground,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('Untuk dapur: ${order.kitchenNote}'),
+            ),
           Padding(
             padding: const EdgeInsets.all(12),
             child: SizedBox(
               width: double.infinity,
-              child: status == 'Siap' || !widget.canUpdate
+              child: !widget.canUpdate
                   ? OutlinedButton.icon(
                       onPressed: null,
-                      icon: Icon(
-                        status == 'Siap'
-                            ? Icons.notifications_active_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      label: Text(
-                        status == 'Siap' ? 'Menunggu diantar' : 'Hanya lihat',
-                      ),
+                      icon: const Icon(Icons.visibility_outlined),
+                      label: const Text('Hanya lihat'),
                     )
                   : FilledButton.icon(
-                      onPressed: () => _advance(
-                        order,
-                        status == 'Baru' ? 'Diproses' : 'Siap',
-                      ),
+                      onPressed: () => status == 'Siap'
+                          ? _confirmHandover(order)
+                          : _advance(
+                              order,
+                              status == 'Baru' ? 'Diproses' : 'Siap',
+                            ),
                       icon: Icon(
-                        status == 'Baru' ? Icons.play_arrow : Icons.check,
+                        status == 'Baru'
+                            ? Icons.play_arrow
+                            : status == 'Diproses'
+                            ? Icons.check
+                            : Icons.room_service_outlined,
                       ),
                       label: Text(
-                        status == 'Baru' ? 'Mulai masak' : 'Tandai siap',
+                        status == 'Baru'
+                            ? 'Mulai masak'
+                            : status == 'Diproses'
+                            ? 'Tandai siap'
+                            : _handoverLabel(order),
                       ),
                     ),
             ),
@@ -649,7 +664,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     );
   }
 
-  void _advance(PosOrderDetail order, String nextStatus) {
+  void _advance(PosOrderDetail order, String nextStatus, {String note = ''}) {
     context.read<PosOrderManagementBloc>().add(
       UpdateItemStatus(
         orderId: order.id ?? '',
@@ -657,8 +672,44 @@ class _KitchenBoardState extends State<_KitchenBoard> {
         newStatus: nextStatus,
         tableId: order.tableId ?? '',
         storeId: _storeId,
+        note: note,
       ),
     );
+  }
+
+  Future<void> _confirmHandover(PosOrderDetail order) async {
+    final controller = TextEditingController(text: order.handoverNote ?? '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_handoverLabel(order)),
+        content: TextField(
+          controller: controller,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Catatan penyerahan (opsional)',
+            hintText: 'Contoh: diterima pelanggan atau diserahkan ke kurir',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Konfirmasi'),
+          ),
+        ],
+      ),
+    );
+    final note = controller.text.trim();
+    controller.dispose();
+    if (confirmed == true && mounted) {
+      _advance(order, 'Disajikan', note: note);
+    }
   }
 
   int _count(List<PosOrderDetail> orders, String status) =>
@@ -681,6 +732,11 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     'quick_service' => 'Layanan cepat',
     'reservation' => 'Reservasi',
     _ => 'Bawa pulang',
+  };
+  String _handoverLabel(PosOrderDetail order) => switch (order.orderType) {
+    'dine_in' || 'free_table' => 'Tandai sudah disajikan',
+    'delivery' || 'online_delivery' => 'Tandai sudah dikirim',
+    _ => 'Tandai sudah diserahkan',
   };
   (String, Color) _elapsed(String? raw) {
     final created = DateTime.tryParse(raw ?? '')?.toLocal();

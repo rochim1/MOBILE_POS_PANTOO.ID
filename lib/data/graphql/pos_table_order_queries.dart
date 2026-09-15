@@ -8,7 +8,8 @@ class PosTableOrderQueries {
       ) {
         items {
           _id order_no pelanggan_id pelanggan_nama status status_pembayaran
-          subtotal diskon_amount pajak_amount grand_total catatan tipe_pesanan source
+          subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
+          status_history { status at actor_id actor_name note }
           table_id table { _id name }
           items { _id produk_id nama kode qty unit harga_satuan subtotal catatan }
           service_order {
@@ -35,7 +36,8 @@ class PosTableOrderQueries {
         diskon_amount
         pajak_amount
         grand_total
-        catatan
+        catatan kitchen_note handover_note internal_note
+        status_history { status at actor_id actor_name note }
         tipe_pesanan
         source
         table_id
@@ -58,8 +60,8 @@ class PosTableOrderQueries {
   ''';
 
   static const String updateOrderItemStatus = r'''
-    mutation UpdatePOSOrderStatus($orderId: ID!, $status: String!) {
-      UpdatePOSOrderStatus(_id: $orderId, status: $status) {
+    mutation UpdatePOSOrderStatus($orderId: ID!, $status: String!, $note: String) {
+      UpdatePOSOrderStatus(_id: $orderId, status: $status, note: $note) {
         _id
         status
       }

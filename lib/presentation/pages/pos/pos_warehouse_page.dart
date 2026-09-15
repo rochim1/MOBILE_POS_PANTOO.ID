@@ -7,6 +7,7 @@ import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_ui.dart';
+import '../../widgets/inventory_action_style.dart';
 
 class PosWarehousePage extends StatefulWidget {
   final bool canCreate;
@@ -78,7 +79,8 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
             );
             final add = FilledButton.icon(
               onPressed: widget.canCreate ? () => _openForm() : null,
-              icon: const Icon(Icons.add),
+              style: InventoryActionStyle.primary(),
+              icon: const Icon(Icons.add, size: 18),
               label: const Text('Tambah Warehouse'),
             );
             if (constraints.maxWidth < 560) {

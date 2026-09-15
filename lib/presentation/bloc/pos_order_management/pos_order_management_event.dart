@@ -39,6 +39,7 @@ class UpdateItemStatus extends PosOrderManagementEvent {
   final String storeId;
   final String search;
   final String statusFilter;
+  final String note;
 
   const UpdateItemStatus({
     required this.orderId,
@@ -48,6 +49,7 @@ class UpdateItemStatus extends PosOrderManagementEvent {
     this.storeId = '',
     this.search = '',
     this.statusFilter = '',
+    this.note = '',
   });
 
   @override
@@ -59,5 +61,6 @@ class UpdateItemStatus extends PosOrderManagementEvent {
     storeId,
     search,
     statusFilter,
+    note,
   ];
 }

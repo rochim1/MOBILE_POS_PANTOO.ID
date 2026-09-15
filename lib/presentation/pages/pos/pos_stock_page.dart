@@ -12,6 +12,7 @@ import '../../../domain/repositories/pos_stock_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/skeleton_loading.dart';
+import '../../widgets/inventory_action_style.dart';
 import '../../bloc/pos/pos_bloc.dart';
 
 class PosStockPage extends StatelessWidget {
@@ -1230,6 +1231,7 @@ class _PosStockViewState extends State<_PosStockView> {
               Navigator.pop(dialogContext);
               widget.onOpenStockOpname!();
             },
+            style: InventoryActionStyle.primary(),
             icon: const Icon(Icons.fact_check_outlined, size: 18),
             label: const Text('Buka Stock Opname'),
           ),

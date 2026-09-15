@@ -4,6 +4,7 @@ import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/inventory_action_style.dart';
 import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseReceivingPage extends StatefulWidget {
@@ -806,7 +807,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: _loading || _items.isEmpty ? null : _save,
-                    icon: const Icon(Icons.inventory),
+                    style: InventoryActionStyle.primary(),
+                    icon: const Icon(Icons.inventory, size: 18),
                     label: const Text('Simpan Penerimaan'),
                   ),
                 ],

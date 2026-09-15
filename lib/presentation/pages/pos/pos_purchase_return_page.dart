@@ -9,6 +9,7 @@ import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../domain/repositories/purchase_return_repository.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/inventory_action_style.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'pos_barcode_scanner_page.dart';
 
@@ -199,13 +200,32 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
       context.read<PosBloc>().state.runtimeConfig['permissions'] as Map? ??
           const {},
     );
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _CreatePurchaseReturnPage(
-          canSubmit: permissions['submit_purchase_returns'] == true,
-        ),
-      ),
+    final created = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final screen = MediaQuery.sizeOf(dialogContext);
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: screen.width < 600 ? 12 : 32,
+            vertical: screen.height < 700 ? 12 : 28,
+          ),
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1080),
+            child: SizedBox(
+              width: double.maxFinite,
+              height: screen.height * .9,
+              child: _CreatePurchaseReturnPage(
+                canSubmit: permissions['submit_purchase_returns'] == true,
+              ),
+            ),
+          ),
+        );
+      },
     );
     if (created == true) _load(page: 1);
   }
@@ -282,7 +302,8 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 );
                 final button = FilledButton.icon(
                   onPressed: canCreate ? _openCreate : null,
-                  icon: const Icon(Icons.add),
+                  style: InventoryActionStyle.primary(),
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text('Retur ke Supplier'),
                 );
                 final hasFilter =
@@ -293,6 +314,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 final filter = IconButton.filledTonal(
                   onPressed: _showFilters,
                   tooltip: 'Filter retur',
+                  style: InventoryActionStyle.filter(),
                   icon: Badge(
                     isLabelVisible: hasFilter,
                     child: const Icon(Icons.tune_rounded),
@@ -307,7 +329,10 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                       const SizedBox(width: 8),
                       filter,
                       const SizedBox(width: 12),
-                      SizedBox(height: 56, child: button),
+                      SizedBox(
+                        height: InventoryActionStyle.height,
+                        child: button,
+                      ),
                     ],
                   );
                 }
@@ -322,7 +347,10 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                         const SizedBox(width: 8),
                         filter,
                         const SizedBox(width: 10),
-                        button,
+                        SizedBox(
+                          height: InventoryActionStyle.height,
+                          child: button,
+                        ),
                       ],
                     ),
                   ],

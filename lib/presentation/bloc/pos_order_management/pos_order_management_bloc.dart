@@ -72,6 +72,7 @@ class PosOrderManagementBloc
       event.orderId,
       event.itemId,
       event.newStatus,
+      note: event.note,
     );
 
     result.fold(

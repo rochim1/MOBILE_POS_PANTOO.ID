@@ -17,6 +17,102 @@ class SkeletonBox extends StatefulWidget {
   State<SkeletonBox> createState() => _SkeletonBoxState();
 }
 
+/// Placeholder shared by the kitchen board and active-order kanban so loading
+/// keeps the final three-column geometry instead of replacing it with a spinner.
+class PosOrderBoardSkeleton extends StatelessWidget {
+  final int columns;
+  final int cardsPerColumn;
+
+  const PosOrderBoardSkeleton({
+    super.key,
+    this.columns = 3,
+    this.cardsPerColumn = 2,
+  });
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final boardWidth = constraints.maxWidth < 840
+          ? 840.0
+          : constraints.maxWidth;
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.all(12),
+        child: SizedBox(
+          width: boardWidth,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(
+              columns,
+              (_) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F4F6),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE1E5E9)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SkeletonBox(height: 38, borderRadius: 8),
+                        const SizedBox(height: 10),
+                        ...List.generate(
+                          cardsPerColumn,
+                          (_) => const Padding(
+                            padding: EdgeInsets.only(bottom: 10),
+                            child: _OrderTicketSkeleton(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _OrderTicketSkeleton extends StatelessWidget {
+  const _OrderTicketSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: SkeletonBox(height: 16, borderRadius: 4)),
+            SizedBox(width: 12),
+            SkeletonBox(width: 58, height: 22, borderRadius: 8),
+          ],
+        ),
+        SizedBox(height: 14),
+        SkeletonBox(width: 140, height: 12, borderRadius: 4),
+        SizedBox(height: 9),
+        SkeletonBox(height: 12, borderRadius: 4),
+        SizedBox(height: 7),
+        SkeletonBox(width: 180, height: 12, borderRadius: 4),
+        SizedBox(height: 14),
+        SkeletonBox(height: 34, borderRadius: 8),
+      ],
+    ),
+  );
+}
+
 class _SkeletonBoxState extends State<SkeletonBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;

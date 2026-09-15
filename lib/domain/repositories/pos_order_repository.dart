@@ -80,8 +80,9 @@ class PosOrderRepository {
   Future<Either<Failure, bool>> updateOrderItemStatus(
     String orderId,
     String _,
-    String status,
-  ) async {
+    String status, {
+    String note = '',
+  }) async {
     try {
       final options = MutationOptions(
         document: gql(PosTableOrderQueries.updateOrderItemStatus),
@@ -92,9 +93,11 @@ class PosOrderRepository {
                 'pending': 'Baru',
                 'preparing': 'Diproses',
                 'served': 'Siap',
+                'delivered': 'Disajikan',
                 'completed': 'Selesai',
               }[status] ??
               status,
+          'note': note,
         },
       );
 

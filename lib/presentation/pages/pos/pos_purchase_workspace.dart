@@ -6,6 +6,7 @@ import '../../../../injections.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_full_width_tabs.dart';
+import '../../widgets/inventory_action_style.dart';
 import 'pos_purchase_receiving_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
@@ -370,7 +371,11 @@ class _ReceivingListState extends State<_ReceivingList> {
                         alignment: Alignment.centerRight,
                         child: FilledButton.icon(
                           onPressed: () => _receive(purchase),
-                          icon: const Icon(Icons.inventory_2_outlined),
+                          style: InventoryActionStyle.primary(),
+                          icon: const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 18,
+                          ),
                           label: Text(
                             progress > 0 ? 'Terima Sisa' : 'Terima Barang',
                           ),
