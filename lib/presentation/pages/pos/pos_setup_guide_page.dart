@@ -9,6 +9,7 @@ import '../../bloc/lock/lock_cubit.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_state.dart';
 import 'pos_onboarding_page.dart';
+import 'widgets/pos_setup_tour.dart';
 
 class PosSetupReadiness {
   final bool hasStore;
@@ -42,11 +43,20 @@ class PosSetupReadiness {
 class PosSetupGuidePage extends StatefulWidget {
   final void Function(int destination, String? section) onNavigate;
   final VoidCallback onStartCashier;
+  final Future<void> Function(
+    int stepNumber,
+    String title,
+    int? destination,
+    String? section,
+    List<PosSetupTourStage> stages,
+  )
+  onStartWalkthrough;
 
   const PosSetupGuidePage({
     super.key,
     required this.onNavigate,
     required this.onStartCashier,
+    required this.onStartWalkthrough,
   });
 
   static String tourPreferenceKey(SharedPreferences prefs) {
@@ -113,13 +123,25 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                     stockTrackedProducts.isEmpty ||
                     stockTrackedProducts.any((product) => product.stock > 0));
           final hasPin = sharedReadiness.isNotEmpty
-              ? sharedReadiness['has_pin_operator'] == true
+              ? (sharedReadiness['pin_ready'] ??
+                        sharedReadiness['has_pin_operator']) ==
+                    true
               : (lock.hasPinConfigured ||
+                    state.runtimeConfig['pos_lock_enabled'] == false ||
                     (lock.activeEmployeeId?.isNotEmpty == true &&
                         lock.operatorSessionToken.isNotEmpty));
           final hasShift = sharedReadiness.isNotEmpty
-              ? sharedReadiness['has_open_shift'] == true
-              : state.activeShift != null;
+              ? (sharedReadiness['shift_ready'] ??
+                        sharedReadiness['has_open_shift']) ==
+                    true
+              : (state.activeShift != null ||
+                    state.runtimeConfig['allow_out_of_shift'] == true);
+          final pinRequired =
+              sharedReadiness['pin_required'] != false &&
+              state.runtimeConfig['pos_lock_enabled'] != false;
+          final shiftRequired =
+              sharedReadiness['shift_required'] != false &&
+              state.runtimeConfig['allow_out_of_shift'] != true;
           final warehouseCount =
               sharedReadiness['sellable_warehouse_count'] as int? ??
               warehouses.length;
@@ -158,6 +180,23 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   : null,
               destination: 7,
               section: 'warehouse',
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Buat lokasi operasional',
+                  description:
+                      'Tambahkan cabang atau warehouse yang benar-benar menyimpan stok usaha.',
+                ),
+                _WalkthroughStage(
+                  title: 'Lengkapi hierarki lokasi',
+                  description:
+                      'Gedung, ruangan, dan rak bersifat opsional, tetapi membantu pelacakan saldo yang lebih presisi.',
+                ),
+                _WalkthroughStage(
+                  title: 'Aktifkan untuk penjualan',
+                  description:
+                      'Pastikan lokasi penjualan aktif agar dapat dihubungkan ke toko POS.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'Toko POS aktif',
@@ -170,6 +209,23 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   ? 'Kelola toko'
                   : null,
               destination: 10,
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Buat toko POS',
+                  description:
+                      'Isi nama toko dan identitas yang akan tampil pada transaksi serta struk.',
+                ),
+                _WalkthroughStage(
+                  title: 'Hubungkan lokasi stok',
+                  description:
+                      'Pilih warehouse/lokasi penjualan aktif sebagai sumber stok toko.',
+                ),
+                _WalkthroughStage(
+                  title: 'Periksa status toko',
+                  description:
+                      'Aktifkan toko dan pastikan profil POS yang benar digunakan oleh kasir.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'Katalog penjualan',
@@ -182,6 +238,23 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   ? 'Kelola katalog'
                   : null,
               destination: 2,
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Pilih jenis produk',
+                  description:
+                      'Gunakan produk stok, layanan, atau paket sesuai cara item dijual.',
+                ),
+                _WalkthroughStage(
+                  title: 'Lengkapi informasi jual',
+                  description:
+                      'Isi nama, kategori, satuan, harga, SKU/barcode, dan foto bila diperlukan.',
+                ),
+                _WalkthroughStage(
+                  title: 'Aktifkan di POS',
+                  description:
+                      'Pastikan produk aktif dan ditampilkan pada katalog penjualan.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'Konfigurasi operasional',
@@ -196,6 +269,23 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   ? 'Periksa pengaturan'
                   : null,
               destination: 17,
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Periksa profil transaksi',
+                  description:
+                      'Atur pelanggan wajib, pajak, biaya, pembulatan, dan aturan penjualan sesuai kebutuhan usaha.',
+                ),
+                _WalkthroughStage(
+                  title: 'Selaraskan aturan stok',
+                  description:
+                      'Pastikan produk yang melacak stok memakai lokasi dan satuan yang konsisten.',
+                ),
+                _WalkthroughStage(
+                  title: 'Simpan dan validasi',
+                  description:
+                      'Simpan perubahan lalu kembali ke ringkasan untuk melihat hasil pemeriksaan terbaru.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'Stok awal produk',
@@ -211,25 +301,61 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   : null,
               destination: 7,
               section: 'stock',
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Pilih lokasi saldo',
+                  description:
+                      'Pilih cabang hingga rak yang benar agar stok awal tercatat di lokasi fisiknya.',
+                ),
+                _WalkthroughStage(
+                  title: 'Masukkan stok melalui alur yang tepat',
+                  description:
+                      'Gunakan penerimaan pembelian untuk barang datang atau stok awal/koreksi untuk saldo pembukaan.',
+                ),
+                _WalkthroughStage(
+                  title: 'Verifikasi rincian saldo',
+                  description:
+                      'Buka detail produk dan pastikan jumlah serta hierarki lokasinya sudah sesuai.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'PIN operator kasir',
               description: hasPin
-                  ? 'Operator kasir sudah terverifikasi.'
+                  ? pinRequired
+                        ? 'Operator kasir sudah terverifikasi.'
+                        : 'Kunci PIN dinonaktifkan sesuai kebijakan POS.'
                   : 'Pilih operator dan buat/masukkan PIN kasir.',
               complete: hasPin,
               icon: Icons.pin_outlined,
-              actionLabel: permissions['use_cashier'] == true
+              actionLabel: permissions['manage_settings'] == true
                   ? 'Atur PIN'
                   : null,
-              onAction: permissions['use_cashier'] == true
-                  ? () => context.read<AppLockCubit>().lock()
-                  : null,
+              destination: permissions['manage_settings'] == true ? 17 : null,
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Pilih operator kasir',
+                  description:
+                      'Hanya pengguna yang berwenang dan memiliki PIN yang dapat membuka sesi kasir.',
+                ),
+                _WalkthroughStage(
+                  title: 'Buat PIN aman',
+                  description:
+                      'Gunakan 4–6 digit angka yang mudah diingat operator tetapi tidak mudah ditebak.',
+                ),
+                _WalkthroughStage(
+                  title: 'Verifikasi akses',
+                  description:
+                      'Kunci layar lalu masuk kembali dengan operator dan PIN yang sudah dibuat.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'Shift kasir dibuka',
               description: hasShift
-                  ? 'Shift aktif dan transaksi dapat dimulai.'
+                  ? shiftRequired
+                        ? 'Shift aktif dan transaksi dapat dimulai.'
+                        : 'Penjualan tanpa shift diizinkan oleh kebijakan POS.'
                   : 'Pilih toko, masukkan modal awal, lalu buka shift.',
               complete: hasShift,
               icon: Icons.schedule_outlined,
@@ -237,6 +363,23 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   ? 'Buka shift'
                   : null,
               destination: 11,
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Pilih toko operasional',
+                  description:
+                      'Pastikan shift dibuka pada toko yang akan melayani transaksi hari ini.',
+                ),
+                _WalkthroughStage(
+                  title: 'Catat modal awal',
+                  description:
+                      'Masukkan kas awal sesuai uang fisik di laci untuk memudahkan rekonsiliasi.',
+                ),
+                _WalkthroughStage(
+                  title: 'Buka dan pantau shift',
+                  description:
+                      'Setelah aktif, transaksi dapat dimulai dan shift ditutup setelah rekonsiliasi.',
+                ),
+              ],
             ),
             _SetupStep(
               title: 'Panduan transaksi kasir',
@@ -249,6 +392,23 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
               icon: Icons.explore_outlined,
               actionLabel: ready ? 'Mulai panduan kasir' : null,
               onAction: ready ? widget.onStartCashier : null,
+              walkthrough: const [
+                _WalkthroughStage(
+                  title: 'Kenali area kasir',
+                  description:
+                      'Panduan interaktif akan menyorot pencarian produk, keranjang, pelanggan, dan tipe pemenuhan.',
+                ),
+                _WalkthroughStage(
+                  title: 'Simulasikan pesanan',
+                  description:
+                      'Ikuti sorotan untuk menambah item, mengatur konteks order, lalu memeriksa total.',
+                ),
+                _WalkthroughStage(
+                  title: 'Simpan atau bayar',
+                  description:
+                      'Pelajari cara menyimpan pesanan aktif serta melanjutkan ke pembayaran dan struk.',
+                ),
+              ],
             ),
           ];
 
@@ -352,6 +512,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                             number: entry.$1 + 1,
                             step: entry.$2,
                             onNavigate: widget.onNavigate,
+                            onStartWalkthrough: widget.onStartWalkthrough,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -398,6 +559,7 @@ class _SetupStep {
   final int? destination;
   final String? section;
   final VoidCallback? onAction;
+  final List<_WalkthroughStage> walkthrough;
 
   const _SetupStep({
     required this.title,
@@ -408,18 +570,35 @@ class _SetupStep {
     this.destination,
     this.section,
     this.onAction,
+    required this.walkthrough,
   });
+}
+
+class _WalkthroughStage {
+  final String title;
+  final String description;
+
+  const _WalkthroughStage({required this.title, required this.description});
 }
 
 class _SetupStepCard extends StatelessWidget {
   final int number;
   final _SetupStep step;
   final void Function(int destination, String? section) onNavigate;
+  final Future<void> Function(
+    int stepNumber,
+    String title,
+    int? destination,
+    String? section,
+    List<PosSetupTourStage> stages,
+  )
+  onStartWalkthrough;
 
   const _SetupStepCard({
     required this.number,
     required this.step,
     required this.onNavigate,
+    required this.onStartWalkthrough,
   });
 
   @override
@@ -497,17 +676,33 @@ class _SetupStepCard extends StatelessWidget {
             ),
           ],
         );
-        final action = !step.complete && step.actionLabel != null
-            ? OutlinedButton.icon(
-                onPressed:
-                    step.onAction ??
-                    (step.destination == null
-                        ? null
-                        : () => onNavigate(step.destination!, step.section)),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                label: Text(step.actionLabel!),
-              )
-            : null;
+        final action = OutlinedButton.icon(
+          onPressed: () {
+            if (number == 8 && step.onAction != null) {
+              step.onAction!();
+              return;
+            }
+            onStartWalkthrough(
+              number,
+              step.title,
+              step.destination,
+              step.section,
+              step.walkthrough
+                  .map(
+                    (stage) => PosSetupTourStage(
+                      title: stage.title,
+                      description: stage.description,
+                    ),
+                  )
+                  .toList(growable: false),
+            );
+          },
+          icon: Icon(
+            step.complete ? Icons.replay_rounded : Icons.play_arrow_rounded,
+            size: 17,
+          ),
+          label: Text(step.complete ? 'Ulangi panduan' : 'Mulai panduan'),
+        );
         return Padding(
           padding: const EdgeInsets.all(14),
           child: compact
@@ -528,7 +723,7 @@ class _SetupStepCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       spacing: 8,
                       runSpacing: 8,
-                      children: [status, if (action != null) action],
+                      children: [status, action],
                     ),
                   ],
                 )
@@ -540,13 +735,7 @@ class _SetupStepCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        status,
-                        if (action != null) ...[
-                          const SizedBox(height: 8),
-                          action,
-                        ],
-                      ],
+                      children: [status, const SizedBox(height: 8), action],
                     ),
                   ],
                 ),

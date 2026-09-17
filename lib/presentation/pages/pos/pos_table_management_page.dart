@@ -26,19 +26,32 @@ class PosTableManagementPage extends StatelessWidget {
     final config = context.read<PosBloc>().state.runtimeConfig;
     final useTables = (config['features'] as Map?)?['use_tables'] == true;
     final canManage = (config['permissions'] as Map?)?['manage_tables'] == true;
+    final posState = context.read<PosBloc>().state;
+    final allowOutOfShift = config['allow_out_of_shift'] == true;
     final storeId =
-        context.read<PosBloc>().state.activeShift?['toko_id']?.toString() ?? '';
+        posState.activeShift?['toko_id']?.toString() ??
+        (allowOutOfShift
+            ? posState.stores
+                      .where((store) => store.status.toLowerCase() == 'active')
+                      .firstOrNull
+                      ?.id ??
+                  ''
+            : '');
     if (!useTables || !canManage || storeId.isEmpty) {
       return _TableAccessMessage(
         title: !useTables
             ? 'Fitur meja nonaktif'
             : !canManage
             ? 'Akses manajemen meja ditolak'
+            : allowOutOfShift
+            ? 'Toko aktif belum tersedia'
             : 'Shift kasir belum dibuka',
         message: !useTables
             ? 'Aktifkan fitur Meja / Ruangan melalui Pengaturan POS terlebih dahulu.'
             : !canManage
             ? 'Hubungi admin untuk mendapatkan izin mengelola meja.'
+            : allowOutOfShift
+            ? 'Aktifkan minimal satu toko agar meja dapat dikelola.'
             : 'Buka shift pada toko yang akan dikelola agar meja tidak tercampur antar toko.',
       );
     }

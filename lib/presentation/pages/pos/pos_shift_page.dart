@@ -10,7 +10,15 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 
 class PosShiftPage extends StatelessWidget {
-  const PosShiftPage({super.key});
+  final GlobalKey? storeTourKey;
+  final GlobalKey? formTourKey;
+  final GlobalKey? openTourKey;
+  const PosShiftPage({
+    super.key,
+    this.storeTourKey,
+    this.formTourKey,
+    this.openTourKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +47,16 @@ class PosShiftPage extends StatelessWidget {
                     PosFullWidthTab(icon: Icons.history, label: 'Riwayat'),
                   ],
                 ),
-                const Expanded(
+                Expanded(
                   child: TabBarView(
-                    children: [PosActiveShiftTab(), PosShiftHistoryTab()],
+                    children: [
+                      PosActiveShiftTab(
+                        storeTourKey: storeTourKey,
+                        formTourKey: formTourKey,
+                        openTourKey: openTourKey,
+                      ),
+                      const PosShiftHistoryTab(),
+                    ],
                   ),
                 ),
               ],

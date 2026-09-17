@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_event.dart';
 import '../../bloc/pos/pos_state.dart';
@@ -870,6 +871,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final weight = TextEditingController();
     final pieces = TextEditingController();
     final tag = TextEditingController();
+    final vehicleNo = TextEditingController();
+    final vehicleModel = TextEditingController();
+    final technician = TextEditingController();
+    DateTime? appointmentAt;
     String mode = 'kiloan';
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -937,13 +942,105 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         labelText: 'Tag kantong',
                       ),
                     ),
-                  ] else
+                  ] else ...[
                     TextField(
                       controller: subject,
-                      decoration: const InputDecoration(
-                        labelText: 'Objek layanan *',
+                      decoration: InputDecoration(
+                        labelText: features?['use_vehicle_data'] == true
+                            ? 'Objek/jenis kendaraan *'
+                            : 'Objek layanan *',
                       ),
                     ),
+                    if (features?['use_vehicle_data'] == true) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: vehicleNo,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: const InputDecoration(
+                                labelText: 'No. polisi / ID unit',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: vehicleModel,
+                              decoration: const InputDecoration(
+                                labelText: 'Model / tipe',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (features?['use_technicians'] == true) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: technician,
+                        decoration: const InputDecoration(
+                          labelText: 'Teknisi / staf penanggung jawab',
+                        ),
+                      ),
+                    ],
+                    if (features?['use_appointments'] == true) ...[
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        leading: const Icon(Icons.event_outlined),
+                        title: Text(
+                          appointmentAt == null
+                              ? 'Pilih jadwal layanan'
+                              : DateFormat(
+                                  'dd MMM yyyy · HH:mm',
+                                  'id_ID',
+                                ).format(appointmentAt!),
+                        ),
+                        trailing: appointmentAt == null
+                            ? const Icon(Icons.chevron_right)
+                            : IconButton(
+                                tooltip: 'Hapus jadwal',
+                                onPressed: () =>
+                                    setDialogState(() => appointmentAt = null),
+                                icon: const Icon(Icons.close),
+                              ),
+                        onTap: () async {
+                          final now = DateTime.now();
+                          final date = await showDatePicker(
+                            context: dialogContext,
+                            initialDate: appointmentAt ?? now,
+                            firstDate: DateTime(now.year, now.month, now.day),
+                            lastDate: now.add(const Duration(days: 730)),
+                          );
+                          if (date == null || !dialogContext.mounted) return;
+                          final time = await showTimePicker(
+                            context: dialogContext,
+                            initialTime: appointmentAt == null
+                                ? TimeOfDay.now()
+                                : TimeOfDay.fromDateTime(appointmentAt!),
+                          );
+                          if (time == null) return;
+                          setDialogState(
+                            () => appointmentAt = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 12),
                   TextField(
                     controller: notes,
@@ -968,10 +1065,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 final kg =
                     double.tryParse(weight.text.replaceAll(',', '.')) ?? 0;
                 final count = int.tryParse(pieces.text) ?? 0;
+                final reservationRequiresSchedule =
+                    state.orderType == 'reservation' && appointmentAt == null;
                 if ((profile == 'laundry' && kg <= 0 && count <= 0) ||
                     (profile != 'laundry' &&
                         subject.text.trim().isEmpty &&
-                        notes.text.trim().isEmpty)) {
+                        notes.text.trim().isEmpty) ||
+                    reservationRequiresSchedule) {
                   return;
                 }
                 Navigator.pop(dialogContext, {
@@ -987,6 +1087,11 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   'weight_kg': kg,
                   'item_count': count,
                   'bag_tag': tag.text.trim(),
+                  'vehicle_no': vehicleNo.text.trim().toUpperCase(),
+                  'vehicle_model': vehicleModel.text.trim(),
+                  'technician_name': technician.text.trim(),
+                  if (appointmentAt != null)
+                    'appointment_at': appointmentAt!.toIso8601String(),
                   'status': 'diterima',
                 });
               },
@@ -1001,6 +1106,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     weight.dispose();
     pieces.dispose();
     tag.dispose();
+    vehicleNo.dispose();
+    vehicleModel.dispose();
+    technician.dispose();
     if (result == null) return false;
     setState(() => _serviceOrder = result);
     return true;

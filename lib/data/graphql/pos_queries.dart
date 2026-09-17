@@ -52,7 +52,11 @@ class PosQueries {
           product_count
           has_initial_stock
           has_pin_operator
+          pin_required
+          pin_ready
           has_open_shift
+          shift_required
+          shift_ready
           next_step
         }
         default_order_type
@@ -198,6 +202,26 @@ class PosQueries {
       VerifyPOSUserPin(user_id: $userId, pin: $pin) {
         success message operator_token user_id name username locked_until
       }
+    }
+  ''';
+
+  static const String adminSetPOSPin = r'''
+    mutation AdminSetPOSPin($userId: ID!, $pin: String!) {
+      AdminSetPOSPin(user_id: $userId, pin: $pin) {
+        success message locked_until
+      }
+    }
+  ''';
+
+  static const String adminClearPOSPin = r'''
+    mutation AdminClearPOSPin($userId: ID!) {
+      AdminClearPOSPin(user_id: $userId) { success message locked_until }
+    }
+  ''';
+
+  static const String adminUnlockPOSPin = r'''
+    mutation AdminUnlockPOSPin($userId: ID!) {
+      AdminUnlockPOSPin(user_id: $userId) { success message locked_until }
     }
   ''';
 
@@ -584,6 +608,7 @@ class PosQueries {
       $cashReceived: Float
       $splitPayments: [SplitPaymentInput]
       $customerId: ID
+      $operatorToken: String
     ) {
       PayPOSOrder(
         _id: $id
@@ -591,6 +616,7 @@ class PosQueries {
         uang_diterima: $cashReceived
         split_payments: $splitPayments
         pelanggan_id: $customerId
+        operator_session_token: $operatorToken
       ) {
         _id
         order_no

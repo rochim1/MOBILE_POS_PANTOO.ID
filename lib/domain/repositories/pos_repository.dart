@@ -495,6 +495,55 @@ class PosRepository {
     }
   }
 
+  Future<Either<Failure, String>> adminSetPOSPin(String userId, String pin) =>
+      _adminPinMutation(
+        document: PosQueries.adminSetPOSPin,
+        field: 'AdminSetPOSPin',
+        variables: {'userId': userId, 'pin': pin},
+      );
+
+  Future<Either<Failure, String>> adminClearPOSPin(String userId) =>
+      _adminPinMutation(
+        document: PosQueries.adminClearPOSPin,
+        field: 'AdminClearPOSPin',
+        variables: {'userId': userId},
+      );
+
+  Future<Either<Failure, String>> adminUnlockPOSPin(String userId) =>
+      _adminPinMutation(
+        document: PosQueries.adminUnlockPOSPin,
+        field: 'AdminUnlockPOSPin',
+        variables: {'userId': userId},
+      );
+
+  Future<Either<Failure, String>> _adminPinMutation({
+    required String document,
+    required String field,
+    required Map<String, dynamic> variables,
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(document: gql(document), variables: variables),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final data = result.data?[field];
+      if (data is! Map || data['success'] != true) {
+        return Left(
+          ServerFailure(
+            data is Map
+                ? data['message']?.toString() ?? 'Pengaturan PIN gagal diproses'
+                : 'Respons pengaturan PIN tidak valid',
+          ),
+        );
+      }
+      return Right(data['message']?.toString() ?? 'Pengaturan PIN berhasil');
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<List<PosProduct>> getProducts({String? branchId}) async {
     try {
       final QueryOptions options = QueryOptions(
@@ -1247,6 +1296,9 @@ class PosRepository {
             'cashReceived': cashReceived,
             'splitPayments': splitPayments,
             'customerId': customerId,
+            'operatorToken': _operatorSessionToken.isEmpty
+                ? null
+                : _operatorSessionToken,
           },
         ),
       );
@@ -1711,6 +1763,8 @@ class PosRepository {
           variables: {
             'input': {
               'client_request_id': const Uuid().v4(),
+              if (_operatorSessionToken.isNotEmpty)
+                'operator_session_token': _operatorSessionToken,
               'toko_id': tokoId,
               'shift_id': shiftId,
               'pelanggan_id': customerId,

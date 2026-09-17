@@ -17,11 +17,21 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
+import 'widgets/pos_setup_tour.dart';
 
 class PosProductPage extends StatefulWidget {
   final bool isGridView;
+  final GlobalKey? setupTourKey;
+  final PosSetupTourTargets? setupTourTargets;
+  final PosSetupActionController? tourController;
 
-  const PosProductPage({super.key, this.isGridView = true});
+  const PosProductPage({
+    super.key,
+    this.isGridView = true,
+    this.setupTourKey,
+    this.setupTourTargets,
+    this.tourController,
+  });
 
   @override
   State<PosProductPage> createState() => _PosProductPageState();
@@ -32,6 +42,34 @@ class _PosProductPageState extends State<PosProductPage> {
   String? _categoryFilter;
   String _stockFilter = 'all';
   bool _waitingForCatalogRefresh = false;
+  BuildContext? _catalogProviderContext;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.tourController?.attach(_openGuidedProductForm);
+  }
+
+  @override
+  void didUpdateWidget(covariant PosProductPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tourController != widget.tourController) {
+      oldWidget.tourController?.detach(_openGuidedProductForm);
+      widget.tourController?.attach(_openGuidedProductForm);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.tourController?.detach(_openGuidedProductForm);
+    super.dispose();
+  }
+
+  Future<void> _openGuidedProductForm() async {
+    final providerContext = _catalogProviderContext;
+    if (!mounted || providerContext == null || !providerContext.mounted) return;
+    await _showCatalogProductForm(providerContext, true, guided: true);
+  }
 
   List<PosProduct> _getFilteredProducts(
     List<PosProduct> products, {
@@ -95,6 +133,10 @@ class _PosProductPageState extends State<PosProductPage> {
           }
         },
         builder: (context, mgmtState) {
+          // Simpan context yang berada di bawah BlocProvider. Callback tour
+          // berasal dari shell, sehingga State.context sendiri berada di atas
+          // provider dan tidak boleh dipakai untuk membuka form katalog.
+          _catalogProviderContext = context;
           return BlocConsumer<PosBloc, PosState>(
             listenWhen: (previous, current) =>
                 previous.productsRefreshing && !current.productsRefreshing,
@@ -216,6 +258,7 @@ class _PosProductPageState extends State<PosProductPage> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
+                    key: widget.setupTourKey,
                     onPressed: () => _showCatalogProductForm(context, true),
                     icon: const Icon(Icons.add),
                     label: const Text('Tambah Produk'),
@@ -237,6 +280,7 @@ class _PosProductPageState extends State<PosProductPage> {
               const SizedBox(width: 16),
               if (_canManageProducts(context))
                 ElevatedButton.icon(
+                  key: widget.setupTourKey,
                   onPressed: () => _showCatalogProductForm(context, false),
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah Produk'),
@@ -828,15 +872,18 @@ class _PosProductPageState extends State<PosProductPage> {
     }
   }
 
-  void _showCatalogProductForm(
+  Future<void> _showCatalogProductForm(
     BuildContext context,
     bool isMobile, {
     PosProduct? product,
-  }) {
+    bool guided = false,
+  }) async {
     final bloc = context.read<PosProductManagementBloc>();
     final form = _CatalogProductForm(
       product: product,
       repository: bloc.repository,
+      setupTourTargets: widget.setupTourTargets,
+      guided: guided,
       onSubmit: (input) async {
         if (product == null) {
           bloc.add(CreateProduct(input));
@@ -852,7 +899,7 @@ class _PosProductPageState extends State<PosProductPage> {
       },
     );
     if (isMobile) {
-      showModalBottomSheet<void>(
+      await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
@@ -862,7 +909,7 @@ class _PosProductPageState extends State<PosProductPage> {
         builder: (_) => FractionallySizedBox(heightFactor: .92, child: form),
       );
     } else {
-      showDialog<void>(
+      await showDialog<void>(
         context: context,
         builder: (_) => Dialog(
           clipBehavior: Clip.antiAlias,
@@ -1164,11 +1211,15 @@ class _CatalogProductForm extends StatefulWidget {
   final PosProduct? product;
   final PosProductManagementRepository repository;
   final Future<bool> Function(Map<String, dynamic>) onSubmit;
+  final PosSetupTourTargets? setupTourTargets;
+  final bool guided;
 
   const _CatalogProductForm({
     required this.product,
     required this.repository,
     required this.onSubmit,
+    this.setupTourTargets,
+    this.guided = false,
   });
 
   @override
@@ -1176,6 +1227,7 @@ class _CatalogProductForm extends StatefulWidget {
 }
 
 class _CatalogProductFormState extends State<_CatalogProductForm> {
+  bool _guideScheduled = false;
   late final TextEditingController _name;
   late final TextEditingController _sku;
   late final TextEditingController _price;
@@ -1662,14 +1714,81 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.guided && !_guideScheduled && widget.setupTourTargets != null) {
+      _guideScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 180));
+        if (!mounted) return;
+        final targets = widget.setupTourTargets!;
+        await showInteractivePosSetupTour(
+          this.context,
+          fallbackTarget: targets.productName,
+          stepTitle: 'Langkah 3 · Katalog penjualan',
+          stageNumberOffset: 1,
+          totalStageCount: 8,
+          stages: [
+            PosSetupTourStage(
+              title: 'Informasi produk',
+              description:
+                  'Isi nama produk yang singkat dan mudah dikenali kasir.',
+              target: targets.productName,
+            ),
+            PosSetupTourStage(
+              title: 'Tentukan harga jual',
+              description:
+                  'Masukkan harga yang dibayar pelanggan. Harga beli/HPP dapat dilengkapi untuk membaca margin.',
+              target: targets.productPrice,
+            ),
+            PosSetupTourStage(
+              title: 'Bentuk penjualan',
+              description:
+                  'Tentukan produk fisik atau paket agar aturan stok diterapkan dengan benar.',
+              target: targets.productType,
+            ),
+            PosSetupTourStage(
+              title: 'Kelompokkan produk',
+              description:
+                  'Pilih kategori agar pencarian dan penyaringan katalog lebih cepat. Kategori baru dapat ditambahkan dari tombol +.',
+              target: targets.productCategory,
+            ),
+            PosSetupTourStage(
+              title: 'Buka aturan stok dan satuan',
+              description:
+                  'Lanjutkan ke tab Stok & Satuan untuk menentukan satuan dasar dan aturan persediaan.',
+              target: targets.productStockTab,
+              onTargetTap: () async {
+                if (mounted) setState(() => _formTab = 1);
+                await WidgetsBinding.instance.endOfFrame;
+              },
+              continueAfterTargetTap: true,
+            ),
+            PosSetupTourStage(
+              title: 'Pilih satuan dasar',
+              description:
+                  'Pilih satuan terkecil tempat stok disimpan, misalnya pcs, porsi, atau botol. Konversi kemasan dapat ditambahkan di bawahnya.',
+              target: targets.productBaseUnit,
+            ),
+            PosSetupTourStage(
+              title: 'Simpan ke katalog',
+              description:
+                  'Lengkapi field wajib lalu simpan agar produk tersedia di kasir.',
+              target: targets.productSave,
+            ),
+          ],
+        );
+      });
+    }
     final wide = MediaQuery.sizeOf(context).width >= 650;
     final fields = <Widget>[
-      TextField(
-        controller: _name,
-        textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(
-          labelText: 'Nama produk *',
-          border: OutlineInputBorder(),
+      Container(
+        key: widget.setupTourTargets?.productName,
+        child: TextField(
+          controller: _name,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Nama produk *',
+            border: OutlineInputBorder(),
+          ),
         ),
       ),
       TextField(
@@ -1728,46 +1847,54 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           border: const OutlineInputBorder(),
         ),
       ),
-      TextField(
-        controller: _price,
-        keyboardType: TextInputType.number,
-        inputFormatters: const [RupiahInputFormatter()],
-        onChanged: (_) => setState(() {}),
-        decoration: const InputDecoration(
-          labelText: 'Harga jual *',
-          prefixText: 'Rp ',
-          border: OutlineInputBorder(),
+      Container(
+        key: widget.setupTourTargets?.productPrice,
+        child: TextField(
+          controller: _price,
+          keyboardType: TextInputType.number,
+          inputFormatters: const [RupiahInputFormatter()],
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Harga jual *',
+            prefixText: 'Rp ',
+            border: OutlineInputBorder(),
+          ),
         ),
       ),
-      DropdownButtonFormField<String>(
-        initialValue: _productType,
-        decoration: const InputDecoration(
-          labelText: 'Bentuk penjualan *',
-          border: OutlineInputBorder(),
+      Container(
+        key: widget.setupTourTargets?.productType,
+        child: DropdownButtonFormField<String>(
+          initialValue: _productType,
+          decoration: const InputDecoration(
+            labelText: 'Bentuk penjualan *',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            const DropdownMenuItem(
+              value: 'product',
+              child: Text('Produk fisik (stok sendiri)'),
+            ),
+            const DropdownMenuItem(
+              value: 'package',
+              child: Text('Paket / bundel (stok komponen)'),
+            ),
+            if (widget.product?.productType == 'service')
+              const DropdownMenuItem(
+                value: 'service',
+                child: Text('Jasa lama (tanpa stok)'),
+              ),
+            if (widget.product?.productType == 'deposit')
+              const DropdownMenuItem(
+                value: 'deposit',
+                child: Text('Deposit lama (tanpa stok)'),
+              ),
+          ],
+          onChanged: (value) =>
+              setState(() => _productType = value ?? 'product'),
         ),
-        items: [
-          const DropdownMenuItem(
-            value: 'product',
-            child: Text('Produk fisik (stok sendiri)'),
-          ),
-          const DropdownMenuItem(
-            value: 'package',
-            child: Text('Paket / bundel (stok komponen)'),
-          ),
-          if (widget.product?.productType == 'service')
-            const DropdownMenuItem(
-              value: 'service',
-              child: Text('Jasa lama (tanpa stok)'),
-            ),
-          if (widget.product?.productType == 'deposit')
-            const DropdownMenuItem(
-              value: 'deposit',
-              child: Text('Deposit lama (tanpa stok)'),
-            ),
-        ],
-        onChanged: (value) => setState(() => _productType = value ?? 'product'),
       ),
       Row(
+        key: widget.setupTourTargets?.productCategory,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
@@ -1854,22 +1981,25 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ],
         ),
       if (_usesUnits)
-        DropdownButtonFormField<String>(
-          initialValue:
-              _availableUnitOptions.contains(_baseUnit.text.toLowerCase())
-              ? _baseUnit.text.toLowerCase()
-              : null,
-          decoration: const InputDecoration(
-            labelText: 'Satuan dasar *',
-            helperText: 'Stok selalu disimpan dalam satuan ini.',
-            border: OutlineInputBorder(),
+        Container(
+          key: widget.setupTourTargets?.productBaseUnit,
+          child: DropdownButtonFormField<String>(
+            initialValue:
+                _availableUnitOptions.contains(_baseUnit.text.toLowerCase())
+                ? _baseUnit.text.toLowerCase()
+                : null,
+            decoration: const InputDecoration(
+              labelText: 'Satuan dasar *',
+              helperText: 'Stok selalu disimpan dalam satuan ini.',
+              border: OutlineInputBorder(),
+            ),
+            items: _availableUnitOptions
+                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) setState(() => _baseUnit.text = value);
+            },
           ),
-          items: _availableUnitOptions
-              .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
-              .toList(),
-          onChanged: (value) {
-            if (value != null) setState(() => _baseUnit.text = value);
-          },
         ),
       if (_usesUnits)
         Column(
@@ -2105,18 +2235,16 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         },
       ),
     ];
-    // Delapan elemen pertama bersifat tetap. Identitas memakai 0..5 dan
-    // kategori di indeks 7; tipe produk (6) membuka aturan dinamis sesudahnya.
+    // Identitas, bentuk penjualan, dan kategori adalah informasi produk.
+    // Bentuk penjualan harus tetap berada di tab pertama agar pengguna
+    // memahami apakah item berupa produk fisik atau paket sebelum mengatur
+    // stok dan satuannya pada tab kedua.
     // Tiga elemen terakhir selalu barcode, foto, dan ringkasan margin.
     final informationFields = <Widget>[
-      ...fields.take(6),
-      fields[7],
+      ...fields.take(8),
       ...fields.skip(fields.length - 3),
     ];
-    final stockFields = <Widget>[
-      fields[6],
-      ...fields.skip(8).take(fields.length - 11),
-    ];
+    final stockFields = <Widget>[...fields.skip(8).take(fields.length - 11)];
     final visibleFields = _formTab == 0 ? informationFields : stockFields;
 
     return Column(
@@ -2152,19 +2280,22 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ),
         ),
         const Divider(height: 1),
-        PosFullWidthTabs(
-          tabs: const [
-            PosFullWidthTab(
-              icon: Icons.info_outline,
-              label: 'Informasi Produk',
-            ),
-            PosFullWidthTab(
-              icon: Icons.inventory_2_outlined,
-              label: 'Stok & Satuan',
-            ),
-          ],
-          selectedIndex: _formTab,
-          onSelected: (value) => setState(() => _formTab = value),
+        Container(
+          key: widget.setupTourTargets?.productStockTab,
+          child: PosFullWidthTabs(
+            tabs: const [
+              PosFullWidthTab(
+                icon: Icons.info_outline,
+                label: 'Informasi Produk',
+              ),
+              PosFullWidthTab(
+                icon: Icons.inventory_2_outlined,
+                label: 'Stok & Satuan',
+              ),
+            ],
+            selectedIndex: _formTab,
+            onSelected: (value) => setState(() => _formTab = value),
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -2226,6 +2357,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               ),
               const SizedBox(width: 10),
               FilledButton.icon(
+                key: widget.setupTourTargets?.productSave,
                 onPressed: _uploadingImage || _submitting ? null : _submit,
                 icon: _uploadingImage || _submitting
                     ? const SizedBox.square(

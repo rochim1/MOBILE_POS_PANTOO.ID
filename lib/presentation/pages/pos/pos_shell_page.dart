@@ -26,6 +26,7 @@ import 'pos_onboarding_page.dart';
 import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
+import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_drawer.dart';
 import '../home/home_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -73,6 +74,15 @@ class _PosShellPageState extends State<PosShellPage>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   Timer? _offlineSyncTimer;
   final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
+  final PosSetupTourTargets _setupTourTargets = PosSetupTourTargets();
+  final PosWarehouseTourController _warehouseTourController =
+      PosWarehouseTourController();
+  final PosSetupActionController _outletTourController =
+      PosSetupActionController();
+  final PosSetupActionController _productTourController =
+      PosSetupActionController();
+  final PosSetupActionController _pinManagementTourController =
+      PosSetupActionController();
   late final PosBloc _posBloc;
   List<Map<String, dynamic>> _navbarNotifications = const [];
   int _unreadNotifications = 0;
@@ -358,6 +368,118 @@ class _PosShellPageState extends State<PosShellPage>
     setState(() => _setupCompleted = true);
   }
 
+  Future<void> _startSetupStepTour(
+    int stepNumber,
+    String title,
+    int? destination,
+    String? section,
+    List<PosSetupTourStage> stages,
+  ) async {
+    final targets = switch (stepNumber) {
+      1 => [_setupTourTargets.warehouseAdd],
+      2 => [_setupTourTargets.outletAdd],
+      3 => [_setupTourTargets.productAdd],
+      4 => [
+        _setupTourTargets.settingsProfile,
+        _setupTourTargets.settingsStock,
+        _setupTourTargets.settingsSave,
+      ],
+      5 => [
+        _setupTourTargets.stockLocation,
+        _setupTourTargets.stockContent,
+        _setupTourTargets.stockAdjust,
+      ],
+      6 => [
+        posPinOperatorTourTarget,
+        posPinEntryTourTarget,
+        posPinSubmitTourTarget,
+      ],
+      7 => [
+        _setupTourTargets.shiftStore,
+        _setupTourTargets.shiftForm,
+        _setupTourTargets.shiftOpen,
+      ],
+      _ => [_setupTourTargets.productAdd],
+    };
+    if (destination != null) {
+      _navigateSetupTarget(destination, section);
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!mounted) return;
+    final targetedStages = stages
+        .take(targets.length)
+        .indexed
+        .map((entry) => entry.$2.withTarget(targets[entry.$1]))
+        .toList(growable: false);
+    if (stepNumber == 1 && targetedStages.isNotEmpty) {
+      const first = PosSetupTourStage(
+        title: 'Tambah lokasi stok',
+        description:
+            'Ketuk Tambah Warehouse untuk membuka formulir lokasi penyimpanan pertama.',
+      );
+      await showInteractivePosSetupTour(
+        context,
+        fallbackTarget: targets.first,
+        stepTitle: 'Langkah $stepNumber · $title',
+        totalStageCount: 5,
+        stages: [
+          first.withTarget(
+            targets.first,
+            onTargetTap: _warehouseTourController.openGuidedCreate,
+          ),
+        ],
+      );
+      return;
+    }
+    if ((stepNumber == 2 || stepNumber == 3) && targetedStages.isNotEmpty) {
+      final action = stepNumber == 2
+          ? _outletTourController.run
+          : _productTourController.run;
+      await showInteractivePosSetupTour(
+        context,
+        fallbackTarget: targets.first,
+        stepTitle: 'Langkah $stepNumber · $title',
+        totalStageCount: stepNumber == 3 ? 8 : 4,
+        stages: [
+          (stepNumber == 3
+                  ? const PosSetupTourStage(
+                      title: 'Tambah produk baru',
+                      description:
+                          'Ketuk Tambah Produk untuk membuka formulir dan mulai menyiapkan item yang akan dijual.',
+                    )
+                  : targetedStages.first)
+              .withTarget(targets.first, onTargetTap: action),
+        ],
+      );
+      return;
+    }
+    if (stepNumber == 6) {
+      await showInteractivePosSetupTour(
+        context,
+        fallbackTarget: _setupTourTargets.pinManage,
+        stepTitle: 'Langkah 6 · $title',
+        totalStageCount: 4,
+        stages: [
+          PosSetupTourStage(
+            title: 'Buka pengelolaan PIN operator',
+            description:
+                'Kelola PIN karyawan dari Pengaturan POS tanpa mengunci sesi admin.',
+            target: _setupTourTargets.pinManage,
+            onTargetTap: _pinManagementTourController.run,
+          ),
+        ],
+      );
+      return;
+    }
+    await showInteractivePosSetupTour(
+      context,
+      fallbackTarget: targets.first,
+      stepTitle: 'Langkah $stepNumber · $title',
+      stages: targetedStages,
+    );
+  }
+
   List<Widget> get _pages => [
     HomePage(
       onNavigate: (index) {
@@ -372,7 +494,12 @@ class _PosShellPageState extends State<PosShellPage>
         _selectedIndex = 5;
       }),
     ),
-    PosProductPage(isGridView: _productGridView),
+    PosProductPage(
+      isGridView: _productGridView,
+      setupTourKey: _setupTourTargets.productAdd,
+      setupTourTargets: _setupTourTargets,
+      tourController: _productTourController,
+    ),
     PosOrderPage(isGridView: _historyGridView),
     PosMoreMenuPage(
       onNavigate: (index) {
@@ -400,17 +527,33 @@ class _PosShellPageState extends State<PosShellPage>
       key: ValueKey('inventory-$_inventoryInitialSection'),
       isGridView: _stockGridView,
       initialSection: _inventoryInitialSection,
+      warehouseTourKey: _setupTourTargets.warehouseAdd,
+      stockTourKey: _setupTourTargets.stockLocation,
+      setupTourTargets: _setupTourTargets,
+      warehouseTourController: _warehouseTourController,
     ),
     const PosPromoPage(),
     const PosCustomerPage(),
-    const PosOutletPage(),
-    const PosShiftPage(),
+    PosOutletPage(
+      setupTourKey: _setupTourTargets.outletAdd,
+      setupTourTargets: _setupTourTargets,
+      tourController: _outletTourController,
+    ),
+    PosShiftPage(
+      storeTourKey: _setupTourTargets.shiftStore,
+      formTourKey: _setupTourTargets.shiftForm,
+      openTourKey: _setupTourTargets.shiftOpen,
+    ),
     const PosReportPage(),
     const PosReturnPage(),
     const PosPrinterPage(),
     const PosOfflineQueuePage(),
     const PosPurchaseReturnPage(),
-    const PosSettingsPage(),
+    PosSettingsPage(
+      setupTourKey: _setupTourTargets.settingsSave,
+      setupTourTargets: _setupTourTargets,
+      pinTourController: _pinManagementTourController,
+    ),
     const PosKitchenDisplayPage(),
   ];
 
@@ -522,7 +665,7 @@ class _PosShellPageState extends State<PosShellPage>
         lock.hasPinConfigured ||
         (lock.activeEmployeeId?.isNotEmpty == true &&
             lock.operatorSessionToken.isNotEmpty);
-    if (!hasPin) {
+    if (pos.runtimeConfig['pos_lock_enabled'] != false && !hasPin) {
       await lockCubit.lock();
       return;
     }
@@ -539,6 +682,7 @@ class _PosShellPageState extends State<PosShellPage>
       return PosSetupGuidePage(
         onNavigate: _navigateSetupTarget,
         onStartCashier: _completeSetupAndStartCashier,
+        onStartWalkthrough: _startSetupStepTour,
       );
     }
 

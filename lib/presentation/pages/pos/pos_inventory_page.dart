@@ -20,6 +20,7 @@ import 'pos_purchase_workspace.dart';
 import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
 import 'utils/pos_purchase_progress.dart';
+import 'widgets/pos_setup_tour.dart';
 
 enum _InventorySection {
   warehouse,
@@ -34,10 +35,18 @@ enum _InventorySection {
 class PosInventoryPage extends StatefulWidget {
   final bool isGridView;
   final String initialSection;
+  final GlobalKey? warehouseTourKey;
+  final GlobalKey? stockTourKey;
+  final PosSetupTourTargets? setupTourTargets;
+  final PosWarehouseTourController? warehouseTourController;
   const PosInventoryPage({
     super.key,
     this.isGridView = true,
     this.initialSection = 'stock',
+    this.warehouseTourKey,
+    this.stockTourKey,
+    this.setupTourTargets,
+    this.warehouseTourController,
   });
 
   @override
@@ -200,12 +209,18 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       canCreate: permissions['create_warehouses'] == true,
       canUpdate: permissions['update_warehouses'] == true,
       canDelete: permissions['delete_warehouses'] == true,
+      setupTourKey: widget.warehouseTourKey,
+      setupTourTargets: widget.setupTourTargets,
+      tourController: widget.warehouseTourController,
     ),
     _InventorySection.stock => PosStockPage(
       isGridView: widget.isGridView,
       onOpenStockOpname: permissions['view_inventory_opnames'] == true
           ? () => setState(() => _selected = _InventorySection.opname)
           : null,
+      locationTourKey: widget.stockTourKey,
+      contentTourKey: widget.setupTourTargets?.stockContent,
+      adjustmentTourKey: widget.setupTourTargets?.stockAdjust,
     ),
     _InventorySection.purchase => PosPurchaseWorkspace(
       permissions: permissions,

@@ -193,6 +193,15 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   late List<String> _channels;
   late List<String> _priceLevels;
 
+  List<String> get _fulfillmentOptions => [
+    if (_features['use_tables'] == true) 'dine_in',
+    if (_profile == 'restoran') 'free_table',
+    'take_away',
+    if (_features['use_delivery'] == true) 'delivery',
+    if (_profile == 'restoran') 'quick_service',
+    if (_features['use_appointments'] == true) 'reservation',
+  ];
+
   bool get _canManage {
     final value = _config['permissions'];
     return value is Map && value['manage_settings'] == true;
@@ -257,6 +266,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
     _priceLevel = _priceLevels.contains(price) ? price : 'retail';
     _fulfillment = _config['default_order_type']?.toString() ?? 'take_away';
     if (_fulfillment == 'online_delivery') _fulfillment = 'delivery';
+    if (!_fulfillmentOptions.contains(_fulfillment)) {
+      _fulfillment = 'take_away';
+    }
     _loadCurrentSettings();
   }
 
@@ -463,7 +475,12 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       onChanged:
           _canManage &&
               !(key == 'track_stock' && _inventoryRequiresStockTracking)
-          ? (value) => setState(() => _features[key] = value)
+          ? (value) => setState(() {
+              _features[key] = value;
+              if (!_fulfillmentOptions.contains(_fulfillment)) {
+                _fulfillment = 'take_away';
+              }
+            })
           : null,
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(subtitle),
@@ -485,14 +502,6 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       'jasa',
       'laundry',
       'custom',
-    ];
-    const fulfillments = [
-      'dine_in',
-      'free_table',
-      'take_away',
-      'delivery',
-      'quick_service',
-      'reservation',
     ];
     return Scaffold(
       backgroundColor: AppColors.primary,
@@ -626,7 +635,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                           _dropdown(
                             'Tipe pemenuhan',
                             _fulfillment,
-                            fulfillments,
+                            _fulfillmentOptions,
                             (value) => setState(() => _fulfillment = value),
                           ),
                           _dropdown(

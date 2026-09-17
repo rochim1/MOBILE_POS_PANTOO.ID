@@ -18,11 +18,17 @@ import '../../bloc/pos/pos_bloc.dart';
 class PosStockPage extends StatelessWidget {
   final bool isGridView;
   final VoidCallback? onOpenStockOpname;
+  final GlobalKey? locationTourKey;
+  final GlobalKey? contentTourKey;
+  final GlobalKey? adjustmentTourKey;
 
   const PosStockPage({
     super.key,
     this.isGridView = true,
     this.onOpenStockOpname,
+    this.locationTourKey,
+    this.contentTourKey,
+    this.adjustmentTourKey,
   });
 
   @override
@@ -51,6 +57,9 @@ class PosStockPage extends StatelessWidget {
       child: _PosStockView(
         isGridView: isGridView,
         onOpenStockOpname: onOpenStockOpname,
+        locationTourKey: locationTourKey,
+        contentTourKey: contentTourKey,
+        adjustmentTourKey: adjustmentTourKey,
       ),
     );
   }
@@ -99,8 +108,17 @@ class _StockAccessMessage extends StatelessWidget {
 class _PosStockView extends StatefulWidget {
   final bool isGridView;
   final VoidCallback? onOpenStockOpname;
+  final GlobalKey? locationTourKey;
+  final GlobalKey? contentTourKey;
+  final GlobalKey? adjustmentTourKey;
 
-  const _PosStockView({required this.isGridView, this.onOpenStockOpname});
+  const _PosStockView({
+    required this.isGridView,
+    this.onOpenStockOpname,
+    this.locationTourKey,
+    this.contentTourKey,
+    this.adjustmentTourKey,
+  });
 
   @override
   State<_PosStockView> createState() => _PosStockViewState();
@@ -235,14 +253,26 @@ class _PosStockViewState extends State<_PosStockView> {
                             crossAxisSpacing: 12,
                           ),
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) =>
-                            _buildStockCard(state.stocks[index]),
+                        (context, index) => KeyedSubtree(
+                          key: index == 0 ? widget.contentTourKey : null,
+                          child: _buildStockCard(
+                            state.stocks[index],
+                            adjustmentTourKey: index == 0
+                                ? widget.adjustmentTourKey
+                                : null,
+                          ),
+                        ),
                         childCount: state.stocks.length,
                       ),
                     ),
                   )
                 else
-                  SliverToBoxAdapter(child: _buildStockTable(state.stocks)),
+                  SliverToBoxAdapter(
+                    child: KeyedSubtree(
+                      key: widget.contentTourKey,
+                      child: _buildStockTable(state.stocks),
+                    ),
+                  ),
                 // Bottom spacing
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
@@ -470,7 +500,9 @@ class _PosStockViewState extends State<_PosStockView> {
         ? state.selectedLocationId
         : '';
     final locationDropdown = DropdownButtonFormField<String>(
-      key: ValueKey('stock-location-${state.selectedLocationId}'),
+      key:
+          widget.locationTourKey ??
+          ValueKey('stock-location-${state.selectedLocationId}'),
       initialValue: selectedLocation,
       isExpanded: true,
       icon: const Icon(Icons.keyboard_arrow_down_rounded),
@@ -593,7 +625,9 @@ class _PosStockViewState extends State<_PosStockView> {
                   DataColumn(label: Text('Status')),
                   DataColumn(label: Text('Aksi')),
                 ],
-                rows: stocks.map((stock) {
+                rows: stocks.indexed.map((entry) {
+                  final index = entry.$1;
+                  final stock = entry.$2;
                   final color = _getStockColor(stock);
                   return DataRow(
                     onSelectChanged: (_) => _showStockDetail(stock),
@@ -635,6 +669,9 @@ class _PosStockViewState extends State<_PosStockView> {
                             ),
                             if (_canAdjustStock)
                               IconButton(
+                                key: index == 0
+                                    ? widget.adjustmentTourKey
+                                    : null,
                                 tooltip: 'Koreksi stok',
                                 onPressed: () => _handleAdjustment(stock),
                                 icon: const Icon(Icons.tune, size: 19),
@@ -653,7 +690,7 @@ class _PosStockViewState extends State<_PosStockView> {
     );
   }
 
-  Widget _buildStockCard(PosStock stock) {
+  Widget _buildStockCard(PosStock stock, {GlobalKey? adjustmentTourKey}) {
     final stockColor = _getStockColor(stock);
     final stockLabel = _getStockLabel(stock);
     final stockRatio = _getStockRatio(stock);
@@ -831,6 +868,7 @@ class _PosStockViewState extends State<_PosStockView> {
                     ),
                     if (_canAdjustStock)
                       OutlinedButton.icon(
+                        key: adjustmentTourKey,
                         onPressed: () => _handleAdjustment(stock),
                         icon: const Icon(Icons.tune, size: 17),
                         label: const Text('Koreksi Darurat'),

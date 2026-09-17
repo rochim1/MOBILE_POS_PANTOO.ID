@@ -16,6 +16,7 @@ class PosTableOrderQueries {
             service_type service_subject service_mode weight_kg item_count promised_at
             bag_tag fragrance finishing condition_notes status
             status_history { status at actor_id actor_name note }
+            service_lines { line_id product_id name object_type pricing_basis quantity weight_kg unit unit_price minimum_charge subtotal tag_code brand color material size condition_notes risk_consent promised_at status addons { product_id name qty unit_price subtotal } media { url category note } status_history { status at actor_id actor_name note } }
           }
           createdAt
         }
@@ -53,6 +54,7 @@ class PosTableOrderQueries {
           service_type service_subject service_mode weight_kg item_count promised_at
           bag_tag fragrance finishing condition_notes status
           status_history { status at actor_id actor_name note }
+          service_lines { line_id product_id name object_type pricing_basis quantity weight_kg unit unit_price minimum_charge subtotal tag_code brand color material size condition_notes risk_consent promised_at status addons { product_id name qty unit_price subtotal } media { url category note } status_history { status at actor_id actor_name note } }
         }
         createdAt
       }
@@ -82,6 +84,15 @@ class PosTableOrderQueries {
       UpdatePOSServiceOrderStatus(_id: $orderId, status: $status, note: $note) {
         _id
         service_order { status status_history { status at actor_id actor_name note } }
+      }
+    }
+  ''';
+
+  static const String updateServiceLineStatus = r'''
+    mutation UpdatePOSServiceLineStatus($orderId: ID!, $lineId: String!, $status: String!, $note: String) {
+      UpdatePOSServiceLineStatus(_id: $orderId, line_id: $lineId, status: $status, note: $note) {
+        _id
+        service_order { status service_lines { line_id name status status_history { status at actor_id actor_name note } } }
       }
     }
   ''';

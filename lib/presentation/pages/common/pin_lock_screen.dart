@@ -10,6 +10,7 @@ import '../../bloc/auth/auth_cubit.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/pos_employee_avatar.dart';
+import '../pos/widgets/pos_setup_tour.dart';
 
 class PinLockScreen extends StatefulWidget {
   const PinLockScreen({super.key});
@@ -161,17 +162,19 @@ class _PinLockScreenState extends State<PinLockScreen> {
   bool _isVerifying = false;
   bool _isLoggingOut = false;
   Timer? _searchDebounce;
+  Timer? _lockoutTimer;
   bool _employeeListFiltered = false;
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _lockoutTimer?.cancel();
     super.dispose();
   }
 
   void _onKeypadTap(String value) {
     final hasPin = context.read<AppLockCubit>().state.hasPinConfigured;
-    if (hasPin && !_isVerifying && _pin.length < _pinLength) {
+    if (hasPin && !_isVerifying && !_isPinLocked && _pin.length < _pinLength) {
       setState(() {
         _pin += value;
       });
@@ -183,6 +186,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   void _onDeleteTap() {
+    if (_isPinLocked) return;
     if (_pin.isNotEmpty) {
       setState(() {
         _pin = _pin.substring(0, _pin.length - 1);
@@ -191,11 +195,12 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   Future<void> _verifyPin() async {
-    if (_pin.length < 4 || _isVerifying) return;
+    if (_pin.length < 4 || _isVerifying || _isPinLocked) return;
     setState(() => _isVerifying = true);
     final success = await context.read<AppLockCubit>().unlock(_pin);
     if (!mounted) return;
     if (!success) {
+      _syncLockoutTimer();
       setState(() {
         _pin = '';
         _isVerifying = false;
@@ -203,6 +208,32 @@ class _PinLockScreenState extends State<PinLockScreen> {
     } else {
       setState(() => _isVerifying = false);
     }
+  }
+
+  bool get _isPinLocked {
+    final until = context.read<AppLockCubit>().state.lockedUntil;
+    return until != null && until.isAfter(DateTime.now());
+  }
+
+  int get _lockoutSeconds {
+    final until = context.read<AppLockCubit>().state.lockedUntil;
+    if (until == null) return 0;
+    final milliseconds = until.difference(DateTime.now()).inMilliseconds;
+    if (milliseconds <= 0) return 0;
+    return (milliseconds / 1000).ceil();
+  }
+
+  void _syncLockoutTimer() {
+    _lockoutTimer?.cancel();
+    if (!_isPinLocked) return;
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return timer.cancel();
+      if (_lockoutSeconds <= 0) {
+        timer.cancel();
+        context.read<AppLockCubit>().clearExpiredPinLockout();
+      }
+      setState(() {});
+    });
   }
 
   Future<void> _confirmLogout() async {
@@ -399,6 +430,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         ),
       ),
     );
+    _syncLockoutTimer();
     _searchDebounce?.cancel();
     _searchDebounce = null;
     if (mounted &&
@@ -440,7 +472,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                 fit: BoxFit.contain,
                                 alignment: Alignment.center,
                                 child: SizedBox(
-                                  key: const ValueKey('pin-entry-panel'),
+                                  key: posPinSetupTourTarget,
                                   width: 420,
                                   height: 810,
                                   child: BlocBuilder<AppLockCubit, AppLockState>(
@@ -456,6 +488,21 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                           selectedEmployee?['is_login_user'] ==
                                               true &&
                                           state.hasPinConfigured == false;
+                                      final pinLocked =
+                                          state.lockedUntil != null &&
+                                          state.lockedUntil!.isAfter(
+                                            DateTime.now(),
+                                          );
+                                      final lockoutSeconds = pinLocked
+                                          ? ((state.lockedUntil!
+                                                            .difference(
+                                                              DateTime.now(),
+                                                            )
+                                                            .inMilliseconds /
+                                                        1000)
+                                                    .ceil())
+                                                .clamp(1, 30)
+                                          : 0;
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 28,
@@ -483,6 +530,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             ),
                                             const SizedBox(height: 12),
                                             Material(
+                                              key: posPinOperatorTourTarget,
                                               color: AppColors.surfaceSecondary,
                                               borderRadius:
                                                   BorderRadius.circular(12),
@@ -553,8 +601,50 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               textAlign: TextAlign.center,
                                               maxLines: 2,
                                             ),
+                                            if (pinLocked) ...[
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors
+                                                      .warningBackground,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color:
+                                                        AppColors.warningBorder,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.timer_outlined,
+                                                      size: 18,
+                                                      color: AppColors.warning,
+                                                    ),
+                                                    const SizedBox(width: 7),
+                                                    Text(
+                                                      'Coba lagi dalam $lockoutSeconds detik',
+                                                      style: const TextStyle(
+                                                        color:
+                                                            AppColors.heading,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                             const SizedBox(height: 14),
                                             Row(
+                                              key: posPinEntryTourTarget,
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
                                               children: List.generate(
@@ -595,7 +685,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   width: 64,
                                                   height: 64,
                                                   child: TextButton(
-                                                    onPressed: _isVerifying
+                                                    onPressed:
+                                                        _isVerifying ||
+                                                            pinLocked
                                                         ? null
                                                         : _onDeleteTap,
                                                     style: TextButton.styleFrom(
@@ -616,7 +708,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             SizedBox(
                                               width: double.infinity,
                                               child: ElevatedButton.icon(
-                                                onPressed: _isVerifying
+                                                key: posPinSubmitTourTarget,
+                                                onPressed:
+                                                    _isVerifying || pinLocked
                                                     ? null
                                                     : canCreateOwnPin
                                                     ? _createPinForLoginUser
@@ -730,7 +824,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
       width: 64,
       height: 64,
       child: TextButton(
-        onPressed: _isVerifying ? null : () => _onKeypadTap(text),
+        onPressed: _isVerifying || _isPinLocked
+            ? null
+            : () => _onKeypadTap(text),
         style: TextButton.styleFrom(
           shape: const CircleBorder(),
           foregroundColor: AppColors.heading,

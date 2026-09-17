@@ -878,7 +878,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     // Agregasi server adalah sumber utama agar dashboard tidak bergantung
     // pada jumlah halaman riwayat yang sudah dimuat di perangkat.
     try {
-      final dashboardData = await posRepository.getDashboardData(days: 7);
+      final dashboardData = await posRepository.getDashboardData(
+        days: event.days,
+      );
       emit(state.copyWith(dashboardData: dashboardData));
       return;
     } catch (_) {
@@ -887,9 +889,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     try {
       final now = DateTime.now();
 
-      // Calculate daily sales for the last 7 days
+      // Calculate daily sales for the selected period.
       final List<Map<String, dynamic>> dailySales = [];
-      for (int i = 6; i >= 0; i--) {
+      for (int i = event.days - 1; i >= 0; i--) {
         final d = now.subtract(Duration(days: i));
         final label = '${d.day}/${d.month}';
 
@@ -913,37 +915,44 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         });
       }
 
-      // Today vs Yesterday
-      final todayOrders = state.orders.where((o) {
+      final currentStart = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: event.days - 1));
+      final currentOrders = state.orders.where((o) {
         try {
           final date = DateTime.parse(o.date);
-          return date.year == now.year &&
-              date.month == now.month &&
-              date.day == now.day;
+          return !date.isBefore(currentStart);
         } catch (_) {
           return false;
         }
       }).toList();
 
-      final yesterday = now.subtract(const Duration(days: 1));
-      final yesterdayOrders = state.orders.where((o) {
+      final previousEnd = currentStart.subtract(
+        const Duration(microseconds: 1),
+      );
+      final previousStart = DateTime(
+        previousEnd.year,
+        previousEnd.month,
+        previousEnd.day,
+      ).subtract(Duration(days: event.days - 1));
+      final previousOrders = state.orders.where((o) {
         try {
           final date = DateTime.parse(o.date);
-          return date.year == yesterday.year &&
-              date.month == yesterday.month &&
-              date.day == yesterday.day;
+          return !date.isBefore(previousStart) && !date.isAfter(previousEnd);
         } catch (_) {
           return false;
         }
       }).toList();
 
-      final todayRevenue = todayOrders.fold(0.0, (sum, o) => sum + o.total);
-      final yesterdayRevenue = yesterdayOrders.fold(
+      final todayRevenue = currentOrders.fold(0.0, (sum, o) => sum + o.total);
+      final yesterdayRevenue = previousOrders.fold(
         0.0,
         (sum, o) => sum + o.total,
       );
-      final todayTransactions = todayOrders.length;
-      final yesterdayTransactions = yesterdayOrders.length;
+      final todayTransactions = currentOrders.length;
+      final yesterdayTransactions = previousOrders.length;
 
       final revenueGrowth = yesterdayRevenue == 0
           ? 0.0
@@ -960,7 +969,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       // Payment Breakdown
       final Map<String, double> paymentTotals = {};
       final Map<String, int> paymentCounts = {};
-      for (var o in state.orders) {
+      for (final o in currentOrders) {
         final method = o.paymentMethod.isNotEmpty ? o.paymentMethod : 'tunai';
         paymentTotals[method] = (paymentTotals[method] ?? 0) + o.total;
         paymentCounts[method] = (paymentCounts[method] ?? 0) + 1;

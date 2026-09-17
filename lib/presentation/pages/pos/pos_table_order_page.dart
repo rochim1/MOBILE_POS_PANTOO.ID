@@ -36,8 +36,17 @@ class PosTableOrderPage extends StatelessWidget {
     final config = context.read<PosBloc>().state.runtimeConfig;
     final useTables = (config['features'] as Map?)?['use_tables'] == true;
     final canView = (config['permissions'] as Map?)?['view_tables'] == true;
+    final posState = context.read<PosBloc>().state;
+    final allowOutOfShift = config['allow_out_of_shift'] == true;
     final storeId =
-        context.read<PosBloc>().state.activeShift?['toko_id']?.toString() ?? '';
+        posState.activeShift?['toko_id']?.toString() ??
+        (allowOutOfShift
+            ? posState.stores
+                      .where((store) => store.status.toLowerCase() == 'active')
+                      .firstOrNull
+                      ?.id ??
+                  ''
+            : '');
     if (!useTables || !canView || storeId.isEmpty) {
       return Center(
         child: Padding(
@@ -47,6 +56,8 @@ class PosTableOrderPage extends StatelessWidget {
                 ? 'Fitur meja tidak aktif untuk profil POS ini.'
                 : !canView
                 ? 'Anda tidak memiliki izin melihat table order.'
+                : allowOutOfShift
+                ? 'Toko aktif belum tersedia untuk menampilkan meja.'
                 : 'Buka shift kasir untuk menampilkan meja toko aktif.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.grey, fontSize: 16),

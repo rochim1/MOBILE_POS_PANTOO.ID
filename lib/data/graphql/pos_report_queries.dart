@@ -30,6 +30,14 @@ class PosReportQueries {
           revenue
           percentage
         }
+        cashier_performance {
+          user_id
+          name
+          transactions
+          revenue
+          avg_order
+          percentage
+        }
       }
     }
   ''';

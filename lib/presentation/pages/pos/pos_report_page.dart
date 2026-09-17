@@ -125,12 +125,7 @@ class _ReportViewState extends State<_ReportView> {
             message:
                 'Belum ada data transaksi void yang tersedia pada laporan.',
           ),
-          _Section.cashier => _notAvailable(
-            icon: Icons.person_outline_rounded,
-            title: 'Laporan Kasir',
-            message:
-                'Rincian performa per kasir belum tersedia dari server laporan.',
-          ),
+          _Section.cashier => _cashierReport(data.cashierPerformance),
           _Section.cash => _cashReport(data.paymentBreakdown),
           _Section.products => _products(data.topProducts),
           _Section.payments => _payments(data.paymentBreakdown),
@@ -671,6 +666,85 @@ class _ReportViewState extends State<_ReportView> {
       ],
     );
   }
+
+  Widget _cashierReport(List<PosCashierPerformance> items) => _Card(
+    title: 'Performa Kasir',
+    subtitle: '${items.length} operator pada periode ini',
+    child: items.isEmpty
+        ? const _Empty(
+            icon: Icons.person_outline_rounded,
+            text: 'Belum ada transaksi kasir pada periode ini',
+          )
+        : Column(
+            children: items.asMap().entries.map((entry) {
+              final item = entry.value;
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: entry.key == items.length - 1
+                      ? null
+                      : const Border(
+                          bottom: BorderSide(color: Color(0xFFF3F5F6)),
+                        ),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.primary.withValues(alpha: .1),
+                      foregroundColor: AppColors.primary,
+                      child: Text(
+                        '${entry.key + 1}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            '${item.transactions} transaksi · Rata-rata ${_money.format(item.avgOrder)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _money.format(item.revenue),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '${item.percentage.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+  );
 
   Widget _otherReport(PosReportData data) => _Card(
     title: 'Aktivitas Penjualan Harian',

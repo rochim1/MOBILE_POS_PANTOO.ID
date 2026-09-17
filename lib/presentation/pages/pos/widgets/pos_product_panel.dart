@@ -504,9 +504,23 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }
 
   Future<void> _selectTable(BuildContext context, PosState state) async {
-    final storeId = state.activeShift?['toko_id']?.toString() ?? '';
+    final allowOutOfShift = state.runtimeConfig['allow_out_of_shift'] == true;
+    final storeId =
+        state.activeShift?['toko_id']?.toString() ??
+        (allowOutOfShift
+            ? state.stores
+                      .where((store) => store.status.toLowerCase() == 'active')
+                      .firstOrNull
+                      ?.id ??
+                  ''
+            : '');
     if (storeId.isEmpty) {
-      AppToast.warning(context, 'Buka shift sebelum memilih meja.');
+      AppToast.warning(
+        context,
+        allowOutOfShift
+            ? 'Toko aktif belum tersedia.'
+            : 'Buka shift sebelum memilih meja.',
+      );
       return;
     }
 

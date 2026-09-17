@@ -122,17 +122,59 @@ class PosDailySales extends Equatable {
   List<Object?> get props => [date, label, revenue, transactions];
 }
 
+class PosCashierPerformance extends Equatable {
+  final String? userId;
+  final String name;
+  final int transactions;
+  final double revenue;
+  final double avgOrder;
+  final double percentage;
+
+  const PosCashierPerformance({
+    this.userId,
+    this.name = 'Kasir tidak teridentifikasi',
+    this.transactions = 0,
+    this.revenue = 0,
+    this.avgOrder = 0,
+    this.percentage = 0,
+  });
+
+  factory PosCashierPerformance.fromJson(Map<String, dynamic> json) =>
+      PosCashierPerformance(
+        userId: json['user_id'] as String?,
+        name: (json['name'] as String?)?.trim().isNotEmpty == true
+            ? (json['name'] as String).trim()
+            : 'Kasir tidak teridentifikasi',
+        transactions: (json['transactions'] as num?)?.toInt() ?? 0,
+        revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
+        avgOrder: (json['avg_order'] as num?)?.toDouble() ?? 0,
+        percentage: (json['percentage'] as num?)?.toDouble() ?? 0,
+      );
+
+  @override
+  List<Object?> get props => [
+    userId,
+    name,
+    transactions,
+    revenue,
+    avgOrder,
+    percentage,
+  ];
+}
+
 class PosReportData extends Equatable {
   final PosReportStats? stats;
   final List<PosDailySales> dailySales;
   final List<PosPaymentBreakdown> paymentBreakdown;
   final List<PosTopProduct> topProducts;
+  final List<PosCashierPerformance> cashierPerformance;
 
   const PosReportData({
     this.stats,
     this.dailySales = const [],
     this.paymentBreakdown = const [],
     this.topProducts = const [],
+    this.cashierPerformance = const [],
   });
 
   factory PosReportData.fromJson(Map<String, dynamic> json) {
@@ -157,9 +199,23 @@ class PosReportData extends Equatable {
               ?.map((e) => PosTopProduct.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      cashierPerformance:
+          (json['cashier_performance'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    PosCashierPerformance.fromJson(e as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
     );
   }
 
   @override
-  List<Object?> get props => [stats, dailySales, paymentBreakdown, topProducts];
+  List<Object?> get props => [
+    stats,
+    dailySales,
+    paymentBreakdown,
+    topProducts,
+    cashierPerformance,
+  ];
 }

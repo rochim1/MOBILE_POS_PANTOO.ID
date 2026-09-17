@@ -832,7 +832,13 @@ class _PosPageViewState extends State<PosPageView> {
     }
     final result = await sl<PosRepository>().createUnpaidInvoice(
       cart: state.cart,
-      tokoId: state.activeShift?['toko_id']?.toString() ?? '',
+      tokoId:
+          state.activeShift?['toko_id']?.toString() ??
+          state.stores
+              .where((store) => store.status.toLowerCase() == 'active')
+              .firstOrNull
+              ?.id ??
+          '',
       shiftId: state.activeShift?['_id']?.toString() ?? '',
       orderType: 'dine_in',
       tableId: state.selectedTableId,

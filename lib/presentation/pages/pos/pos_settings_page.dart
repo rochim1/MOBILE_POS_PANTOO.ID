@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/_core.dart';
 import '../../../../injections.dart';
+import '../../../../domain/repositories/pos_repository.dart';
 import '../../bloc/pos_settings/pos_settings_bloc.dart';
 import '../../bloc/pos_settings/pos_settings_event.dart';
 import '../../bloc/pos_settings/pos_settings_state.dart';
@@ -11,24 +13,43 @@ import '../../bloc/pos/pos_event.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/loading_indicator_widget.dart';
 import '../../widgets/pos_category_navigation.dart';
-import 'pos_setup_guide_page.dart';
+import 'widgets/pos_setup_tour.dart';
 
 enum _SettingsSection { transaction, finance, cashier }
 
 class PosSettingsPage extends StatelessWidget {
-  const PosSettingsPage({super.key});
+  final GlobalKey? setupTourKey;
+  final PosSetupTourTargets? setupTourTargets;
+  final PosSetupActionController? pinTourController;
+  const PosSettingsPage({
+    super.key,
+    this.setupTourKey,
+    this.setupTourTargets,
+    this.pinTourController,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<PosSettingsBloc>()..add(LoadSettings()),
-      child: const _PosSettingsView(),
+      child: _PosSettingsView(
+        setupTourKey: setupTourKey,
+        setupTourTargets: setupTourTargets,
+        pinTourController: pinTourController,
+      ),
     );
   }
 }
 
 class _PosSettingsView extends StatefulWidget {
-  const _PosSettingsView();
+  final GlobalKey? setupTourKey;
+  final PosSetupTourTargets? setupTourTargets;
+  final PosSetupActionController? pinTourController;
+  const _PosSettingsView({
+    this.setupTourKey,
+    this.setupTourTargets,
+    this.pinTourController,
+  });
 
   @override
   State<_PosSettingsView> createState() => _PosSettingsViewState();
@@ -76,10 +97,25 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   bool _isInitialized = false;
   _SettingsSection _selectedSection = _SettingsSection.transaction;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.pinTourController?.attach(_openGuidedPinManager);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PosSettingsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pinTourController != widget.pinTourController) {
+      oldWidget.pinTourController?.detach(_openGuidedPinManager);
+      widget.pinTourController?.attach(_openGuidedPinManager);
+    }
+  }
+
   List<String> get _fulfillmentOptions {
     final restaurant = _businessProfile == 'restoran';
     return [
-      if (restaurant && _enabledFeatures['use_tables'] == true) 'dine_in',
+      if (_enabledFeatures['use_tables'] == true) 'dine_in',
       if (restaurant) 'free_table',
       'take_away',
       if (_enabledFeatures['use_delivery'] == true) 'delivery',
@@ -111,6 +147,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
 
   @override
   void dispose() {
+    widget.pinTourController?.detach(_openGuidedPinManager);
     _pajakController.dispose();
     _minTransaksiTunaiController.dispose();
     _invoicePrefixController.dispose();
@@ -119,6 +156,203 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     _newChannelController.dispose();
     _newPriceLevelController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openGuidedPinManager() async {
+    setState(() => _selectedSection = _SettingsSection.cashier);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await _showPinManager(guided: true);
+  }
+
+  Future<void> _showPinManager({bool guided = false}) async {
+    final repository = sl<PosRepository>();
+    final result = await repository.getPOSPinUsers(hasPin: null);
+    if (!mounted) return;
+    final users = result.fold<List<Map<String, dynamic>>>((failure) {
+      AppToast.error(context, failure.message);
+      return const [];
+    }, (items) => items);
+    if (users.isEmpty) {
+      AppToast.error(context, 'Belum ada pengguna yang dapat dikelola PIN-nya');
+      return;
+    }
+    String? selectedId = users.first['_id']?.toString();
+    final pin = TextEditingController();
+    var saving = false;
+    var guideScheduled = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          if (guided && !guideScheduled) {
+            guideScheduled = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              await Future<void>.delayed(const Duration(milliseconds: 180));
+              if (!dialogContext.mounted || widget.setupTourTargets == null) {
+                return;
+              }
+              final targets = widget.setupTourTargets!;
+              await showInteractivePosSetupTour(
+                dialogContext,
+                fallbackTarget: targets.pinEmployee,
+                stepTitle: 'Langkah 6 · PIN operator kasir',
+                stageNumberOffset: 1,
+                totalStageCount: 4,
+                stages: [
+                  PosSetupTourStage(
+                    title: 'Pilih operator',
+                    description:
+                        'Pilih karyawan yang akan menggunakan kasir POS.',
+                    target: targets.pinEmployee,
+                  ),
+                  PosSetupTourStage(
+                    title: 'Buat PIN aman',
+                    description:
+                        'Masukkan 4–6 digit angka khusus milik operator tersebut.',
+                    target: targets.pinValue,
+                  ),
+                  PosSetupTourStage(
+                    title: 'Simpan PIN operator',
+                    description:
+                        'Simpan PIN. Setelah itu operator dapat dipilih pada layar akses kasir.',
+                    target: targets.pinSave,
+                  ),
+                ],
+              );
+            });
+          }
+          final selected = users
+              .where((user) => user['_id']?.toString() == selectedId)
+              .firstOrNull;
+          final locked =
+              DateTime.tryParse(
+                selected?['locked_until']?.toString() ?? '',
+              )?.isAfter(DateTime.now()) ==
+              true;
+          return AlertDialog(
+            title: const Text('Kelola PIN Operator'),
+            content: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    key: widget.setupTourTargets?.pinEmployee,
+                    initialValue: selectedId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Operator kasir',
+                    ),
+                    items: users
+                        .map(
+                          (user) => DropdownMenuItem(
+                            value: user['_id']?.toString(),
+                            child: Text(
+                              user['name']?.toString() ??
+                                  user['username']?.toString() ??
+                                  '-',
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: saving
+                        ? null
+                        : (value) => setDialogState(() {
+                            selectedId = value;
+                            pin.clear();
+                          }),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: widget.setupTourTargets?.pinValue,
+                    controller: pin,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'PIN baru (4–6 digit)',
+                      counterText: '',
+                    ),
+                  ),
+                  if (locked)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                final id = selectedId;
+                                if (id == null) return;
+                                setDialogState(() => saving = true);
+                                final unlock = await repository
+                                    .adminUnlockPOSPin(id);
+                                if (!dialogContext.mounted) return;
+                                unlock.fold(
+                                  (failure) => AppToast.error(
+                                    dialogContext,
+                                    failure.message,
+                                  ),
+                                  (message) =>
+                                      AppToast.success(dialogContext, message),
+                                );
+                                setDialogState(() => saving = false);
+                              },
+                        icon: const Icon(Icons.lock_open_outlined),
+                        label: const Text('Buka kunci operator'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Tutup'),
+              ),
+              FilledButton.icon(
+                key: widget.setupTourTargets?.pinSave,
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final id = selectedId;
+                        final value = pin.text.trim();
+                        if (id == null ||
+                            !RegExp(r'^\d{4,6}$').hasMatch(value)) {
+                          AppToast.error(
+                            dialogContext,
+                            'Pilih operator dan isi PIN 4–6 digit angka',
+                          );
+                          return;
+                        }
+                        setDialogState(() => saving = true);
+                        final saved = await repository.adminSetPOSPin(
+                          id,
+                          value,
+                        );
+                        if (!dialogContext.mounted) return;
+                        saved.fold(
+                          (failure) {
+                            setDialogState(() => saving = false);
+                            AppToast.error(dialogContext, failure.message);
+                          },
+                          (message) {
+                            Navigator.pop(dialogContext);
+                            AppToast.success(this.context, message);
+                            this.context.read<PosBloc>().add(LoadPosData());
+                          },
+                        );
+                      },
+                icon: const Icon(Icons.save_outlined),
+                label: Text(saving ? 'Menyimpan...' : 'Simpan PIN'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    pin.dispose();
   }
 
   void _applyBusinessProfile(String profile) {
@@ -154,7 +388,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         'use_appointments': true,
         'use_technicians': true,
         'require_customer': true,
-        'track_stock': false,
+        // Usaha jasa tetap dapat menjual material/consumable. Item jasa
+        // sendiri non-stok melalui pos_product_type=service.
+        'track_stock': true,
       },
       'laundry' => {
         ...base,
@@ -423,27 +659,30 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         title: 'Transaksi & Penjualan',
         icon: Icons.tune_outlined,
         children: [
-          _buildDropdown(
-            label: 'Profil Bisnis POS',
-            value: _businessProfile,
-            items: const [
-              'retail',
-              'restoran',
-              'bengkel',
-              'jasa',
-              'laundry',
-              'custom',
-            ],
-            onChanged: (val) {
-              if (val != null) _applyBusinessProfile(val);
-            },
+          Container(
+            key: widget.setupTourTargets?.settingsProfile,
+            child: _buildDropdown(
+              label: 'Profil Bisnis POS',
+              value: _businessProfile,
+              items: const [
+                'retail',
+                'restoran',
+                'bengkel',
+                'jasa',
+                'laundry',
+                'custom',
+              ],
+              onChanged: (val) {
+                if (val != null) _applyBusinessProfile(val);
+              },
+            ),
           ),
           const Text(
             'Fitur operasional',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          ..._featureLabels.entries.map(
-            (entry) => _buildSwitch(
+          ..._featureLabels.entries.map((entry) {
+            final field = _buildSwitch(
               entry.value,
               _enabledFeatures[entry.key] ?? false,
               (value) => setState(() {
@@ -452,8 +691,14 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   _fulfillmentType = 'take_away';
                 }
               }),
-            ),
-          ),
+            );
+            return entry.key == 'track_stock'
+                ? Container(
+                    key: widget.setupTourTargets?.settingsStock,
+                    child: field,
+                  )
+                : field;
+          }),
           _buildDropdown(
             label: 'Metode Pembayaran Default',
             value: _metodePembayaran,
@@ -561,16 +806,17 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             isNumber: true,
           ),
           Material(
+            key: widget.setupTourTargets?.pinManage,
             type: MaterialType.transparency,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.explore_outlined),
-              title: const Text('Ulangi Panduan Kasir'),
+              title: const Text('Kelola PIN Operator'),
               subtitle: const Text(
-                'Pelajari kembali produk, order, pembayaran, riwayat, dan shift.',
+                'Buat, reset, atau buka kunci PIN karyawan kasir.',
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => showPosCashierTour(context),
+              onTap: _showPinManager,
             ),
           ),
         ],
@@ -603,6 +849,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             const SizedBox(height: 24),
             if (canManage)
               ElevatedButton(
+                key: widget.setupTourKey,
                 onPressed: state.status == PosSettingsStatus.saving
                     ? null
                     : _saveSettings,

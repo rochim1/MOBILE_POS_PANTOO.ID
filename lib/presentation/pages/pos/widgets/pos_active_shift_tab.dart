@@ -8,7 +8,15 @@ import '../../../bloc/pos_shift/pos_shift_state.dart';
 import 'package:intl/intl.dart';
 
 class PosActiveShiftTab extends StatefulWidget {
-  const PosActiveShiftTab({super.key});
+  final GlobalKey? storeTourKey;
+  final GlobalKey? formTourKey;
+  final GlobalKey? openTourKey;
+  const PosActiveShiftTab({
+    super.key,
+    this.storeTourKey,
+    this.formTourKey,
+    this.openTourKey,
+  });
 
   @override
   State<PosActiveShiftTab> createState() => _PosActiveShiftTabState();
@@ -123,6 +131,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
 
   Widget _buildStoreSelector(List<dynamic> stores) {
     return Container(
+      key: widget.storeTourKey,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -396,6 +405,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     String notes = '';
 
     return Container(
+      key: widget.formTourKey,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -468,6 +478,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           ),
           const SizedBox(height: 16),
           ElevatedButton(
+            key: widget.openTourKey,
             onPressed: selectedTokoId == null
                 ? null
                 : () {

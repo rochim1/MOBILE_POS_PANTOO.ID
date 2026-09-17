@@ -13,6 +13,7 @@ class AppLockState extends Equatable {
   final List<Map<String, dynamic>> employees;
   final String? selectedEmployeeId;
   final bool loadingEmployees;
+  final DateTime? lockedUntil;
 
   const AppLockState({
     this.status = AppLockStatus.initial,
@@ -25,6 +26,7 @@ class AppLockState extends Equatable {
     this.employees = const [],
     this.selectedEmployeeId,
     this.loadingEmployees = false,
+    this.lockedUntil,
   });
 
   AppLockState copyWith({
@@ -38,6 +40,8 @@ class AppLockState extends Equatable {
     List<Map<String, dynamic>>? employees,
     String? selectedEmployeeId,
     bool? loadingEmployees,
+    DateTime? lockedUntil,
+    bool clearLockedUntil = false,
   }) {
     return AppLockState(
       status: status ?? this.status,
@@ -50,6 +54,7 @@ class AppLockState extends Equatable {
       employees: employees ?? this.employees,
       selectedEmployeeId: selectedEmployeeId ?? this.selectedEmployeeId,
       loadingEmployees: loadingEmployees ?? this.loadingEmployees,
+      lockedUntil: clearLockedUntil ? null : lockedUntil ?? this.lockedUntil,
     );
   }
 
@@ -65,5 +70,6 @@ class AppLockState extends Equatable {
     employees,
     selectedEmployeeId,
     loadingEmployees,
+    lockedUntil,
   ];
 }

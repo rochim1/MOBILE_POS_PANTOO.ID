@@ -201,4 +201,11 @@ class ToggleFavoriteProduct extends PosEvent {
   List<Object> get props => [productId];
 }
 
-class LoadDashboardData extends PosEvent {}
+class LoadDashboardData extends PosEvent {
+  final int days;
+
+  const LoadDashboardData({this.days = 7});
+
+  @override
+  List<Object> get props => [days];
+}

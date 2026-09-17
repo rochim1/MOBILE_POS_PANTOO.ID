@@ -22,17 +22,33 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  int _selectedDays = 7;
+  bool _loadingPeriod = false;
+
+  String get _periodLabel => switch (_selectedDays) {
+    1 => 'Hari Ini',
+    7 => '7 Hari',
+    30 => '30 Hari',
+    90 => '90 Hari',
+    _ => '$_selectedDays Hari',
+  };
+
   @override
   void initState() {
     super.initState();
     if (context.read<AppLockCubit>().state.status == AppLockStatus.unlocked) {
-      context.read<PosBloc>().add(LoadDashboardData());
+      context.read<PosBloc>().add(LoadDashboardData(days: _selectedDays));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PosBloc, PosState>(
+    return BlocConsumer<PosBloc, PosState>(
+      listenWhen: (previous, current) =>
+          !identical(previous.dashboardData, current.dashboardData),
+      listener: (context, state) {
+        if (_loadingPeriod) setState(() => _loadingPeriod = false);
+      },
       builder: (context, state) {
         final data = state.dashboardData;
         final stats = data?['stats'] as Map<String, dynamic>?;
@@ -72,7 +88,9 @@ class _HomePageState extends State<HomePage> {
             child: RefreshIndicator(
               onRefresh: () async {
                 context.read<PosBloc>().add(LoadPosData());
-                context.read<PosBloc>().add(LoadDashboardData());
+                context.read<PosBloc>().add(
+                  LoadDashboardData(days: _selectedDays),
+                );
                 await Future.delayed(const Duration(seconds: 1));
               },
               child: LayoutBuilder(
@@ -85,71 +103,7 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  BlocBuilder<AuthCubit, AuthState>(
-                                    builder: (context, authState) {
-                                      final name = authState.username?.trim();
-                                      return Text(
-                                        'Halo, ${name == null || name.isEmpty ? 'Pengguna' : name} 👋',
-                                        style: const TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Ringkasan data POS Anda hari ini.',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Hari Ini',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade800,
-                                    ),
-                                  ),
-                                  const Icon(Icons.arrow_drop_down),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                        _buildDashboardHeader(isTablet),
                         const SizedBox(height: 20),
 
                         if ((state.runtimeConfig['configuration_health']
@@ -181,7 +135,9 @@ class _HomePageState extends State<HomePage> {
                           revenueGrowth: revenueGrowth,
                           transactionGrowth: transactionGrowth,
                           isLoading:
-                              data == null && state.status == PosStatus.loading,
+                              _loadingPeriod ||
+                              (data == null &&
+                                  state.status == PosStatus.loading),
                         ),
                         const SizedBox(height: 20),
 
@@ -229,6 +185,105 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDashboardHeader(bool isTablet) {
+    final greeting = BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, authState) {
+        final name = authState.username?.trim();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Halo, ${name == null || name.isEmpty ? 'Pengguna' : name} 👋',
+              style: TextStyle(
+                fontSize: isTablet ? 28 : 23,
+                fontWeight: FontWeight.w800,
+                color: AppColors.heading,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Ringkasan performa POS untuk $_periodLabel.',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    final periodFilter = PopupMenuButton<int>(
+      tooltip: 'Pilih periode dashboard',
+      initialValue: _selectedDays,
+      onSelected: (days) {
+        if (days == _selectedDays) return;
+        setState(() {
+          _selectedDays = days;
+          _loadingPeriod = true;
+        });
+        context.read<PosBloc>().add(LoadDashboardData(days: days));
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 1, child: Text('Hari Ini')),
+        PopupMenuItem(value: 7, child: Text('7 Hari Terakhir')),
+        PopupMenuItem(value: 30, child: Text('30 Hari Terakhir')),
+        PopupMenuItem(value: 90, child: Text('90 Hari Terakhir')),
+      ],
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 18,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _periodLabel,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 4),
+              if (_loadingPeriod)
+                const SizedBox.square(
+                  dimension: 15,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!isTablet) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          greeting,
+          const SizedBox(height: 14),
+          Align(alignment: Alignment.centerLeft, child: periodFilter),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: greeting),
+        const SizedBox(width: 16),
+        periodFilter,
+      ],
     );
   }
 
@@ -281,14 +336,18 @@ class _HomePageState extends State<HomePage> {
   }) {
     final cards = [
       _StatCardData(
-        title: 'Pendapatan Hari Ini',
+        title: _selectedDays == 1
+            ? 'Pendapatan Hari Ini'
+            : 'Pendapatan $_periodLabel',
         value: _formatCurrency(todayRevenue),
         icon: Icons.account_balance_wallet_outlined,
         color: AppColors.primary,
         growth: revenueGrowth,
       ),
       _StatCardData(
-        title: 'Transaksi Hari Ini',
+        title: _selectedDays == 1
+            ? 'Transaksi Hari Ini'
+            : 'Transaksi $_periodLabel',
         value: '$todayTransactions',
         icon: Icons.receipt_long_outlined,
         color: AppColors.info,
@@ -464,8 +523,10 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Penjualan 7 Hari Terakhir',
+          Text(
+            _selectedDays == 1
+                ? 'Penjualan Hari Ini'
+                : 'Penjualan $_periodLabel Terakhir',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

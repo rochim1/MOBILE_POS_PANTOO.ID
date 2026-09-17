@@ -95,6 +95,8 @@ class AppLockCubit extends Cubit<AppLockState> {
                 ? 'Belum ada karyawan POS yang memiliki PIN.'
                 : '',
             loadingEmployees: false,
+            lockedUntil: _parseLockedUntil(selectedRow?['locked_until']),
+            clearLockedUntil: selectedRow?['locked_until'] == null,
           ),
         );
       },
@@ -149,6 +151,8 @@ class AppLockCubit extends Cubit<AppLockState> {
         errorMessage: row?['has_pin'] == true
             ? ''
             : 'PIN karyawan belum dibuat. Hubungi admin POS.',
+        lockedUntil: _parseLockedUntil(row?['locked_until']),
+        clearLockedUntil: row?['locked_until'] == null,
       ),
     );
   }
@@ -183,6 +187,7 @@ class AppLockCubit extends Cubit<AppLockState> {
                     ? response['name'].toString()
                     : response['username']?.toString(),
                 operatorSessionToken: operatorToken,
+                clearLockedUntil: true,
               ),
             );
             return true;
@@ -190,6 +195,8 @@ class AppLockCubit extends Cubit<AppLockState> {
           emit(
             state.copyWith(
               errorMessage: response['message']?.toString() ?? 'PIN salah',
+              lockedUntil: _parseLockedUntil(response['locked_until']),
+              clearLockedUntil: response['locked_until'] == null,
             ),
           );
           return false;
@@ -199,6 +206,17 @@ class AppLockCubit extends Cubit<AppLockState> {
       emit(state.copyWith(errorMessage: 'Terjadi kesalahan sistem'));
       return false;
     }
+  }
+
+  void clearExpiredPinLockout() {
+    final lockedUntil = state.lockedUntil;
+    if (lockedUntil == null || lockedUntil.isAfter(DateTime.now())) return;
+    emit(state.copyWith(errorMessage: '', clearLockedUntil: true));
+  }
+
+  static DateTime? _parseLockedUntil(dynamic value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '');
+    return parsed?.toLocal();
   }
 
   void reset() {
