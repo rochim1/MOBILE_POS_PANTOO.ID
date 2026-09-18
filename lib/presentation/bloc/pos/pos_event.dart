@@ -56,7 +56,7 @@ class RemoveCartItem extends PosEvent {
 
 class UpdateQuantity extends PosEvent {
   final PosProduct product;
-  final int delta;
+  final double delta;
   const UpdateQuantity(this.product, this.delta);
   @override
   List<Object> get props => [product, delta];

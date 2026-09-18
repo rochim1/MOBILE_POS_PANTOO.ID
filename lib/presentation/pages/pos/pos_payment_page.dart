@@ -613,7 +613,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                       child: Text(
                                         widget.pendingOrder != null
                                             ? 'Total Invoice'
-                                            : 'Total ${state.totalItems} Produk',
+                                            : 'Total ${state.totalItems == state.totalItems.truncateToDouble() ? state.totalItems.toStringAsFixed(0) : state.totalItems.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '')} Produk',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 15,
@@ -866,16 +866,32 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     }
     if (_serviceOrder != null) return true;
     final profile = state.runtimeConfig['business_profile']?.toString() ?? '';
+    final serviceEntries = state.cart.entries
+        .where((entry) => entry.key.productType == 'service')
+        .toList();
+    final serviceQuantity = serviceEntries.fold<double>(
+      0,
+      (sum, entry) => sum + entry.value,
+    );
     final subject = TextEditingController();
     final notes = TextEditingController();
-    final weight = TextEditingController();
-    final pieces = TextEditingController();
+    final weight = TextEditingController(
+      text: profile == 'laundry' && serviceQuantity > 0
+          ? _quantityText(serviceQuantity)
+          : '',
+    );
+    final pieces = TextEditingController(
+      text: profile == 'laundry' && serviceQuantity > 0
+          ? serviceQuantity.round().toString()
+          : '',
+    );
     final tag = TextEditingController();
     final vehicleNo = TextEditingController();
     final vehicleModel = TextEditingController();
     final technician = TextEditingController();
     DateTime? appointmentAt;
     String mode = 'kiloan';
+    String validationMessage = '';
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -906,8 +922,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         ),
                         DropdownMenuItem(value: 'paket', child: Text('Paket')),
                       ],
-                      onChanged: (value) =>
-                          setDialogState(() => mode = value ?? 'kiloan'),
+                      onChanged: (value) => setDialogState(() {
+                        mode = value ?? 'kiloan';
+                        if (serviceQuantity <= 0) return;
+                        if (mode == 'kiloan') {
+                          weight.text = _quantityText(serviceQuantity);
+                        } else {
+                          pieces.text = serviceQuantity.round().toString();
+                        }
+                      }),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -942,6 +965,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         labelText: 'Tag kantong',
                       ),
                     ),
+                    if (serviceEntries.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        'Jumlah tagihan mengikuti jumlah layanan di keranjang. '
+                        'Ketuk angka jumlah pada keranjang untuk mengubah berat/jumlah.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ] else ...[
                     TextField(
                       controller: subject,
@@ -1051,6 +1084,19 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           : 'Keluhan *',
                     ),
                   ),
+                  if (validationMessage.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        validationMessage,
+                        style: const TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1065,15 +1111,53 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 final kg =
                     double.tryParse(weight.text.replaceAll(',', '.')) ?? 0;
                 final count = int.tryParse(pieces.text) ?? 0;
+                final billedQuantity = mode == 'kiloan' ? kg : count.toDouble();
+                final quantityMismatch =
+                    profile == 'laundry' &&
+                    serviceEntries.isNotEmpty &&
+                    (billedQuantity - serviceQuantity).abs() > 0.000001;
                 final reservationRequiresSchedule =
                     state.orderType == 'reservation' && appointmentAt == null;
                 if ((profile == 'laundry' && kg <= 0 && count <= 0) ||
+                    quantityMismatch ||
                     (profile != 'laundry' &&
                         subject.text.trim().isEmpty &&
                         notes.text.trim().isEmpty) ||
                     reservationRequiresSchedule) {
+                  setDialogState(() {
+                    validationMessage = quantityMismatch
+                        ? 'Berat/jumlah harus sama dengan jumlah layanan di keranjang '
+                              '(${_quantityText(serviceQuantity)}).'
+                        : reservationRequiresSchedule
+                        ? 'Jadwal layanan wajib dipilih untuk reservasi.'
+                        : 'Lengkapi detail layanan sebelum melanjutkan.';
+                  });
                   return;
                 }
+                final pricingBasis = switch (mode) {
+                  'kiloan' => 'per_kg',
+                  'paket' => 'package',
+                  _ => 'per_item',
+                };
+                final serviceLines = serviceEntries.indexed.map((indexed) {
+                  final index = indexed.$1;
+                  final entry = indexed.$2;
+                  return <String, dynamic>{
+                    'product_id': entry.key.id,
+                    'name': entry.key.name,
+                    'object_type': profile.isEmpty ? 'service' : profile,
+                    'pricing_basis': pricingBasis,
+                    'quantity': pricingBasis == 'per_kg' ? 0 : entry.value,
+                    'weight_kg': pricingBasis == 'per_kg' ? entry.value : 0,
+                    'unit': pricingBasis == 'per_kg'
+                        ? 'kg'
+                        : entry.key.saleUnit,
+                    if (index == 0 && tag.text.trim().isNotEmpty)
+                      'tag_code': tag.text.trim(),
+                    'condition_notes': notes.text.trim(),
+                    'status': 'diterima',
+                  };
+                }).toList();
                 Navigator.pop(dialogContext, {
                   'service_type': profile == 'laundry' ? 'Laundry' : 'Service',
                   'service_subject': profile == 'laundry'
@@ -1093,6 +1177,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   if (appointmentAt != null)
                     'appointment_at': appointmentAt!.toIso8601String(),
                   'status': 'diterima',
+                  if (serviceLines.isNotEmpty) 'service_lines': serviceLines,
                 });
               },
               child: const Text('Simpan'),
@@ -1113,6 +1198,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     setState(() => _serviceOrder = result);
     return true;
   }
+
+  String _quantityText(double value) => value == value.truncateToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '');
 
   Future<void> _payPendingInvoice(String method) async {
     final order = widget.pendingOrder;

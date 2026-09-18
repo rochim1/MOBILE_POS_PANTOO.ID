@@ -23,7 +23,7 @@ class PosState extends Equatable {
   final String? editingOrderId;
   final String? editingOrderNumber;
 
-  final Map<PosProduct, int> cart;
+  final Map<PosProduct, double> cart;
   final Map<String, double> manualUnitPrices;
   final List<HoldOrder> heldOrders;
 
@@ -101,7 +101,7 @@ class PosState extends Equatable {
     String? editingOrderId,
     String? editingOrderNumber,
     bool clearEditingOrder = false,
-    Map<PosProduct, int>? cart,
+    Map<PosProduct, double>? cart,
     Map<String, double>? manualUnitPrices,
     List<HoldOrder>? heldOrders,
     double? manualDiscountPercent,
@@ -185,7 +185,7 @@ class PosState extends Equatable {
   double get subTotal =>
       (pricingPreview?['subtotal'] as num?)?.toDouble() ?? baseSubtotal;
 
-  int get totalItems => cart.values.fold(0, (sum, qty) => sum + qty);
+  double get totalItems => cart.values.fold(0.0, (sum, qty) => sum + qty);
 
   double get manualDiscount => subTotal * (manualDiscountPercent / 100);
 

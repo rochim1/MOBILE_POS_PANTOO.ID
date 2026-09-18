@@ -5,7 +5,7 @@ import 'pos_store.dart';
 class HoldOrder {
   final String id;
   final DateTime time;
-  final Map<PosProduct, int> cart;
+  final Map<PosProduct, double> cart;
   final Map<String, double> manualUnitPrices;
   final PosCustomer? customer;
   final PosStore store;
@@ -47,7 +47,7 @@ class HoldOrder {
       cart: {
         for (final row in cartRows)
           PosProduct.fromJson(Map<String, dynamic>.from(row['product'] as Map)):
-              (row['quantity'] as num?)?.toInt() ?? 0,
+              (row['quantity'] as num?)?.toDouble() ?? 0,
       },
       manualUnitPrices: Map<String, double>.fromEntries(
         (json['manualUnitPrices'] as Map? ?? const {}).entries.map(

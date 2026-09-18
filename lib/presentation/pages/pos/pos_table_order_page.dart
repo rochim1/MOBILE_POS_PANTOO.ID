@@ -704,154 +704,166 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                order.orderNumber ?? 'Detail Pesanan',
-                style: Theme.of(sheetContext).textTheme.titleLarge,
-              ),
-              Text(
-                '${order.customerName ?? 'Pelanggan umum'} · ${order.tableName ?? 'Tanpa meja'}',
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Dipesan ${_orderDate(order.createdAt)} pukul ${_orderTime(order.createdAt)} · ${_duration(order.createdAt)}',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  order.orderNumber ?? 'Detail Pesanan',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
                 ),
-              ),
-              const Divider(height: 24),
-              if (order.note?.isNotEmpty == true)
-                _orderNote('Catatan umum', order.note!),
-              if (order.kitchenNote?.isNotEmpty == true)
-                _orderNote('Untuk dapur', order.kitchenNote!),
-              if (order.handoverNote?.isNotEmpty == true)
-                _orderNote('Penyerahan', order.handoverNote!),
-              if (order.internalNote?.isNotEmpty == true)
-                _orderNote('Internal kasir', order.internalNote!),
-              ...order.items.map(
-                (item) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(item.productName ?? '-'),
-                  leading: Text('${item.quantity ?? 0}×'),
-                  trailing: Text(
-                    _currency((item.price ?? 0) * (item.quantity ?? 0)),
+                Text(
+                  '${order.customerName ?? 'Pelanggan umum'} · ${order.tableName ?? 'Tanpa meja'}',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Dipesan ${_orderDate(order.createdAt)} pukul ${_orderTime(order.createdAt)} · ${_duration(order.createdAt)}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
                   ),
                 ),
-              ),
-              if (order.serviceOrder case final service?) ...[
                 const Divider(height: 24),
-                Text(
-                  'Proses layanan',
-                  style: Theme.of(sheetContext).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${service['service_mode'] ?? 'Layanan'} · ${service['weight_kg'] ?? 0} kg · ${service['item_count'] ?? 0} item',
-                ),
-                if ((service['bag_tag']?.toString() ?? '').isNotEmpty)
-                  Text('Tag: ${service['bag_tag']}'),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _serviceNext(service['status']?.toString())
-                      .map(
-                        (status) => OutlinedButton(
-                          onPressed: () async {
-                            Navigator.pop(sheetContext);
-                            await _updateServiceStatus(order, status);
-                          },
-                          child: Text(_serviceStatusLabel(status)),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-              if (order.status == 'Baru' && order.paymentStatus != 'lunas') ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    if (widget.onEditOrder case final openEditor?) {
-                      openEditor(order);
-                    } else {
-                      _editOrder(order);
-                    }
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Ubah Pesanan'),
-                ),
-              ],
-              if (_nextStatus(order.status) case final next?) ...[
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed:
-                      next == 'completed' && order.paymentStatus != 'lunas'
-                      ? () {
-                          Navigator.pop(sheetContext);
-                          _openPayment(order);
-                        }
-                      : () {
-                          Navigator.pop(sheetContext);
-                          context.read<PosOrderManagementBloc>().add(
-                            UpdateItemStatus(
-                              orderId: order.id ?? '',
-                              itemId: '',
-                              newStatus: next,
-                              tableId: order.tableId ?? '',
-                              storeId: widget.storeId,
-                              search: _searchController.text,
-                              statusFilter: _status,
-                            ),
-                          );
-                        },
-                  icon: Icon(
-                    next == 'completed' && order.paymentStatus != 'lunas'
-                        ? Icons.payments_outlined
-                        : Icons.arrow_forward,
-                  ),
-                  label: Text(
-                    next == 'completed' && order.paymentStatus != 'lunas'
-                        ? 'Bayar pesanan'
-                        : next == 'completed' && order.orderType == 'dine_in'
-                        ? 'Tutup pesanan & kosongkan meja'
-                        : _nextStatusLabel(next),
-                  ),
-                ),
-              ],
-              if (order.statusHistory.isNotEmpty) ...[
-                const Divider(height: 24),
-                Text(
-                  'Riwayat status',
-                  style: Theme.of(sheetContext).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                ...order.statusHistory.reversed.map(
-                  (entry) => ListTile(
-                    dense: true,
+                if (order.note?.isNotEmpty == true)
+                  _orderNote('Catatan umum', order.note!),
+                if (order.kitchenNote?.isNotEmpty == true)
+                  _orderNote('Untuk dapur', order.kitchenNote!),
+                if (order.handoverNote?.isNotEmpty == true)
+                  _orderNote('Penyerahan', order.handoverNote!),
+                if (order.internalNote?.isNotEmpty == true)
+                  _orderNote('Internal kasir', order.internalNote!),
+                ...order.items.map(
+                  (item) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.history, size: 18),
-                    title: Text(entry['status']?.toString() ?? '-'),
-                    subtitle: Text(
-                      [
-                            entry['actor_name']?.toString(),
-                            entry['note']?.toString(),
-                          ]
-                          .where((value) => value?.trim().isNotEmpty == true)
-                          .join(' · '),
-                    ),
+                    title: Text(item.productName ?? '-'),
+                    leading: Text('${item.quantity ?? 0}×'),
                     trailing: Text(
-                      _orderTime(entry['at']?.toString()),
-                      style: const TextStyle(fontSize: 11),
+                      _currency((item.price ?? 0) * (item.quantity ?? 0)),
                     ),
                   ),
                 ),
+                if (order.serviceOrder case final service?) ...[
+                  const Divider(height: 24),
+                  Text(
+                    'Proses layanan',
+                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${service['service_mode'] ?? 'Layanan'} · ${service['weight_kg'] ?? 0} kg · ${service['item_count'] ?? 0} item',
+                  ),
+                  if ((service['bag_tag']?.toString() ?? '').isNotEmpty)
+                    Text('Tag: ${service['bag_tag']}'),
+                  const SizedBox(height: 10),
+                  if ((service['service_lines'] as List?)?.isNotEmpty == true)
+                    ...(service['service_lines'] as List).whereType<Map>().map(
+                      (rawLine) => _serviceLineCard(
+                        sheetContext,
+                        order,
+                        Map<String, dynamic>.from(rawLine),
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _serviceNext(service['status']?.toString())
+                          .map(
+                            (status) => OutlinedButton(
+                              onPressed: () async {
+                                Navigator.pop(sheetContext);
+                                await _updateServiceStatus(order, status);
+                              },
+                              child: Text(_serviceStatusLabel(status)),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                ],
+                if (order.status == 'Baru' &&
+                    order.paymentStatus != 'lunas') ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      if (widget.onEditOrder case final openEditor?) {
+                        openEditor(order);
+                      } else {
+                        _editOrder(order);
+                      }
+                    },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Ubah Pesanan'),
+                  ),
+                ],
+                if (_nextStatus(order.status) case final next?) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed:
+                        next == 'completed' && order.paymentStatus != 'lunas'
+                        ? () {
+                            Navigator.pop(sheetContext);
+                            _openPayment(order);
+                          }
+                        : () {
+                            Navigator.pop(sheetContext);
+                            context.read<PosOrderManagementBloc>().add(
+                              UpdateItemStatus(
+                                orderId: order.id ?? '',
+                                itemId: '',
+                                newStatus: next,
+                                tableId: order.tableId ?? '',
+                                storeId: widget.storeId,
+                                search: _searchController.text,
+                                statusFilter: _status,
+                              ),
+                            );
+                          },
+                    icon: Icon(
+                      next == 'completed' && order.paymentStatus != 'lunas'
+                          ? Icons.payments_outlined
+                          : Icons.arrow_forward,
+                    ),
+                    label: Text(
+                      next == 'completed' && order.paymentStatus != 'lunas'
+                          ? 'Bayar pesanan'
+                          : next == 'completed' && order.orderType == 'dine_in'
+                          ? 'Tutup pesanan & kosongkan meja'
+                          : _nextStatusLabel(next),
+                    ),
+                  ),
+                ],
+                if (order.statusHistory.isNotEmpty) ...[
+                  const Divider(height: 24),
+                  Text(
+                    'Riwayat status',
+                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  ...order.statusHistory.reversed.map(
+                    (entry) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.history, size: 18),
+                      title: Text(entry['status']?.toString() ?? '-'),
+                      subtitle: Text(
+                        [
+                              entry['actor_name']?.toString(),
+                              entry['note']?.toString(),
+                            ]
+                            .where((value) => value?.trim().isNotEmpty == true)
+                            .join(' · '),
+                      ),
+                      trailing: Text(
+                        _orderTime(entry['at']?.toString()),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -904,6 +916,111 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       }[value] ??
       value;
 
+  List<String> _serviceLineNext(String? status) => switch (status) {
+    'diterima' => const ['inspeksi', 'antre_produksi', 'vendor', 'batal'],
+    'inspeksi' => const [
+      'menunggu_persetujuan',
+      'antre_produksi',
+      'vendor',
+      'batal',
+    ],
+    'menunggu_persetujuan' => const ['antre_produksi', 'batal'],
+    'antre_produksi' => const ['diproses', 'vendor', 'batal'],
+    'vendor' => const ['qc', 'antre_produksi', 'batal'],
+    'diproses' => const ['qc', 'batal'],
+    'qc' => const ['perlu_cuci_ulang', 'dikemas', 'batal'],
+    'perlu_cuci_ulang' => const ['antre_produksi', 'diproses', 'batal'],
+    'dikemas' => const ['siap_diambil'],
+    'siap_diambil' => const ['diserahkan'],
+    _ => const [],
+  };
+
+  String _serviceLineStatusLabel(String value) =>
+      const {
+        'inspeksi': 'Inspeksi',
+        'menunggu_persetujuan': 'Menunggu persetujuan',
+        'antre_produksi': 'Antre produksi',
+        'vendor': 'Ke vendor',
+        'diproses': 'Mulai proses',
+        'qc': 'Quality Control',
+        'perlu_cuci_ulang': 'Proses ulang',
+        'dikemas': 'Dikemas',
+        'siap_diambil': 'Siap diambil',
+        'diserahkan': 'Diserahkan',
+        'batal': 'Batalkan item',
+      }[value] ??
+      _serviceStatusLabel(value);
+
+  Widget _serviceLineCard(
+    BuildContext sheetContext,
+    PosOrderDetail order,
+    Map<String, dynamic> line,
+  ) {
+    final pricingBasis = line['pricing_basis']?.toString() ?? 'per_item';
+    final quantity = pricingBasis == 'per_kg'
+        ? (line['weight_kg'] as num?)?.toDouble() ?? 0
+        : (line['quantity'] as num?)?.toDouble() ?? 0;
+    final unit =
+        line['unit']?.toString() ?? (pricingBasis == 'per_kg' ? 'kg' : 'item');
+    final status = line['status']?.toString() ?? 'diterima';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.bgSecondary,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  line['name']?.toString() ?? 'Item layanan',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Text('${_quantityText(quantity)} $unit'),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Status: ${_serviceLineStatusLabel(status)} · ${_currency((line['subtotal'] as num?) ?? 0)}',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+          if ((line['tag_code']?.toString() ?? '').isNotEmpty)
+            Text('Tag: ${line['tag_code']}'),
+          if ((line['condition_notes']?.toString() ?? '').isNotEmpty)
+            Text('Kondisi: ${line['condition_notes']}'),
+          if (_serviceLineNext(status).isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _serviceLineNext(status)
+                  .map(
+                    (next) => OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(sheetContext);
+                        await _updateServiceLineStatus(order, line, next);
+                      },
+                      child: Text(_serviceLineStatusLabel(next)),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _updateServiceStatus(PosOrderDetail order, String status) async {
     final result = await sl<PosOrderRepository>().updateServiceOrderStatus(
       order.id ?? '',
@@ -922,9 +1039,32 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     });
   }
 
+  Future<void> _updateServiceLineStatus(
+    PosOrderDetail order,
+    Map<String, dynamic> line,
+    String status,
+  ) async {
+    final result = await sl<PosOrderRepository>().updateServiceLineStatus(
+      order.id ?? '',
+      line['line_id']?.toString() ?? '',
+      status,
+    );
+    if (!mounted) return;
+    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      AppToast.success(context, 'Status item layanan diperbarui');
+      context.read<PosOrderManagementBloc>().add(
+        LoadActiveOrders(
+          storeId: widget.storeId,
+          search: _searchController.text,
+          status: _status,
+        ),
+      );
+    });
+  }
+
   Future<void> _editOrder(PosOrderDetail order) async {
     final products = context.read<PosBloc>().state.products;
-    final quantities = <String, int>{
+    final quantities = <String, double>{
       for (final item in order.items)
         if ((item.productId ?? '').isNotEmpty)
           item.productId!: item.quantity ?? 0,
@@ -948,7 +1088,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     product.barcode.toLowerCase().contains(needle),
               )
               .toList();
-          final totalItems = quantities.values.fold<int>(0, (a, b) => a + b);
+          final totalItems = quantities.values.fold<double>(0, (a, b) => a + b);
           return FractionallySizedBox(
             heightFactor: .88,
             child: Column(
@@ -969,7 +1109,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                               ),
                             ),
                             Text(
-                              '${order.orderNumber ?? ''} · $totalItems item',
+                              '${order.orderNumber ?? ''} · ${_quantityText(totalItems)} item',
                               style: const TextStyle(
                                 color: AppColors.textSecondary,
                               ),
@@ -1007,7 +1147,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final product = filtered[index];
-                            final qty = quantities[product.id] ?? 0;
+                            final qty = quantities[product.id] ?? 0.0;
                             return ListTile(
                               title: Text(product.name),
                               subtitle: Text(
@@ -1021,10 +1161,11 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                     onPressed: qty <= 0
                                         ? null
                                         : () => setSheetState(() {
-                                            if (qty == 1) {
+                                            if (qty <= 1) {
                                               quantities.remove(product.id);
                                             } else {
-                                              quantities[product.id] = qty - 1;
+                                              quantities[product.id] =
+                                                  qty - 1.0;
                                             }
                                           }),
                                     icon: const Icon(
@@ -1034,7 +1175,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                   SizedBox(
                                     width: 28,
                                     child: Text(
-                                      '$qty',
+                                      _quantityText(qty),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
@@ -1044,7 +1185,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                   IconButton(
                                     tooltip: 'Tambah',
                                     onPressed: () => setSheetState(
-                                      () => quantities[product.id] = qty + 1,
+                                      () => quantities[product.id] = qty + 1.0,
                                     ),
                                     icon: const Icon(Icons.add_circle_outline),
                                   ),
@@ -1190,6 +1331,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     symbol: 'Rp ',
     decimalDigits: 0,
   ).format(value);
+
+  String _quantityText(double value) => value == value.truncateToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '');
 
   DateTime? _parseTimestamp(String? raw) {
     final value = raw?.trim() ?? '';

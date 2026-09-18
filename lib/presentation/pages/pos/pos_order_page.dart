@@ -1027,6 +1027,55 @@ class _PosOrderPageState extends State<PosOrderPage> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
+            ...order.items.map((item) {
+              final name =
+                  item['nama_inventaris']?.toString() ??
+                  item['nama']?.toString() ??
+                  '-';
+              final qty = item['qty']?.toString() ?? '0';
+              final unit = item['unit']?.toString() ?? 'unit';
+              final components = (item['component_consumptions'] as List? ?? const [])
+                  .whereType<Map>()
+                  .toList();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildReceiptItem(
+                      name,
+                      '$qty $unit',
+                      'Rp ${double.tryParse((item['subtotal'] ?? 0).toString())?.toStringAsFixed(0) ?? '0'}',
+                    ),
+                    if (components.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4, left: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Komposisi dikonsumsi',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                            ),
+                            ...components.map((component) => Text(
+                              '• ${component['nama_inventaris'] ?? '-'}: '
+                              '${component['qty_consumed_base'] ?? 0} '
+                              '${component['unit'] ?? 'unit'} · HPP Rp '
+                              '${double.tryParse((component['harga_pokok_total'] ?? 0).toString())?.toStringAsFixed(0) ?? '0'}',
+                              style: const TextStyle(fontSize: 12),
+                            )),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
             _buildReceiptItem('Metode pembayaran', '', order.paymentMethod),
             _buildReceiptItem('Kasir', '', order.cashierName),
             const SizedBox(height: 8),

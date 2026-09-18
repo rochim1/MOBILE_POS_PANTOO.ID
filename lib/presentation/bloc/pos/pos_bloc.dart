@@ -145,7 +145,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         products: state.products
             .where((item) => item.id != event.productId)
             .toList(),
-        cart: Map<PosProduct, int>.fromEntries(
+        cart: Map<PosProduct, double>.fromEntries(
           state.cart.entries.where((entry) => entry.key.id != event.productId),
         ),
       ),
@@ -305,12 +305,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onAddToCart(AddToCart event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
-    final current = newCart[event.product] ?? 0;
+    final current = newCart[event.product] ?? 0.0;
     final features = state.runtimeConfig['features'] as Map?;
     final trackStock = features?['track_stock'] != false;
     if (trackStock &&
         event.product.tracksStock &&
-        current + 1 > event.product.stock) {
+        current + 1.0 > event.product.stock) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
@@ -319,7 +319,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       );
       return;
     }
-    newCart[event.product] = current + 1;
+    newCart[event.product] = current + 1.0;
     emit(
       state.copyWith(
         cart: newCart,
@@ -333,12 +333,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   void _onRemoveFromCart(RemoveFromCart event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
     final prices = Map<String, double>.of(state.manualUnitPrices);
-    final currentQty = newCart[event.product] ?? 0;
+    final currentQty = newCart[event.product] ?? 0.0;
     if (currentQty <= 1) {
       newCart.remove(event.product);
       prices.remove(event.product.id);
     } else {
-      newCart[event.product] = currentQty - 1;
+      newCart[event.product] = currentQty - 1.0;
     }
     emit(
       state.copyWith(
@@ -391,7 +391,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   void _onUpdateQuantity(UpdateQuantity event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
     final prices = Map<String, double>.of(state.manualUnitPrices);
-    final currentQty = newCart[event.product] ?? 0;
+    final currentQty = newCart[event.product] ?? 0.0;
     final nextQty = currentQty + event.delta;
 
     final features = state.runtimeConfig['features'] as Map?;
@@ -450,7 +450,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final productsById = {
       for (final product in state.products) product.id: product,
     };
-    final cart = <PosProduct, int>{};
+    final cart = <PosProduct, double>{};
     for (final item in order.items) {
       final product =
           productsById[item.productId] ??
@@ -466,7 +466,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
                   tracksStock: false,
                   baseUnit: item.unit ?? 'unit',
                 ));
-      final quantity = item.quantity ?? 0;
+      final quantity = item.quantity ?? 0.0;
       if (product != null && quantity > 0) cart[product] = quantity;
     }
     final matchingCustomers = state.customers.where(

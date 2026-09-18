@@ -5,7 +5,7 @@ class PosOrderItem extends Equatable {
   final String? productId;
   final String? productName;
   final String? productCode;
-  final int? quantity;
+  final double? quantity;
   final double? price;
   final String? notes;
   final String? unit;
@@ -32,8 +32,8 @@ class PosOrderItem extends Equatable {
       productName: _text(json['nama'] ?? json['product_name']),
       productCode: _text(json['kode']),
       quantity: rawQuantity is num
-          ? rawQuantity.toInt()
-          : int.tryParse(_text(rawQuantity) ?? ''),
+          ? rawQuantity.toDouble()
+          : double.tryParse(_text(rawQuantity) ?? ''),
       price: rawPrice is num
           ? rawPrice.toDouble()
           : double.tryParse(_text(rawPrice) ?? ''),

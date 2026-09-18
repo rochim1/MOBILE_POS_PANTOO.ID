@@ -552,7 +552,11 @@ class _PosPageViewState extends State<PosPageView> {
                         shape: BoxShape.circle,
                       ),
                       child: Text(
-                        '${state.totalItems}',
+                        state.totalItems == state.totalItems.truncateToDouble()
+                            ? state.totalItems.toStringAsFixed(0)
+                            : state.totalItems
+                                  .toStringAsFixed(3)
+                                  .replaceFirst(RegExp(r'0+$'), ''),
                         style: const TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.bold,

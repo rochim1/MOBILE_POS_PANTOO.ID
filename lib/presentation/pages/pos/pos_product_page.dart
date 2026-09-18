@@ -1256,13 +1256,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   int _formTab = 0;
   String? _categoryId;
   String _productType = 'product';
+  bool _useStockComposition = false;
   bool _loadingCategories = true;
   bool _categoryLoadFailed = false;
   bool _savingCategory = false;
   bool _generatingIdentifiers = false;
 
-  bool get _tracksStock => _productType == 'product';
-  bool get _usesUnits => const {'product', 'package'}.contains(_productType);
+  bool get _tracksStock => _productType == 'product' && !_useStockComposition;
+  bool get _usesUnits =>
+      const {'product', 'package', 'service'}.contains(_productType);
 
   @override
   void initState() {
@@ -1321,6 +1323,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         );
       }
     }
+    _useStockComposition =
+        _productType == 'package' || _componentQty.isNotEmpty;
     for (final conversion in product?.unitConversions ?? const []) {
       final unit = conversion['unit']?.toString() ?? '';
       final factor =
@@ -1464,6 +1468,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
 
   Future<void> _choosePackageComponents() async {
     final selected = Set<String>.from(_componentQty.keys);
+    var query = '';
     final result = await showDialog<Set<String>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -1471,15 +1476,38 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           title: const Text('Pilih komponen paket'),
           content: SizedBox(
             width: 520,
-            height: 420,
-            child: _packageCandidates.isEmpty
-                ? const Center(
-                    child: Text('Belum ada produk fisik yang dapat dipilih.'),
-                  )
-                : ListView.builder(
-                    itemCount: _packageCandidates.length,
+            height: 460,
+            child: Column(
+              children: [
+                TextField(
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Cari bahan atau komponen',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => setDialogState(
+                    () => query = value.trim().toLowerCase(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Builder(builder: (_) {
+                    final candidates = _packageCandidates.where((product) {
+                      if (query.isEmpty) return true;
+                      return '${product.name} ${product.code} ${product.sku} ${product.barcode}'
+                          .toLowerCase()
+                          .contains(query);
+                    }).toList();
+                    if (candidates.isEmpty) {
+                      return const Center(
+                        child: Text('Komponen stok tidak ditemukan.'),
+                      );
+                    }
+                    return ListView.builder(
+                    itemCount: candidates.length,
                     itemBuilder: (_, index) {
-                      final product = _packageCandidates[index];
+                      final product = candidates[index];
                       return CheckboxListTile(
                         value: selected.contains(product.id),
                         title: Text(product.name),
@@ -1493,7 +1521,11 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                         }),
                       );
                     },
-                  ),
+                  );
+                  }),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1525,6 +1557,25 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       if (item.id == id) return item;
     }
     return null;
+  }
+
+  double get _compositionCost => _componentQty.entries.fold(0, (sum, entry) {
+    final product = _candidateById(entry.key);
+    final quantity = double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0;
+    return sum + (product?.purchasePrice ?? 0) * quantity;
+  });
+
+  int? get _compositionCapacity {
+    if (_componentQty.isEmpty) return null;
+    int? result;
+    for (final entry in _componentQty.entries) {
+      final product = _candidateById(entry.key);
+      final quantity = double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0;
+      if (product == null || quantity <= 0) continue;
+      final capacity = (product.stock / quantity).floor();
+      result = result == null ? capacity : (capacity < result ? capacity : result);
+    }
+    return result;
   }
 
   Future<void> _pickImage() async {
@@ -1601,13 +1652,13 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           },
         )
         .toList();
-    if (_productType == 'package' &&
+    if ((_productType == 'package' || _useStockComposition) &&
         (components.isEmpty ||
             components.any((row) => (row['qty_base'] as double) <= 0))) {
       setState(() => _formTab = 1);
       AppToast.error(
         context,
-        'Paket wajib memiliki komponen dengan jumlah yang valid',
+        'Komposisi stok wajib memiliki komponen dengan jumlah yang valid',
       );
       return;
     }
@@ -1671,7 +1722,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       'sellable_in_pos': true,
       'tracks_stock': _tracksStock,
       'merchandise_category_id': _categoryId,
-      'pos_package_components': _productType == 'package'
+      'pos_package_components':
+          (_productType == 'package' || _useStockComposition)
           ? components
           : const [],
       'base_unit': _usesUnits ? unit : 'unit',
@@ -1878,19 +1930,27 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               value: 'package',
               child: Text('Paket / bundel (stok komponen)'),
             ),
-            if (widget.product?.productType == 'service')
-              const DropdownMenuItem(
-                value: 'service',
-                child: Text('Jasa lama (tanpa stok)'),
-              ),
+            const DropdownMenuItem(
+              value: 'service',
+              child: Text('Layanan / jasa (tanpa stok)'),
+            ),
             if (widget.product?.productType == 'deposit')
               const DropdownMenuItem(
                 value: 'deposit',
                 child: Text('Deposit lama (tanpa stok)'),
               ),
           ],
-          onChanged: (value) =>
-              setState(() => _productType = value ?? 'product'),
+          onChanged: (value) => setState(() {
+            _productType = value ?? 'product';
+            if (_productType == 'package') _useStockComposition = true;
+            if (_productType == 'deposit') {
+              _useStockComposition = false;
+              for (final controller in _componentQty.values) {
+                controller.dispose();
+              }
+              _componentQty.clear();
+            }
+          }),
         ),
       ),
       Row(
@@ -1947,7 +2007,20 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ),
         ],
       ),
-      if (_productType == 'package')
+      if (_productType != 'deposit')
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Gunakan komposisi stok / resep (BOM)'),
+          subtitle: const Text(
+            'Untuk menu olahan atau layanan yang memakai bahan/suku cadang. '
+            'Master bahan baku, habis pakai, dan MRO dikelola melalui Inventory Web.',
+          ),
+          value: _productType == 'package' || _useStockComposition,
+          onChanged: _productType == 'package'
+              ? null
+              : (value) => setState(() => _useStockComposition = value),
+        ),
+      if (_productType == 'package' || _useStockComposition)
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1956,7 +2029,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               icon: const Icon(Icons.inventory_2_outlined),
               label: Text(
                 _componentQty.isEmpty
-                    ? 'Pilih komponen paket *'
+                    ? 'Pilih komponen stok *'
                     : '${_componentQty.length} komponen dipilih',
               ),
             ),
@@ -1967,6 +2040,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: TextField(
                   controller: entry.value,
+                  onChanged: (_) => setState(() {}),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
@@ -1978,6 +2052,27 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 ),
               );
             }),
+            if (_componentQty.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calculate_outlined),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'HPP komposisi Rp ${formatRupiahInput(_compositionCost)}'
+                        '${_compositionCapacity == null ? '' : ' • estimasi kapasitas ${_compositionCapacity!} ${_baseUnit.text.isEmpty ? 'unit' : _baseUnit.text}'}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       if (_usesUnits)
@@ -2208,7 +2303,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       Builder(
         builder: (_) {
           final selling = parseRupiah(_price.text);
-          final cost = parseRupiah(_purchasePrice.text);
+          final cost = (_productType == 'package' || _useStockComposition)
+              ? _compositionCost
+              : parseRupiah(_purchasePrice.text);
           final margin = selling <= 0 ? 0 : ((selling - cost) / selling) * 100;
           return Container(
             padding: const EdgeInsets.all(14),

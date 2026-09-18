@@ -564,7 +564,18 @@ class PosQueries {
             qty
             unit
             harga_jual
+            harga_pokok
             subtotal
+            component_consumptions {
+              inventaris_id
+              kode_inventaris
+              nama_inventaris
+              unit
+              qty_per_parent_base
+              qty_consumed_base
+              harga_pokok_unit
+              harga_pokok_total
+            }
           }
           createdAt
         }

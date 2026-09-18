@@ -48,7 +48,7 @@ class PosCartPanel extends StatelessWidget {
   Widget _buildCartItem(
     BuildContext context,
     PosProduct product,
-    int quantity,
+    double quantity,
     double unitPrice, {
     required bool allowPriceEdit,
   }) {
@@ -106,15 +106,22 @@ class PosCartPanel extends StatelessWidget {
                       color: Colors.black87,
                     ),
                     onPressed: () => context.read<PosBloc>().add(
-                      UpdateQuantity(product, -1),
+                      UpdateQuantity(product, -1.0),
                     ),
                   ),
-                  Container(
-                    width: 32,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$quantity',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                  Tooltip(
+                    message: 'Ubah jumlah',
+                    child: InkWell(
+                      onTap: () => _editQuantity(context, product, quantity),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: 40,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _quantityText(quantity),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
                   ),
                   IconButton(
@@ -125,8 +132,9 @@ class PosCartPanel extends StatelessWidget {
                       size: 18,
                       color: Colors.black87,
                     ),
-                    onPressed: () =>
-                        context.read<PosBloc>().add(UpdateQuantity(product, 1)),
+                    onPressed: () => context.read<PosBloc>().add(
+                      UpdateQuantity(product, 1.0),
+                    ),
                   ),
                 ],
               ),
@@ -187,6 +195,69 @@ class PosCartPanel extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  String _quantityText(double value) => value == value.truncateToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '');
+
+  Future<void> _editQuantity(
+    BuildContext context,
+    PosProduct product,
+    double currentQuantity,
+  ) async {
+    final controller = TextEditingController(
+      text: _quantityText(currentQuantity),
+    );
+    final quantity = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Jumlah ${product.name}'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,3}')),
+          ],
+          decoration: InputDecoration(
+            labelText: 'Jumlah (${product.baseUnit})',
+            helperText: 'Bisa memakai pecahan, contoh 3,5 kg',
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (_) {
+            final value = double.tryParse(
+              controller.text.trim().replaceAll(',', '.'),
+            );
+            if (value != null && value > 0) {
+              Navigator.pop(dialogContext, value);
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = double.tryParse(
+                controller.text.trim().replaceAll(',', '.'),
+              );
+              if (value != null && value > 0) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('Terapkan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (quantity == null || !context.mounted) return;
+    context.read<PosBloc>().add(
+      UpdateQuantity(product, quantity - currentQuantity),
     );
   }
 

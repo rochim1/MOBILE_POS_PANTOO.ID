@@ -595,11 +595,15 @@ class PosRepository {
               categoryId: e['merchandise_category_id']?.toString() ?? '',
               productType: e['pos_product_type']?.toString() ?? 'product',
               promoEligible: e['promo_eligible'] == true,
-              // Paket divalidasi terhadap stok komponennya oleh server; qty
-              // katalog bukan stok paket yang dapat dibandingkan langsung.
               tracksStock:
-                  e['tracks_stock'] != false &&
-                  e['pos_product_type']?.toString() != 'package',
+                  (e['pos_package_components'] as List? ?? const [])
+                      .isNotEmpty ||
+                  (e['tracks_stock'] != false &&
+                      !const {
+                        'service',
+                        'deposit',
+                        'package',
+                      }.contains(e['pos_product_type']?.toString())),
               description: e['deskripsi']?.toString() ?? '',
               brand: e['brand']?.toString() ?? '',
               purchasePrice:
@@ -702,8 +706,14 @@ class PosRepository {
               productType: row['pos_product_type']?.toString() ?? 'product',
               promoEligible: row['promo_eligible'] == true,
               tracksStock:
-                  row['tracks_stock'] != false &&
-                  row['pos_product_type']?.toString() != 'package',
+                  (row['pos_package_components'] as List? ?? const [])
+                      .isNotEmpty ||
+                  (row['tracks_stock'] != false &&
+                      !const {
+                        'service',
+                        'deposit',
+                        'package',
+                      }.contains(row['pos_product_type']?.toString())),
               description: row['deskripsi']?.toString() ?? '',
               brand: row['brand']?.toString() ?? '',
               purchasePrice:
@@ -1445,7 +1455,7 @@ class PosRepository {
   }
 
   Future<Either<Failure, PosTransactionResult>> submitTransaction({
-    required Map<PosProduct, int> cart,
+    required Map<PosProduct, double> cart,
     Map<String, double> unitPrices = const {},
     required double total,
     required String paymentMethod,
@@ -1740,7 +1750,7 @@ class PosRepository {
   }
 
   Future<Either<Failure, Map<String, dynamic>>> createUnpaidInvoice({
-    required Map<PosProduct, int> cart,
+    required Map<PosProduct, double> cart,
     required String tokoId,
     required String shiftId,
     required String orderType,
@@ -1811,7 +1821,7 @@ class PosRepository {
   }
 
   Future<Either<Failure, Map<String, dynamic>>> previewPricing({
-    required Map<PosProduct, int> cart,
+    required Map<PosProduct, double> cart,
     Map<String, double> unitPrices = const {},
     required String tokoId,
     required String promoCode,

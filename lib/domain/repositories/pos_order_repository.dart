@@ -157,4 +157,35 @@ class PosOrderRepository {
       return Left(AppErrorHandler.handle(error));
     }
   }
+
+  Future<Either<Failure, bool>> updateServiceLineStatus(
+    String orderId,
+    String lineId,
+    String status, {
+    String note = '',
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.updateServiceLineStatus),
+          variables: {
+            'orderId': orderId,
+            'lineId': lineId,
+            'status': status,
+            'note': note,
+          },
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['UpdatePOSServiceLineStatus'] is Map
+          ? const Right(true)
+          : const Left(
+              ServerFailure('Status item layanan tidak dapat diproses'),
+            );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
 }

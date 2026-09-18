@@ -31,6 +31,12 @@ void main() {
     expect(state.grandTotal, 18000);
   });
 
+  test('weighted products preserve decimal quantity and totals', () {
+    final state = PosState(cart: {product: 3.5});
+    expect(state.totalItems, 3.5);
+    expect(state.baseSubtotal, 35000);
+  });
+
   test('manual cashier price overrides catalog and preview price', () {
     final state = PosState(
       cart: {product: 2},

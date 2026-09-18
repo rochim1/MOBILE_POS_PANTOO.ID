@@ -265,11 +265,12 @@ class PosProductManagementRepository {
           document: gql(PosQueries.getAllInventarisUmum),
           variables: {
             'filter': {
-              'kategori': 'barang_dagangan',
               'status': 'active',
               if (search.trim().isNotEmpty) 'search': search.trim(),
             },
-            'pagination': const {'page': 0, 'limit': 200},
+            // Backend membatasi maksimal 1000. Pencarian tetap diteruskan ke
+            // server sehingga tenant besar tidak bergantung pada 200 item awal.
+            'pagination': const {'page': 0, 'limit': 1000},
           },
           fetchPolicy: FetchPolicy.networkOnly,
         ),
@@ -279,9 +280,16 @@ class PosProductManagementRepository {
       }
       final rows =
           result.data?['GetAllInventarisUmum']?['items'] as List? ?? const [];
+      const allowedCategories = {
+        'barang_dagangan',
+        'bahan_baku',
+        'habis_pakai',
+        'mro',
+      };
       return Right(
         rows
             .whereType<Map>()
+            .where((row) => allowedCategories.contains(row['kategori']))
             .map(
               (row) => PosProduct.fromJson({
                 ...Map<String, dynamic>.from(row),
