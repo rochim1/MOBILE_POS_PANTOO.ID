@@ -206,38 +206,48 @@ class PosCategoryDropdown<T> extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => DropdownButtonFormField<T>(
-    initialValue: selected,
-    isExpanded: true,
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: const Icon(Icons.list_alt_outlined),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-    items: items
-        .map(
-          (item) => DropdownMenuItem<T>(
-            value: item.value,
-            child: Row(
-              children: [
-                Icon(item.icon, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return DropdownButtonFormField<T>(
+      initialValue: selected,
+      isExpanded: true,
+      isDense: compact,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(Icons.list_alt_outlined, size: compact ? 18 : 24),
+        prefixIconConstraints: compact
+            ? const BoxConstraints(minWidth: 38, minHeight: 40)
+            : null,
+        contentPadding: compact
+            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 10)
+            : null,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      items: items
+          .map(
+            (item) => DropdownMenuItem<T>(
+              value: item.value,
+              child: Row(
+                children: [
+                  Icon(item.icon, size: compact ? 17 : 18),
+                  SizedBox(width: compact ? 8 : 10),
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        )
-        .toList(),
-    onChanged: (value) {
-      if (value != null) onSelected(value);
-    },
-  );
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value != null) onSelected(value);
+      },
+    );
+  }
 }

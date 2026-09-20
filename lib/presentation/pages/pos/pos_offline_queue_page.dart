@@ -88,13 +88,14 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
     return Material(
       color: AppColors.bgPrimary,
       child: Column(
         children: [
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(compact ? 12 : 16),
             child: Column(
               children: [
                 _queueHealthCard(),
@@ -112,7 +113,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: compact ? 8 : 12),
                 Row(
                   children: [
                     Expanded(
@@ -122,7 +123,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                         label: const Text('Coba ulang yang ditolak'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: compact ? 8 : 12),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _loading ? null : _sync,
@@ -156,7 +157,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(compact ? 12 : 16),
                       itemCount: _transactions.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (_, index) =>
@@ -382,7 +383,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
         maxChildSize: 0.95,
         builder: (_, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(14),
           children: [
             Text(
               'Detail transaksi #${transaction['id']}',

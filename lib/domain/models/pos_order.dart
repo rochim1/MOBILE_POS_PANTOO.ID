@@ -3,6 +3,7 @@ class PosOrder {
   final String invoice;
   final String date;
   final String customer;
+  final String? customerId;
   final String cashierName;
   final String paymentMethod;
   final String orderType;
@@ -24,6 +25,7 @@ class PosOrder {
     required this.invoice,
     required this.date,
     required this.customer,
+    this.customerId,
     required this.cashierName,
     required this.paymentMethod,
     this.orderType = '',
@@ -65,6 +67,7 @@ class PosOrder {
       customer: (json['pelanggan']?.toString().trim().isNotEmpty ?? false)
           ? json['pelanggan'].toString()
           : 'Retail',
+      customerId: json['pelanggan_id']?.toString(),
       cashierName: json['kasir_name'] ?? 'Kasir',
       paymentMethod: json['metode_pembayaran']?.toString() ?? '-',
       orderType: json['tipe_pesanan']?.toString() ?? '',
@@ -94,6 +97,7 @@ class PosOrder {
       customer: (json['pelanggan_nama']?.toString().trim().isNotEmpty ?? false)
           ? json['pelanggan_nama'].toString()
           : 'Retail',
+      customerId: json['pelanggan_id']?.toString(),
       cashierName: json['kasir_name']?.toString() ?? 'Kasir',
       paymentMethod: json['metode_pembayaran']?.toString() ?? '-',
       orderType: json['tipe_pesanan']?.toString() ?? '',

@@ -184,11 +184,11 @@ class _ReceivingListState extends State<_ReceivingList> {
         maxChildSize: .92,
         builder: (_, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           children: [
             Text(
               receipt['no_grn']?.toString() ?? 'Penerimaan',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             Text(
               '${receipt['no_po'] ?? '-'} · ${receipt['supplier_name'] ?? '-'}',
@@ -255,194 +255,211 @@ class _ReceivingListState extends State<_ReceivingList> {
   }
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: () => _load(page: 1),
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _search,
-                onChanged: _searchChanged,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  labelText: 'Cari GRN, PO, atau supplier',
-                  border: OutlineInputBorder(),
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return RefreshIndicator(
+      onRefresh: () => _load(page: 1),
+      child: ListView(
+        padding: EdgeInsets.all(compact ? 12 : 16),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: compact ? 40 : 48,
+                  child: TextField(
+                    controller: _search,
+                    onChanged: _searchChanged,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      labelText: 'Cari GRN, PO, atau supplier',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            DropdownButton<String>(
-              value: _status,
-              items: const [
-                DropdownMenuItem(value: '', child: Text('Semua')),
-                DropdownMenuItem(value: 'completed', child: Text('Selesai')),
-                DropdownMenuItem(value: 'cancelled', child: Text('Dibatalkan')),
-              ],
-              onChanged: (value) {
-                setState(() => _status = value ?? '');
-                _load(page: 1);
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (_loading)
-          const LinearProgressIndicator()
-        else ...[
-          if (_receivablePurchases.isNotEmpty) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                height: compact ? 40 : 48,
+                child: DropdownButton<String>(
+                  value: _status,
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Semua')),
+                    DropdownMenuItem(
+                      value: 'completed',
+                      child: Text('Selesai'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'cancelled',
+                      child: Text('Dibatalkan'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _status = value ?? '');
+                    _load(page: 1);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_loading)
+            const LinearProgressIndicator()
+          else ...[
+            if (_receivablePurchases.isNotEmpty) ...[
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Menunggu penerimaan',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._receivablePurchases.map((purchase) {
+                final rows = (purchase['items'] as List? ?? const [])
+                    .whereType<Map>();
+                final remainingLines = rows
+                    .where(
+                      (row) =>
+                          PosPurchaseProgress.remainingInOrderedUnit(row) >
+                          .000001,
+                    )
+                    .length;
+                final progress = PosPurchaseProgress.completionRatio(purchase);
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                purchase['no_po']?.toString() ??
+                                    'Purchase Order',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text('${(progress * 100).round()}% diterima'),
+                          ],
+                        ),
+                        Text(
+                          '${purchase['supplier_name'] ?? '-'} · $remainingLines jenis barang masih tersisa',
+                          style: const TextStyle(color: Colors.black54),
+                        ),
+                        const SizedBox(height: 10),
+                        LinearProgressIndicator(value: progress),
+                        const SizedBox(height: 10),
+                        ...rows
+                            .where(
+                              (row) =>
+                                  PosPurchaseProgress.remainingInOrderedUnit(
+                                    row,
+                                  ) >
+                                  .000001,
+                            )
+                            .map(
+                              (row) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        row['nama_inventaris']?.toString() ??
+                                            '-',
+                                      ),
+                                    ),
+                                    Text(
+                                      'Sisa ${_number(PosPurchaseProgress.remainingInOrderedUnit(row))} ${row['unit'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.icon(
+                            onPressed: () => _receive(purchase),
+                            style: InventoryActionStyle.primary(),
+                            icon: const Icon(
+                              Icons.inventory_2_outlined,
+                              size: 18,
+                            ),
+                            label: Text(
+                              progress > 0 ? 'Terima Sisa' : 'Terima Barang',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 18),
+            ],
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Menunggu penerimaan',
+                'Riwayat penerimaan',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 8),
-            ..._receivablePurchases.map((purchase) {
-              final rows = (purchase['items'] as List? ?? const [])
-                  .whereType<Map>();
-              final remainingLines = rows
-                  .where(
-                    (row) =>
-                        PosPurchaseProgress.remainingInOrderedUnit(row) >
-                        .000001,
-                  )
-                  .length;
-              final progress = PosPurchaseProgress.completionRatio(purchase);
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              purchase['no_po']?.toString() ?? 'Purchase Order',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Text('${(progress * 100).round()}% diterima'),
-                        ],
-                      ),
-                      Text(
-                        '${purchase['supplier_name'] ?? '-'} · $remainingLines jenis barang masih tersisa',
-                        style: const TextStyle(color: Colors.black54),
-                      ),
-                      const SizedBox(height: 10),
-                      LinearProgressIndicator(value: progress),
-                      const SizedBox(height: 10),
-                      ...rows
-                          .where(
-                            (row) =>
-                                PosPurchaseProgress.remainingInOrderedUnit(
-                                  row,
-                                ) >
-                                .000001,
-                          )
-                          .map(
-                            (row) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      row['nama_inventaris']?.toString() ?? '-',
-                                    ),
-                                  ),
-                                  Text(
-                                    'Sisa ${_number(PosPurchaseProgress.remainingInOrderedUnit(row))} ${row['unit'] ?? ''}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          onPressed: () => _receive(purchase),
-                          style: InventoryActionStyle.primary(),
-                          icon: const Icon(
-                            Icons.inventory_2_outlined,
-                            size: 18,
-                          ),
-                          label: Text(
-                            progress > 0 ? 'Terima Sisa' : 'Terima Barang',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 18),
           ],
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Riwayat penerimaan',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (!_loading && _items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 36),
-            child: Center(child: Text('Belum ada penerimaan barang')),
-          )
-        else if (!_loading)
-          ..._items.map(
-            (receipt) => Card(
-              child: ListTile(
-                onTap: () => _detail(receipt),
-                leading: const CircleAvatar(
-                  child: Icon(Icons.inventory_outlined),
-                ),
-                title: Text(receipt['no_grn']?.toString() ?? 'Penerimaan'),
-                subtitle: Text(
-                  '${receipt['no_po'] ?? '-'} · ${receipt['supplier_name'] ?? '-'}\n${_date(receipt['tanggal_terima'])}',
-                ),
-                isThreeLine: true,
-                trailing: Chip(
-                  label: Text(
-                    receipt['status']?.toString() == 'cancelled'
-                        ? 'Dibatalkan'
-                        : 'Selesai',
+          if (!_loading && _items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 36),
+              child: Center(child: Text('Belum ada penerimaan barang')),
+            )
+          else if (!_loading)
+            ..._items.map(
+              (receipt) => Card(
+                child: ListTile(
+                  onTap: () => _detail(receipt),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.inventory_outlined),
+                  ),
+                  title: Text(receipt['no_grn']?.toString() ?? 'Penerimaan'),
+                  subtitle: Text(
+                    '${receipt['no_po'] ?? '-'} · ${receipt['supplier_name'] ?? '-'}\n${_date(receipt['tanggal_terima'])}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Chip(
+                    label: Text(
+                      receipt['status']?.toString() == 'cancelled'
+                          ? 'Dibatalkan'
+                          : 'Selesai',
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        if (_total > 20)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                onPressed: _page > 1 ? () => _load(page: _page - 1) : null,
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Text('Halaman $_page'),
-              IconButton(
-                onPressed: _page * 20 < _total
-                    ? () => _load(page: _page + 1)
-                    : null,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-      ],
-    ),
-  );
+          if (_total > 20)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _page > 1 ? () => _load(page: _page - 1) : null,
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                Text('Halaman $_page'),
+                IconButton(
+                  onPressed: _page * 20 < _total
+                      ? () => _load(page: _page + 1)
+                      : null,
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }

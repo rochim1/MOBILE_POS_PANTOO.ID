@@ -1,12 +1,12 @@
 {
-    "name": "mobile_pos_pantoo",
-    "short_name": "mobile_pos_pantoo",
+    "name": "Pantoo POS",
+    "short_name": "Pantoo POS",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#007C73",
+    "theme_color": "#007C73",
+    "description": "Pantoo POS — aplikasi kasir dan operasional penjualan.",
+    "orientation": "landscape-primary",
     "prefer_related_applications": false,
     "icons": [
         {

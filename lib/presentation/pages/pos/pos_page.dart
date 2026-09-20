@@ -224,6 +224,13 @@ class _PosPageViewState extends State<PosPageView> {
                       return const ShiftManagementPanel();
                     }
 
+                    final cartQuantityLabel =
+                        state.totalItems == state.totalItems.truncateToDouble()
+                        ? state.totalItems.toStringAsFixed(0)
+                        : state.totalItems
+                              .toStringAsFixed(3)
+                              .replaceFirst(RegExp(r'0+$'), '');
+
                     return Column(
                       children: [
                         Expanded(
@@ -232,15 +239,17 @@ class _PosPageViewState extends State<PosPageView> {
                                   length: 2,
                                   child: Column(
                                     children: [
-                                      const PosFullWidthTabBar(
+                                      PosFullWidthTabBar(
                                         tabs: [
-                                          PosFullWidthTab(
+                                          const PosFullWidthTab(
                                             icon: Icons.storefront_outlined,
                                             label: 'Katalog Produk',
                                           ),
                                           PosFullWidthTab(
                                             icon: Icons.shopping_cart_outlined,
-                                            label: 'Keranjang',
+                                            label: state.cart.isEmpty
+                                                ? 'Keranjang'
+                                                : 'Keranjang ($cartQuantityLabel)',
                                           ),
                                         ],
                                       ),
@@ -397,6 +406,8 @@ class _PosPageViewState extends State<PosPageView> {
                             ? null
                             : () => _confirmClearCart(context),
                         style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: Colors.grey.shade300),
                           shape: RoundedRectangleBorder(
@@ -419,6 +430,8 @@ class _PosPageViewState extends State<PosPageView> {
                             ? null
                             : () => _showDiscountDialog(context, state),
                         style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: Colors.grey.shade300),
                           shape: RoundedRectangleBorder(
@@ -439,6 +452,8 @@ class _PosPageViewState extends State<PosPageView> {
                       child: OutlinedButton(
                         onPressed: () => _showSalesContext(context),
                         style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: Colors.grey.shade300),
                           shape: RoundedRectangleBorder(
@@ -468,6 +483,8 @@ class _PosPageViewState extends State<PosPageView> {
                               ? null
                               : () => _holdOrder(context),
                           style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             padding: const EdgeInsets.symmetric(
                               vertical: 12,
                               horizontal: 4,
@@ -629,7 +646,7 @@ class _PosPageViewState extends State<PosPageView> {
         child: FractionallySizedBox(
           heightFactor: isMobile ? 0.82 : 0.68,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
             child: PosInfoPanel(isMobile: isMobile),
           ),
         ),

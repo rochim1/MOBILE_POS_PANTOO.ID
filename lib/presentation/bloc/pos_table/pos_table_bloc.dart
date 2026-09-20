@@ -50,6 +50,9 @@ class PosTableBloc extends Bloc<PosTableEvent, PosTableState> {
       storeId: _storeId,
       name: event.name,
       capacity: event.capacity,
+      area: event.area,
+      floor: event.floor,
+      locationNote: event.locationNote,
     );
 
     await result.fold(
@@ -91,6 +94,9 @@ class PosTableBloc extends Bloc<PosTableEvent, PosTableState> {
       id: event.id,
       name: event.name,
       capacity: event.capacity,
+      area: event.area,
+      floor: event.floor,
+      locationNote: event.locationNote,
       status: event.status,
     );
 

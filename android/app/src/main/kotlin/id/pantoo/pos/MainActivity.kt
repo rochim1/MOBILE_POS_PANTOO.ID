@@ -1,4 +1,4 @@
-package com.example.mobile_pos_pantoo
+package id.pantoo.pos
 
 import io.flutter.embedding.android.FlutterActivity
 

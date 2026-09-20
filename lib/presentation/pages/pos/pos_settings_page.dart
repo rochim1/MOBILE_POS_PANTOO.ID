@@ -66,6 +66,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
 
   String _businessProfile = 'retail';
   Map<String, bool> _enabledFeatures = const {};
+  String _savedBusinessProfile = 'retail';
+  bool _savedTrackStock = true;
+  Map<String, dynamic>? _pendingSettingsInput;
   String _pembulatanHarga = 'none';
   String _metodePembayaran = 'tunai';
   String _channel = 'retail';
@@ -472,6 +475,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       for (final key in _featureLabels.keys)
         key: s.enabledFeatures[key] ?? (key == 'track_stock'),
     };
+    _savedBusinessProfile = _businessProfile;
+    _savedTrackStock = _enabledFeatures['track_stock'] ?? true;
     _pembulatanHarga = s.pembulatanHarga ?? 'none';
     _metodePembayaran = s.defaultMetodePembayaran == 'kartu_debit'
         ? 'debit'
@@ -560,7 +565,102 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       'pos_auto_lock_minutes': lockMinutes,
     };
 
+    _pendingSettingsInput = Map<String, dynamic>.from(input);
     context.read<PosSettingsBloc>().add(UpdateSettings(input: input));
+  }
+
+  Future<void> _confirmForcedProfileChange(String message) async {
+    final pending = _pendingSettingsInput;
+    if (pending == null) return;
+    final profileChanged = _businessProfile != _savedBusinessProfile;
+    final trackStockChanged =
+        (_enabledFeatures['track_stock'] ?? true) != _savedTrackStock;
+    if (!profileChanged || trackStockChanged) {
+      AppToast.error(context, message);
+      return;
+    }
+    final reason = TextEditingController();
+    var acknowledged = false;
+    String validation = '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Profil masih digunakan operasional'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Pesanan lama tetap memakai snapshot-nya. Profil baru berlaku untuk transaksi berikutnya. Periksa kembali fitur meja, layanan, pelanggan, dan tipe pemenuhan.',
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reason,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Alasan perubahan paksa',
+                      hintText: 'Minimal 10 karakter',
+                    ),
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: acknowledged,
+                    onChanged: (value) =>
+                        setDialogState(() => acknowledged = value == true),
+                    title: const Text(
+                      'Saya memahami operasional aktif tidak ikut diubah.',
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  if (validation.isNotEmpty)
+                    Text(
+                      validation,
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (reason.text.trim().length < 10 || !acknowledged) {
+                  setDialogState(
+                    () => validation =
+                        'Isi alasan minimal 10 karakter dan centang pernyataan pemahaman.',
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Paksa lanjutkan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final reasonText = reason.text.trim();
+    reason.dispose();
+    if (confirmed != true || !mounted) return;
+    context.read<PosSettingsBloc>().add(
+      UpdateSettings(
+        input: {
+          ...pending,
+          'force_profile_change': true,
+          'force_profile_change_reason': reasonText,
+        },
+      ),
+    );
   }
 
   @override
@@ -572,10 +672,19 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           if (state.status == PosSettingsStatus.loaded) {
             _initFields(state);
           } else if (state.status == PosSettingsStatus.saved) {
+            _savedBusinessProfile = _businessProfile;
+            _savedTrackStock = _enabledFeatures['track_stock'] ?? true;
+            _pendingSettingsInput = null;
             AppToast.success(context, state.successMessage);
-            context.read<PosBloc>().add(LoadPosData());
+            context.read<PosBloc>().add(RefreshPosRuntimeConfig());
           } else if (state.status == PosSettingsStatus.failure) {
-            AppToast.error(context, state.errorMessage);
+            if (state.errorMessage.contains(
+              'Profil bisnis atau Tracking Stok tidak dapat diubah',
+            )) {
+              _confirmForcedProfileChange(state.errorMessage);
+            } else {
+              AppToast.error(context, state.errorMessage);
+            }
           }
         },
         builder: (context, state) {
@@ -789,6 +898,13 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             value: _expiredSalePolicy,
             items: const ['block', 'allow_with_permission'],
             onChanged: (val) => setState(() => _expiredSalePolicy = val!),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: Text(
+              'Override hanya berlaku untuk produk nonkonsumsi yang diizinkan pada master inventaris. Perangkat harus online dan supervisor wajib memberi PIN serta alasan audit.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
           ),
           _buildSwitch(
             'Aktifkan Kunci POS',

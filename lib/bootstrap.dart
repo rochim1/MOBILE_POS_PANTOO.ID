@@ -21,8 +21,12 @@ Future<void> bootstrap(
   initializePlatformDatabase();
 
   FlutterError.onError = (details) {
+    // `exceptionAsString()` hanya berisi ringkasan (mis. RenderFlex overflow)
+    // dan membuang diagnostics yang menunjukkan creator/widget penyebabnya.
+    // Simpan representasi lengkap agar overflow responsif bisa dilacak sampai
+    // ke halaman dan RenderObject yang tepat dari log pengguna.
     appLogger.e(
-      details.exceptionAsString(),
+      details.toString(),
       error: details.exception,
       stackTrace: details.stack,
     );

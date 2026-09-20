@@ -209,14 +209,19 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         padding: const EdgeInsets.all(12),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final search = TextField(
-              controller: _searchController,
-              onChanged: _search,
-              decoration: const InputDecoration(
-                hintText: 'Cari nomor order atau pelanggan…',
-                prefixIcon: Icon(Icons.search),
-                isDense: true,
-                border: OutlineInputBorder(),
+            final compact = constraints.maxWidth < 600;
+            final controlHeight = compact ? 40.0 : 48.0;
+            final search = SizedBox(
+              height: controlHeight,
+              child: TextField(
+                controller: _searchController,
+                onChanged: _search,
+                decoration: const InputDecoration(
+                  hintText: 'Cari nomor order atau pelanggan…',
+                  prefixIcon: Icon(Icons.search),
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
               ),
             );
             final controls = Wrap(
@@ -226,6 +231,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               children: [
                 SizedBox(
                   width: 180,
+                  height: controlHeight,
                   child: DropdownButtonFormField<String>(
                     initialValue: _fulfillment,
                     isDense: true,
@@ -264,6 +270,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 ),
                 SizedBox(
                   width: 150,
+                  height: controlHeight,
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     isDense: true,
@@ -289,6 +296,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 ),
                 SizedBox(
                   width: 170,
+                  height: controlHeight,
                   child: DropdownButtonFormField<String>(
                     initialValue: _sort,
                     isDense: true,
@@ -703,7 +711,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -733,6 +741,66 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   _orderNote('Penyerahan', order.handoverNote!),
                 if (order.internalNote?.isNotEmpty == true)
                   _orderNote('Internal kasir', order.internalNote!),
+                if (order.orderType == 'reservation') ...[
+                  const SizedBox(height: 8),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Reservasi · ${_reservationStatusLabel(order.reservationStatus ?? 'pending')}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${order.reservationStartAt ?? '-'} – ${order.reservationEndAt ?? '-'}',
+                          ),
+                          Text(
+                            '${order.reservationGuestCount <= 0 ? 1 : order.reservationGuestCount} tamu${order.reservationDepositAmount > 0 ? ' · Deposit ${_currency(order.reservationDepositAmount)} (${order.reservationDepositPaid ? 'lunas' : 'belum dibayar'})' : ''}',
+                          ),
+                          if (_reservationNext(
+                            order.reservationStatus,
+                          ).isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    Navigator.pop(sheetContext);
+                                    await _rescheduleReservation(order);
+                                  },
+                                  icon: const Icon(Icons.event_repeat_outlined),
+                                  label: const Text('Jadwalkan ulang'),
+                                ),
+                                ..._reservationNext(
+                                  order.reservationStatus,
+                                ).map(
+                                  (status) => OutlinedButton(
+                                    onPressed: () async {
+                                      Navigator.pop(sheetContext);
+                                      await _updateReservationStatus(
+                                        order,
+                                        status,
+                                      );
+                                    },
+                                    child: Text(
+                                      _reservationStatusLabel(status),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 ...order.items.map(
                   (item) => ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -1039,6 +1107,171 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     });
   }
 
+  List<String> _reservationNext(String? status) =>
+      switch (status ?? 'pending') {
+        'pending' => const ['confirmed', 'cancelled'],
+        'confirmed' => const ['checked_in', 'cancelled', 'no_show'],
+        'checked_in' => const ['seated', 'cancelled'],
+        'seated' => const ['completed'],
+        _ => const [],
+      };
+
+  String _reservationStatusLabel(String status) => switch (status) {
+    'pending' => 'Menunggu konfirmasi',
+    'confirmed' => 'Konfirmasi',
+    'checked_in' => 'Check-in',
+    'seated' => 'Dudukkan tamu',
+    'completed' => 'Selesai',
+    'cancelled' => 'Batalkan',
+    'no_show' => 'Tidak hadir',
+    _ => status,
+  };
+
+  Future<void> _updateReservationStatus(
+    PosOrderDetail order,
+    String status,
+  ) async {
+    final result = await sl<PosOrderRepository>().updateReservationStatus(
+      order.id ?? '',
+      status,
+    );
+    if (!mounted) return;
+    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      AppToast.success(context, 'Status reservasi diperbarui');
+      context.read<PosOrderManagementBloc>().add(
+        LoadActiveOrders(
+          storeId: widget.storeId,
+          search: _searchController.text,
+          status: _status,
+        ),
+      );
+    });
+  }
+
+  Future<void> _rescheduleReservation(PosOrderDetail order) async {
+    var start =
+        DateTime.tryParse(order.reservationStartAt ?? '') ?? DateTime.now();
+    var end =
+        DateTime.tryParse(order.reservationEndAt ?? '') ??
+        start.add(const Duration(hours: 2));
+    final guests = TextEditingController(
+      text:
+          '${order.reservationGuestCount <= 0 ? 1 : order.reservationGuestCount}',
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Jadwalkan ulang reservasi'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Mulai'),
+                subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(start)),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: start,
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 730)),
+                  );
+                  if (date == null || !context.mounted) return;
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(start),
+                  );
+                  if (time != null) {
+                    setDialogState(
+                      () => start = DateTime(
+                        date.year,
+                        date.month,
+                        date.day,
+                        time.hour,
+                        time.minute,
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Selesai'),
+                subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(end)),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: end,
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 730)),
+                  );
+                  if (date == null || !context.mounted) return;
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(end),
+                  );
+                  if (time != null) {
+                    setDialogState(
+                      () => end = DateTime(
+                        date.year,
+                        date.month,
+                        date.day,
+                        time.hour,
+                        time.minute,
+                      ),
+                    );
+                  }
+                },
+              ),
+              TextField(
+                controller: guests,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Jumlah tamu'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final guestCount = int.tryParse(guests.text) ?? 0;
+    guests.dispose();
+    if (confirmed != true || guestCount < 1 || !end.isAfter(start)) {
+      if (confirmed == true && mounted) {
+        AppToast.warning(context, 'Rentang waktu atau jumlah tamu tidak valid');
+      }
+      return;
+    }
+    final result = await sl<PosOrderRepository>().rescheduleReservation(
+      order.id ?? '',
+      startAt: start,
+      endAt: end,
+      tableId: order.tableId,
+      guestCount: guestCount,
+    );
+    if (!mounted) return;
+    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      AppToast.success(context, 'Jadwal reservasi diperbarui');
+      context.read<PosOrderManagementBloc>().add(
+        LoadActiveOrders(
+          storeId: widget.storeId,
+          search: _searchController.text,
+          status: _status,
+        ),
+      );
+    });
+  }
+
   Future<void> _updateServiceLineStatus(
     PosOrderDetail order,
     Map<String, dynamic> line,
@@ -1094,7 +1327,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                   child: Row(
                     children: [
                       Expanded(
@@ -1104,7 +1337,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             const Text(
                               'Ubah Pesanan',
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -1127,7 +1360,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: TextField(
                     onChanged: (value) => setSheetState(() => search = value),
                     decoration: const InputDecoration(
@@ -1289,6 +1522,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       invoice: order.orderNumber ?? '-',
       date: order.createdAt ?? '-',
       customer: order.customerName ?? 'Pelanggan umum',
+      customerId: order.customerId,
       cashierName: 'Kasir',
       paymentMethod: '-',
       orderType: 'dine_in',

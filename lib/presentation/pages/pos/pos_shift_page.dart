@@ -13,11 +13,13 @@ class PosShiftPage extends StatelessWidget {
   final GlobalKey? storeTourKey;
   final GlobalKey? formTourKey;
   final GlobalKey? openTourKey;
+  final VoidCallback? onShiftOpened;
   const PosShiftPage({
     super.key,
     this.storeTourKey,
     this.formTourKey,
     this.openTourKey,
+    this.onShiftOpened,
   });
 
   @override
@@ -30,6 +32,9 @@ class PosShiftPage extends StatelessWidget {
           listener: (context, state) {
             if (state is PosShiftActionSuccess) {
               AppToast.success(context, state.message);
+              if (state.message.toLowerCase().contains('dibuka')) {
+                onShiftOpened?.call();
+              }
             } else if (state is PosShiftError) {
               AppToast.error(context, state.message);
             }

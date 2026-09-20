@@ -70,173 +70,185 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7F8FA),
-    appBar: AppBar(
-      title: const Text('Notifikasi'),
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-      actions: [
-        if (_unread > 0)
-          TextButton(
-            onPressed: _readAll,
-            child: const Text(
-              'Tandai dibaca',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-      ],
-    ),
-    body: RefreshIndicator(
-      onRefresh: _load,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: DropdownButtonFormField<String>(
-                initialValue: _module,
-                decoration: const InputDecoration(
-                  labelText: 'Kategori notifikasi',
-                  prefixIcon: Icon(Icons.filter_list),
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Semua')),
-                  DropdownMenuItem(value: 'POS', child: Text('POS')),
-                  DropdownMenuItem(
-                    value: 'inventory',
-                    child: Text('Inventori'),
-                  ),
-                ],
-                onChanged: (value) {
-                  _module = value ?? '';
-                  _load();
-                },
-              ),
-            ),
-          ),
-          if (_loading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_items.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 58,
-                      color: Colors.black26,
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Belum ada notifikasi',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-              sliver: SliverList.separated(
-                itemCount: _items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  final unread = item['is_read'] != true;
-                  return Material(
-                    color: unread
-                        ? AppColors.primary.withValues(alpha: .07)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => _read(item),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: AppColors.primary.withValues(
-                                alpha: .12,
-                              ),
-                              child: const Icon(
-                                Icons.notifications_outlined,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          item['title']?.toString() ??
-                                              'Notifikasi',
-                                          style: TextStyle(
-                                            fontWeight: unread
-                                                ? FontWeight.w700
-                                                : FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      if (unread)
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: const BoxDecoration(
-                                            color: AppColors.primary,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    item['body']?.toString() ?? '-',
-                                    style: const TextStyle(
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 7),
-                                  Text(
-                                    _dateLabel(
-                                      item['tanggal_notifikasi'] ??
-                                          item['createdAt'],
-                                    ),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black45,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        title: const Text('Notifikasi'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        actions: [
+          if (_unread > 0)
+            TextButton(
+              onPressed: _readAll,
+              child: const Text(
+                'Tandai dibaca',
+                style: TextStyle(color: Colors.white),
               ),
             ),
         ],
       ),
-    ),
-  );
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 12 : 16,
+                  compact ? 10 : 16,
+                  compact ? 12 : 16,
+                  8,
+                ),
+                child: SizedBox(
+                  height: compact ? 40 : 48,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _module,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Kategori notifikasi',
+                      prefixIcon: Icon(Icons.filter_list),
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Semua')),
+                      DropdownMenuItem(value: 'POS', child: Text('POS')),
+                      DropdownMenuItem(
+                        value: 'inventory',
+                        child: Text('Inventori'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      _module = value ?? '';
+                      _load();
+                    },
+                  ),
+                ),
+              ),
+            ),
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_items.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.notifications_none,
+                        size: 58,
+                        color: Colors.black26,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Belum ada notifikasi',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                sliver: SliverList.separated(
+                  itemCount: _items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    final unread = item['is_read'] != true;
+                    return Material(
+                      color: unread
+                          ? AppColors.primary.withValues(alpha: .07)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _read(item),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: AppColors.primary.withValues(
+                                  alpha: .12,
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            item['title']?.toString() ??
+                                                'Notifikasi',
+                                            style: TextStyle(
+                                              fontWeight: unread
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        if (unread)
+                                          Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.primary,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item['body']?.toString() ?? '-',
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    Text(
+                                      _dateLabel(
+                                        item['tanggal_notifikasi'] ??
+                                            item['createdAt'],
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black45,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   String _dateLabel(dynamic raw) {
     final date = DateTime.tryParse(raw?.toString() ?? '')?.toLocal();

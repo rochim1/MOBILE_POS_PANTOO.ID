@@ -306,6 +306,7 @@ class PosQueries {
           telepon
           lokasi_cabang_nama
           lokasi_cabang_id
+          shift_mode
           status
         }
       }
@@ -328,11 +329,12 @@ class PosQueries {
   ''';
 
   static const String getMyActiveKasirShift = r'''
-    query GetMyActiveKasirShift($toko_id: ID) {
-      GetMyActiveKasirShift(toko_id: $toko_id) {
+    query GetMyActiveKasirShift($toko_id: ID, $operatorToken: String) {
+      GetMyActiveKasirShift(toko_id: $toko_id, operator_session_token: $operatorToken) {
         _id
         toko_id
         kasir_user_id
+        shift_mode
         opened_at
         opening_cash
         status
@@ -349,13 +351,13 @@ class PosQueries {
 
   static const String addPOSToko = r'''
     mutation AddPOSToko($input: POSTokoInput!) {
-      AddPOSToko(input: $input) { _id kode_toko nama_toko alamat telepon lokasi_cabang_id lokasi_cabang_nama status }
+      AddPOSToko(input: $input) { _id kode_toko nama_toko alamat telepon lokasi_cabang_id lokasi_cabang_nama shift_mode status }
     }
   ''';
 
   static const String updatePOSToko = r'''
     mutation UpdatePOSToko($_id: ID!, $input: POSTokoInput!) {
-      UpdatePOSToko(_id: $_id, input: $input) { _id kode_toko nama_toko alamat telepon lokasi_cabang_id lokasi_cabang_nama status }
+      UpdatePOSToko(_id: $_id, input: $input) { _id kode_toko nama_toko alamat telepon lokasi_cabang_id lokasi_cabang_nama shift_mode status }
     }
   ''';
 
@@ -399,6 +401,10 @@ class PosQueries {
           pos_product_type
           sellable_in_pos
           tracks_stock
+          preparation_mode
+          production_station_id
+          prep_time_minutes
+          allow_station_override
           deskripsi
           brand
           harga_beli
@@ -435,6 +441,10 @@ class PosQueries {
         pos_product_type
         sellable_in_pos
         tracks_stock
+        preparation_mode
+        production_station_id
+        prep_time_minutes
+        allow_station_override
         promo_eligible
         sku
         barcode
@@ -511,6 +521,9 @@ class PosQueries {
         tipe_pesanan
         uang_diterima
         kembalian
+        expired_sale_reason
+        expired_sale_authorizer_name
+        expired_sale_authorized_at
         payments { metode jumlah }
         items { inventaris_id nama_inventaris qty unit harga_jual subtotal }
       }
@@ -590,6 +603,7 @@ class PosQueries {
         items {
           _id
           order_no
+          pelanggan_id
           pelanggan_nama
           subtotal
           diskon_persen
@@ -650,12 +664,13 @@ class PosQueries {
   ''';
 
   static const String getPOSKasirShifts = r'''
-    query GetPOSKasirShifts($filter: POSKasirShiftFilter, $pagination: pagination) {
-      GetPOSKasirShifts(filter: $filter, pagination: $pagination) {
+    query GetPOSKasirShifts($filter: POSKasirShiftFilter, $pagination: pagination, $operatorToken: String) {
+      GetPOSKasirShifts(filter: $filter, pagination: $pagination, operator_session_token: $operatorToken) {
         items {
           _id
           toko_id
           kasir_user_id
+          shift_mode
           opened_at
           closed_at
           opening_cash
@@ -700,6 +715,10 @@ class PosQueries {
         merchandise_category_name
         pos_product_type
         tracks_stock
+        preparation_mode
+        production_station_id
+        prep_time_minutes
+        allow_station_override
         deskripsi
         brand
         harga_beli
@@ -733,6 +752,19 @@ class PosQueries {
     }
   ''';
 
+  static const String getPosProductionStations = r'''
+    query GetPOSProductionStations($toko_id: ID, $active: Boolean) {
+      GetPOSProductionStations(toko_id: $toko_id, active: $active) {
+        _id
+        name
+        code
+        color
+        sort_order
+        active
+      }
+    }
+  ''';
+
   static const String uploadInventoryProductImage = r'''
     mutation UploadInventoryProductImage($file: Upload!) {
       UploadInventoryProductImage(file: $file)
@@ -754,6 +786,10 @@ class PosQueries {
         merchandise_category_name
         pos_product_type
         tracks_stock
+        preparation_mode
+        production_station_id
+        prep_time_minutes
+        allow_station_override
         deskripsi
         brand
         harga_beli

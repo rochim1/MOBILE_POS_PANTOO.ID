@@ -23,6 +23,11 @@ class PosProduct {
   final double maximumStock;
   final double reorderPoint;
   final int procurementLeadTime;
+  final String preparationMode;
+  final String productionStationId;
+  final String productionStationName;
+  final int? prepTimeMinutes;
+  final bool allowStationOverride;
 
   const PosProduct({
     required this.id,
@@ -51,6 +56,11 @@ class PosProduct {
     this.maximumStock = 0,
     this.reorderPoint = 0,
     this.procurementLeadTime = 0,
+    this.preparationMode = '',
+    this.productionStationId = '',
+    this.productionStationName = '',
+    this.prepTimeMinutes,
+    this.allowStationOverride = false,
   });
 
   String get saleUnit {
@@ -153,6 +163,26 @@ class PosProduct {
                 '0',
           ) ??
           0,
+      preparationMode:
+          json['preparationMode']?.toString() ??
+          json['preparation_mode']?.toString() ??
+          '',
+      productionStationId:
+          json['productionStationId']?.toString() ??
+          json['production_station_id']?.toString() ??
+          '',
+      productionStationName:
+          json['productionStationName']?.toString() ??
+          json['production_station_name']?.toString() ??
+          '',
+      prepTimeMinutes: int.tryParse(
+        json['prepTimeMinutes']?.toString() ??
+            json['prep_time_minutes']?.toString() ??
+            '',
+      ),
+      allowStationOverride:
+          json['allowStationOverride'] == true ||
+          json['allow_station_override'] == true,
     );
   }
 
@@ -182,6 +212,11 @@ class PosProduct {
       'maximumStock': maximumStock,
       'reorderPoint': reorderPoint,
       'procurementLeadTime': procurementLeadTime,
+      'preparationMode': preparationMode,
+      'productionStationId': productionStationId,
+      'productionStationName': productionStationName,
+      'prepTimeMinutes': prepTimeMinutes,
+      'allowStationOverride': allowStationOverride,
     };
   }
 

@@ -13,6 +13,11 @@ abstract class PosEvent extends Equatable {
 
 class LoadPosData extends PosEvent {}
 
+/// Reloads only the server-driven POS configuration used by navigation and
+/// feature gates. This keeps the current workspace/cart intact after settings
+/// are saved while still rebuilding menus immediately.
+class RefreshPosRuntimeConfig extends PosEvent {}
+
 class RefreshProducts extends PosEvent {}
 
 class UpsertProductLocally extends PosEvent {

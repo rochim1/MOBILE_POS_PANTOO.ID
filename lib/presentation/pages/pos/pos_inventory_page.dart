@@ -363,14 +363,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   'Filter Stock Opname',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -467,14 +467,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   'Filter Stok Terbuang',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -724,45 +724,58 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         children: [
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(
+              MediaQuery.sizeOf(context).width < 600 ? 12 : 14,
+            ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final search = TextField(
-                  controller: _search,
-                  onChanged: _onSearch,
-                  decoration: InputDecoration(
-                    labelText: _searchLabel,
-                    prefixIcon: const Icon(Icons.search),
-                    border: const OutlineInputBorder(),
+                final compact = constraints.maxWidth < 600;
+                final controlHeight = compact ? 40.0 : 48.0;
+                final search = SizedBox(
+                  height: controlHeight,
+                  child: TextField(
+                    controller: _search,
+                    onChanged: _onSearch,
+                    decoration: InputDecoration(
+                      labelText: _searchLabel,
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
                 );
-                final status = DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _statuses
-                      .map(
-                        (entry) => DropdownMenuItem(
-                          value: entry.$1,
-                          child: Text(
-                            entry.$2,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                final status = SizedBox(
+                  height: controlHeight,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    isDense: true,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _statuses
+                        .map(
+                          (entry) => DropdownMenuItem(
+                            value: entry.$1,
+                            child: Text(
+                              entry.$2,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() => _status = value ?? '');
-                    _load(page: 1);
-                  },
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _status = value ?? '');
+                      _load(page: 1);
+                    },
+                  ),
                 );
                 final add = FilledButton.icon(
                   onPressed: _can('create') ? () => _openEditor() : null,
-                  style: InventoryActionStyle.primary(),
+                  style: InventoryActionStyle.primary(
+                    controlHeight: controlHeight,
+                  ),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Tambah'),
                 );
@@ -773,7 +786,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 final opnameFilter = IconButton.filledTonal(
                   onPressed: _showOpnameFilters,
                   tooltip: 'Filter lokasi dan tanggal',
-                  style: InventoryActionStyle.filter(),
+                  style: InventoryActionStyle.filter(
+                    controlHeight: controlHeight,
+                  ),
                   icon: Badge(
                     isLabelVisible: hasOpnameFilter,
                     child: const Icon(Icons.tune_rounded),
@@ -784,7 +799,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 final scrapFilter = IconButton.filledTonal(
                   onPressed: _showScrapFilters,
                   tooltip: 'Filter alasan dan tanggal',
-                  style: InventoryActionStyle.filter(),
+                  style: InventoryActionStyle.filter(
+                    controlHeight: controlHeight,
+                  ),
                   icon: Badge(
                     isLabelVisible: hasScrapFilter,
                     child: const Icon(Icons.tune_rounded),
@@ -1096,12 +1113,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           maxChildSize: .92,
           builder: (_, controller) => ListView(
             controller: controller,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
             children: [
               Text(
                 _number(item),
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
               ),

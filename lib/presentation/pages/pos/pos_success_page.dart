@@ -275,14 +275,14 @@ class PosSuccessPage extends StatelessWidget {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
                 'Bagikan struk melalui',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               if (transaction.customerName.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -461,7 +461,11 @@ class PosSuccessPage extends StatelessWidget {
         total: transaction.total,
         cashReceived: transaction.cashReceived,
         change: transaction.change,
-        note: transaction.note,
+        note: [
+          transaction.note,
+          if (transaction.expiredSaleReason.isNotEmpty)
+            'PERINGATAN: Barang kedaluwarsa dijual dengan otorisasi. Alasan: ${transaction.expiredSaleReason}',
+        ].where((value) => value.trim().isNotEmpty).join('\n'),
         items: transaction.items,
       ),
       template: resolvedPrintData.template,

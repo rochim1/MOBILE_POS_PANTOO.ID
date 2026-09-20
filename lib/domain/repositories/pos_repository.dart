@@ -637,6 +637,13 @@ class PosRepository {
               procurementLeadTime:
                   int.tryParse(e['lead_time_pengadaan']?.toString() ?? '0') ??
                   0,
+              preparationMode: e['preparation_mode']?.toString() ?? 'instant',
+              productionStationId: e['production_station_id']?.toString() ?? '',
+              productionStationName:
+                  e['production_station_name']?.toString() ?? '',
+              prepTimeMinutes:
+                  int.tryParse(e['prep_time_minutes']?.toString() ?? '0') ?? 0,
+              allowStationOverride: e['allow_station_override'] == true,
             ),
           )
           .toList();
@@ -753,6 +760,15 @@ class PosRepository {
               procurementLeadTime:
                   int.tryParse(row['lead_time_pengadaan']?.toString() ?? '0') ??
                   0,
+              preparationMode: row['preparation_mode']?.toString() ?? 'instant',
+              productionStationId:
+                  row['production_station_id']?.toString() ?? '',
+              productionStationName:
+                  row['production_station_name']?.toString() ?? '',
+              prepTimeMinutes:
+                  int.tryParse(row['prep_time_minutes']?.toString() ?? '0') ??
+                  0,
+              allowStationOverride: row['allow_station_override'] == true,
             );
           })
           .where((product) => product.id.isNotEmpty)
@@ -785,6 +801,15 @@ class PosRepository {
               unitConversions: _decodeUnitConversions(
                 e['unit_conversions']?.toString(),
               ),
+              preparationMode: e['preparation_mode']?.toString() ?? 'instant',
+              productionStationId: e['production_station_id']?.toString() ?? '',
+              productionStationName:
+                  e['production_station_name']?.toString() ?? '',
+              prepTimeMinutes:
+                  int.tryParse(e['prep_time_minutes']?.toString() ?? '0') ?? 0,
+              allowStationOverride:
+                  e['allow_station_override'] == true ||
+                  e['allow_station_override'] == 1,
             ),
           )
           .toList();
@@ -1059,6 +1084,7 @@ class PosRepository {
               phone: e['telepon'] ?? '-',
               branchName: e['lokasi_cabang_nama'] ?? '-',
               branchId: e['lokasi_cabang_id']?.toString() ?? '',
+              shiftMode: e['shift_mode']?.toString() ?? 'shared_register',
             ),
           )
           .toList();
@@ -1274,6 +1300,9 @@ class PosRepository {
         document: gql(PosQueries.getMyActiveKasirShift),
         variables: {
           if (tokoId != null && tokoId.trim().isNotEmpty) 'toko_id': tokoId,
+          'operatorToken': _operatorSessionToken.isEmpty
+              ? null
+              : _operatorSessionToken,
         },
         fetchPolicy: FetchPolicy.networkOnly,
       );
@@ -1338,6 +1367,9 @@ class PosRepository {
             'toko_id': tokoId,
             'opening_cash': amount,
             'open_notes': notes,
+            'operator_session_token': _operatorSessionToken.isEmpty
+                ? null
+                : _operatorSessionToken,
           },
         },
       );
@@ -1383,6 +1415,9 @@ class PosRepository {
             'shift_id': shiftId,
             'closing_cash_actual': closingCashActual,
             'close_notes': closeNotes,
+            'operator_session_token': _operatorSessionToken.isEmpty
+                ? null
+                : _operatorSessionToken,
           },
         },
       );
@@ -1414,6 +1449,9 @@ class PosRepository {
             'tipe': tipe,
             'jumlah': jumlah,
             'keterangan': keterangan,
+            'operator_session_token': _operatorSessionToken.isEmpty
+                ? null
+                : _operatorSessionToken,
           },
         },
       );
@@ -1439,6 +1477,9 @@ class PosRepository {
         document: gql(PosQueries.getPOSKasirShifts),
         variables: {
           'pagination': {'page': page, 'limit': limit},
+          'operatorToken': _operatorSessionToken.isEmpty
+              ? null
+              : _operatorSessionToken,
         },
         fetchPolicy: FetchPolicy.networkOnly,
       );
@@ -1482,6 +1523,10 @@ class PosRepository {
     String expiredSaleAuthorizerPin = '',
     String operatorSessionToken = '',
     Map<String, dynamic>? serviceOrder,
+    DateTime? reservationStartAt,
+    DateTime? reservationEndAt,
+    int reservationGuestCount = 1,
+    double reservationDepositAmount = 0,
   }) async {
     final items = cart.entries
         .map(
@@ -1765,6 +1810,10 @@ class PosRepository {
     String priceLevel = 'retail',
     Map<String, double> itemPrices = const {},
     Map<String, dynamic>? serviceOrder,
+    DateTime? reservationStartAt,
+    DateTime? reservationEndAt,
+    int reservationGuestCount = 1,
+    double reservationDepositAmount = 0,
   }) async {
     try {
       final result = await _clientProvider.client.mutate(
@@ -1785,6 +1834,14 @@ class PosRepository {
               'price_level': priceLevel,
               'tipe_pesanan': orderType,
               if (tableId != null && tableId.isNotEmpty) 'table_id': tableId,
+              if (orderType == 'reservation' && reservationStartAt != null)
+                'reservation_start_at': reservationStartAt.toIso8601String(),
+              if (orderType == 'reservation' && reservationEndAt != null)
+                'reservation_end_at': reservationEndAt.toIso8601String(),
+              if (orderType == 'reservation')
+                'reservation_guest_count': reservationGuestCount,
+              if (orderType == 'reservation')
+                'reservation_deposit_amount': reservationDepositAmount,
               'catatan': note ?? '',
               'diskon_persen': discountPercent,
               'pajak_persen': taxPercent,

@@ -10,6 +10,12 @@ class PosOrderItem extends Equatable {
   final String? notes;
   final String? unit;
   final String? status; // e.g., 'pending', 'preparing', 'served', 'cancelled'
+  final String preparationMode;
+  final String? productionStationId;
+  final String? productionStationName;
+  final String productionStatus;
+  final int prepTimeMinutes;
+  final int revision;
 
   const PosOrderItem({
     this.id,
@@ -21,6 +27,12 @@ class PosOrderItem extends Equatable {
     this.notes,
     this.unit,
     this.status,
+    this.preparationMode = 'instant',
+    this.productionStationId,
+    this.productionStationName,
+    this.productionStatus = 'not_required',
+    this.prepTimeMinutes = 0,
+    this.revision = 0,
   });
 
   factory PosOrderItem.fromJson(Map<String, dynamic> json) {
@@ -40,6 +52,12 @@ class PosOrderItem extends Equatable {
       notes: _text(json['catatan'] ?? json['notes']),
       unit: _text(json['unit']),
       status: _text(json['status']),
+      preparationMode: _text(json['preparation_mode']) ?? 'instant',
+      productionStationId: _text(json['production_station_id']),
+      productionStationName: _text(json['production_station_name']),
+      productionStatus: _text(json['production_status']) ?? 'not_required',
+      prepTimeMinutes: (json['prep_time_minutes'] as num?)?.toInt() ?? 0,
+      revision: (json['revision'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -54,6 +72,12 @@ class PosOrderItem extends Equatable {
     notes,
     unit,
     status,
+    preparationMode,
+    productionStationId,
+    productionStationName,
+    productionStatus,
+    prepTimeMinutes,
+    revision,
   ];
 }
 
@@ -80,6 +104,12 @@ class PosOrderDetail extends Equatable {
   final List<PosOrderItem> items;
   final String? createdAt;
   final Map<String, dynamic>? serviceOrder;
+  final String? reservationStatus;
+  final String? reservationStartAt;
+  final String? reservationEndAt;
+  final int reservationGuestCount;
+  final double reservationDepositAmount;
+  final bool reservationDepositPaid;
 
   const PosOrderDetail({
     this.id,
@@ -103,6 +133,12 @@ class PosOrderDetail extends Equatable {
     this.items = const [],
     this.createdAt,
     this.serviceOrder,
+    this.reservationStatus,
+    this.reservationStartAt,
+    this.reservationEndAt,
+    this.reservationGuestCount = 0,
+    this.reservationDepositAmount = 0,
+    this.reservationDepositPaid = false,
   }) : _paymentStatus = paymentStatus;
 
   factory PosOrderDetail.fromJson(Map<String, dynamic> json) {
@@ -154,6 +190,14 @@ class PosOrderDetail extends Equatable {
       serviceOrder: json['service_order'] is Map
           ? Map<String, dynamic>.from(json['service_order'] as Map)
           : null,
+      reservationStatus: _text(json['reservation_status']),
+      reservationStartAt: _text(json['reservation_start_at']),
+      reservationEndAt: _text(json['reservation_end_at']),
+      reservationGuestCount:
+          (json['reservation_guest_count'] as num?)?.toInt() ?? 0,
+      reservationDepositAmount:
+          (json['reservation_deposit_amount'] as num?)?.toDouble() ?? 0,
+      reservationDepositPaid: json['reservation_deposit_paid'] == true,
     );
   }
 
@@ -180,6 +224,12 @@ class PosOrderDetail extends Equatable {
     items,
     createdAt,
     serviceOrder,
+    reservationStatus,
+    reservationStartAt,
+    reservationEndAt,
+    reservationGuestCount,
+    reservationDepositAmount,
+    reservationDepositPaid,
   ];
 }
 

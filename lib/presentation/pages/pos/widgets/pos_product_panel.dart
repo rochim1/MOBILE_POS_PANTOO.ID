@@ -99,7 +99,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: _buildSearchAndFilter(context, state)),
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              SliverToBoxAdapter(
+                child: SizedBox(height: widget.isMobile ? 8 : 16),
+              ),
               if (!state.isGridView) ...[
                 SliverToBoxAdapter(
                   child: Container(
@@ -159,24 +161,34 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   ),
                 )
               else if (state.isGridView)
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 0.8,
+                SliverLayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = widget.isMobile;
+                    final availableWidth = constraints.crossAxisExtent;
+                    final columns = compact
+                        ? (availableWidth < 280 ? 2 : 3)
+                        : (availableWidth / 180).floor().clamp(3, 6);
+                    final compactCardHeight = columns == 2 ? 136.0 : 108.0;
+                    return SliverPadding(
+                      padding: EdgeInsets.all(compact ? 8 : 16),
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisSpacing: compact ? 8 : 16,
+                          crossAxisSpacing: compact ? 8 : 16,
+                          mainAxisExtent: compact ? compactCardHeight : null,
+                          childAspectRatio: compact ? 1 : .8,
                         ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _buildProductGridItem(
-                        context,
-                        filteredProducts[index],
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildProductGridItem(
+                            context,
+                            filteredProducts[index],
+                          ),
+                          childCount: filteredProducts.length,
+                        ),
                       ),
-                      childCount: filteredProducts.length,
-                    ),
-                  ),
+                    );
+                  },
                 )
               else
                 SliverList(
@@ -255,56 +267,86 @@ class _PosProductPanelState extends State<PosProductPanel> {
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.isMobile ? 10 : 16,
+        vertical: widget.isMobile ? 6 : 12,
+      ),
       child: Row(
         children: [
           Expanded(
             flex: 6,
             child: KeyedSubtree(
               key: widget.searchTourKey,
-              child: TextField(
-                focusNode: _searchFocusNode,
-                decoration: InputDecoration(
-                  hintText: 'Cari nama, kode, SKU, atau barcode...',
-                  hintStyle: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black38,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                  suffixIcon: _remoteSearching
-                      ? const Padding(
-                          padding: EdgeInsets.all(13),
-                          child: SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+              child: SizedBox(
+                height: widget.isMobile ? 36 : 48,
+                child: TextField(
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Cari nama, kode, SKU, atau barcode...',
+                    hintStyle: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black38,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    isDense: widget.isMobile,
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Colors.black54,
+                      size: widget.isMobile ? 18 : 24,
+                    ),
+                    prefixIconConstraints: BoxConstraints(
+                      minWidth: widget.isMobile ? 32 : 48,
+                      minHeight: widget.isMobile ? 36 : 48,
+                    ),
+                    suffixIconConstraints: BoxConstraints(
+                      minWidth: widget.isMobile ? 32 : 48,
+                      minHeight: widget.isMobile ? 36 : 48,
+                    ),
+                    suffixIcon: _remoteSearching
+                        ? Padding(
+                            padding: EdgeInsets.all(widget.isMobile ? 9 : 13),
+                            child: SizedBox.square(
+                              dimension: widget.isMobile ? 14 : 18,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          )
+                        : IconButton(
+                            tooltip: 'Scan barcode',
+                            onPressed: () => _scanBarcode(context, state),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints.tightFor(
+                              width: widget.isMobile ? 32 : 48,
+                              height: widget.isMobile ? 36 : 48,
+                            ),
+                            icon: Icon(
+                              Icons.qr_code_scanner,
+                              color: Colors.black54,
+                              size: widget.isMobile ? 18 : 24,
+                            ),
                           ),
-                        )
-                      : IconButton(
-                          tooltip: 'Scan barcode',
-                          onPressed: () => _scanBarcode(context, state),
-                          icon: const Icon(
-                            Icons.qr_code_scanner,
-                            color: Colors.black54,
-                          ),
-                        ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: widget.isMobile ? 2 : 0,
+                      vertical: 0,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.primary),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.primary),
-                  ),
+                  onChanged: (value) => _onSearchChanged(value, state),
                 ),
-                onChanged: (value) => _onSearchChanged(value, state),
               ),
             ),
           ),
           if (widget.isMobile) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             PopupMenuButton<String>(
               tooltip: 'Pilih kategori',
               initialValue: widget.selectedCategory,
@@ -316,29 +358,34 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   )
                   .toList(),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 13,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.tune, color: AppColors.primary),
+                child: const Icon(
+                  Icons.tune,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             IconButton.outlined(
               tooltip: 'Pilih pelanggan',
               onPressed: () => _selectCustomer(context),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+              visualDensity: VisualDensity.compact,
               icon: Icon(
                 state.selectedCustomer == null
                     ? Icons.person_add_alt_outlined
                     : Icons.person,
                 color: AppColors.primary,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             _buildOrderMenu(context, state, selectedOrderType, compact: true),
           ],
           if (!widget.isMobile) ...[
@@ -423,6 +470,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
             state.selectedCustomer == null) {
           await _selectCustomer(context);
         }
+        if (value == 'reservation' &&
+            (state.runtimeConfig['features'] as Map?)?['use_tables'] == true &&
+            context.mounted) {
+          await _selectTable(context, context.read<PosBloc>().state);
+        }
       },
       itemBuilder: (_) {
         return [
@@ -467,8 +519,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
         ];
       },
       child: Container(
-        height: 48,
-        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 14),
+        height: compact ? 36 : 48,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14),
         decoration: BoxDecoration(
           color: compact ? AppColors.primarySoft : Colors.white,
           border: Border.all(
@@ -476,29 +528,46 @@ class _PosProductPanelState extends State<PosProductPanel> {
           ),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: compact
-            ? const Icon(Icons.room_service_outlined, color: AppColors.primary)
-            : Row(
-                children: [
-                  const Icon(
-                    Icons.room_service_outlined,
-                    size: 19,
-                    color: AppColors.primary,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Pada tablet/desktop sempit pembagian flex dapat menyisakan ruang
+            // kurang dari kebutuhan minimum ikon + panah. Gunakan versi ikon
+            // secara otomatis agar tidak terjadi overflow pecahan piksel.
+            final iconOnly = compact || constraints.maxWidth < 88;
+            if (iconOnly) {
+              return const Icon(
+                Icons.room_service_outlined,
+                color: AppColors.primary,
+                size: 18,
+              );
+            }
+            return Row(
+              children: [
+                const Icon(
+                  Icons.room_service_outlined,
+                  size: 19,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    selectedOrderType == 'dine_in' &&
+                            state.selectedTableName != null
+                        ? 'Meja · ${state.selectedTableName}'
+                        : _orderTypeLabel(selectedOrderType),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      selectedOrderType == 'dine_in' &&
-                              state.selectedTableName != null
-                          ? 'Meja · ${state.selectedTableName}'
-                          : _orderTypeLabel(selectedOrderType),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-                ],
-              ),
+                ),
+                const Icon(
+                  Icons.arrow_drop_down,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -719,6 +788,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
         AppToast.info(context, '${product.name} ditambahkan ke keranjang');
       },
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -774,6 +844,13 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       onPressed: () => context.read<PosBloc>().add(
                         ToggleFavoriteProduct(product.id),
                       ),
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints.tightFor(
+                        width: widget.isMobile ? 30 : 40,
+                        height: widget.isMobile ? 30 : 40,
+                      ),
+                      iconSize: widget.isMobile ? 20 : 24,
+                      visualDensity: VisualDensity.compact,
                       icon: BlocBuilder<PosBloc, PosState>(
                         builder: (context, state) => Icon(
                           state.favoriteProductIds.contains(product.id)
@@ -784,33 +861,72 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       ),
                     ),
                   ),
+                  Positioned(
+                    left: 5,
+                    bottom: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: product.preparationMode == 'station'
+                            ? AppColors.warningBackground
+                            : AppColors.successBackground,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        product.preparationMode == 'station'
+                            ? (product.productionStationName.isEmpty
+                                  ? 'Dapur'
+                                  : product.productionStationName)
+                            : 'Langsung',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: product.preparationMode == 'station'
+                              ? AppColors.warning
+                              : AppColors.success,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+            SizedBox(
+              height: widget.isMobile ? 56 : 64,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  widget.isMobile ? 7 : 8,
+                  widget.isMobile ? 5 : 8,
+                  widget.isMobile ? 7 : 8,
+                  widget.isMobile ? 6 : 8,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: widget.isMobile ? 12 : 13,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Rp ${product.price.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                    Text(
+                      'Rp ${product.price.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: widget.isMobile ? 11 : 12,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -868,22 +984,22 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       item.phone.toLowerCase().contains(normalized);
                 }).toList();
                 return FractionallySizedBox(
-                  heightFactor: 0.72,
+                  heightFactor: 0.68,
                   child: Column(
                     children: [
                       const Padding(
-                        padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+                        padding: EdgeInsets.fromLTRB(14, 0, 14, 10),
                         child: Row(
                           children: [
                             Icon(
                               Icons.people_outline,
                               color: AppColors.primary,
                             ),
-                            SizedBox(width: 10),
+                            SizedBox(width: 8),
                             Text(
                               'Pilih Pelanggan',
                               style: TextStyle(
-                                fontSize: 19,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -891,7 +1007,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: TextField(
                           autofocus: true,
                           onChanged: (value) =>
@@ -909,7 +1025,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       ),
                       const SizedBox(height: 10),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
@@ -1141,6 +1257,19 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
                                       fontSize: 12,
                                     ),
                                   ),
+                                  if (table.floor.isNotEmpty ||
+                                      table.area.isNotEmpty)
+                                    Text(
+                                      [table.floor, table.area]
+                                          .where((value) => value.isNotEmpty)
+                                          .join(' · '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.black45,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),

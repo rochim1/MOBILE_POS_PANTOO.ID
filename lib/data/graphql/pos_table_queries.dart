@@ -7,6 +7,9 @@ class PosTableQueries {
           toko_id
           name
           capacity
+          area
+          floor
+          location_note
           status
           status_aktif
           active_order_id
@@ -34,6 +37,9 @@ class PosTableQueries {
         toko_id
         name
         capacity
+        area
+        floor
+        location_note
         status
         status_aktif
         active_order_id
@@ -51,12 +57,15 @@ class PosTableQueries {
   ''';
 
   static const String create = r'''
-    mutation CreatePOSTable($tokoId: ID!, $name: String!, $capacity: Int) {
-      CreatePOSTable(toko_id: $tokoId, name: $name, capacity: $capacity) {
+    mutation CreatePOSTable($tokoId: ID!, $name: String!, $capacity: Int, $area: String, $floor: String, $locationNote: String) {
+      CreatePOSTable(toko_id: $tokoId, name: $name, capacity: $capacity, area: $area, floor: $floor, location_note: $locationNote) {
         _id
         toko_id
         name
         capacity
+        area
+        floor
+        location_note
         status
         status_aktif
         createdAt
@@ -66,12 +75,15 @@ class PosTableQueries {
   ''';
 
   static const String update = r'''
-    mutation UpdatePOSTable($_id: ID!, $tokoId: ID!, $name: String, $capacity: Int, $status: String) {
-      UpdatePOSTable(_id: $_id, toko_id: $tokoId, name: $name, capacity: $capacity, status: $status) {
+    mutation UpdatePOSTable($_id: ID!, $tokoId: ID!, $name: String, $capacity: Int, $area: String, $floor: String, $locationNote: String, $status: String) {
+      UpdatePOSTable(_id: $_id, toko_id: $tokoId, name: $name, capacity: $capacity, area: $area, floor: $floor, location_note: $locationNote, status: $status) {
         _id
         toko_id
         name
         capacity
+        area
+        floor
+        location_note
         status
         status_aktif
         createdAt

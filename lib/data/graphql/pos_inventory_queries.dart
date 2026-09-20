@@ -156,7 +156,7 @@ class PosInventoryQueries {
         pagination: { page: 0, limit: 200 }
       ) {
         items {
-          _id inventaris_id qty
+          _id inventaris_id qty reserved_qty available_qty
           lokasi_cabang_id lokasi_cabang_nama
           lokasi_gedung_kode lokasi_gedung_nama
           lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama

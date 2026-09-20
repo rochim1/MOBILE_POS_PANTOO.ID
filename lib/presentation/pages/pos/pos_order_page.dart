@@ -268,7 +268,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
         ? _selectedCashier
         : 'Semua';
     return SizedBox(
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
@@ -292,7 +292,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Widget _buildPeriodDropdown() {
     return SizedBox(
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: DropdownButtonFormField<String>(
         initialValue: _selectedPeriod,
         isExpanded: true,
@@ -313,7 +313,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Widget _buildSearchField() {
     return SizedBox(
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: TextField(
         decoration: InputDecoration(
           hintText: 'Cari invoice atau pelanggan...',
@@ -335,7 +335,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
   Widget _buildStatusDropdown({required double width}) {
     return SizedBox(
       width: width,
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: DropdownButtonFormField<String>(
         initialValue: _selectedStatus,
         isExpanded: true,
@@ -488,12 +488,15 @@ class _PosOrderPageState extends State<PosOrderPage> {
                           color: AppColors.warning,
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          'Invoice tersimpan · menunggu pembayaran',
-                          style: TextStyle(
-                            color: AppColors.warning,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: Text(
+                            'Invoice tersimpan · menunggu pembayaran',
+                            style: TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -769,10 +772,10 @@ class _PosOrderPageState extends State<PosOrderPage> {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => Container(
           padding: EdgeInsets.fromLTRB(
-            20,
+            14,
             12,
-            20,
-            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            14,
+            14 + MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -795,7 +798,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
               const SizedBox(height: 18),
               const Text(
                 'Proses Pembayaran Invoice',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1034,9 +1037,10 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   '-';
               final qty = item['qty']?.toString() ?? '0';
               final unit = item['unit']?.toString() ?? 'unit';
-              final components = (item['component_consumptions'] as List? ?? const [])
-                  .whereType<Map>()
-                  .toList();
+              final components =
+                  (item['component_consumptions'] as List? ?? const [])
+                      .whereType<Map>()
+                      .toList();
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Column(
@@ -1052,7 +1056,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         margin: const EdgeInsets.only(top: 4, left: 8),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
@@ -1060,15 +1066,20 @@ class _PosOrderPageState extends State<PosOrderPage> {
                           children: [
                             const Text(
                               'Komposisi dikonsumsi',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                            ...components.map((component) => Text(
-                              '• ${component['nama_inventaris'] ?? '-'}: '
-                              '${component['qty_consumed_base'] ?? 0} '
-                              '${component['unit'] ?? 'unit'} · HPP Rp '
-                              '${double.tryParse((component['harga_pokok_total'] ?? 0).toString())?.toStringAsFixed(0) ?? '0'}',
-                              style: const TextStyle(fontSize: 12),
-                            )),
+                            ...components.map(
+                              (component) => Text(
+                                '• ${component['nama_inventaris'] ?? '-'}: '
+                                '${component['qty_consumed_base'] ?? 0} '
+                                '${component['unit'] ?? 'unit'} · HPP Rp '
+                                '${double.tryParse((component['harga_pokok_total'] ?? 0).toString())?.toStringAsFixed(0) ?? '0'}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
                           ],
                         ),
                       ),

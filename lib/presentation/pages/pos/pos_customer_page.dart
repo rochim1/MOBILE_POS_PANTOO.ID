@@ -59,18 +59,19 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
     final content = ColoredBox(
       color: AppColors.bgPrimary,
       child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(compact ? 12 : 16),
           children: [
             Row(
               children: [
                 Expanded(
                   child: SizedBox(
-                    height: 48,
+                    height: compact ? 40 : 48,
                     child: TextField(
                       controller: _searchController,
                       onChanged: (_) => setState(() {}),
@@ -112,8 +113,8 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                         ),
                   ],
                   child: Container(
-                    width: 48,
-                    height: 48,
+                    width: compact ? 40 : 48,
+                    height: compact ? 40 : 48,
                     decoration: BoxDecoration(
                       color: _priceLevelFilter == 'all'
                           ? Colors.white
@@ -126,7 +127,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  height: 48,
+                  height: compact ? 40 : 48,
                   child: ElevatedButton.icon(
                     onPressed: _loading ? null : () => _showForm(),
                     icon: const Icon(Icons.person_add_alt_1),

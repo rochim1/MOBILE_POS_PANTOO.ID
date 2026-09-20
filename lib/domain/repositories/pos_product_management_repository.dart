@@ -122,6 +122,32 @@ class PosProductManagementRepository {
     return fallbackUnitOptions;
   }
 
+  Future<List<Map<String, dynamic>>> getProductionStations({
+    String? storeId,
+  }) async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.getPosProductionStations),
+          variables: {
+            'active': true,
+            if (storeId?.isNotEmpty == true) 'toko_id': storeId,
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      final rows = result.data?['GetPOSProductionStations'];
+      if (rows is! List) return const [];
+      return rows
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .where((row) => row['_id']?.toString().isNotEmpty == true)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Map<String, String> _buildLocalIdentifierPreview() {
     final random = Random.secure();
     final timestamp = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
@@ -447,6 +473,13 @@ class PosProductManagementRepository {
               double.tryParse(data['titik_reorder']?.toString() ?? '0') ?? 0,
           procurementLeadTime:
               int.tryParse(data['lead_time_pengadaan']?.toString() ?? '0') ?? 0,
+          preparationMode: data['preparation_mode']?.toString() ?? 'instant',
+          productionStationId: data['production_station_id']?.toString() ?? '',
+          productionStationName:
+              data['production_station_name']?.toString() ?? '',
+          prepTimeMinutes:
+              int.tryParse(data['prep_time_minutes']?.toString() ?? '0') ?? 0,
+          allowStationOverride: data['allow_station_override'] == true,
         ),
       );
     } catch (e) {
@@ -520,6 +553,13 @@ class PosProductManagementRepository {
               double.tryParse(data['titik_reorder']?.toString() ?? '0') ?? 0,
           procurementLeadTime:
               int.tryParse(data['lead_time_pengadaan']?.toString() ?? '0') ?? 0,
+          preparationMode: data['preparation_mode']?.toString() ?? 'instant',
+          productionStationId: data['production_station_id']?.toString() ?? '',
+          productionStationName:
+              data['production_station_name']?.toString() ?? '',
+          prepTimeMinutes:
+              int.tryParse(data['prep_time_minutes']?.toString() ?? '0') ?? 0,
+          allowStationOverride: data['allow_station_override'] == true,
         ),
       );
     } catch (e) {

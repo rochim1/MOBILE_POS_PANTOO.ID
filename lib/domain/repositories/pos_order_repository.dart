@@ -79,25 +79,29 @@ class PosOrderRepository {
 
   Future<Either<Failure, bool>> updateOrderItemStatus(
     String orderId,
-    String _,
+    String itemId,
     String status, {
     String note = '',
+    int? expectedRevision,
   }) async {
     try {
       final options = MutationOptions(
         document: gql(PosTableOrderQueries.updateOrderItemStatus),
         variables: {
           'orderId': orderId,
+          'itemId': itemId,
           'status':
               const {
-                'pending': 'Baru',
-                'preparing': 'Diproses',
-                'served': 'Siap',
-                'delivered': 'Disajikan',
-                'completed': 'Selesai',
+                'pending': 'queued',
+                'Baru': 'queued',
+                'Diproses': 'preparing',
+                'Siap': 'ready',
+                'Disajikan': 'served',
+                'delivered': 'served',
               }[status] ??
               status,
           'note': note,
+          if (expectedRevision != null) 'expectedRevision': expectedRevision,
         },
       );
 
@@ -153,6 +157,60 @@ class PosOrderRepository {
       return result.data?['UpdatePOSServiceOrderStatus'] is Map
           ? const Right(true)
           : const Left(ServerFailure('Status layanan tidak dapat diproses'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> updateReservationStatus(
+    String orderId,
+    String status, {
+    String note = '',
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.updateReservationStatus),
+          variables: {'orderId': orderId, 'status': status, 'note': note},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['UpdatePOSReservationStatus'] is Map
+          ? const Right(true)
+          : const Left(ServerFailure('Status reservasi tidak dapat diproses'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, bool>> rescheduleReservation(
+    String orderId, {
+    required DateTime startAt,
+    required DateTime endAt,
+    String? tableId,
+    required int guestCount,
+  }) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.rescheduleReservation),
+          variables: {
+            'orderId': orderId,
+            'startAt': startAt.toIso8601String(),
+            'endAt': endAt.toIso8601String(),
+            'tableId': tableId,
+            'guestCount': guestCount,
+          },
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['ReschedulePOSReservation'] is Map
+          ? const Right(true)
+          : const Left(ServerFailure('Jadwal reservasi tidak dapat diproses'));
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
     }

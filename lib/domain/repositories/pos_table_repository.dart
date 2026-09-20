@@ -50,11 +50,21 @@ class PosTableRepository {
     required String storeId,
     required String name,
     int capacity = 4,
+    String area = '',
+    String floor = '',
+    String locationNote = '',
   }) async {
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PosTableQueries.create),
-        variables: {'tokoId': storeId, 'name': name, 'capacity': capacity},
+        variables: {
+          'tokoId': storeId,
+          'name': name,
+          'capacity': capacity,
+          'area': area,
+          'floor': floor,
+          'locationNote': locationNote,
+        },
       );
 
       final QueryResult result = await _clientProvider.client.mutate(options);
@@ -79,12 +89,18 @@ class PosTableRepository {
     required String id,
     String? name,
     int? capacity,
+    String? area,
+    String? floor,
+    String? locationNote,
     String? status,
   }) async {
     try {
       final variables = <String, dynamic>{'_id': id, 'tokoId': storeId};
       if (name != null) variables['name'] = name;
       if (capacity != null) variables['capacity'] = capacity;
+      if (area != null) variables['area'] = area;
+      if (floor != null) variables['floor'] = floor;
+      if (locationNote != null) variables['locationNote'] = locationNote;
       if (status != null) variables['status'] = status;
 
       final MutationOptions options = MutationOptions(

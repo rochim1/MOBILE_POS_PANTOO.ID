@@ -74,8 +74,10 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
   Widget _buildFilterToolbar() {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final compact = constraints.maxWidth < 600;
+        final controlHeight = compact ? 40.0 : 48.0;
         final search = SizedBox(
-          height: 48,
+          height: controlHeight,
           child: TextField(
             onChanged: (value) => setState(() => _search = value),
             decoration: InputDecoration(
@@ -94,7 +96,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           ),
         );
         final filter = SizedBox(
-          height: 48,
+          height: controlHeight,
           child: DropdownButtonFormField<String>(
             initialValue: _status,
             isExpanded: true,

@@ -74,14 +74,15 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
 
         return LayoutBuilder(
           builder: (context, constraints) {
+            final compact = constraints.maxWidth < 440;
             return SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Center(
                   child: Container(
-                    width: 400,
-                    margin: const EdgeInsets.symmetric(vertical: 24),
-                    padding: const EdgeInsets.all(24),
+                    width: compact ? constraints.maxWidth - 24 : 400,
+                    margin: EdgeInsets.symmetric(vertical: compact ? 12 : 24),
+                    padding: EdgeInsets.all(compact ? 16 : 24),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -95,7 +96,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                       children: [
                         const Icon(
                           Icons.storefront,
-                          size: 64,
+                          size: 56,
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: 16),

@@ -82,59 +82,68 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
   }
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: _load,
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final search = TextField(
-              controller: _search,
-              onChanged: _onSearch,
-              decoration: const InputDecoration(
-                labelText: 'Cari warehouse',
-                prefixIcon: Icon(Icons.search),
-              ),
-            );
-            final add = FilledButton.icon(
-              key: widget.setupTourKey,
-              onPressed: widget.canCreate ? () => _openForm(null) : null,
-              style: InventoryActionStyle.primary(),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Tambah Warehouse'),
-            );
-            if (constraints.maxWidth < 560) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [search, const SizedBox(height: 10), add],
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    final controlHeight = compact ? 40.0 : 48.0;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: EdgeInsets.all(compact ? 12 : 16),
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final search = SizedBox(
+                height: controlHeight,
+                child: TextField(
+                  controller: _search,
+                  onChanged: _onSearch,
+                  decoration: const InputDecoration(
+                    labelText: 'Cari warehouse',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
               );
-            }
-            return Row(
-              children: [
-                Expanded(child: search),
-                const SizedBox(width: 12),
-                add,
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        if (_loading) const LinearProgressIndicator(),
-        if (!_loading && _items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 48),
-            child: PosEmptyState(
-              icon: Icons.warehouse_outlined,
-              title: 'Belum ada warehouse',
-              message:
-                  'Buat lokasi stok pertama agar outlet dan inventori dapat digunakan.',
-            ),
+              final add = FilledButton.icon(
+                key: widget.setupTourKey,
+                onPressed: widget.canCreate ? () => _openForm(null) : null,
+                style: InventoryActionStyle.primary(
+                  controlHeight: controlHeight,
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Tambah Warehouse'),
+              );
+              if (constraints.maxWidth < 560) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [search, const SizedBox(height: 10), add],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: search),
+                  const SizedBox(width: 12),
+                  add,
+                ],
+              );
+            },
           ),
-        ..._items.map(_warehouseCard),
-      ],
-    ),
-  );
+          const SizedBox(height: 16),
+          if (_loading) const LinearProgressIndicator(),
+          if (!_loading && _items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 48),
+              child: PosEmptyState(
+                icon: Icons.warehouse_outlined,
+                title: 'Belum ada warehouse',
+                message:
+                    'Buat lokasi stok pertama agar outlet dan inventori dapat digunakan.',
+              ),
+            ),
+          ..._items.map(_warehouseCard),
+        ],
+      ),
+    );
+  }
 
   Widget _warehouseCard(Map<String, dynamic> item) {
     final capabilities = <String>[

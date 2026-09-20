@@ -248,15 +248,20 @@ class _PosProductPageState extends State<PosProductPage> {
               Row(
                 children: [
                   Expanded(child: _buildSearchField()),
-                  const SizedBox(width: 10),
-                  _buildFilterButton(context, products, trackStock),
+                  const SizedBox(width: 8),
+                  _buildFilterButton(
+                    context,
+                    products,
+                    trackStock,
+                    compact: true,
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               if (_canManageProducts(context))
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
+                  height: 44,
                   child: ElevatedButton.icon(
                     key: widget.setupTourKey,
                     onPressed: () => _showCatalogProductForm(context, true),
@@ -265,7 +270,7 @@ class _PosProductPageState extends State<PosProductPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -302,8 +307,9 @@ class _PosProductPageState extends State<PosProductPage> {
   Widget _buildFilterButton(
     BuildContext context,
     List<PosProduct> products,
-    bool trackStock,
-  ) {
+    bool trackStock, {
+    bool compact = false,
+  }) {
     return Badge(
       isLabelVisible: _activeFilterCount(trackStock) > 0,
       label: Text('${_activeFilterCount(trackStock)}'),
@@ -312,9 +318,9 @@ class _PosProductPageState extends State<PosProductPage> {
         onPressed: () => _showFilterSheet(context, products, trackStock),
         icon: const Icon(Icons.tune),
         style: IconButton.styleFrom(
-          minimumSize: const Size(52, 52),
+          minimumSize: Size.square(compact ? 40 : 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(compact ? 10 : 14),
           ),
         ),
       ),
@@ -343,14 +349,14 @@ class _PosProductPageState extends State<PosProductPage> {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Filter Produk',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String?>(
@@ -1240,7 +1246,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   late final TextEditingController _maximumStock;
   late final TextEditingController _reorderPoint;
   late final TextEditingController _baseUnit;
+  late final TextEditingController _prepTime;
   List<Map<String, dynamic>> _categories = const [];
+  List<Map<String, dynamic>> _productionStations = const [];
   List<PosProduct> _packageCandidates = const [];
   // Nullable agar State lama hasil Flutter web hot-reload tetap aman ketika
   // field ini baru ditambahkan. Hot restart akan menginisialisasinya normal.
@@ -1256,11 +1264,17 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   int _formTab = 0;
   String? _categoryId;
   String _productType = 'product';
+  String _preparationMode = 'instant';
+  String? _productionStationId;
+  bool _allowStationOverride = false;
   bool _useStockComposition = false;
   bool _loadingCategories = true;
   bool _categoryLoadFailed = false;
   bool _savingCategory = false;
   bool _generatingIdentifiers = false;
+
+  bool get _hasProductImage =>
+      _pickedImageBytes != null || _image.text.trim().isNotEmpty;
 
   bool get _tracksStock => _productType == 'product' && !_useStockComposition;
   bool get _usesUnits =>
@@ -1296,6 +1310,11 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           : product.reorderPoint.toStringAsFixed(0),
     );
     _baseUnit = TextEditingController(text: product?.saleUnit ?? 'unit');
+    _prepTime = TextEditingController(
+      text: product == null || (product.prepTimeMinutes ?? 0) <= 0
+          ? ''
+          : product.prepTimeMinutes.toString(),
+    );
     _unitOptions = {
       ...PosProductManagementRepository.fallbackUnitOptions,
       _baseUnit.text.trim().toLowerCase(),
@@ -1315,6 +1334,12 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         }.contains(product?.productType)
         ? product!.productType
         : 'product';
+    _preparationMode = product?.preparationMode ?? 'instant';
+    if (_productType == 'deposit') _preparationMode = 'none';
+    _productionStationId = product?.productionStationId.isEmpty == true
+        ? null
+        : product?.productionStationId;
+    _allowStationOverride = product?.allowStationOverride ?? false;
     for (final component in product?.packageComponents ?? const []) {
       final id = component['inventaris_id']?.toString() ?? '';
       if (id.isNotEmpty) {
@@ -1337,6 +1362,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     _loadCategories();
     _loadPackageCandidates();
     _loadUnitOptions();
+    _loadProductionStations();
     if (product == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _refreshIdentifiers();
@@ -1380,6 +1406,17 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       ..._unitConversions.map((row) => row.unit.text.trim().toLowerCase()),
     ].where((value) => value.isNotEmpty);
     setState(() => _unitOptions = {...values, ...legacyValues}.toList());
+  }
+
+  Future<void> _loadProductionStations() async {
+    final rows = await widget.repository.getProductionStations();
+    if (!mounted) return;
+    setState(() {
+      _productionStations = rows;
+      if (_productionStationId == null && rows.length == 1) {
+        _productionStationId = rows.first['_id']?.toString();
+      }
+    });
   }
 
   Future<void> _scanBarcode() async {
@@ -1486,43 +1523,46 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
                   ),
-                  onChanged: (value) => setDialogState(
-                    () => query = value.trim().toLowerCase(),
-                  ),
+                  onChanged: (value) =>
+                      setDialogState(() => query = value.trim().toLowerCase()),
                 ),
                 const SizedBox(height: 10),
                 Expanded(
-                  child: Builder(builder: (_) {
-                    final candidates = _packageCandidates.where((product) {
-                      if (query.isEmpty) return true;
-                      return '${product.name} ${product.code} ${product.sku} ${product.barcode}'
-                          .toLowerCase()
-                          .contains(query);
-                    }).toList();
-                    if (candidates.isEmpty) {
-                      return const Center(
-                        child: Text('Komponen stok tidak ditemukan.'),
-                      );
-                    }
-                    return ListView.builder(
-                    itemCount: candidates.length,
-                    itemBuilder: (_, index) {
-                      final product = candidates[index];
-                      return CheckboxListTile(
-                        value: selected.contains(product.id),
-                        title: Text(product.name),
-                        subtitle: Text('${product.code} • ${product.saleUnit}'),
-                        onChanged: (checked) => setDialogState(() {
-                          if (checked == true) {
-                            selected.add(product.id);
-                          } else {
-                            selected.remove(product.id);
-                          }
-                        }),
+                  child: Builder(
+                    builder: (_) {
+                      final candidates = _packageCandidates.where((product) {
+                        if (query.isEmpty) return true;
+                        return '${product.name} ${product.code} ${product.sku} ${product.barcode}'
+                            .toLowerCase()
+                            .contains(query);
+                      }).toList();
+                      if (candidates.isEmpty) {
+                        return const Center(
+                          child: Text('Komponen stok tidak ditemukan.'),
+                        );
+                      }
+                      return ListView.builder(
+                        itemCount: candidates.length,
+                        itemBuilder: (_, index) {
+                          final product = candidates[index];
+                          return CheckboxListTile(
+                            value: selected.contains(product.id),
+                            title: Text(product.name),
+                            subtitle: Text(
+                              '${product.code} • ${product.saleUnit}',
+                            ),
+                            onChanged: (checked) => setDialogState(() {
+                              if (checked == true) {
+                                selected.add(product.id);
+                              } else {
+                                selected.remove(product.id);
+                              }
+                            }),
+                          );
+                        },
                       );
                     },
-                  );
-                  }),
+                  ),
                 ),
               ],
             ),
@@ -1561,7 +1601,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
 
   double get _compositionCost => _componentQty.entries.fold(0, (sum, entry) {
     final product = _candidateById(entry.key);
-    final quantity = double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0;
+    final quantity =
+        double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0;
     return sum + (product?.purchasePrice ?? 0) * quantity;
   });
 
@@ -1570,10 +1611,13 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     int? result;
     for (final entry in _componentQty.entries) {
       final product = _candidateById(entry.key);
-      final quantity = double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0;
+      final quantity =
+          double.tryParse(entry.value.text.replaceAll(',', '.')) ?? 0;
       if (product == null || quantity <= 0) continue;
       final capacity = (product.stock / quantity).floor();
-      result = result == null ? capacity : (capacity < result ? capacity : result);
+      result = result == null
+          ? capacity
+          : (capacity < result ? capacity : result);
     }
     return result;
   }
@@ -1608,11 +1652,28 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     }
   }
 
+  void _removeImage() {
+    if (!_hasProductImage || _uploadingImage) return;
+    setState(() {
+      _pickedImageBytes = null;
+      _pickedImageName = '';
+      // String kosong sengaja dikirim pada update agar referensi foto lama
+      // benar-benar dihapus dari master produk.
+      _image.clear();
+    });
+  }
+
   Future<void> _submit() async {
     if (_submitting || _uploadingImage) return;
     if (_name.text.trim().isEmpty || _price.text.trim().isEmpty) {
       setState(() => _formTab = 0);
       AppToast.error(context, 'Nama dan harga jual wajib diisi');
+      return;
+    }
+    if (_preparationMode == 'station' &&
+        (_productionStationId == null || _productionStationId!.isEmpty)) {
+      setState(() => _formTab = 0);
+      AppToast.error(context, 'Pilih stasiun produksi untuk item ini');
       return;
     }
     final unit = _baseUnit.text.trim().toLowerCase();
@@ -1721,6 +1782,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       'pos_product_type': _productType,
       'sellable_in_pos': true,
       'tracks_stock': _tracksStock,
+      'preparation_mode': _productType == 'deposit' ? 'none' : _preparationMode,
+      'production_station_id': _preparationMode == 'station'
+          ? _productionStationId
+          : null,
+      'prep_time_minutes': _preparationMode == 'station'
+          ? int.tryParse(_prepTime.text.trim()) ?? 0
+          : 0,
+      'allow_station_override':
+          _preparationMode == 'station' && _allowStationOverride,
       'merchandise_category_id': _categoryId,
       'pos_package_components':
           (_productType == 'package' || _useStockComposition)
@@ -1755,6 +1825,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     _maximumStock.dispose();
     _reorderPoint.dispose();
     _baseUnit.dispose();
+    _prepTime.dispose();
     for (final controller in _componentQty.values) {
       controller.dispose();
     }
@@ -1944,6 +2015,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             _productType = value ?? 'product';
             if (_productType == 'package') _useStockComposition = true;
             if (_productType == 'deposit') {
+              _preparationMode = 'none';
+              _productionStationId = null;
               _useStockComposition = false;
               for (final controller in _componentQty.values) {
                 controller.dispose();
@@ -2007,6 +2080,102 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ),
         ],
       ),
+      if (_productType != 'deposit')
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).dividerColor),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Alur persiapan',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Item dapat langsung diserahkan atau dikirim ke dapur/bar.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: _preparationMode,
+                decoration: const InputDecoration(
+                  labelText: 'Cara persiapan *',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'instant',
+                    child: Text('Langsung jadi / tanpa dapur'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'station',
+                    child: Text('Diproses di dapur / stasiun'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'none',
+                    child: Text('Tidak memerlukan persiapan'),
+                  ),
+                ],
+                onChanged: (value) => setState(() {
+                  _preparationMode = value ?? 'instant';
+                  if (_preparationMode != 'station') {
+                    _productionStationId = null;
+                    _allowStationOverride = false;
+                  } else if (_productionStations.length == 1) {
+                    _productionStationId = _productionStations.first['_id']
+                        ?.toString();
+                  }
+                }),
+              ),
+              if (_preparationMode == 'station') ...[
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue:
+                      _productionStations.any(
+                        (row) => row['_id']?.toString() == _productionStationId,
+                      )
+                      ? _productionStationId
+                      : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Stasiun produksi *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _productionStations
+                      .map(
+                        (row) => DropdownMenuItem(
+                          value: row['_id']?.toString(),
+                          child: Text(row['name']?.toString() ?? 'Stasiun'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _productionStationId = value),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _prepTime,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Estimasi waktu persiapan',
+                    suffixText: 'menit',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Kasir boleh mengganti stasiun'),
+                  value: _allowStationOverride,
+                  onChanged: (value) =>
+                      setState(() => _allowStationOverride = value),
+                ),
+              ],
+            ],
+          ),
+        ),
       if (_productType != 'deposit')
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
@@ -2285,14 +2454,29 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                   const SizedBox(height: 6),
-                  OutlinedButton.icon(
-                    onPressed: _uploadingImage ? null : _pickImage,
-                    icon: const Icon(Icons.upload_outlined),
-                    label: Text(
-                      _pickedImageBytes == null
-                          ? 'Pilih gambar'
-                          : 'Ganti gambar',
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _uploadingImage ? null : _pickImage,
+                        icon: const Icon(Icons.upload_outlined),
+                        label: Text(
+                          _hasProductImage ? 'Ganti gambar' : 'Pilih gambar',
+                        ),
+                      ),
+                      if (_hasProductImage)
+                        OutlinedButton.icon(
+                          onPressed: _uploadingImage ? null : _removeImage,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                          ),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Hapus foto'),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -2338,10 +2522,10 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     // stok dan satuannya pada tab kedua.
     // Tiga elemen terakhir selalu barcode, foto, dan ringkasan margin.
     final informationFields = <Widget>[
-      ...fields.take(8),
+      ...fields.take(9),
       ...fields.skip(fields.length - 3),
     ];
-    final stockFields = <Widget>[...fields.skip(8).take(fields.length - 11)];
+    final stockFields = <Widget>[...fields.skip(9).take(fields.length - 12)];
     final visibleFields = _formTab == 0 ? informationFields : stockFields;
 
     return Column(

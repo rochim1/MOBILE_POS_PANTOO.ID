@@ -78,7 +78,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Buat PIN Kasir'),
     content: SizedBox(
-      width: 380,
+      width: (MediaQuery.sizeOf(context).width - 80).clamp(220.0, 380.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -315,28 +315,32 @@ class _PinLockScreenState extends State<PinLockScreen> {
       builder: (sheetContext) => BlocProvider.value(
         value: cubit,
         child: FractionallySizedBox(
-          heightFactor: 0.78,
+          heightFactor: 0.68,
           child: Column(
             children: [
               Container(
-                width: 42,
-                height: 4,
-                margin: const EdgeInsets.only(top: 10, bottom: 12),
+                width: 36,
+                height: 3,
+                margin: const EdgeInsets.only(top: 8, bottom: 9),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
                   children: [
-                    Icon(Icons.badge_outlined, color: AppColors.primary),
-                    SizedBox(width: 10),
+                    Icon(
+                      Icons.badge_outlined,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
                     Text(
                       'Pilih Kasir',
                       style: TextStyle(
-                        fontSize: 19,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -344,27 +348,38 @@ class _PinLockScreenState extends State<PinLockScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-                child: TextField(
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Cari nama atau username…',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 7),
+                child: SizedBox(
+                  height: 40,
+                  child: TextField(
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama atau username…',
+                      hintStyle: const TextStyle(fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, size: 19),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 38,
+                        minHeight: 38,
+                      ),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    onChanged: (value) {
+                      _employeeListFiltered = value.trim().isNotEmpty;
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(
+                        const Duration(milliseconds: 350),
+                        () => cubit.loadEmployees(search: value),
+                      );
+                    },
                   ),
-                  onChanged: (value) {
-                    _employeeListFiltered = value.trim().isNotEmpty;
-                    _searchDebounce?.cancel();
-                    _searchDebounce = Timer(
-                      const Duration(milliseconds: 350),
-                      () => cubit.loadEmployees(search: value),
-                    );
-                  },
                 ),
               ),
               Expanded(
@@ -379,7 +394,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       );
                     }
                     return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                      padding: const EdgeInsets.fromLTRB(8, 2, 8, 12),
                       itemCount: state.employees.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
@@ -390,19 +405,36 @@ class _PinLockScreenState extends State<PinLockScreen> {
                             employee['is_login_user'] == true &&
                             employee['has_pin'] != true;
                         return ListTile(
-                          leading: PosEmployeeAvatar(employee: employee),
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -2,
+                            vertical: -2,
+                          ),
+                          minTileHeight: 50,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                          ),
+                          leading: PosEmployeeAvatar(
+                            employee: employee,
+                            radius: 17,
+                          ),
                           title: Text(
                             _employeeName(employee),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           subtitle: Text(
                             employee['username']?.toString() ?? '-',
+                            style: const TextStyle(fontSize: 11),
                           ),
                           trailing: canCreatePin
                               ? const Text(
                                   'Buat PIN',
                                   style: TextStyle(
                                     color: AppColors.primary,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 )
@@ -413,6 +445,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                   color: selected
                                       ? AppColors.primary
                                       : Colors.grey,
+                                  size: 20,
                                 ),
                           onTap: () {
                             setState(() => _pin = '');

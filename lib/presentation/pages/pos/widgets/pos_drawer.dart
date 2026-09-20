@@ -46,39 +46,53 @@ class _PosDrawerState extends State<PosDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final drawerWidth = (screenWidth * .84).clamp(232.0, 272.0);
     return Drawer(
+      width: drawerWidth,
       backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(14)),
+      ),
       child: Column(
         children: [
           // ===== HEADER =====
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            padding: const EdgeInsets.fromLTRB(14, 10, 6, 12),
             decoration: const BoxDecoration(color: AppColors.primary),
             child: SafeArea(
               bottom: false,
               child: Row(
                 children: [
-                  const Icon(Icons.store, color: Colors.white, size: 36),
-                  const SizedBox(width: 12),
+                  const Icon(Icons.storefront, color: Colors.white, size: 26),
+                  const SizedBox(width: 9),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
                         Text(
-                          'Pantoo',
+                          'Pantoo POS',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
                           'Aplikasi Kasir Online',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                          style: TextStyle(color: Colors.white70, fontSize: 10),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Tutup sidebar',
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 21,
+                    color: Colors.white,
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.chevron_left_rounded),
                   ),
                 ],
               ),
@@ -93,7 +107,7 @@ class _PosDrawerState extends State<PosDrawer> {
 
           // ===== LOGOUT =====
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: Colors.grey.shade200)),
             ),
@@ -150,18 +164,22 @@ class _PosDrawerState extends State<PosDrawer> {
                     },
                   );
                 },
-                child: const Row(
-                  children: [
-                    Icon(Icons.logout, color: AppColors.danger),
-                    SizedBox(width: 16),
-                    Text(
-                      'Keluar',
-                      style: TextStyle(
-                        color: AppColors.danger,
-                        fontWeight: FontWeight.bold,
+                child: const SizedBox(
+                  height: 38,
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, color: AppColors.danger, size: 20),
+                      SizedBox(width: 11),
+                      Text(
+                        'Keluar',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -201,7 +219,7 @@ class _PosDrawerState extends State<PosDrawer> {
     final inventoryProfile =
         runtimeConfig['inventory_profile']?.toString() ?? 'simple';
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
         // ---- Point of Sale ----
         _buildSectionHeader('POINT OF SALE'),
@@ -225,10 +243,10 @@ class _PosDrawerState extends State<PosDrawer> {
         if (canViewInventory) ...[
           _buildShellItem(Icons.inventory_2_outlined, 'Inventori', 7),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 5),
             child: Text(
               'Profil inventory: ${_profileLabel(inventoryProfile)}. Stok, pembelian, opname, mutasi, barang terbuang, dan retur tersedia sesuai izin akun.',
-              style: const TextStyle(fontSize: 11, color: Colors.black54),
+              style: const TextStyle(fontSize: 10, color: Colors.black54),
             ),
           ),
         ],
@@ -356,14 +374,14 @@ class _PosDrawerState extends State<PosDrawer> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 20, top: 16, bottom: 8),
+      padding: const EdgeInsets.only(left: 14, top: 10, bottom: 3),
       child: Text(
         title,
         style: const TextStyle(
           color: AppColors.primary,
           fontWeight: FontWeight.bold,
-          fontSize: 11,
-          letterSpacing: 1.2,
+          fontSize: 9.5,
+          letterSpacing: 1,
         ),
       ),
     );
@@ -381,17 +399,22 @@ class _PosDrawerState extends State<PosDrawer> {
     final isSelected = widget.selectedIndex == index;
     return ListTile(
       dense: true,
+      visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
+      minTileHeight: 40,
+      minLeadingWidth: 26,
+      horizontalTitleGap: 8,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
       leading: Icon(
         icon,
         color: isSelected ? AppColors.primary : Colors.black87,
-        size: 22,
+        size: 19,
       ),
       title: Text(
         title,
         style: TextStyle(
           color: isSelected ? AppColors.primary : Colors.black87,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          fontSize: 14,
+          fontSize: 12.5,
         ),
       ),
       selected: isSelected,

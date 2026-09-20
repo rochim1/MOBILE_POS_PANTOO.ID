@@ -416,6 +416,9 @@ class _PosStockViewState extends State<_PosStockView> {
   }
 
   Widget _buildStockToolbar(PosStockState state) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    final controlHeight = compact ? 40.0 : 48.0;
+    final locationHeight = compact ? 44.0 : 54.0;
     const filters = <String, String>{
       'all': 'Semua Stok',
       'low': 'Stok Rendah',
@@ -555,23 +558,38 @@ class _PosStockViewState extends State<_PosStockView> {
       icon: const Icon(Icons.history, size: 18),
       label: const Text('Riwayat Shift'),
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        minimumSize: Size(0, controlHeight),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 16),
       ),
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 12 : 16,
+        compact ? 6 : 8,
+        compact ? 12 : 16,
+        compact ? 8 : 12,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth >= 900) {
             return Row(
               children: [
-                Expanded(child: SizedBox(height: 48, child: searchField)),
+                Expanded(
+                  child: SizedBox(height: controlHeight, child: searchField),
+                ),
                 const SizedBox(width: 10),
-                SizedBox(width: 250, height: 54, child: locationDropdown),
+                SizedBox(
+                  width: 250,
+                  height: locationHeight,
+                  child: locationDropdown,
+                ),
                 const SizedBox(width: 10),
-                SizedBox(width: 190, height: 48, child: filterDropdown),
+                SizedBox(
+                  width: 190,
+                  height: controlHeight,
+                  child: filterDropdown,
+                ),
                 if (_canViewStock) ...[
                   const SizedBox(width: 10),
                   historyButton,
@@ -582,13 +600,18 @@ class _PosStockViewState extends State<_PosStockView> {
 
           return Column(
             children: [
-              SizedBox(height: 48, child: searchField),
-              const SizedBox(height: 8),
-              SizedBox(height: 54, child: locationDropdown),
-              const SizedBox(height: 8),
+              SizedBox(height: controlHeight, child: searchField),
+              SizedBox(height: compact ? 6 : 8),
+              SizedBox(height: locationHeight, child: locationDropdown),
+              SizedBox(height: compact ? 6 : 8),
               Row(
                 children: [
-                  Expanded(child: SizedBox(height: 48, child: filterDropdown)),
+                  Expanded(
+                    child: SizedBox(
+                      height: controlHeight,
+                      child: filterDropdown,
+                    ),
+                  ),
                   if (_canViewStock) ...[
                     const SizedBox(width: 8),
                     historyButton,
@@ -924,10 +947,10 @@ class _PosStockViewState extends State<_PosStockView> {
       showDragHandle: true,
       builder: (sheetContext) => SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
-          20,
+          14,
           0,
-          20,
-          20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+          14,
+          14 + MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
         child: Center(
           child: ConstrainedBox(
@@ -939,7 +962,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 Text(
                   stock.namaInventaris,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1084,6 +1107,11 @@ class _PosStockViewState extends State<_PosStockView> {
     PosStock stock,
   ) {
     final unit = stock.unit;
+    final physicalQty = (balance['qty'] as num? ?? 0).toDouble();
+    final reservedQty = (balance['reserved_qty'] as num? ?? 0).toDouble();
+    final availableQty =
+        (balance['available_qty'] as num? ?? (physicalQty - reservedQty))
+            .toDouble();
     final batches = (balance['batches'] as List? ?? const [])
         .whereType<Map>()
         .where(
@@ -1139,12 +1167,26 @@ class _PosStockViewState extends State<_PosStockView> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '${_formatStock((balance['qty'] as num? ?? 0).toDouble())} $unit',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${_formatStock(availableQty)} $unit tersedia',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.success,
+                      ),
+                    ),
+                    Text(
+                      'Fisik ${_formatStock(physicalQty)} · dialokasikan ${_formatStock(reservedQty)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: reservedQty > 0
+                            ? AppColors.warning
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

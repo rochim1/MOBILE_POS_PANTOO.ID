@@ -11,6 +11,7 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 420;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -37,7 +38,7 @@ class LoginPage extends StatelessWidget {
           },
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(compact ? 14 : 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Card(
@@ -46,7 +47,7 @@ class LoginPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.all(compact ? 18 : 24),
                     child: const LoginForm(),
                   ),
                 ),

@@ -127,6 +127,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
   Timer? _occupancyRefreshTimer;
   int? _selectedCapacity;
   String _statusFilter = '';
+  String _locationFilter = '';
   String _sort = 'occupied_first';
 
   bool get _isTablet => MediaQuery.of(context).size.width >= 600;
@@ -180,14 +181,22 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           final activeCapacity = sortedCapacities.contains(_selectedCapacity)
               ? _selectedCapacity
               : null;
+          final locations =
+              state.tables
+                  .map(_tableLocation)
+                  .where((location) => location.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort();
           final visibleTables = _visibleTables(state.tables, activeCapacity);
           return Column(
             children: [
               _buildSearchBar(),
               if (state.tables.isNotEmpty)
-                _buildCapacityTabs(
+                _buildFilterPills(
                   sortedCapacities,
                   activeCapacity,
+                  locations,
                   state.tables.length,
                 ),
               Expanded(child: _buildBody(state, visibleTables)),
@@ -203,29 +212,108 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     );
   }
 
-  Widget _buildCapacityTabs(
+  Widget _buildFilterPills(
     List<int> capacities,
     int? activeCapacity,
+    List<String> locations,
     int totalTables,
   ) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: SizedBox(
-        height: 34,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            _capacityChip('Semua ($totalTables)', null, activeCapacity),
-            for (final capacity in capacities) ...[
-              const SizedBox(width: 8),
-              _capacityChip('$capacity kursi', capacity, activeCapacity),
-            ],
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _pillRow([
+            _filterChip(
+              'Semua ($totalTables)',
+              selected: _statusFilter.isEmpty,
+              onSelected: () => setState(() => _statusFilter = ''),
+            ),
+            _filterChip(
+              'Tersedia',
+              selected: _statusFilter == 'Tersedia',
+              onSelected: () => setState(() => _statusFilter = 'Tersedia'),
+              icon: Icons.check_circle_outline,
+            ),
+            _filterChip(
+              'Terisi',
+              selected: _statusFilter == 'Terisi',
+              onSelected: () => setState(() => _statusFilter = 'Terisi'),
+              icon: Icons.restaurant_outlined,
+            ),
+          ]),
+          if (locations.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _pillRow([
+              _filterChip(
+                'Semua lokasi',
+                selected: _locationFilter.isEmpty,
+                onSelected: () => setState(() => _locationFilter = ''),
+                icon: Icons.layers_outlined,
+              ),
+              for (final location in locations)
+                _filterChip(
+                  location,
+                  selected: _locationFilter == location,
+                  onSelected: () => setState(() => _locationFilter = location),
+                  icon: Icons.location_on_outlined,
+                ),
+            ]),
           ],
-        ),
+          if (capacities.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _pillRow([
+              _capacityChip('Semua kapasitas', null, activeCapacity),
+              for (final capacity in capacities)
+                _capacityChip('$capacity kursi', capacity, activeCapacity),
+            ]),
+          ],
+        ],
       ),
     );
   }
+
+  Widget _pillRow(List<Widget> children) => SizedBox(
+    height: 34,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: children.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (_, index) => children[index],
+    ),
+  );
+
+  Widget _filterChip(
+    String label, {
+    required bool selected,
+    required VoidCallback onSelected,
+    IconData? icon,
+  }) => ChoiceChip(
+    avatar: icon == null
+        ? null
+        : Icon(
+            icon,
+            size: 15,
+            color: selected ? Colors.white : Colors.grey[700],
+          ),
+    label: Text(label),
+    selected: selected,
+    onSelected: (_) => onSelected(),
+    showCheckmark: false,
+    visualDensity: VisualDensity.compact,
+    selectedColor: AppColors.primary,
+    backgroundColor: AppColors.bgPrimary,
+    side: BorderSide(
+      color: selected ? AppColors.primary : Colors.grey.shade300,
+    ),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+    labelStyle: TextStyle(
+      color: selected ? Colors.white : Colors.black87,
+      fontSize: 12,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    ),
+  );
 
   Widget _capacityChip(String label, int? capacity, int? activeCapacity) {
     final selected = capacity == activeCapacity;
@@ -250,104 +338,100 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final search = TextField(
-            controller: _searchController,
-            onChanged: _onSearch,
-            decoration: const InputDecoration(
-              hintText: 'Cari meja...',
-              prefixIcon: Icon(Icons.search, color: Colors.grey),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-          );
-          final filters = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.end,
-            children: [
-              SizedBox(
-                width: 145,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _statusFilter,
-                  isDense: true,
-                  isExpanded: true,
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+        final compact = outerConstraints.maxWidth < 600;
+        final controlHeight = compact ? 40.0 : 48.0;
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 12 : 16,
+            compact ? 8 : 12,
+            compact ? 12 : 16,
+            compact ? 8 : 10,
+          ),
+          color: Colors.white,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final search = SizedBox(
+                height: controlHeight,
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _onSearch,
                   decoration: const InputDecoration(
-                    labelText: 'Status meja',
+                    hintText: 'Cari meja...',
+                    prefixIcon: Icon(Icons.search, color: Colors.grey),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(),
+                    isDense: true,
                   ),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('Semua')),
-                    DropdownMenuItem(value: 'Terisi', child: Text('Terisi')),
-                    DropdownMenuItem(
-                      value: 'Tersedia',
-                      child: Text('Tersedia'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _statusFilter = value ?? ''),
                 ),
-              ),
-              SizedBox(
-                width: 168,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _sort,
-                  isDense: true,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Urutkan',
-                    border: OutlineInputBorder(),
+              );
+              final filters = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 168,
+                    height: controlHeight,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _sort,
+                      isDense: true,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Urutkan',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'occupied_first',
+                          child: Text(
+                            'Terisi dahulu',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'name',
+                          child: Text('Nama meja'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'longest',
+                          child: Text(
+                            'Durasi terlama',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'capacity',
+                          child: Text('Kapasitas'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _sort = value ?? 'occupied_first'),
+                    ),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'occupied_first',
-                      child: Text(
-                        'Terisi dahulu',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    DropdownMenuItem(value: 'name', child: Text('Nama meja')),
-                    DropdownMenuItem(
-                      value: 'longest',
-                      child: Text(
-                        'Durasi terlama',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'capacity',
-                      child: Text('Kapasitas'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _sort = value ?? 'occupied_first'),
-                ),
-              ),
-            ],
-          );
-          if (constraints.maxWidth < 650) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [search, const SizedBox(height: 8), filters],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: search),
-              const SizedBox(width: 10),
-              filters,
-            ],
-          );
-        },
-      ),
+                ],
+              );
+              if (constraints.maxWidth < 650) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [search, const SizedBox(height: 8), filters],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: search),
+                  const SizedBox(width: 10),
+                  filters,
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -440,6 +524,21 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   _buildStatusBadge(table.status, compact: true),
                 ],
               ),
+              if (table.floor.isNotEmpty || table.area.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  [
+                    table.floor,
+                    table.area,
+                  ].where((value) => value.isNotEmpty).join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
               const Spacer(),
               Text(
                 table.name,
@@ -565,7 +664,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           ),
           subtitle: Text(
             isAvailable
-                ? 'Kapasitas: ${table.capacity} kursi'
+                ? 'Kapasitas: ${table.capacity} kursi${table.floor.isNotEmpty || table.area.isNotEmpty ? ' · ${[table.floor, table.area].where((value) => value.isNotEmpty).join(' · ')}' : ''}'
                 : '${table.activeOrderNo ?? 'Pesanan aktif'} · ${_formatTime(table.activeOrderCreatedAt)} · ${_duration(table.activeOrderCreatedAt)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -638,6 +737,10 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       if (_statusFilter.isNotEmpty && table.status != _statusFilter) {
         return false;
       }
+      if (_locationFilter.isNotEmpty &&
+          _tableLocation(table) != _locationFilter) {
+        return false;
+      }
       return true;
     }).toList();
     final farFuture = DateTime(9999);
@@ -664,6 +767,11 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     });
     return result;
   }
+
+  String _tableLocation(PosTableModel table) => [
+    table.floor.trim(),
+    table.area.trim(),
+  ].where((value) => value.isNotEmpty).join(' · ');
 
   DateTime? _parseTimestamp(String? raw) {
     final value = raw?.trim() ?? '';
@@ -706,7 +814,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -927,6 +1035,9 @@ class _TableFormContent extends StatefulWidget {
 class _TableFormContentState extends State<_TableFormContent> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
+  late final TextEditingController _floorController;
+  late final TextEditingController _areaController;
+  late final TextEditingController _locationNoteController;
   late int _selectedCapacity;
   bool get _isEditing => widget.table != null;
 
@@ -934,12 +1045,20 @@ class _TableFormContentState extends State<_TableFormContent> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.table?.name ?? '');
+    _floorController = TextEditingController(text: widget.table?.floor ?? '');
+    _areaController = TextEditingController(text: widget.table?.area ?? '');
+    _locationNoteController = TextEditingController(
+      text: widget.table?.locationNote ?? '',
+    );
     _selectedCapacity = widget.table?.capacity ?? 4;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _floorController.dispose();
+    _areaController.dispose();
+    _locationNoteController.dispose();
     super.dispose();
   }
 
@@ -953,10 +1072,21 @@ class _TableFormContentState extends State<_TableFormContent> {
           id: widget.table!.id,
           name: name,
           capacity: _selectedCapacity,
+          floor: _floorController.text.trim(),
+          area: _areaController.text.trim(),
+          locationNote: _locationNoteController.text.trim(),
         ),
       );
     } else {
-      widget.bloc.add(CreateTable(name: name, capacity: _selectedCapacity));
+      widget.bloc.add(
+        CreateTable(
+          name: name,
+          capacity: _selectedCapacity,
+          floor: _floorController.text.trim(),
+          area: _areaController.text.trim(),
+          locationNote: _locationNoteController.text.trim(),
+        ),
+      );
     }
     Navigator.pop(context);
   }
@@ -1023,6 +1153,45 @@ class _TableFormContentState extends State<_TableFormContent> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _floorController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Lantai / Level',
+                        hintText: 'Lantai 2',
+                        prefixIcon: Icon(Icons.layers_outlined),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _areaController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Area / Zona',
+                        hintText: 'Outdoor',
+                        prefixIcon: Icon(Icons.map_outlined),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _locationNoteController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Catatan Posisi',
+                  hintText: 'Contoh: dekat taman',
+                  prefixIcon: Icon(Icons.place_outlined),
+                ),
               ),
               const SizedBox(height: 16),
 

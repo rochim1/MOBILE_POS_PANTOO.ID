@@ -9,9 +9,10 @@ class PosTableOrderQueries {
         items {
           _id order_no pelanggan_id pelanggan_nama status status_pembayaran
           subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
+          reservation_status reservation_start_at reservation_end_at reservation_guest_count reservation_deposit_amount reservation_deposit_paid
           status_history { status at actor_id actor_name note }
           table_id table { _id name }
-          items { _id produk_id nama kode qty unit harga_satuan subtotal catatan }
+          items { _id produk_id nama kode qty unit harga_satuan subtotal catatan preparation_mode production_station_id production_station_name prep_time_minutes production_status revision }
           service_order {
             service_type service_subject service_mode weight_kg item_count promised_at
             bag_tag fragrance finishing condition_notes status
@@ -40,6 +41,7 @@ class PosTableOrderQueries {
         catatan kitchen_note handover_note internal_note
         status_history { status at actor_id actor_name note }
         tipe_pesanan
+        reservation_status reservation_start_at reservation_end_at reservation_guest_count reservation_deposit_amount reservation_deposit_paid
         source
         table_id
         items {
@@ -49,6 +51,12 @@ class PosTableOrderQueries {
           qty
           harga_satuan
           catatan
+          preparation_mode
+          production_station_id
+          production_station_name
+          prep_time_minutes
+          production_status
+          revision
         }
         service_order {
           service_type service_subject service_mode weight_kg item_count promised_at
@@ -62,8 +70,8 @@ class PosTableOrderQueries {
   ''';
 
   static const String updateOrderItemStatus = r'''
-    mutation UpdatePOSOrderStatus($orderId: ID!, $status: String!, $note: String) {
-      UpdatePOSOrderStatus(_id: $orderId, status: $status, note: $note) {
+    mutation UpdatePOSOrderItemProductionStatus($orderId: ID!, $itemId: ID!, $status: String!, $note: String, $expectedRevision: Int) {
+      UpdatePOSOrderItemProductionStatus(_id: $orderId, item_id: $itemId, status: $status, note: $note, expected_revision: $expectedRevision) {
         _id
         status
       }
@@ -93,6 +101,22 @@ class PosTableOrderQueries {
       UpdatePOSServiceLineStatus(_id: $orderId, line_id: $lineId, status: $status, note: $note) {
         _id
         service_order { status service_lines { line_id name status status_history { status at actor_id actor_name note } } }
+      }
+    }
+  ''';
+
+  static const String updateReservationStatus = r'''
+    mutation UpdatePOSReservationStatus($orderId: ID!, $status: String!, $note: String) {
+      UpdatePOSReservationStatus(_id: $orderId, status: $status, note: $note) {
+        _id reservation_status status
+      }
+    }
+  ''';
+
+  static const String rescheduleReservation = r'''
+    mutation ReschedulePOSReservation($orderId: ID!, $startAt: String!, $endAt: String!, $tableId: ID, $guestCount: Int) {
+      ReschedulePOSReservation(_id: $orderId, start_at: $startAt, end_at: $endAt, table_id: $tableId, guest_count: $guestCount) {
+        _id table_id reservation_status reservation_start_at reservation_end_at reservation_guest_count
       }
     }
   ''';

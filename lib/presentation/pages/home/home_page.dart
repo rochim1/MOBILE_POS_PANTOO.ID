@@ -11,6 +11,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_order.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
@@ -24,6 +25,32 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedDays = 7;
   bool _loadingPeriod = false;
+  bool _widgetsLoaded = false;
+  Set<String> _visibleWidgets = {
+    'summary',
+    'sales',
+    'payments',
+    'products',
+    'orders',
+    'shift',
+  };
+
+  static const _widgetLabels = <String, String>{
+    'summary': 'Ringkasan penjualan',
+    'sales': 'Grafik penjualan',
+    'payments': 'Metode pembayaran',
+    'products': 'Produk terlaris',
+    'orders': 'Pesanan terbaru',
+    'shift': 'Shift aktif',
+  };
+
+  bool _widgetVisible(String key) => _visibleWidgets.contains(key);
+
+  String _widgetPreferenceKey(SharedPreferences prefs) {
+    final tenant = prefs.getString('instansi_id') ?? 'unknown-instansi';
+    final user = prefs.getString('user_id') ?? 'unknown-user';
+    return 'pantoo_pos_dashboard_widgets:$tenant:$user';
+  }
 
   String get _periodLabel => switch (_selectedDays) {
     1 => 'Hari Ini',
@@ -36,9 +63,112 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _loadWidgetPreferences();
     if (context.read<AppLockCubit>().state.status == AppLockStatus.unlocked) {
       context.read<PosBloc>().add(LoadDashboardData(days: _selectedDays));
     }
+  }
+
+  Future<void> _loadWidgetPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList(_widgetPreferenceKey(prefs));
+    if (!mounted) return;
+    setState(() {
+      if (saved != null && saved.isNotEmpty) {
+        _visibleWidgets = saved.where(_widgetLabels.containsKey).toSet();
+      }
+      _widgetsLoaded = true;
+    });
+  }
+
+  Future<void> _saveWidgetPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _widgetPreferenceKey(prefs),
+      _visibleWidgets.toList(growable: false),
+    );
+  }
+
+  Set<String> _profileWidgetPreset(String profile) => switch (profile) {
+    'restoran' => {'summary', 'sales', 'payments', 'orders', 'shift'},
+    'laundry' ||
+    'bengkel' ||
+    'jasa' => {'summary', 'sales', 'payments', 'orders', 'shift'},
+    _ => _widgetLabels.keys.toSet(),
+  };
+
+  Future<void> _showWidgetPicker() async {
+    final profile =
+        context
+            .read<PosBloc>()
+            .state
+            .runtimeConfig['business_profile']
+            ?.toString() ??
+        'retail';
+    final draft = {..._visibleWidgets};
+    final selected = await showModalBottomSheet<Set<String>>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Atur Widget Dashboard',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pilih informasi yang paling penting untuk operasional ${profile == 'restoran' ? 'restoran' : profile}.',
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                ..._widgetLabels.entries.map(
+                  (entry) => CheckboxListTile(
+                    value: draft.contains(entry.key),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(entry.value),
+                    onChanged: (checked) => setSheetState(() {
+                      if (checked == true) {
+                        draft.add(entry.key);
+                      } else if (draft.length > 1) {
+                        draft.remove(entry.key);
+                      }
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => setSheetState(() {
+                        draft
+                          ..clear()
+                          ..addAll(_profileWidgetPreset(profile));
+                      }),
+                      child: const Text('Reset sesuai profil'),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, draft),
+                      child: const Text('Simpan'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _visibleWidgets = selected);
+    await _saveWidgetPreferences();
   }
 
   @override
@@ -126,55 +256,76 @@ class _HomePageState extends State<HomePage> {
                           _buildLowStockAlert(state.products, isTablet),
 
                         // Section 1: Compact Stat Cards
-                        _buildStatCardsSection(
-                          isTablet: isTablet,
-                          todayRevenue: todayRevenue,
-                          todayTransactions: todayTransactions,
-                          todayAvgOrder: todayAvgOrder,
-                          totalProducts: totalProducts,
-                          revenueGrowth: revenueGrowth,
-                          transactionGrowth: transactionGrowth,
-                          isLoading:
-                              _loadingPeriod ||
-                              (data == null &&
-                                  state.status == PosStatus.loading),
-                        ),
-                        const SizedBox(height: 20),
+                        if (_widgetVisible('summary'))
+                          _buildStatCardsSection(
+                            isTablet: isTablet,
+                            todayRevenue: todayRevenue,
+                            todayTransactions: todayTransactions,
+                            todayAvgOrder: todayAvgOrder,
+                            totalProducts: totalProducts,
+                            revenueGrowth: revenueGrowth,
+                            transactionGrowth: transactionGrowth,
+                            isLoading:
+                                _loadingPeriod ||
+                                (data == null &&
+                                    state.status == PosStatus.loading),
+                          ),
+                        if (_widgetVisible('summary'))
+                          const SizedBox(height: 20),
 
                         // Section 2: Sales Chart
-                        _buildSalesChart(dailySales, isTablet),
-                        const SizedBox(height: 20),
+                        if (_widgetVisible('sales')) ...[
+                          _buildSalesChart(dailySales, isTablet),
+                          const SizedBox(height: 20),
+                        ],
 
                         // Section 3: Payment Breakdown + Top Products
-                        if (isTablet)
+                        if (isTablet &&
+                            (_widgetVisible('payments') ||
+                                _widgetVisible('products')))
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: _buildPaymentBreakdown(
-                                  paymentBreakdown,
-                                  isTablet,
+                              if (_widgetVisible('payments'))
+                                Expanded(
+                                  child: _buildPaymentBreakdown(
+                                    paymentBreakdown,
+                                    isTablet,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildTopProducts(topProducts, isTablet),
-                              ),
+                              if (_widgetVisible('payments') &&
+                                  _widgetVisible('products'))
+                                const SizedBox(width: 16),
+                              if (_widgetVisible('products'))
+                                Expanded(
+                                  child: _buildTopProducts(
+                                    topProducts,
+                                    isTablet,
+                                  ),
+                                ),
                             ],
                           )
                         else ...[
-                          _buildPaymentBreakdown(paymentBreakdown, isTablet),
-                          const SizedBox(height: 20),
-                          _buildTopProducts(topProducts, isTablet),
+                          if (_widgetVisible('payments')) ...[
+                            _buildPaymentBreakdown(paymentBreakdown, isTablet),
+                            const SizedBox(height: 20),
+                          ],
+                          if (_widgetVisible('products'))
+                            _buildTopProducts(topProducts, isTablet),
                         ],
-                        const SizedBox(height: 20),
+                        if (_widgetVisible('payments') ||
+                            _widgetVisible('products'))
+                          const SizedBox(height: 20),
 
                         // Recent Orders
-                        _buildRecentOrders(state.orders, isTablet),
-                        const SizedBox(height: 20),
+                        if (_widgetVisible('orders')) ...[
+                          _buildRecentOrders(state.orders, isTablet),
+                          const SizedBox(height: 20),
+                        ],
 
                         // Section 4: Active Shift
-                        if (state.activeShift != null)
+                        if (_widgetVisible('shift') &&
+                            state.activeShift != null)
                           _buildActiveShiftCard(state),
                       ],
                     ),
@@ -268,13 +419,18 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+    final widgetButton = IconButton.outlined(
+      tooltip: 'Atur widget dashboard',
+      onPressed: _widgetsLoaded ? _showWidgetPicker : null,
+      icon: const Icon(Icons.dashboard_customize_outlined),
+    );
     if (!isTablet) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           greeting,
           const SizedBox(height: 14),
-          Align(alignment: Alignment.centerLeft, child: periodFilter),
+          Row(children: [periodFilter, const SizedBox(width: 8), widgetButton]),
         ],
       );
     }
@@ -283,6 +439,8 @@ class _HomePageState extends State<HomePage> {
         Expanded(child: greeting),
         const SizedBox(width: 16),
         periodFilter,
+        const SizedBox(width: 8),
+        widgetButton,
       ],
     );
   }

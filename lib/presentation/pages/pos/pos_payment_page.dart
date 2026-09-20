@@ -31,8 +31,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   String _invoiceNote = '';
   bool _creatingInvoice = false;
   bool _payingPendingInvoice = false;
+  bool _customerPromptOpen = false;
   PosCustomer? _paymentCustomer;
   Map<String, dynamic>? _serviceOrder;
+  DateTime? _reservationStartAt;
+  DateTime? _reservationEndAt;
+  int _reservationGuestCount = 1;
+  double _reservationDepositAmount = 0;
 
   @override
   void initState() {
@@ -168,6 +173,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           } else if (state.status == PosStatus.failure &&
               state.errorMessage.isNotEmpty) {
             final message = state.errorMessage;
+            if (message.toLowerCase().contains('pelanggan')) {
+              _showRequiredCustomerFlow(
+                state,
+                message: message,
+                invalidateSelection:
+                    message.toLowerCase().contains('tidak ditemukan') ||
+                    message.toLowerCase().contains('tidak valid'),
+              );
+              return;
+            }
             final canRequestOverride =
                 state.runtimeConfig['expired_sale_policy'] ==
                     'allow_with_permission' &&
@@ -683,6 +698,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                           };
                                       if (normalizedMethod.isEmpty) return;
                                       if (!await _ensureServiceOrder(state)) {
+                                        return;
+                                      }
+                                      if (!context.mounted) return;
+                                      if (!await _ensureRequiredCustomer(
+                                        state,
+                                      )) {
                                         return;
                                       }
                                       if (!context.mounted) return;
@@ -1207,12 +1228,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final order = widget.pendingOrder;
     if (order == null || _payingPendingInvoice) return;
     final state = context.read<PosBloc>().state;
-    if (_requiresCustomer(state) && !_hasCustomer(state)) {
-      AppToast.warning(
-        context,
-        'Pilih atau tambahkan pelanggan sebelum membayar',
-      );
-      await _selectPaymentCustomer(state);
+    if (!await _ensureRequiredCustomer(state)) {
       return;
     }
     setState(() => _payingPendingInvoice = true);
@@ -1223,19 +1239,45 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       splitPayments: method == 'split' ? _splitPayments : const [],
       customerId:
           _paymentCustomer?.id ??
+          widget.pendingOrder?.customerId ??
           (widget.pendingOrder == null ? state.selectedCustomer?.id : null),
     );
     if (!mounted) return;
     setState(() => _payingPendingInvoice = false);
-    result.fold((failure) => AppToast.error(context, failure.message), (_) {
-      context.read<PosBloc>().add(RefreshOrders());
-      AppToast.success(context, 'Invoice ${order.invoice} berhasil dibayar');
-      Navigator.pop(context);
-    });
+    result.fold(
+      (failure) {
+        if (failure.message.toLowerCase().contains('pelanggan')) {
+          _showRequiredCustomerFlow(
+            context.read<PosBloc>().state,
+            message: failure.message,
+            invalidateSelection:
+                failure.message.toLowerCase().contains('tidak ditemukan') ||
+                failure.message.toLowerCase().contains('tidak valid'),
+          );
+          return;
+        }
+        AppToast.error(context, failure.message);
+      },
+      (_) {
+        context.read<PosBloc>().add(RefreshOrders());
+        AppToast.success(context, 'Invoice ${order.invoice} berhasil dibayar');
+        Navigator.pop(context);
+      },
+    );
   }
 
-  bool _requiresCustomer(PosState state) =>
-      (state.runtimeConfig['features'] as Map?)?['require_customer'] == true;
+  bool _requiresCustomer(PosState state) {
+    final orderType = widget.pendingOrder?.orderType.isNotEmpty == true
+        ? widget.pendingOrder!.orderType
+        : state.orderType;
+    return (state.runtimeConfig['features'] as Map?)?['require_customer'] ==
+            true ||
+        const {
+          'delivery',
+          'online_delivery',
+          'reservation',
+        }.contains(orderType);
+  }
 
   bool _orderHasNamedCustomer() {
     final name = widget.pendingOrder?.customer.trim() ?? '';
@@ -1244,9 +1286,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
 
   bool _hasCustomer(PosState state) =>
       (_paymentCustomer?.id.trim().isNotEmpty ?? false) ||
+      (widget.pendingOrder?.customerId?.trim().isNotEmpty ?? false) ||
       (widget.pendingOrder == null &&
-          (state.selectedCustomer?.id.trim().isNotEmpty ?? false)) ||
-      _orderHasNamedCustomer();
+          (state.selectedCustomer?.id.trim().isNotEmpty ?? false));
 
   String _customerLabel(PosState state) =>
       _paymentCustomer?.name ??
@@ -1254,7 +1296,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       (_orderHasNamedCustomer() ? widget.pendingOrder!.customer : null) ??
       'Pilih pelanggan';
 
-  Future<void> _selectPaymentCustomer(PosState state) async {
+  Future<bool> _selectPaymentCustomer(PosState state) async {
     final customers = state.customers;
     final selected = await showModalBottomSheet<PosCustomer>(
       context: context,
@@ -1275,19 +1317,19 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 )
                 .toList();
             return FractionallySizedBox(
-              heightFactor: .72,
+              heightFactor: .68,
               child: Column(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    padding: EdgeInsets.fromLTRB(14, 0, 14, 10),
                     child: Row(
                       children: [
                         Icon(Icons.people_outline, color: AppColors.primary),
-                        SizedBox(width: 10),
+                        SizedBox(width: 8),
                         Text(
                           'Pilih Pelanggan',
                           style: TextStyle(
-                            fontSize: 19,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1295,7 +1337,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: TextField(
                       autofocus: true,
                       onChanged: (value) => setSheetState(() => query = value),
@@ -1355,9 +1397,61 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         );
       },
     );
-    if (selected == null || !mounted) return;
+    if (selected == null || !mounted) return false;
     setState(() => _paymentCustomer = selected);
     context.read<PosBloc>().add(SelectCustomer(selected));
+    return true;
+  }
+
+  Future<bool> _ensureRequiredCustomer(PosState state) async {
+    if (!_requiresCustomer(state) || _hasCustomer(state)) return true;
+    return _showRequiredCustomerFlow(
+      state,
+      message: 'Profil atau tipe pemenuhan ini mewajibkan pelanggan.',
+    );
+  }
+
+  Future<bool> _showRequiredCustomerFlow(
+    PosState state, {
+    required String message,
+    bool invalidateSelection = false,
+  }) async {
+    if (_customerPromptOpen || !mounted) return false;
+    _customerPromptOpen = true;
+    try {
+      if (invalidateSelection) {
+        setState(() => _paymentCustomer = null);
+        context.read<PosBloc>().add(const SelectCustomer(null));
+      }
+      final proceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(
+            Icons.person_search_outlined,
+            color: AppColors.warning,
+            size: 42,
+          ),
+          title: const Text('Pelanggan Wajib Dipilih'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.people_outline),
+              label: const Text('Pilih Pelanggan'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return false;
+      return _selectPaymentCustomer(context.read<PosBloc>().state);
+    } finally {
+      _customerPromptOpen = false;
+    }
   }
 
   String _activeStoreName(BuildContext context) {
@@ -1510,23 +1604,170 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     if (result != null && mounted) setState(() => _invoiceNote = result);
   }
 
+  Future<bool> _ensureReservationDetails(PosState state) async {
+    if (state.orderType != 'reservation') return true;
+    final guests = TextEditingController(
+      text: _reservationGuestCount.toString(),
+    );
+    final deposit = TextEditingController(
+      text: _reservationDepositAmount > 0
+          ? _reservationDepositAmount.toStringAsFixed(0)
+          : '',
+    );
+    var start =
+        _reservationStartAt ??
+        (_serviceOrder?['appointment_at'] != null
+            ? DateTime.tryParse(_serviceOrder!['appointment_at'].toString())
+            : null);
+    var end = _reservationEndAt;
+    String error = '';
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> pickDateTime(bool isStart) async {
+            final current = (isStart ? start : end) ?? DateTime.now();
+            final date = await showDatePicker(
+              context: context,
+              initialDate: current,
+              firstDate: DateTime.now().subtract(const Duration(days: 1)),
+              lastDate: DateTime.now().add(const Duration(days: 730)),
+            );
+            if (date == null || !context.mounted) return;
+            final time = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay.fromDateTime(current),
+            );
+            if (time == null) return;
+            setDialogState(() {
+              final selected = DateTime(
+                date.year,
+                date.month,
+                date.day,
+                time.hour,
+                time.minute,
+              );
+              if (isStart) {
+                start = selected;
+                end ??= selected.add(const Duration(hours: 2));
+              } else {
+                end = selected;
+              }
+            });
+          }
+
+          String dateLabel(DateTime? value) => value == null
+              ? 'Pilih tanggal & waktu'
+              : DateFormat('dd MMM yyyy, HH:mm').format(value);
+          return AlertDialog(
+            title: const Text('Detail reservasi'),
+            content: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Mulai reservasi *'),
+                    subtitle: Text(dateLabel(start)),
+                    trailing: const Icon(Icons.event_outlined),
+                    onTap: () => pickDateTime(true),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Selesai reservasi *'),
+                    subtitle: Text(dateLabel(end)),
+                    trailing: const Icon(Icons.event_available_outlined),
+                    onTap: () => pickDateTime(false),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: guests,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Jumlah tamu',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: deposit,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.,]'),
+                            ),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Deposit diminta',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (error.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      error,
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final guestCount = int.tryParse(guests.text) ?? 0;
+                  final depositAmount =
+                      double.tryParse(deposit.text.replaceAll(',', '.')) ?? 0;
+                  if (start == null ||
+                      end == null ||
+                      !end!.isAfter(start!) ||
+                      guestCount < 1 ||
+                      depositAmount < 0) {
+                    setDialogState(
+                      () => error =
+                          'Lengkapi waktu yang valid dan jumlah tamu minimal 1.',
+                    );
+                    return;
+                  }
+                  _reservationStartAt = start;
+                  _reservationEndAt = end;
+                  _reservationGuestCount = guestCount;
+                  _reservationDepositAmount = depositAmount;
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    guests.dispose();
+    deposit.dispose();
+    return result == true;
+  }
+
   Future<void> _createInvoice(BuildContext context, PosState state) async {
     if (!await _ensureServiceOrder(state)) return;
+    if (!await _ensureReservationDetails(state)) return;
     if (!context.mounted) return;
-    if (const {
-          'delivery',
-          'online_delivery',
-          'reservation',
-        }.contains(state.orderType) &&
-        state.selectedCustomer == null &&
-        widget.initialCustomer == null) {
-      AppToast.warning(
-        context,
-        'Pilih pelanggan untuk tipe pemenuhan ini sebelum membuat invoice.',
-      );
-      await _selectPaymentCustomer(state);
-      return;
-    }
+    if (!await _ensureRequiredCustomer(state)) return;
+    if (!context.mounted) return;
     if (state.orderType == 'dine_in' &&
         (state.selectedTableId == null || state.selectedTableId!.isEmpty)) {
       AppToast.warning(
@@ -1589,6 +1830,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           product.id: state.unitPriceFor(product),
       },
       serviceOrder: _serviceOrder,
+      reservationStartAt: _reservationStartAt,
+      reservationEndAt: _reservationEndAt,
+      reservationGuestCount: _reservationGuestCount,
+      reservationDepositAmount: _reservationDepositAmount,
     );
     if (!mounted) return;
     setState(() => _creatingInvoice = false);

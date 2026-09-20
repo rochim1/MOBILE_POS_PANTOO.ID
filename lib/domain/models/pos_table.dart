@@ -5,6 +5,9 @@ class PosTableModel extends Equatable {
   final String name;
   final String storeId;
   final int capacity;
+  final String area;
+  final String floor;
+  final String locationNote;
   final String status; // Tersedia / Terisi
   final bool statusAktif;
   final String? activeOrderId;
@@ -23,6 +26,9 @@ class PosTableModel extends Equatable {
     required this.name,
     this.storeId = '',
     this.capacity = 4,
+    this.area = '',
+    this.floor = '',
+    this.locationNote = '',
     this.status = 'Tersedia',
     this.statusAktif = true,
     this.activeOrderId,
@@ -43,6 +49,9 @@ class PosTableModel extends Equatable {
       name: json['name']?.toString() ?? '',
       storeId: json['toko_id']?.toString() ?? '',
       capacity: int.tryParse(json['capacity']?.toString() ?? '4') ?? 4,
+      area: json['area']?.toString() ?? '',
+      floor: json['floor']?.toString() ?? '',
+      locationNote: json['location_note']?.toString() ?? '',
       status: json['status']?.toString() ?? 'Tersedia',
       statusAktif:
           json['status_aktif'] == true || json['status_aktif'] == 'active',
@@ -67,6 +76,9 @@ class PosTableModel extends Equatable {
       'name': name,
       'toko_id': storeId,
       'capacity': capacity,
+      'area': area,
+      'floor': floor,
+      'location_note': locationNote,
       'status': status,
       'status_aktif': statusAktif,
       'active_order_id': activeOrderId,
@@ -87,6 +99,9 @@ class PosTableModel extends Equatable {
     String? name,
     String? storeId,
     int? capacity,
+    String? area,
+    String? floor,
+    String? locationNote,
     String? status,
     bool? statusAktif,
     String? activeOrderId,
@@ -105,6 +120,9 @@ class PosTableModel extends Equatable {
       name: name ?? this.name,
       storeId: storeId ?? this.storeId,
       capacity: capacity ?? this.capacity,
+      area: area ?? this.area,
+      floor: floor ?? this.floor,
+      locationNote: locationNote ?? this.locationNote,
       status: status ?? this.status,
       statusAktif: statusAktif ?? this.statusAktif,
       activeOrderId: activeOrderId ?? this.activeOrderId,
@@ -126,6 +144,9 @@ class PosTableModel extends Equatable {
     name,
     storeId,
     capacity,
+    area,
+    floor,
+    locationNote,
     status,
     statusAktif,
     activeOrderId,

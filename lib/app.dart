@@ -13,6 +13,30 @@ import 'domain/repositories/pos_repository.dart';
 
 import 'package:chucker_flutter/chucker_flutter.dart';
 
+/// Mengikuti text scaling dari perangkat, lalu memadatkannya sedikit pada
+/// layar ponsel. Diletakkan di atas Navigator agar turut berlaku pada dialog,
+/// bottom sheet, popup menu, tabel, dan route lain yang ditampilkan sebagai
+/// overlay.
+final class _CompactMobileTextScaler extends TextScaler {
+  const _CompactMobileTextScaler(this.base);
+
+  final TextScaler base;
+  static const double factor = .84;
+
+  @override
+  double scale(double fontSize) => base.scale(fontSize) * factor;
+
+  @override
+  double get textScaleFactor => scale(14) / 14;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _CompactMobileTextScaler && other.base == base;
+
+  @override
+  int get hashCode => Object.hash(base, factor);
+}
+
 class App extends StatelessWidget {
   const App({super.key});
 
@@ -30,7 +54,9 @@ class App extends StatelessWidget {
       child: MaterialApp(
         navigatorKey: navigatorKey,
         builder: (context, child) {
-          return BlocListener<AuthCubit, AuthState>(
+          final mediaQuery = MediaQuery.of(context);
+          final compactMobile = mediaQuery.size.width < 600;
+          final app = BlocListener<AuthCubit, AuthState>(
             listener: (context, state) async {
               if (state.status == AuthStatus.authenticated) {
                 final prefs = sl<SharedPreferences>();
@@ -78,6 +104,13 @@ class App extends StatelessWidget {
                 child: child!,
               ),
             ),
+          );
+          if (!compactMobile) return app;
+          return MediaQuery(
+            data: mediaQuery.copyWith(
+              textScaler: _CompactMobileTextScaler(mediaQuery.textScaler),
+            ),
+            child: app,
           );
         },
         debugShowCheckedModeBanner: false,

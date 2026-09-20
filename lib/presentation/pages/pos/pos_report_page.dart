@@ -837,19 +837,11 @@ class _ReportViewState extends State<_ReportView> {
   List<(_Section, IconData, String)> get _sectionOptions => const [
     (_Section.summary, Icons.dashboard_outlined, 'Ringkasan Penjualan'),
     (_Section.topReports, Icons.leaderboard_outlined, '10 Laporan Teratas'),
-    (_Section.commission, Icons.percent_rounded, 'Komisi'),
-    (_Section.voidSales, Icons.block_outlined, 'Void'),
     (_Section.cashier, Icons.person_outline_rounded, 'Kasir'),
     (_Section.cash, Icons.point_of_sale_outlined, 'Kas Kasir'),
     (_Section.products, Icons.inventory_2_outlined, 'Produk Terjual'),
     (_Section.payments, Icons.wallet_outlined, 'Jenis Pembayaran'),
-    (
-      _Section.satisfaction,
-      Icons.sentiment_satisfied_alt_outlined,
-      'Kepuasan Pelanggan',
-    ),
     (_Section.others, Icons.more_horiz_rounded, 'Lainnya'),
-    (_Section.deposits, Icons.savings_outlined, 'Penjualan Deposit'),
   ];
 
   Widget _error(BuildContext context, PosReportState state) => _Card(

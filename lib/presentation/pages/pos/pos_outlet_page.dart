@@ -72,8 +72,9 @@ class _PosOutletPageState extends State<PosOutletPage> {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 600;
                   final search = SizedBox(
-                    height: 48,
+                    height: compact ? 40 : 48,
                     child: TextField(
                       onChanged: (v) => setState(() => _search = v),
                       decoration: InputDecoration(
@@ -102,8 +103,8 @@ class _PosOutletPageState extends State<PosOutletPage> {
                       PopupMenuItem(value: 'inactive', child: Text('Nonaktif')),
                     ],
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      width: compact ? 40 : 48,
+                      height: compact ? 40 : 48,
                       decoration: BoxDecoration(
                         color: _statusFilter == 'all'
                             ? Colors.white
@@ -116,7 +117,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                   );
                   final add = SizedBox(
                     key: widget.setupTourKey,
-                    height: 48,
+                    height: compact ? 40 : 48,
                     child: ElevatedButton.icon(
                       onPressed: () => _form(null),
                       icon: const Icon(Icons.add_business),
@@ -216,6 +217,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
     String? selectedWarehouseId = store?.branchId.isNotEmpty == true
         ? store!.branchId
         : null;
+    var shiftMode = store?.shiftMode ?? 'shared_register';
     if (selectedWarehouseId != null &&
         !warehouses.any(
           (item) => item['_id']?.toString() == selectedWarehouseId,
@@ -333,6 +335,28 @@ class _PosOutletPageState extends State<PosOutletPage> {
                       onChanged: (value) => selectedWarehouseId = value,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: shiftMode,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Mode shift kasir',
+                      helperText:
+                          'Register bersama untuk satu laci; per operator memisahkan rekonsiliasi setiap PIN.',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'shared_register',
+                        child: Text('Register bersama'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'per_operator',
+                        child: Text('Shift per operator PIN'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        shiftMode = value ?? 'shared_register',
+                  ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -358,6 +382,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                                 'telepon': phone.text.trim(),
                                 'status': store?.status ?? 'active',
                                 'lokasi_cabang_id': selectedWarehouseId,
+                                'shift_mode': shiftMode,
                               };
                               final result = store == null
                                   ? await _repository.createStore(input)

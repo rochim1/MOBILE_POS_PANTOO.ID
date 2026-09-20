@@ -93,13 +93,14 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
     return ColoredBox(
       color: AppColors.bgPrimary,
       child: Column(
         children: [
           // Search & Filter section
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(compact ? 12 : 16),
             color: Colors.white,
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -186,7 +187,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   Widget _buildSearchField() {
     return SizedBox(
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: TextField(
         controller: _searchController,
         onChanged: (_) {
@@ -216,7 +217,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
         ? 'all'
         : (_filterIsActive! ? 'active' : 'inactive');
     return SizedBox(
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
@@ -244,7 +245,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   Widget _buildAddButton() {
     return SizedBox(
-      height: 48,
+      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: ElevatedButton.icon(
         onPressed: () => _showPromoForm(context),
         icon: const Icon(Icons.add),

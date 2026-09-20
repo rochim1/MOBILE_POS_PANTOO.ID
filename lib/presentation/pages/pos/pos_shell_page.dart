@@ -68,6 +68,7 @@ class _PosShellPageState extends State<PosShellPage>
   bool get _useOrderTableGridView => _orderTableGridView ?? true;
   bool _posDataRequested = false;
   bool _showUnlockLoading = false;
+  bool _returnToCashierAfterShiftOpen = false;
   late bool _showSetupGuide;
   bool _setupCompleted = false;
   String _inventoryInitialSection = 'stock';
@@ -191,127 +192,138 @@ class _PosShellPageState extends State<PosShellPage>
     if (mounted) _loadNavbarNotifications();
   }
 
-  Widget _notificationButton() => PopupMenuButton<String>(
-    tooltip: 'Notifikasi',
-    color: Colors.white,
-    surfaceTintColor: Colors.white,
-    elevation: 8,
-    offset: const Offset(0, 46),
-    constraints: const BoxConstraints(minWidth: 320, maxWidth: 360),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    onSelected: (value) {
-      if (value == 'all') {
-        _openNotifications();
-      } else if (value.startsWith('read:')) {
-        _readNavbarNotification(value.substring(5));
-      }
-    },
-    icon: Badge(
-      isLabelVisible: _unreadNotifications > 0,
-      label: Text(_unreadNotifications > 99 ? '99+' : '$_unreadNotifications'),
-      child: const Icon(Icons.notifications_none, color: Colors.white),
-    ),
-    itemBuilder: (context) => [
-      const PopupMenuItem<String>(
-        enabled: false,
-        height: 52,
-        child: Row(
-          children: [
-            Icon(Icons.notifications_outlined, color: AppColors.primary),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Notifikasi operasional',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-              ),
-            ),
-            Text(
-              'POS & Inventori',
-              style: TextStyle(fontSize: 11, color: Colors.black45),
-            ),
-          ],
-        ),
+  Widget _notificationButton({bool compact = false}) {
+    final availableWidth = MediaQuery.sizeOf(context).width - 24;
+    final popupWidth = availableWidth.clamp(240.0, 360.0);
+    return PopupMenuButton<String>(
+      tooltip: 'Notifikasi',
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 8,
+      offset: const Offset(0, 46),
+      padding: EdgeInsets.zero,
+      iconSize: compact ? 20 : 24,
+      constraints: BoxConstraints(
+        minWidth: compact ? popupWidth : 320,
+        maxWidth: popupWidth,
       ),
-      const PopupMenuDivider(height: 1),
-      if (_navbarNotifications.isEmpty)
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      onSelected: (value) {
+        if (value == 'all') {
+          _openNotifications();
+        } else if (value.startsWith('read:')) {
+          _readNavbarNotification(value.substring(5));
+        }
+      },
+      icon: Badge(
+        isLabelVisible: _unreadNotifications > 0,
+        label: Text(
+          _unreadNotifications > 99 ? '99+' : '$_unreadNotifications',
+        ),
+        child: const Icon(Icons.notifications_none, color: Colors.white),
+      ),
+      itemBuilder: (context) => [
         const PopupMenuItem<String>(
           enabled: false,
-          child: Text('Belum ada notifikasi baru'),
-        )
-      else
-        ..._navbarNotifications.take(5).map((item) {
-          final id = item['_id']?.toString() ?? '';
-          final unread = item['is_read'] != true;
-          return PopupMenuItem<String>(
-            value: 'read:$id',
-            height: 66,
-            child: SizedBox(
-              width: 320,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      _notificationIcon(item['module_type']?.toString()),
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['title']?.toString() ?? 'Notifikasi',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: unread
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          item['body']?.toString() ?? '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: Colors.black54,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          height: 52,
+          child: Row(
+            children: [
+              Icon(Icons.notifications_outlined, color: AppColors.primary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Notifikasi operasional',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
               ),
-            ),
-          );
-        }),
-      const PopupMenuDivider(),
-      const PopupMenuItem<String>(
-        value: 'all',
-        height: 48,
-        child: Center(
-          child: Text(
-            'Selengkapnya',
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
+              Text(
+                'POS & Inventori',
+                style: TextStyle(fontSize: 11, color: Colors.black45),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        if (_navbarNotifications.isEmpty)
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: Text('Belum ada notifikasi baru'),
+          )
+        else
+          ..._navbarNotifications.take(5).map((item) {
+            final id = item['_id']?.toString() ?? '';
+            final unread = item['is_read'] != true;
+            return PopupMenuItem<String>(
+              value: 'read:$id',
+              height: 66,
+              child: SizedBox(
+                width: compact ? popupWidth - 32 : 320,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        _notificationIcon(item['module_type']?.toString()),
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['title']?.toString() ?? 'Notifikasi',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: unread
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            item['body']?.toString() ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Colors.black54,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'all',
+          height: 48,
+          child: Center(
+            child: Text(
+              'Selengkapnya',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 
   IconData _notificationIcon(String? module) => switch (module) {
     'inventory' => Icons.inventory_2_outlined,
@@ -350,7 +362,23 @@ class _PosShellPageState extends State<PosShellPage>
     final dashboardReady =
         state.status == PosStatus.success && state.dashboardData != null;
     if (dashboardReady || state.status == PosStatus.failure) {
-      setState(() => _showUnlockLoading = false);
+      setState(() {
+        _showUnlockLoading = false;
+        if (dashboardReady && _setupCompleted && !_showSetupGuide) {
+          final activeStores = state.stores
+              .where((store) => store.status.toLowerCase() == 'active')
+              .toList(growable: false);
+          if (activeStores.isEmpty) {
+            _selectedIndex = 10;
+          } else if (state.activeShift == null &&
+              state.runtimeConfig['allow_out_of_shift'] != true) {
+            _returnToCashierAfterShiftOpen = true;
+            _selectedIndex = 11;
+          } else {
+            _selectedIndex = 1;
+          }
+        }
+      });
     }
   }
 
@@ -543,6 +571,27 @@ class _PosShellPageState extends State<PosShellPage>
       storeTourKey: _setupTourTargets.shiftStore,
       formTourKey: _setupTourTargets.shiftForm,
       openTourKey: _setupTourTargets.shiftOpen,
+      onShiftOpened: () async {
+        _posBloc.add(LoadPosData());
+        try {
+          await _posBloc.stream
+              .firstWhere(
+                (state) =>
+                    state.status == PosStatus.failure ||
+                    (state.status == PosStatus.success &&
+                        state.activeShift != null),
+              )
+              .timeout(const Duration(seconds: 15));
+        } on TimeoutException {
+          // Shift sudah diterima server; halaman kasir tetap dapat memuat ulang
+          // status terbaru ketika jaringan sedang lambat.
+        }
+        if (!_returnToCashierAfterShiftOpen || !mounted) return;
+        setState(() {
+          _returnToCashierAfterShiftOpen = false;
+          _selectedIndex = 1;
+        });
+      },
     ),
     const PosReportPage(),
     const PosReturnPage(),
@@ -708,32 +757,71 @@ class _PosShellPageState extends State<PosShellPage>
             child: InkWell(
               onTap: () => _openSetupGuide(bannerContext),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 9,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 16,
+                  vertical: isMobile ? 6 : 9,
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.route_outlined, color: AppColors.warning),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Setup POS belum selesai. Simpan langkah ini, lalu kembali ke panduan.',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                child: isMobile
+                    ? Row(
+                        children: [
+                          Icon(
+                            Icons.route_outlined,
+                            color: AppColors.warning,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Setup POS belum selesai',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Lanjutkan setup',
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 36,
+                              height: 36,
+                            ),
+                            padding: EdgeInsets.zero,
+                            onPressed: () => _continueSetup(bannerContext),
+                            icon: const Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 19,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Icon(Icons.route_outlined, color: AppColors.warning),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Setup POS belum selesai. Simpan langkah ini, lalu kembali ke panduan.',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _openSetupGuide(bannerContext),
+                            child: const Text('Ringkasan'),
+                          ),
+                          const SizedBox(width: 4),
+                          FilledButton.icon(
+                            onPressed: () => _continueSetup(bannerContext),
+                            icon: const Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 17,
+                            ),
+                            label: const Text('Selanjutnya'),
+                          ),
+                        ],
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => _openSetupGuide(bannerContext),
-                      child: const Text('Ringkasan'),
-                    ),
-                    const SizedBox(width: 4),
-                    FilledButton.icon(
-                      onPressed: () => _continueSetup(bannerContext),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                      label: const Text('Selanjutnya'),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),
@@ -786,11 +874,27 @@ class _PosShellPageState extends State<PosShellPage>
                     appBar: AppBar(
                       elevation: 0,
                       backgroundColor: AppColors.primary,
+                      toolbarHeight: isSmallScreen ? 48 : 64,
+                      leadingWidth: isSmallScreen ? 44 : 56,
+                      iconTheme: IconThemeData(
+                        color: Colors.white,
+                        size: isSmallScreen ? 20 : 24,
+                      ),
+                      actionsIconTheme: IconThemeData(
+                        color: Colors.white,
+                        size: isSmallScreen ? 20 : 24,
+                      ),
                       titleSpacing: 0,
                       leading: isMobile
                           ? Builder(
                               builder: (context) => IconButton(
                                 tooltip: 'Buka menu',
+                                style: isSmallScreen
+                                    ? IconButton.styleFrom(
+                                        fixedSize: const Size.square(40),
+                                        padding: EdgeInsets.zero,
+                                      )
+                                    : null,
                                 icon: const Icon(
                                   Icons.menu,
                                   color: Colors.white,
@@ -857,7 +961,7 @@ class _PosShellPageState extends State<PosShellPage>
                                     ),
                                     child: PosEmployeeAvatar(
                                       employee: activeEmployee,
-                                      radius: 18,
+                                      radius: isSmallScreen ? 15 : 20,
                                       fallbackColor: AppColors.warningBorder,
                                     ),
                                   ),
@@ -872,48 +976,75 @@ class _PosShellPageState extends State<PosShellPage>
                                               ? storeName.toString()
                                               : _destinations[_selectedIndex]
                                                     .label,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                          style:
+                                              const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ).copyWith(
+                                                fontSize: isSmallScreen
+                                                    ? 14
+                                                    : 18,
+                                              ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         const SizedBox(height: 2),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxWidth: isSmallScreen
+                                                  ? 132
+                                                  : 320,
                                             ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: const BoxDecoration(
-                                                  color: AppColors.success,
-                                                  shape: BoxShape.circle,
-                                                ),
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: isSmallScreen
+                                                    ? 5
+                                                    : 6,
+                                                vertical: isSmallScreen ? 1 : 3,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                isMobile
-                                                    ? username
-                                                    : '$storeName • $username',
-                                                style: const TextStyle(
-                                                  color: Colors.black87,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
-                                            ],
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Container(
+                                                    width: 6,
+                                                    height: 6,
+                                                    decoration:
+                                                        const BoxDecoration(
+                                                          color:
+                                                              AppColors.success,
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      isMobile
+                                                          ? username
+                                                          : '$storeName • $username',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: Colors.black87,
+                                                        fontSize: isSmallScreen
+                                                            ? 9
+                                                            : 11,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -926,37 +1057,95 @@ class _PosShellPageState extends State<PosShellPage>
                         },
                       ),
                       actions: [
-                        Builder(
-                          builder: (posBlocContext) => IconButton(
-                            tooltip: 'Checklist kesiapan POS',
-                            icon: Icon(
-                              _showSetupGuide
-                                  ? Icons.checklist_rounded
-                                  : Icons.fact_check_outlined,
+                        if (!isSmallScreen)
+                          Builder(
+                            builder: (posBlocContext) => IconButton(
+                              tooltip: 'Checklist kesiapan POS',
+                              icon: Icon(
+                                _showSetupGuide
+                                    ? Icons.checklist_rounded
+                                    : Icons.fact_check_outlined,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                if (_showSetupGuide) {
+                                  setState(() => _showSetupGuide = false);
+                                } else {
+                                  _openSetupGuide(posBlocContext);
+                                }
+                              },
+                            ),
+                          ),
+                        SizedBox(
+                          width: isSmallScreen ? 40 : 48,
+                          child: _notificationButton(compact: isSmallScreen),
+                        ),
+                        if (!isSmallScreen)
+                          IconButton(
+                            tooltip: 'Kunci POS',
+                            icon: const Icon(
+                              Icons.lock_outline,
                               color: Colors.white,
                             ),
-                            onPressed: () {
-                              if (_showSetupGuide) {
-                                setState(() => _showSetupGuide = false);
-                              } else {
-                                _openSetupGuide(posBlocContext);
-                              }
-                            },
+                            onPressed: () =>
+                                context.read<AppLockCubit>().lock(),
+                          )
+                        else
+                          Builder(
+                            builder: (menuContext) => SizedBox(
+                              width: 40,
+                              child: PopupMenuButton<String>(
+                                tooltip: 'Aksi lainnya',
+                                padding: EdgeInsets.zero,
+                                iconSize: 20,
+                                icon: const Icon(
+                                  Icons.more_vert,
+                                  color: Colors.white,
+                                ),
+                                onSelected: (value) {
+                                  if (value == 'setup') {
+                                    if (_showSetupGuide) {
+                                      setState(() => _showSetupGuide = false);
+                                    } else {
+                                      _openSetupGuide(menuContext);
+                                    }
+                                  } else if (value == 'lock') {
+                                    menuContext.read<AppLockCubit>().lock();
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'setup',
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(Icons.fact_check_outlined),
+                                      title: Text('Checklist kesiapan'),
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'lock',
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(Icons.lock_outline),
+                                      title: Text('Kunci POS'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                        _notificationButton(),
-                        IconButton(
-                          tooltip: 'Kunci POS',
-                          icon: const Icon(
-                            Icons.lock_outline,
-                            color: Colors.white,
-                          ),
-                          onPressed: () => context.read<AppLockCubit>().lock(),
-                        ),
                         if (_selectedIndex == 1) ...[
                           BlocBuilder<PosBloc, PosState>(
                             builder: (context, state) {
                               return IconButton(
+                                style: isSmallScreen
+                                    ? IconButton.styleFrom(
+                                        fixedSize: const Size.square(40),
+                                        padding: EdgeInsets.zero,
+                                      )
+                                    : null,
                                 icon: Icon(
                                   state.isGridView
                                       ? Icons.list
@@ -1005,6 +1194,12 @@ class _PosShellPageState extends State<PosShellPage>
                         ],
                         if (_selectedIndex == 2)
                           IconButton(
+                            style: isSmallScreen
+                                ? IconButton.styleFrom(
+                                    fixedSize: const Size.square(40),
+                                    padding: EdgeInsets.zero,
+                                  )
+                                : null,
                             tooltip: _productGridView
                                 ? 'Tampilkan sebagai tabel'
                                 : 'Tampilkan sebagai grid',
@@ -1022,6 +1217,12 @@ class _PosShellPageState extends State<PosShellPage>
                           ),
                         if (_selectedIndex == 7)
                           IconButton(
+                            style: isSmallScreen
+                                ? IconButton.styleFrom(
+                                    fixedSize: const Size.square(40),
+                                    padding: EdgeInsets.zero,
+                                  )
+                                : null,
                             tooltip: _stockGridView
                                 ? 'Tampilkan sebagai tabel'
                                 : 'Tampilkan sebagai grid',
@@ -1037,6 +1238,12 @@ class _PosShellPageState extends State<PosShellPage>
                           ),
                         if (_selectedIndex == 3)
                           IconButton(
+                            style: isSmallScreen
+                                ? IconButton.styleFrom(
+                                    fixedSize: const Size.square(40),
+                                    padding: EdgeInsets.zero,
+                                  )
+                                : null,
                             tooltip: _historyGridView
                                 ? 'Tampilkan sebagai tabel'
                                 : 'Tampilkan sebagai kartu',
@@ -1054,6 +1261,12 @@ class _PosShellPageState extends State<PosShellPage>
                           ),
                         if (_selectedIndex == 5 || _selectedIndex == 6)
                           IconButton(
+                            style: isSmallScreen
+                                ? IconButton.styleFrom(
+                                    fixedSize: const Size.square(40),
+                                    padding: EdgeInsets.zero,
+                                  )
+                                : null,
                             tooltip: _useOrderTableGridView
                                 ? 'Tampilkan sebagai list'
                                 : 'Tampilkan sebagai grid',
@@ -1070,7 +1283,7 @@ class _PosShellPageState extends State<PosShellPage>
                               );
                             },
                           ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: isSmallScreen ? 2 : 8),
                       ],
                     ),
                     drawer: isMobile
@@ -1081,11 +1294,23 @@ class _PosShellPageState extends State<PosShellPage>
                             },
                           )
                         : null,
-                    body: SafeArea(child: _buildShellBody(isMobile)),
+                    body: SafeArea(
+                      child: isMobile
+                          ? Theme(
+                              data: Theme.of(context).copyWith(
+                                visualDensity: const VisualDensity(
+                                  horizontal: -2,
+                                  vertical: -2,
+                                ),
+                              ),
+                              child: _buildShellBody(isMobile),
+                            )
+                          : _buildShellBody(isMobile),
+                    ),
                     floatingActionButton:
                         isMobile &&
                             MediaQuery.of(context).viewInsets.bottom == 0
-                        ? FloatingActionButton(
+                        ? FloatingActionButton.small(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             shape: const CircleBorder(),
@@ -1095,7 +1320,7 @@ class _PosShellPageState extends State<PosShellPage>
                                 _selectedIndex = 1;
                               });
                             },
-                            child: const Icon(Icons.point_of_sale, size: 28),
+                            child: const Icon(Icons.point_of_sale, size: 22),
                           )
                         : null,
                     floatingActionButtonLocation:
@@ -1103,10 +1328,10 @@ class _PosShellPageState extends State<PosShellPage>
                     bottomNavigationBar: isMobile
                         ? BottomAppBar(
                             shape: const CircularNotchedRectangle(),
-                            notchMargin: 8.0,
+                            notchMargin: 6.0,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
-                            height: 60,
+                            height: 52,
                             child: Row(
                               children: <Widget>[
                                 Expanded(
@@ -1131,7 +1356,7 @@ class _PosShellPageState extends State<PosShellPage>
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 72),
+                                const SizedBox(width: 56),
                                 Expanded(
                                   child: Row(
                                     children: [
@@ -1452,13 +1677,13 @@ class _PosShellPageState extends State<PosShellPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(isSelected ? selectedIcon : icon, color: color),
-          const SizedBox(height: 4),
+          Icon(isSelected ? selectedIcon : icon, color: color, size: 20),
+          const SizedBox(height: 2),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),

@@ -105,14 +105,14 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   'Filter Retur Pembelian',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
@@ -260,49 +260,65 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
         children: [
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(
+              MediaQuery.sizeOf(context).width < 600 ? 12 : 16,
+            ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final search = TextField(
-                  controller: _searchController,
-                  onChanged: _search,
-                  decoration: const InputDecoration(
-                    labelText: 'Cari nomor retur / supplier',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                final compact = constraints.maxWidth < 600;
+                final controlHeight = compact ? 40.0 : 48.0;
+                final search = SizedBox(
+                  height: controlHeight,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _search,
+                    decoration: const InputDecoration(
+                      labelText: 'Cari nomor retur / supplier',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 );
-                final status = DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
+                final status = SizedBox(
+                  height: controlHeight,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Semua')),
+                      DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                      DropdownMenuItem(
+                        value: 'pending_approval',
+                        child: Text('Menunggu'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'approved',
+                        child: Text('Disetujui'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'rejected',
+                        child: Text('Ditolak'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'processed',
+                        child: Text('Diproses'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _status = value ?? '');
+                      _load(page: 1);
+                    },
                   ),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('Semua')),
-                    DropdownMenuItem(value: 'draft', child: Text('Draft')),
-                    DropdownMenuItem(
-                      value: 'pending_approval',
-                      child: Text('Menunggu'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'approved',
-                      child: Text('Disetujui'),
-                    ),
-                    DropdownMenuItem(value: 'rejected', child: Text('Ditolak')),
-                    DropdownMenuItem(
-                      value: 'processed',
-                      child: Text('Diproses'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _status = value ?? '');
-                    _load(page: 1);
-                  },
                 );
                 final button = FilledButton.icon(
                   onPressed: canCreate ? _openCreate : null,
-                  style: InventoryActionStyle.primary(),
+                  style: InventoryActionStyle.primary(
+                    controlHeight: controlHeight,
+                  ),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Retur ke Supplier'),
                 );
@@ -314,7 +330,9 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 final filter = IconButton.filledTonal(
                   onPressed: _showFilters,
                   tooltip: 'Filter retur',
-                  style: InventoryActionStyle.filter(),
+                  style: InventoryActionStyle.filter(
+                    controlHeight: controlHeight,
+                  ),
                   icon: Badge(
                     isLabelVisible: hasFilter,
                     child: const Icon(Icons.tune_rounded),

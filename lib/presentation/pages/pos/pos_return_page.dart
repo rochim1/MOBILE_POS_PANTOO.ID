@@ -68,18 +68,19 @@ class _PosReturnViewState extends State<PosReturnView> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
     return ColoredBox(
       color: AppColors.bgPrimary,
       child: Column(
         children: [
           // Filter section
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(compact ? 12 : 16),
             color: Colors.white,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final search = SizedBox(
-                  height: 48,
+                  height: compact ? 40 : 48,
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
@@ -112,7 +113,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   ),
                 );
                 final filter = SizedBox(
-                  height: 48,
+                  height: compact ? 40 : 48,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedStatus,
                     isExpanded: true,
@@ -150,7 +151,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   ),
                 );
                 final addButton = SizedBox(
-                  height: 48,
+                  height: compact ? 40 : 48,
                   child: ElevatedButton.icon(
                     onPressed: _openAddReturn,
                     icon: const Icon(Icons.add),

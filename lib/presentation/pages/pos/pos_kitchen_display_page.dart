@@ -9,6 +9,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../../core/_core.dart';
 import '../../../../core/network/graphql_client_provider.dart';
 import '../../../../domain/models/pos_order_detail.dart';
+import '../../../../domain/repositories/pos_order_repository.dart';
+import '../../../../domain/repositories/pos_product_management_repository.dart';
 import '../../../../injections.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos_order_management/pos_order_management_bloc.dart';
@@ -86,6 +88,8 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   bool _realtimeConnected = false;
   bool _disposed = false;
   DateTime _now = DateTime.now();
+  List<Map<String, dynamic>> _stations = const [];
+  String _stationId = '';
 
   @override
   void initState() {
@@ -93,6 +97,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     _storeId = widget.initialStoreId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _reload();
+      _loadStations();
       _connectRealtime();
     });
     _refreshTimer = Timer.periodic(
@@ -186,6 +191,19 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     );
   }
 
+  Future<void> _loadStations() async {
+    final rows = await sl<PosProductManagementRepository>()
+        .getProductionStations(storeId: _storeId);
+    if (!mounted) return;
+    setState(() {
+      _stations = rows;
+      if (_stationId.isNotEmpty &&
+          !rows.any((row) => row['_id']?.toString() == _stationId)) {
+        _stationId = '';
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final stores = context.read<PosBloc>().state.stores;
@@ -204,6 +222,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     final compact = constraints.maxWidth < 620;
                     final storeSelector = SizedBox(
                       width: compact ? constraints.maxWidth : 300,
+                      height: compact ? 40 : 48,
                       child: DropdownButtonFormField<String>(
                         initialValue: _storeId,
                         isDense: true,
@@ -226,7 +245,11 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                             .toList(),
                         onChanged: (value) {
                           if (value == null || value == _storeId) return;
-                          setState(() => _storeId = value);
+                          setState(() {
+                            _storeId = value;
+                            _stationId = '';
+                          });
+                          _loadStations();
                           _reload();
                         },
                       ),
@@ -234,7 +257,41 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     final refresh = IconButton.filledTonal(
                       tooltip: 'Muat ulang antrean',
                       onPressed: _reload,
+                      style: compact
+                          ? IconButton.styleFrom(
+                              fixedSize: const Size.square(40),
+                              iconSize: 19,
+                            )
+                          : null,
                       icon: const Icon(Icons.refresh),
+                    );
+                    final stationSelector = SizedBox(
+                      width: compact ? constraints.maxWidth : 220,
+                      height: compact ? 40 : 48,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _stationId,
+                        isDense: true,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Stasiun',
+                          prefixIcon: Icon(Icons.soup_kitchen_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('Semua stasiun'),
+                          ),
+                          ..._stations.map(
+                            (row) => DropdownMenuItem(
+                              value: row['_id']?.toString() ?? '',
+                              child: Text(row['name']?.toString() ?? 'Stasiun'),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _stationId = value ?? ''),
+                      ),
                     );
                     final liveStatus = Row(
                       mainAxisSize: MainAxisSize.min,
@@ -260,7 +317,9 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           storeSelector,
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
+                          stationSelector,
+                          const SizedBox(height: 6),
                           Row(children: [liveStatus, const Spacer(), refresh]),
                         ],
                       );
@@ -268,6 +327,8 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     return Row(
                       children: [
                         storeSelector,
+                        const SizedBox(width: 10),
+                        stationSelector,
                         const Spacer(),
                         liveStatus,
                         const SizedBox(width: 10),
@@ -294,11 +355,18 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     }
                     final orders = state.orders
                         .where(
-                          (order) => [
-                            'Baru',
-                            'Diproses',
-                            'Siap',
-                          ].contains(order.status),
+                          (order) =>
+                              [
+                                'Baru',
+                                'Diproses',
+                                'Siap',
+                              ].contains(order.status) &&
+                              order.items.any(
+                                (item) =>
+                                    item.preparationMode == 'station' &&
+                                    (_stationId.isEmpty ||
+                                        item.productionStationId == _stationId),
+                              ),
                         )
                         .toList();
                     if (orders.isEmpty) {
@@ -564,45 +632,80 @@ class _KitchenBoardState extends State<_KitchenBoard> {
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ),
-          ...order.items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 34,
-                    child: Text(
-                      '${item.quantity ?? 0}×',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+          ...order.items
+              .where(
+                (item) =>
+                    item.preparationMode == 'station' &&
+                    (_stationId.isEmpty ||
+                        item.productionStationId == _stationId),
+              )
+              .map(
+                (item) => Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productName ?? 'Produk',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        if (item.notes?.trim().isNotEmpty == true)
-                          Text(
-                            item.notes!,
-                            style: const TextStyle(
-                              color: AppColors.danger,
-                              fontSize: 12,
-                            ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 34,
+                        child: Text(
+                          '${item.quantity ?? 0}×',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.productName ?? 'Produk',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (item.notes?.trim().isNotEmpty == true)
+                              Text(
+                                item.notes!,
+                                style: const TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (widget.canUpdate && item.id?.isNotEmpty == true)
+                        IconButton.filledTonal(
+                          tooltip: switch (item.productionStatus) {
+                            'queued' => 'Mulai proses',
+                            'preparing' => 'Tandai siap',
+                            'ready' => 'Tandai sudah disajikan',
+                            _ => 'Status selesai',
+                          },
+                          onPressed:
+                              const {
+                                'queued',
+                                'preparing',
+                                'ready',
+                              }.contains(item.productionStatus)
+                              ? () => _advanceItem(order, item)
+                              : null,
+                          icon: Icon(switch (item.productionStatus) {
+                            'queued' => Icons.play_arrow,
+                            'preparing' => Icons.check,
+                            'ready' => Icons.room_service_outlined,
+                            _ => Icons.done_all,
+                          }),
+                        ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
           if (order.note?.trim().isNotEmpty == true)
             Container(
               width: double.infinity,
@@ -625,91 +728,72 @@ class _KitchenBoardState extends State<_KitchenBoard> {
               ),
               child: Text('Untuk dapur: ${order.kitchenNote}'),
             ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SizedBox(
-              width: double.infinity,
-              child: !widget.canUpdate
-                  ? OutlinedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.visibility_outlined),
-                      label: const Text('Hanya lihat'),
-                    )
-                  : FilledButton.icon(
-                      onPressed: () => status == 'Siap'
-                          ? _confirmHandover(order)
-                          : _advance(
-                              order,
-                              status == 'Baru' ? 'Diproses' : 'Siap',
-                            ),
-                      icon: Icon(
-                        status == 'Baru'
-                            ? Icons.play_arrow
-                            : status == 'Diproses'
-                            ? Icons.check
-                            : Icons.room_service_outlined,
-                      ),
-                      label: Text(
-                        status == 'Baru'
-                            ? 'Mulai masak'
-                            : status == 'Diproses'
-                            ? 'Tandai siap'
-                            : _handoverLabel(order),
-                      ),
-                    ),
+          if (!widget.canUpdate)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_outlined),
+                  SizedBox(width: 8),
+                  Text('Hanya lihat'),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  void _advance(PosOrderDetail order, String nextStatus, {String note = ''}) {
+  void _advanceItem(PosOrderDetail order, PosOrderItem item) {
+    final nextStatus = switch (item.productionStatus) {
+      'queued' => 'preparing',
+      'preparing' => 'ready',
+      'ready' => 'served',
+      _ => item.productionStatus,
+    };
     context.read<PosOrderManagementBloc>().add(
       UpdateItemStatus(
         orderId: order.id ?? '',
-        itemId: '',
+        itemId: item.id ?? '',
         newStatus: nextStatus,
         tableId: order.tableId ?? '',
         storeId: _storeId,
-        note: note,
       ),
     );
   }
 
-  Future<void> _confirmHandover(PosOrderDetail order) async {
-    final controller = TextEditingController(text: order.handoverNote ?? '');
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(_handoverLabel(order)),
-        content: TextField(
-          controller: controller,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            labelText: 'Catatan penyerahan (opsional)',
-            hintText: 'Contoh: diterima pelanggan atau diserahkan ke kurir',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Konfirmasi'),
-          ),
-        ],
-      ),
-    );
-    final note = controller.text.trim();
-    controller.dispose();
-    if (confirmed == true && mounted) {
-      _advance(order, 'Disajikan', note: note);
+  Future<void> _advance(
+    PosOrderDetail order,
+    String targetStatus, {
+    String note = '',
+  }) async {
+    final target =
+        const {
+          'Baru': 'queued',
+          'Diproses': 'preparing',
+          'Siap': 'ready',
+          'Disajikan': 'served',
+        }[targetStatus] ??
+        targetStatus;
+    final items = order.items
+        .where(
+          (item) =>
+              item.preparationMode == 'station' &&
+              (_stationId.isEmpty || item.productionStationId == _stationId) &&
+              item.id?.isNotEmpty == true &&
+              item.productionStatus != target,
+        )
+        .toList();
+    for (final item in items) {
+      await sl<PosOrderRepository>().updateOrderItemStatus(
+        order.id ?? '',
+        item.id!,
+        target,
+        note: note,
+        expectedRevision: item.revision,
+      );
     }
+    if (mounted) _reload();
   }
 
   int _count(List<PosOrderDetail> orders, String status) =>
@@ -732,11 +816,6 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     'quick_service' => 'Layanan cepat',
     'reservation' => 'Reservasi',
     _ => 'Bawa pulang',
-  };
-  String _handoverLabel(PosOrderDetail order) => switch (order.orderType) {
-    'dine_in' || 'free_table' => 'Tandai sudah disajikan',
-    'delivery' || 'online_delivery' => 'Tandai sudah dikirim',
-    _ => 'Tandai sudah diserahkan',
   };
   (String, Color) _elapsed(String? raw) {
     final created = DateTime.tryParse(raw ?? '')?.toLocal();

@@ -5,6 +5,7 @@ import '../../../bloc/pos/pos_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_event.dart';
 import '../../../bloc/pos_shift/pos_shift_state.dart';
+import '../../../bloc/lock/lock_cubit.dart';
 import 'package:intl/intl.dart';
 
 class PosActiveShiftTab extends StatefulWidget {
@@ -80,6 +81,9 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
         .stores
         .where((s) => s.status.toLowerCase() == 'active')
         .toList();
+    final selectedStores = stores.where((store) => store.id == selectedTokoId);
+    final selectedStore = selectedStores.isEmpty ? null : selectedStores.first;
+    final operatorName = context.watch<AppLockCubit>().state.activeEmployeeName;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -94,6 +98,10 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildStoreSelector(stores),
+            if (selectedStore != null) ...[
+              const SizedBox(height: 10),
+              _buildShiftModeInfo(selectedStore.shiftMode, operatorName),
+            ],
             const SizedBox(height: 16),
             BlocBuilder<PosShiftBloc, PosShiftState>(
               builder: (context, state) {
@@ -175,6 +183,50 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                   }
                 },
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShiftModeInfo(String shiftMode, String? operatorName) {
+    final perOperator = shiftMode == 'per_operator';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: perOperator
+            ? AppColors.primary.withValues(alpha: 0.08)
+            : Colors.blueGrey.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: perOperator
+              ? AppColors.primary.withValues(alpha: 0.24)
+              : Colors.blueGrey.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            perOperator ? Icons.badge_outlined : Icons.point_of_sale_outlined,
+            color: perOperator ? AppColors.primary : Colors.blueGrey.shade700,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  perOperator ? 'Shift per operator PIN' : 'Register bersama',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  perOperator
+                      ? 'Operator aktif: ${operatorName?.trim().isNotEmpty == true ? operatorName : 'masukkan PIN kembali'}'
+                      : 'Satu laci kas dapat digunakan bergantian oleh beberapa operator.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
             ),
           ),
         ],

@@ -21,6 +21,7 @@ class PosTransactionResult {
   final String orderType;
   final String promoCode;
   final String note;
+  final String expiredSaleReason;
   final List<Map<String, dynamic>> items;
 
   const PosTransactionResult({
@@ -46,6 +47,7 @@ class PosTransactionResult {
     this.orderType = '',
     this.promoCode = '',
     this.note = '',
+    this.expiredSaleReason = '',
     this.items = const [],
   });
 
@@ -86,6 +88,7 @@ class PosTransactionResult {
         : json['tipe_pesanan']?.toString() ?? '',
     promoCode: promoCode,
     note: note,
+    expiredSaleReason: json['expired_sale_reason']?.toString() ?? '',
     items: items.isNotEmpty
         ? items
         : (json['items'] as List? ?? const [])

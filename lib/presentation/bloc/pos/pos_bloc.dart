@@ -13,9 +13,9 @@ String _defaultOrderType(Map<String, dynamic> config) {
   final profile = config['business_profile']?.toString() ?? 'retail';
   final features = config['features'] as Map? ?? const {};
   final supported = <String>{'take_away'};
+  if (features['use_tables'] == true) supported.add('dine_in');
   if (profile == 'restoran') {
     supported.addAll({'free_table', 'quick_service'});
-    if (features['use_tables'] == true) supported.add('dine_in');
   }
   if (features['use_delivery'] == true) supported.add('delivery');
   if (features['use_appointments'] == true) supported.add('reservation');
@@ -27,6 +27,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
+    on<RefreshPosRuntimeConfig>(_onRefreshPosRuntimeConfig);
     on<RefreshProducts>(_onRefreshProducts);
     on<UpsertProductLocally>(_onUpsertProductLocally);
     on<RemoveProductLocally>(_onRemoveProductLocally);
@@ -301,6 +302,28 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         ),
       );
     }
+  }
+
+  Future<void> _onRefreshPosRuntimeConfig(
+    RefreshPosRuntimeConfig event,
+    Emitter<PosState> emit,
+  ) async {
+    final runtimeConfig = await posRepository.getRuntimeConfig();
+    emit(
+      state.copyWith(
+        runtimeConfig: runtimeConfig,
+        orderType: _defaultOrderType(runtimeConfig),
+        salesChannel:
+            runtimeConfig['default_sales_channel']?.toString() ?? 'retail',
+        priceLevel:
+            runtimeConfig['default_price_level']?.toString() ?? 'retail',
+        taxPercent:
+            (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
+        discountPolicy:
+            runtimeConfig['default_discount_policy']?.toString() ?? 'stack',
+        errorMessage: '',
+      ),
+    );
   }
 
   void _onAddToCart(AddToCart event, Emitter<PosState> emit) {
@@ -807,7 +830,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       emit(
         state.copyWith(
           orderType: event.orderType,
-          clearSelectedTable: event.orderType != 'dine_in',
+          clearSelectedTable: !{
+            'dine_in',
+            'reservation',
+          }.contains(event.orderType),
         ),
       );
     }
@@ -817,7 +843,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final hasTable = event.tableId != null && event.tableId!.trim().isNotEmpty;
     emit(
       state.copyWith(
-        orderType: hasTable ? 'dine_in' : state.orderType,
+        orderType: hasTable && state.orderType != 'reservation'
+            ? 'dine_in'
+            : state.orderType,
         selectedTableId: event.tableId,
         selectedTableName: event.tableName,
         clearSelectedTable: !hasTable,

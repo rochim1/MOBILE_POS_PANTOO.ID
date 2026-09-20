@@ -19,10 +19,19 @@ class LoadTables extends PosTableEvent {
 class CreateTable extends PosTableEvent {
   final String name;
   final int capacity;
-  const CreateTable({required this.name, this.capacity = 4});
+  final String area;
+  final String floor;
+  final String locationNote;
+  const CreateTable({
+    required this.name,
+    this.capacity = 4,
+    this.area = '',
+    this.floor = '',
+    this.locationNote = '',
+  });
 
   @override
-  List<Object?> get props => [name, capacity];
+  List<Object?> get props => [name, capacity, area, floor, locationNote];
 }
 
 class UpdateTable extends PosTableEvent {
@@ -30,10 +39,29 @@ class UpdateTable extends PosTableEvent {
   final String? name;
   final int? capacity;
   final String? status;
-  const UpdateTable({required this.id, this.name, this.capacity, this.status});
+  final String? area;
+  final String? floor;
+  final String? locationNote;
+  const UpdateTable({
+    required this.id,
+    this.name,
+    this.capacity,
+    this.area,
+    this.floor,
+    this.locationNote,
+    this.status,
+  });
 
   @override
-  List<Object?> get props => [id, name, capacity, status];
+  List<Object?> get props => [
+    id,
+    name,
+    capacity,
+    area,
+    floor,
+    locationNote,
+    status,
+  ];
 }
 
 class DeleteTable extends PosTableEvent {

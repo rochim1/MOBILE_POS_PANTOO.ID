@@ -7,6 +7,7 @@ class PosStore {
   final String phone;
   final String branchName;
   final String branchId;
+  final String shiftMode;
 
   const PosStore({
     required this.id,
@@ -17,6 +18,7 @@ class PosStore {
     this.phone = '',
     this.branchName = '',
     this.branchId = '',
+    this.shiftMode = 'shared_register',
   });
 
   factory PosStore.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class PosStore {
       phone: json['phone'] as String? ?? '',
       branchName: json['branchName'] as String? ?? '',
       branchId: json['branchId'] as String? ?? '',
+      shiftMode: json['shiftMode'] as String? ?? 'shared_register',
     );
   }
 
@@ -42,6 +45,7 @@ class PosStore {
       'phone': phone,
       'branchName': branchName,
       'branchId': branchId,
+      'shiftMode': shiftMode,
     };
   }
 }
