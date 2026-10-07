@@ -22,7 +22,7 @@ class LoginPage extends StatelessWidget {
         ),
         child: BlocListener<AuthCubit, AuthState>(
           listener: (context, state) {
-            if (state.isFailure) {
+            if (state.isFailure && state.captcha == null) {
               final message = state.error ?? 'Login gagal. Coba lagi.';
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

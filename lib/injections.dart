@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'core/_core.dart';
 import 'core/network/graphql_client_provider.dart';
 import 'core/network/sync_service.dart';
+import 'core/customer_display/pos_customer_display_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/pos_repository.dart';
 import 'domain/repositories/pos_stock_repository.dart';
@@ -59,6 +60,9 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
     ),
   );
   sl.registerLazySingleton(() => SyncService(sl()));
+  sl.registerLazySingleton<PosCustomerDisplayService>(
+    () => PosCustomerDisplayService(sl(), sl()),
+  );
 
   sl.registerSingleton<FlavorConfig>(flavorConfig);
   sl.registerSingleton<AppTheme>(AppTheme());

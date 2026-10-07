@@ -9,6 +9,7 @@ import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../domain/repositories/purchase_return_repository.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'pos_barcode_scanner_page.dart';
@@ -205,24 +206,18 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
       barrierDismissible: false,
       builder: (dialogContext) {
         final screen = MediaQuery.sizeOf(dialogContext);
-        return Dialog(
+        return PosKeyboardStableDialog(
+          width: 1080,
+          height: screen.height * .9,
           insetPadding: EdgeInsets.symmetric(
             horizontal: screen.width < 600 ? 12 : 32,
             vertical: screen.height < 700 ? 12 : 28,
           ),
-          clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1080),
-            child: SizedBox(
-              width: double.maxFinite,
-              height: screen.height * .9,
-              child: _CreatePurchaseReturnPage(
-                canSubmit: permissions['submit_purchase_returns'] == true,
-              ),
-            ),
+          child: _CreatePurchaseReturnPage(
+            canSubmit: permissions['submit_purchase_returns'] == true,
           ),
         );
       },
@@ -826,6 +821,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
           widget.existing == null
@@ -838,7 +834,12 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
       body: Stack(
         children: [
           ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              16 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
             children: [
               Text(
                 widget.existing == null
@@ -1382,6 +1383,11 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                         'Jurnal gagal: ${data['journal_error']}',
                         AppColors.warning,
                       ),
+                    if (data['journal_status'] == 'pending')
+                      _Notice(
+                        'Jurnal belum terkonfirmasi. Gunakan Coba Jurnal Lagi.',
+                        AppColors.warning,
+                      ),
                     const SizedBox(height: 16),
                     Wrap(spacing: 8, runSpacing: 8, children: _actions(data)),
                     const SizedBox(height: 30),
@@ -1428,7 +1434,8 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           icon: const Icon(Icons.play_arrow),
           label: const Text('Proses Retur'),
         ),
-      if (data['journal_status'] == 'failed' && can('process_purchase_returns'))
+      if (['failed', 'pending'].contains(data['journal_status']) &&
+          can('process_purchase_returns'))
         OutlinedButton.icon(
           onPressed: _loading ? null : () => _action('retry'),
           icon: const Icon(Icons.refresh),

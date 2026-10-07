@@ -12,6 +12,24 @@ class PosOrderRepository {
 
   PosOrderRepository(this._clientProvider);
 
+  Future<(int, int)?> getSlaThresholds() async {
+    try {
+      final result = await _clientProvider.client.query(QueryOptions(
+        document: gql(PosTableOrderQueries.getSlaThresholds),
+        fetchPolicy: FetchPolicy.networkOnly,
+      ));
+      if (result.hasException) return null;
+      final data = result.data?['GetPOSRuntimeConfig'] as Map?;
+      if (data == null) return null;
+      return (
+        (data['sla_warning_minutes'] as num?)?.toInt() ?? 15,
+        (data['sla_critical_minutes'] as num?)?.toInt() ?? 25,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Either<Failure, List<PosOrderDetail>>> getActiveOrders({
     required String storeId,
     String search = '',
@@ -38,6 +56,44 @@ class PosOrderRepository {
       }
       final rows =
           result.data?['GetAllPOSOrder']?['items'] as List? ?? const [];
+      return Right(
+        rows
+            .whereType<Map>()
+            .map(
+              (row) => PosOrderDetail.fromJson(Map<String, dynamic>.from(row)),
+            )
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  /// Loads the authoritative kitchen queue. Unlike the general active-order
+  /// list, this server query filters on each item production state, so a
+  /// partially prepared order is never hidden by its aggregate order status.
+  Future<Either<Failure, List<PosOrderDetail>>> getKitchenTickets({
+    required String storeId,
+    String stationId = '',
+  }) async {
+    if (storeId.trim().isEmpty) {
+      return const Left(ServerFailure('Pilih toko untuk memuat antrean dapur'));
+    }
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosTableOrderQueries.getKitchenTickets),
+          variables: {
+            'storeId': storeId.trim(),
+            'stationId': stationId.trim().isEmpty ? null : stationId.trim(),
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows = result.data?['GetPOSKitchenTickets'] as List? ?? const [];
       return Right(
         rows
             .whereType<Map>()
@@ -114,6 +170,41 @@ class PosOrderRepository {
       return const Right(true);
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
+    }
+  }
+
+  /// Updates the workflow of an order, rather than an individual kitchen item.
+  ///
+  /// This is intentionally separate from [updateOrderItemStatus]. Calling the
+  /// item mutation without an item ID makes the API look for an item whose ID is
+  /// empty and results in "Item order tidak ditemukan".
+  Future<Either<Failure, bool>> updateOrderStatus(
+    String orderId,
+    String status, {
+    String note = '',
+  }) async {
+    if (orderId.trim().isEmpty) {
+      return const Left(ServerFailure('ID pesanan tidak valid'));
+    }
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.updateOrderStatus),
+          variables: {
+            'orderId': orderId.trim(),
+            'status': status,
+            'note': note,
+          },
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return result.data?['UpdatePOSOrderStatus'] is Map
+          ? const Right(true)
+          : const Left(ServerFailure('Status pesanan tidak dapat diproses'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
     }
   }
 

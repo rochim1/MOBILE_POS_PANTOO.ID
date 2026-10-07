@@ -4,13 +4,24 @@
 *.pyc
 *.swp
 .DS_Store
+.env
+.env.*
+!.env.example
+!.env.*.example
 .atom/
 .build/
 .buildlog/
 .history
 .svn/
 .swiftpm/
+.gradle/
+.gradle-local/
 migrate_working_dir/
+
+# Local tooling output
+analyze.log
+flutter_*.log
+logcat_dump.txt
 
 # IntelliJ related
 *.iml
@@ -43,3 +54,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/local.properties
+/android/key.properties
+**/*.keystore
+**/*.jks
+**/google-services.json

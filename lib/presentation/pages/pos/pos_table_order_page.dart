@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 
 import '../../../../core/_core.dart';
 import '../../../../injections.dart';
@@ -20,6 +24,8 @@ import '../../../../domain/models/pos_table.dart';
 import '../../../../domain/models/pos_order_detail.dart';
 import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/repositories/pos_order_repository.dart';
+import '../../../../core/network/graphql_client_provider.dart';
+import 'utils/pos_order_age.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'pos_payment_page.dart';
 
@@ -105,24 +111,129 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   Timer? _durationTicker;
+  Timer? _refreshTimer;
+  Timer? _slaTimer;
+  Timer? _eventDebounce;
+  Timer? _pingTimer;
+  Timer? _reconnectTimer;
+  WebSocketChannel? _channel;
+  bool _realtimeConnected = false;
+  int _warningMinutes = 15;
+  int _criticalMinutes = 25;
+  DateTime _now = DateTime.now();
   String _status = '';
   String _fulfillment = '';
   String _sort = 'newest';
+  ({String orderId, String target, bool acknowledged})? _pendingMove;
 
   @override
   void initState() {
     super.initState();
-    _durationTicker = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
+    final runtime = context.read<PosBloc>().state.runtimeConfig;
+    _warningMinutes = (runtime['sla_warning_minutes'] as num?)?.toInt() ?? 15;
+    _criticalMinutes = (runtime['sla_critical_minutes'] as num?)?.toInt() ?? 25;
+    _durationTicker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
     });
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted && !_realtimeConnected) _reload();
+    });
+    _loadSlaSettings();
+    _slaTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (mounted) _loadSlaSettings();
+    });
+    _connectRealtime();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _durationTicker?.cancel();
+    _refreshTimer?.cancel();
+    _slaTimer?.cancel();
+    _eventDebounce?.cancel();
+    _pingTimer?.cancel();
+    _reconnectTimer?.cancel();
+    _channel?.sink.close();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSlaSettings() async {
+    final result = await sl<PosOrderRepository>().getSlaThresholds();
+    if (!mounted) return;
+    if (result == null) return;
+    setState(() {
+      _warningMinutes = result.$1;
+      _criticalMinutes = result.$2;
+    });
+  }
+
+  Future<void> _connectRealtime() async {
+    if (!mounted || _channel != null) return;
+    try {
+      final token = await sl<FlutterSecureStorage>().read(key: 'auth_token');
+      if (!mounted || token == null || token.isEmpty) return;
+      final endpoint = Uri.parse(sl<GraphQLClientProvider>().endpointUrl);
+      final channel = WebSocketChannel.connect(
+        endpoint.replace(
+          scheme: endpoint.scheme == 'https' ? 'wss' : 'ws',
+          path: '/notifications',
+          query: null,
+          fragment: null,
+        ),
+      );
+      _channel = channel;
+      await channel.ready;
+      if (!mounted) {
+        channel.sink.close();
+        return;
+      }
+      channel.sink.add(
+        jsonEncode({'type': 'auth', 'token': token, 'client_type': 'mobile'}),
+      );
+      channel.stream.listen(
+        _handleRealtimeMessage,
+        onError: (_) => _handleRealtimeClosed(),
+        onDone: _handleRealtimeClosed,
+        cancelOnError: true,
+      );
+    } catch (_) {
+      _handleRealtimeClosed();
+    }
+  }
+
+  void _handleRealtimeMessage(dynamic raw) {
+    if (!mounted) return;
+    try {
+      final message = jsonDecode(raw.toString()) as Map<String, dynamic>;
+      if (message['type'] == 'auth_success') {
+        if (!mounted) return;
+        setState(() => _realtimeConnected = true);
+        _pingTimer?.cancel();
+        _pingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+          _channel?.sink.add(jsonEncode({'type': 'ping'}));
+        });
+        return;
+      }
+      if (message['type'] != 'pos_order_changed') return;
+      final data = Map<String, dynamic>.from(
+        message['data'] as Map? ?? const {},
+      );
+      final storeId = data['toko_id']?.toString() ?? '';
+      if (storeId.isNotEmpty && storeId != widget.storeId) return;
+      _eventDebounce?.cancel();
+      _eventDebounce = Timer(const Duration(milliseconds: 250), _reload);
+    } catch (_) {}
+  }
+
+  void _handleRealtimeClosed() {
+    _channel = null;
+    _pingTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _realtimeConnected = false);
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 5), _connectRealtime);
   }
 
   void _reload() {
@@ -151,10 +262,34 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             child: BlocConsumer<PosOrderManagementBloc, PosOrderManagementState>(
               listener: (context, state) {
                 if (state.status == PosOrderManagementStatus.failure) {
+                  if (_pendingMove != null) {
+                    setState(() => _pendingMove = null);
+                  }
                   AppToast.error(context, state.errorMessage);
                 } else if (state.status ==
                     PosOrderManagementStatus.actionSuccess) {
+                  final pending = _pendingMove;
+                  if (pending != null) {
+                    setState(
+                      () => _pendingMove = (
+                        orderId: pending.orderId,
+                        target: pending.target,
+                        acknowledged: true,
+                      ),
+                    );
+                  }
                   AppToast.success(context, state.successMessage);
+                } else if (state.status == PosOrderManagementStatus.loaded) {
+                  final pending = _pendingMove;
+                  if (pending != null &&
+                      (pending.acknowledged ||
+                          state.orders.any(
+                            (order) =>
+                                order.id == pending.orderId &&
+                                order.status == pending.target,
+                          ))) {
+                    setState(() => _pendingMove = null);
+                  }
                 }
               },
               builder: (context, state) {
@@ -162,7 +297,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     state.orders.isEmpty) {
                   return const PosOrderBoardSkeleton();
                 }
-                if (state.orders.isEmpty) {
+                if (state.orders.isEmpty && _pendingMove == null) {
                   return RefreshIndicator(
                     onRefresh: () async => _reload(),
                     child: ListView(
@@ -378,6 +513,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               final columnOrders = orders
                   .where((order) => order.status == status)
                   .toList();
+              final pending = _pendingMove;
+              final showPending =
+                  pending?.target == status &&
+                  !columnOrders.any((order) => order.id == pending?.orderId);
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -424,7 +563,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             ),
                           ),
                           Expanded(
-                            child: columnOrders.isEmpty
+                            child: columnOrders.isEmpty && !showPending
                                 ? const Center(
                                     child: Text(
                                       'Tarik pesanan ke sini',
@@ -436,14 +575,38 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                   )
                                 : ListView.builder(
                                     padding: const EdgeInsets.all(8),
-                                    itemCount: columnOrders.length,
-                                    itemBuilder: (_, index) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: _draggableOrderCard(
-                                        columnOrders[index],
-                                        orders.indexOf(columnOrders[index]),
-                                      ),
-                                    ),
+                                    itemCount:
+                                        columnOrders.length +
+                                        (showPending ? 1 : 0),
+                                    itemBuilder: (_, index) {
+                                      if (showPending && index == 0) {
+                                        return Padding(
+                                          key: const ValueKey(
+                                            'pending-order-card',
+                                          ),
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          child: Semantics(
+                                            label: 'Memindahkan pesanan',
+                                            child:
+                                                const PosOrderTicketSkeleton(),
+                                          ),
+                                        );
+                                      }
+                                      final order =
+                                          columnOrders[index -
+                                              (showPending ? 1 : 0)];
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: _draggableOrderCard(
+                                          order,
+                                          orders.indexOf(order),
+                                        ),
+                                      );
+                                    },
                                   ),
                           ),
                         ],
@@ -464,7 +627,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         order.status == 'Baru' ||
         order.status == 'Diproses' ||
         order.status == 'Siap';
-    if (!canDrag) return _activeOrderCard(order, index);
+    if (!canDrag || _pendingMove != null) {
+      return _activeOrderCard(order, index);
+    }
     return Draggable<PosOrderDetail>(
       data: order,
       maxSimultaneousDrags: 1,
@@ -493,18 +658,31 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   bool _canMoveTo(PosOrderDetail order, String target) =>
+      _pendingMove == null &&
       {
-        'Baru': 'Diproses',
-        'Diproses': 'Siap',
-        'Siap': 'Disajikan',
-      }[order.status] ==
-      target;
+            'Baru': 'Diproses',
+            'Diproses': 'Siap',
+            'Siap': 'Disajikan',
+          }[order.status] ==
+          target;
 
   void _moveOrder(PosOrderDetail order, String status) {
+    if (_pendingMove != null || !_canMoveTo(order, status)) return;
+    final orderId = order.id;
+    if (orderId == null || orderId.isEmpty) {
+      AppToast.error(context, 'ID pesanan tidak tersedia');
+      return;
+    }
+    setState(
+      () => _pendingMove = (
+        orderId: orderId,
+        target: status,
+        acknowledged: false,
+      ),
+    );
     context.read<PosOrderManagementBloc>().add(
-      UpdateItemStatus(
-        orderId: order.id ?? '',
-        itemId: '',
+      UpdateOrderStatus(
+        orderId: orderId,
         newStatus: status,
         tableId: order.tableId ?? '',
         storeId: widget.storeId,
@@ -593,14 +771,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      _duration(order.createdAt),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _ageChip(order),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -661,7 +834,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             ),
                             DataCell(Text(_orderDate(entry.$2.createdAt))),
                             DataCell(Text(_orderTime(entry.$2.createdAt))),
-                            DataCell(Text(_duration(entry.$2.createdAt))),
+                            DataCell(_ageChip(entry.$2)),
                             DataCell(_statusBadge(entry.$2.status)),
                             DataCell(
                               Text(_currency(entry.$2.totalAmount ?? 0)),
@@ -694,6 +867,47 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       ),
     ),
   );
+
+  Widget _ageChip(PosOrderDetail order) {
+    final age = PosOrderAge.forOrder(
+      order,
+      _now,
+      warningMinutes: _warningMinutes,
+      criticalMinutes: _criticalMinutes,
+    );
+    if (age.minutes == null) return const SizedBox.shrink();
+    final color = switch (age.tone) {
+      PosOrderAgeTone.critical => AppColors.danger,
+      PosOrderAgeTone.warning => AppColors.warning,
+      PosOrderAgeTone.normal => AppColors.info,
+    };
+    final phase = switch (age.phase) {
+      'Menunggu dapur' => 'Dapur',
+      'Menunggu penyerahan' => 'Serah',
+      _ => 'Proses',
+    };
+    return Tooltip(
+      message: age.label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: .4)),
+        ),
+        child: Text(
+          '$phase ${age.durationLabel}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.heading,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
 
   String _fulfillmentLabel(PosOrderDetail order) => switch (order.orderType) {
     'dine_in' => 'Meja ${order.tableName ?? '-'}',
@@ -735,6 +949,12 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 const Divider(height: 24),
                 if (order.note?.isNotEmpty == true)
                   _orderNote('Catatan umum', order.note!),
+                if (order.customerProfileRequested &&
+                    order.customerPhone?.isNotEmpty == true)
+                  _orderNote(
+                    'Permintaan profil pelanggan',
+                    '${order.customerName ?? 'Pemesan'} · ${order.customerPhone}. Konfirmasi nomor, lalu pilih atau tambah pelanggan saat pembayaran.',
+                  ),
                 if (order.kitchenNote?.isNotEmpty == true)
                   _orderNote('Untuk dapur', order.kitchenNote!),
                 if (order.handoverNote?.isNotEmpty == true)
@@ -877,9 +1097,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         : () {
                             Navigator.pop(sheetContext);
                             context.read<PosOrderManagementBloc>().add(
-                              UpdateItemStatus(
+                              UpdateOrderStatus(
                                 orderId: order.id ?? '',
-                                itemId: '',
                                 newStatus: next,
                                 tableId: order.tableId ?? '',
                                 storeId: widget.storeId,
@@ -1322,7 +1541,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               )
               .toList();
           final totalItems = quantities.values.fold<double>(0, (a, b) => a + b);
-          return FractionallySizedBox(
+          return PosKeyboardStableSheet(
             heightFactor: .88,
             child: Column(
               children: [
@@ -1375,7 +1594,12 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   child: filtered.isEmpty
                       ? const Center(child: Text('Menu tidak ditemukan'))
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: EdgeInsets.fromLTRB(
+                            12,
+                            0,
+                            12,
+                            MediaQuery.viewInsetsOf(context).bottom,
+                          ),
                           itemCount: filtered.length,
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, index) {
@@ -1500,18 +1724,18 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   String? _nextStatus(String? current) => switch (current) {
-    'Baru' => 'preparing',
-    'Diproses' => 'served',
-    'Siap' => 'delivered',
-    'Disajikan' => 'completed',
+    'Baru' => 'Diproses',
+    'Diproses' => 'Siap',
+    'Siap' => 'Disajikan',
+    'Disajikan' => 'Selesai',
     _ => null,
   };
 
   String _nextStatusLabel(String status) => switch (status) {
-    'preparing' => 'Mulai proses',
-    'served' => 'Tandai siap',
-    'delivered' => 'Tandai sudah disajikan/diserahkan',
-    'completed' => 'Selesaikan pesanan',
+    'Diproses' => 'Mulai proses',
+    'Siap' => 'Tandai siap',
+    'Disajikan' => 'Tandai sudah disajikan/diserahkan',
+    'Selesai' => 'Selesaikan pesanan',
     _ => 'Perbarui status',
   };
 
@@ -1553,7 +1777,15 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: posBloc,
-          child: PosPaymentPage(pendingOrder: pendingOrder),
+          child: PosPaymentPage(
+            pendingOrder: pendingOrder,
+            requestedCustomerName: order.customerProfileRequested
+                ? (order.customerName ?? '')
+                : '',
+            requestedCustomerPhone: order.customerProfileRequested
+                ? (order.customerPhone ?? '')
+                : '',
+          ),
         ),
       ),
     );
@@ -2089,9 +2321,8 @@ class _OrderDetailsSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: FilledButton.icon(
                 onPressed: () => context.read<PosOrderManagementBloc>().add(
-                  UpdateItemStatus(
+                  UpdateOrderStatus(
                     orderId: order.id!,
-                    itemId: '',
                     newStatus: nextStatus,
                     tableId: table.id,
                   ),
@@ -2136,16 +2367,16 @@ class _OrderDetailsSheet extends StatelessWidget {
   }
 
   String? _nextOrderStatus(String? current) => switch (current) {
-    'Baru' => 'preparing',
-    'Diproses' => 'served',
-    'Siap' => 'completed',
+    'Baru' => 'Diproses',
+    'Diproses' => 'Siap',
+    'Siap' => 'Disajikan',
     _ => null,
   };
 
   String _nextOrderStatusLabel(String status) => switch (status) {
-    'preparing' => 'Mulai proses',
-    'served' => 'Tandai siap',
-    'completed' => 'Selesaikan order',
+    'Diproses' => 'Mulai proses',
+    'Siap' => 'Tandai siap',
+    'Disajikan' => 'Tandai sudah disajikan',
     _ => 'Perbarui status',
   };
 }

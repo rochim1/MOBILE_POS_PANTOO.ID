@@ -13,7 +13,7 @@ class PosLocalDatabase {
   static Database? _database;
   static Future<Database>? _databaseFuture;
   static const _databaseKeyName = 'pos_database_key_v1';
-  static const _schemaVersion = 18;
+  static const _schemaVersion = 20;
   static const _secureStorage = FlutterSecureStorage();
 
   PosLocalDatabase._init();
@@ -185,6 +185,16 @@ class PosLocalDatabase {
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 20) {
+      await db.execute(
+        "ALTER TABLE offline_transactions ADD COLUMN operation_kind TEXT NOT NULL DEFAULT 'sale'",
+      );
+    }
+    if (oldVersion < 19) {
+      await db.execute(
+        "ALTER TABLE products ADD COLUMN product_json TEXT NOT NULL DEFAULT ''",
+      );
+    }
     const idType = 'TEXT PRIMARY KEY';
     const textType = 'TEXT NOT NULL';
 
@@ -357,6 +367,7 @@ SELECT id, name, role FROM employees
 
     await db.execute('''
 CREATE TABLE products (
+  product_json TEXT NOT NULL DEFAULT '',
   id $idType,
   code $textType,
   name $textType,
@@ -427,6 +438,7 @@ CREATE TABLE offline_transactions (
   ,resolved_at TEXT
   ,client_snapshot TEXT
   ,next_retry_at TEXT
+  ,operation_kind TEXT NOT NULL DEFAULT 'sale'
 )
 ''');
     await db.execute(

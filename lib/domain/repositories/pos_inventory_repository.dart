@@ -117,6 +117,10 @@ class PosInventoryRepository {
     required PosInventoryDocumentType type,
     String search = '',
     String status = '',
+    List<String> statuses = const [],
+    String inventoryId = '',
+    bool receivableOnly = false,
+    bool openQuantityOnly = false,
     String locationId = '',
     String dateFrom = '',
     String dateTo = '',
@@ -128,6 +132,16 @@ class PosInventoryRepository {
       final filter = <String, dynamic>{
         if (search.trim().isNotEmpty) 'search': search.trim(),
         if (status.isNotEmpty) 'status': status,
+        if (type == PosInventoryDocumentType.purchase &&
+            status.isEmpty &&
+            statuses.isNotEmpty)
+          'statuses': statuses,
+        if (type == PosInventoryDocumentType.purchase && inventoryId.isNotEmpty)
+          'inventaris_id': inventoryId,
+        if (type == PosInventoryDocumentType.purchase && receivableOnly)
+          'receivable_only': true,
+        if (type == PosInventoryDocumentType.purchase && openQuantityOnly)
+          'open_quantity_only': true,
         if (type == PosInventoryDocumentType.opname && locationId.isNotEmpty)
           'lokasi_cabang_id': locationId,
         if (type == PosInventoryDocumentType.opname && dateFrom.isNotEmpty)
@@ -200,12 +214,14 @@ class PosInventoryRepository {
 
   Future<Either<Failure, Map<String, dynamic>>> receiveTransfer(
     String id,
+    List<Map<String, dynamic>> items,
+    String requestId,
   ) async {
     try {
       final result = await _provider.client.mutate(
         MutationOptions(
           document: gql(PosInventoryQueries.receiveTransfer),
-          variables: {'id': id},
+          variables: {'id': id, 'items': items, 'request_id': requestId},
         ),
       );
       if (result.hasException) {
@@ -221,36 +237,44 @@ class PosInventoryRepository {
     }
   }
 
-  Future<Either<Failure, PosInventoryLookups>> getLookups() async {
+  Future<Either<Failure, PosInventoryLookups>> getLookups({
+    bool purchaseOnly = false,
+  }) async {
     try {
       final result = await _provider.client.query(
         QueryOptions(
-          document: gql(PosInventoryQueries.lookups),
+          document: gql(
+            purchaseOnly
+                ? PosInventoryQueries.purchaseLookups
+                : PosInventoryQueries.lookups,
+          ),
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      final supplierRoot = result.data?['GetAllSupplier'] as Map?;
       final branchRoot = result.data?['getAllCabangs'] as Map?;
       final shift = result.data?['GetMyActiveKasirShift'] as Map?;
-      final inventoryRoot = result.data?['GetAllInventarisUmum'] as Map?;
+      final inventoryRoot = purchaseOnly
+          ? null
+          : result.data?['GetAllInventarisUmum'] as Map?;
       final settings = result.data?['GetInventorySettings'] as Map?;
       final operationDefaults =
           settings?['inventory_operation_defaults'] as Map?;
       final toko = shift?['toko'] as Map?;
       final transactionOptions =
           result.data?['GetInventoryTransactionOptions'] as Map?;
+      final inventoryItems = purchaseOnly
+          ? (result.data?['GetPOSPurchaseInventory'] as List? ?? const [])
+          : (inventoryRoot?['items'] as List? ?? const []);
       List<Map<String, dynamic>> options(String key) =>
           (transactionOptions?[key] as List? ?? const [])
               .map((value) => Map<String, dynamic>.from(value as Map))
               .toList();
       return Right(
         PosInventoryLookups(
-          suppliers: (supplierRoot?['suppliers'] as List? ?? const [])
-              .map((value) => Map<String, dynamic>.from(value as Map))
-              .toList(),
+          suppliers: const [],
           warehouses: (branchRoot?['cabang'] as List? ?? const [])
               .map((value) => Map<String, dynamic>.from(value as Map))
               .toList(),
@@ -258,7 +282,7 @@ class PosInventoryRepository {
               operationDefaults?['default_receiving_location_id']?.toString() ??
               toko?['lokasi_cabang_id']?.toString() ??
               '',
-          inventoryItems: (inventoryRoot?['items'] as List? ?? const [])
+          inventoryItems: inventoryItems
               .map((value) => Map<String, dynamic>.from(value as Map))
               .toList(),
           scrapReasons: options('scrap_reasons'),
@@ -267,6 +291,125 @@ class PosInventoryRepository {
           purchaseReturnReasons: options('purchase_return_reasons'),
           purchaseReturnMethods: options('purchase_return_methods'),
         ),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> searchPurchaseSuppliers(
+    String search,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseSuppliers),
+          variables: {'search': search.trim(), 'limit': 20},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows = result.data?['GetPOSPurchaseSuppliers'] as List? ?? const [];
+      return Right(
+        rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> createPurchaseSupplierQuick({
+    required String name,
+    String phone = '',
+  }) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PosInventoryQueries.createPurchaseSupplierQuick),
+          variables: {
+            'input': {'nama_supplier': name.trim(), 'telepon': phone.trim()},
+          },
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final supplier = result.data?['AddPOSPurchaseSupplierQuick'];
+      if (supplier is! Map) {
+        return const Left(ServerFailure('Supplier belum tersimpan'));
+      }
+      return Right(Map<String, dynamic>.from(supplier));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> searchPurchaseInventory(
+    String search,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseInventorySearch),
+          variables: {'search': search.trim()},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows = result.data?['GetPOSPurchaseInventory'] as List? ?? const [];
+      return Right(
+        rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>?>> getPurchaseInventoryById(
+    String inventoryId,
+  ) async {
+    if (inventoryId.trim().isEmpty) return const Right(null);
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseInventoryById),
+          variables: {'inventoryId': inventoryId.trim()},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows = result.data?['GetPOSPurchaseInventory'] as List? ?? const [];
+      return Right(
+        rows.isEmpty ? null : Map<String, dynamic>.from(rows.first as Map),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  findPurchaseInventoryByCode(String code) async {
+    if (code.trim().isEmpty) return const Right([]);
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseInventoryByCode),
+          variables: {'code': code.trim()},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows = result.data?['GetPOSPurchaseInventory'] as List? ?? const [];
+      return Right(
+        rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
       );
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
@@ -382,6 +525,25 @@ class PosInventoryRepository {
   ) => _mutate(PosInventoryQueries.receivePurchase, {
     'input': input,
   }, 'AddInventoryReceiving');
+
+  Future<Either<Failure, dynamic>> retryReceivingJournal(String id) => _mutate(
+    PosInventoryQueries.retryReceivingJournal,
+    {'id': id},
+    'RetryInventoryReceivingJournal',
+  );
+
+  Future<Either<Failure, dynamic>> retryReceivingCancelJournal(String id) =>
+      _mutate(
+        PosInventoryQueries.retryReceivingCancelJournal,
+        {'id': id},
+        'RetryInventoryReceivingCancelJournal',
+      );
+
+  Future<Either<Failure, dynamic>> retryScrapJournal(String id) => _mutate(
+    PosInventoryQueries.retryScrapJournal,
+    {'id': id},
+    'RetryInventoryScrapJournal',
+  );
 
   Future<Either<Failure, List<Map<String, dynamic>>>> getPurchaseReceivings(
     String purchaseId,
@@ -564,6 +726,16 @@ class PosInventoryRepository {
       PosInventoryQueries.cancelTransfer,
       'CancelInventoryTransfer',
       true,
+    ),
+    (PosInventoryDocumentType.transfer, 'retry_journal') => (
+      PosInventoryQueries.retryTransferJournal,
+      'RetryInventoryTransferJournal',
+      false,
+    ),
+    (PosInventoryDocumentType.transfer, 'retry_cancel_journal') => (
+      PosInventoryQueries.retryTransferCancelJournal,
+      'RetryInventoryTransferCancelJournal',
+      false,
     ),
     (PosInventoryDocumentType.transfer, 'delete') => (
       PosInventoryQueries.deleteTransfer,

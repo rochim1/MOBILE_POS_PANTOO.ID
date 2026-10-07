@@ -10,8 +10,36 @@ class PosOrderManagementBloc
   PosOrderManagementBloc({required this.repository})
     : super(const PosOrderManagementState()) {
     on<LoadActiveOrders>(_onLoadActiveOrders);
+    on<LoadKitchenTickets>(_onLoadKitchenTickets);
     on<LoadTableOrders>(_onLoadTableOrders);
     on<UpdateItemStatus>(_onUpdateItemStatus);
+    on<UpdateOrderStatus>(_onUpdateOrderStatus);
+  }
+
+  Future<void> _onLoadKitchenTickets(
+    LoadKitchenTickets event,
+    Emitter<PosOrderManagementState> emit,
+  ) async {
+    emit(state.copyWith(status: PosOrderManagementStatus.loading));
+    final result = await repository.getKitchenTickets(
+      storeId: event.storeId,
+      stationId: event.stationId,
+    );
+    result.fold(
+      (failure) => emit(
+        state.copyWith(
+          status: PosOrderManagementStatus.failure,
+          errorMessage: failure.message,
+        ),
+      ),
+      (orders) => emit(
+        state.copyWith(
+          status: PosOrderManagementStatus.loaded,
+          orders: orders,
+          errorMessage: '',
+        ),
+      ),
+    );
   }
 
   Future<void> _onLoadActiveOrders(
@@ -71,6 +99,47 @@ class PosOrderManagementBloc
     final result = await repository.updateOrderItemStatus(
       event.orderId,
       event.itemId,
+      event.newStatus,
+      note: event.note,
+    );
+
+    result.fold(
+      (failure) => emit(
+        state.copyWith(
+          status: PosOrderManagementStatus.failure,
+          errorMessage: failure.message,
+        ),
+      ),
+      (_) {
+        emit(
+          state.copyWith(
+            status: PosOrderManagementStatus.actionSuccess,
+            successMessage: 'Status pesanan berhasil diubah',
+          ),
+        );
+        if (event.storeId.isNotEmpty) {
+          add(
+            LoadActiveOrders(
+              storeId: event.storeId,
+              search: event.search,
+              status: event.statusFilter,
+            ),
+          );
+        } else {
+          add(LoadTableOrders(event.tableId));
+        }
+      },
+    );
+  }
+
+  Future<void> _onUpdateOrderStatus(
+    UpdateOrderStatus event,
+    Emitter<PosOrderManagementState> emit,
+  ) async {
+    emit(state.copyWith(status: PosOrderManagementStatus.loading));
+
+    final result = await repository.updateOrderStatus(
+      event.orderId,
       event.newStatus,
       note: event.note,
     );

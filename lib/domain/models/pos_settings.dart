@@ -17,6 +17,7 @@ class PosSettings extends Equatable {
   final String? invoicePrefix;
   final bool? autoPrintReceipt;
   final bool? allowOutOfShift;
+  final bool? webOrderPayBeforeProcessing;
   final bool? allowKasirPriceEdit;
   final String? expiredSalePolicy;
   final bool? posLockEnabled;
@@ -25,6 +26,8 @@ class PosSettings extends Equatable {
   final String? defaultCatatan;
   final double? minTransaksiTunai;
   final String? pembulatanHarga;
+  final int? slaWarningMinutes;
+  final int? slaCriticalMinutes;
 
   const PosSettings({
     this.onboardingCompleted,
@@ -43,6 +46,7 @@ class PosSettings extends Equatable {
     this.invoicePrefix,
     this.autoPrintReceipt,
     this.allowOutOfShift,
+    this.webOrderPayBeforeProcessing,
     this.allowKasirPriceEdit,
     this.expiredSalePolicy,
     this.posLockEnabled,
@@ -51,6 +55,8 @@ class PosSettings extends Equatable {
     this.defaultCatatan,
     this.minTransaksiTunai,
     this.pembulatanHarga,
+    this.slaWarningMinutes,
+    this.slaCriticalMinutes,
   });
 
   factory PosSettings.fromJson(Map<String, dynamic> json) {
@@ -83,6 +89,7 @@ class PosSettings extends Equatable {
       invoicePrefix: json['invoice_prefix'] as String?,
       autoPrintReceipt: json['auto_print_receipt'] as bool?,
       allowOutOfShift: json['allow_out_of_shift'] as bool?,
+      webOrderPayBeforeProcessing: json['web_order_pay_before_processing'] as bool?,
       allowKasirPriceEdit: json['allow_kasir_price_edit'] as bool?,
       expiredSalePolicy: json['expired_sale_policy'] as String?,
       posLockEnabled: json['pos_lock_enabled'] as bool?,
@@ -91,6 +98,8 @@ class PosSettings extends Equatable {
       defaultCatatan: json['default_catatan'] as String?,
       minTransaksiTunai: (json['min_transaksi_tunai'] as num?)?.toDouble(),
       pembulatanHarga: json['pembulatan_harga'] as String?,
+      slaWarningMinutes: (json['sla_warning_minutes'] as num?)?.toInt(),
+      slaCriticalMinutes: (json['sla_critical_minutes'] as num?)?.toInt(),
     );
   }
 
@@ -112,6 +121,7 @@ class PosSettings extends Equatable {
       'invoice_prefix': invoicePrefix,
       'auto_print_receipt': autoPrintReceipt,
       'allow_out_of_shift': allowOutOfShift,
+      'web_order_pay_before_processing': webOrderPayBeforeProcessing,
       'allow_kasir_price_edit': allowKasirPriceEdit,
       'expired_sale_policy': expiredSalePolicy,
       'pos_lock_enabled': posLockEnabled,
@@ -120,6 +130,8 @@ class PosSettings extends Equatable {
       'default_catatan': defaultCatatan,
       'min_transaksi_tunai': minTransaksiTunai,
       'pembulatan_harga': pembulatanHarga,
+      'sla_warning_minutes': slaWarningMinutes,
+      'sla_critical_minutes': slaCriticalMinutes,
     };
   }
 
@@ -140,6 +152,7 @@ class PosSettings extends Equatable {
     String? invoicePrefix,
     bool? autoPrintReceipt,
     bool? allowOutOfShift,
+    bool? webOrderPayBeforeProcessing,
     bool? allowKasirPriceEdit,
     String? expiredSalePolicy,
     bool? posLockEnabled,
@@ -148,6 +161,8 @@ class PosSettings extends Equatable {
     String? defaultCatatan,
     double? minTransaksiTunai,
     String? pembulatanHarga,
+    int? slaWarningMinutes,
+    int? slaCriticalMinutes,
   }) {
     return PosSettings(
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -170,6 +185,8 @@ class PosSettings extends Equatable {
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
       autoPrintReceipt: autoPrintReceipt ?? this.autoPrintReceipt,
       allowOutOfShift: allowOutOfShift ?? this.allowOutOfShift,
+      webOrderPayBeforeProcessing:
+          webOrderPayBeforeProcessing ?? this.webOrderPayBeforeProcessing,
       allowKasirPriceEdit: allowKasirPriceEdit ?? this.allowKasirPriceEdit,
       expiredSalePolicy: expiredSalePolicy ?? this.expiredSalePolicy,
       posLockEnabled: posLockEnabled ?? this.posLockEnabled,
@@ -178,6 +195,8 @@ class PosSettings extends Equatable {
       defaultCatatan: defaultCatatan ?? this.defaultCatatan,
       minTransaksiTunai: minTransaksiTunai ?? this.minTransaksiTunai,
       pembulatanHarga: pembulatanHarga ?? this.pembulatanHarga,
+      slaWarningMinutes: slaWarningMinutes ?? this.slaWarningMinutes,
+      slaCriticalMinutes: slaCriticalMinutes ?? this.slaCriticalMinutes,
     );
   }
 
@@ -199,6 +218,7 @@ class PosSettings extends Equatable {
     invoicePrefix,
     autoPrintReceipt,
     allowOutOfShift,
+    webOrderPayBeforeProcessing,
     allowKasirPriceEdit,
     expiredSalePolicy,
     posLockEnabled,
@@ -207,5 +227,7 @@ class PosSettings extends Equatable {
     defaultCatatan,
     minTransaksiTunai,
     pembulatanHarga,
+    slaWarningMinutes,
+    slaCriticalMinutes,
   ];
 }

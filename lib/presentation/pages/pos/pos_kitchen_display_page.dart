@@ -19,6 +19,7 @@ import '../../bloc/pos_order_management/pos_order_management_state.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/pos_ui.dart';
+import 'utils/pos_order_age.dart';
 
 class PosKitchenDisplayPage extends StatelessWidget {
   const PosKitchenDisplayPage({super.key});
@@ -80,6 +81,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   late String _storeId;
   String _filter = '';
   Timer? _refreshTimer;
+  Timer? _slaTimer;
   Timer? _clockTimer;
   Timer? _pingTimer;
   Timer? _reconnectTimer;
@@ -88,22 +90,32 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   bool _realtimeConnected = false;
   bool _disposed = false;
   DateTime _now = DateTime.now();
+  int _warningMinutes = 15;
+  int _criticalMinutes = 25;
   List<Map<String, dynamic>> _stations = const [];
   String _stationId = '';
+  ({String orderId, String target, bool acknowledged})? _pendingMove;
 
   @override
   void initState() {
     super.initState();
+    final runtime = context.read<PosBloc>().state.runtimeConfig;
+    _warningMinutes = (runtime['sla_warning_minutes'] as num?)?.toInt() ?? 15;
+    _criticalMinutes = (runtime['sla_critical_minutes'] as num?)?.toInt() ?? 25;
     _storeId = widget.initialStoreId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _reload();
       _loadStations();
+      _loadSlaSettings();
       _connectRealtime();
     });
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 60),
       (_) => mounted && !_realtimeConnected ? _reload() : null,
     );
+    _slaTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (mounted) _loadSlaSettings();
+    });
     _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -113,6 +125,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   void dispose() {
     _disposed = true;
     _refreshTimer?.cancel();
+    _slaTimer?.cancel();
     _clockTimer?.cancel();
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
@@ -187,8 +200,18 @@ class _KitchenBoardState extends State<_KitchenBoard> {
 
   void _reload() {
     context.read<PosOrderManagementBloc>().add(
-      LoadActiveOrders(storeId: _storeId),
+      LoadKitchenTickets(storeId: _storeId, stationId: _stationId),
     );
+  }
+
+  Future<void> _loadSlaSettings() async {
+    final result = await sl<PosOrderRepository>().getSlaThresholds();
+    if (!mounted) return;
+    if (result == null) return;
+    setState(() {
+      _warningMinutes = result.$1;
+      _criticalMinutes = result.$2;
+    });
   }
 
   Future<void> _loadStations() async {
@@ -243,15 +266,17 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                               ),
                             )
                             .toList(),
-                        onChanged: (value) {
-                          if (value == null || value == _storeId) return;
-                          setState(() {
-                            _storeId = value;
-                            _stationId = '';
-                          });
-                          _loadStations();
-                          _reload();
-                        },
+                        onChanged: _pendingMove != null
+                            ? null
+                            : (value) {
+                                if (value == null || value == _storeId) return;
+                                setState(() {
+                                  _storeId = value;
+                                  _stationId = '';
+                                });
+                                _loadStations();
+                                _reload();
+                              },
                       ),
                     );
                     final refresh = IconButton.filledTonal(
@@ -289,8 +314,12 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                             ),
                           ),
                         ],
-                        onChanged: (value) =>
-                            setState(() => _stationId = value ?? ''),
+                        onChanged: _pendingMove != null
+                            ? null
+                            : (value) {
+                                setState(() => _stationId = value ?? '');
+                                _reload();
+                              },
                       ),
                     );
                     final liveStatus = Row(
@@ -341,84 +370,97 @@ class _KitchenBoardState extends State<_KitchenBoard> {
             ),
           ),
           Expanded(
-            child:
-                BlocConsumer<PosOrderManagementBloc, PosOrderManagementState>(
-                  listener: (context, state) {
-                    if (state.status == PosOrderManagementStatus.failure) {
-                      AppToast.error(context, state.errorMessage);
-                    }
-                  },
-                  builder: (context, state) {
-                    if (state.status == PosOrderManagementStatus.loading &&
-                        state.orders.isEmpty) {
-                      return const PosOrderBoardSkeleton();
-                    }
-                    final orders = state.orders
-                        .where(
-                          (order) =>
-                              [
-                                'Baru',
-                                'Diproses',
-                                'Siap',
-                              ].contains(order.status) &&
-                              order.items.any(
-                                (item) =>
-                                    item.preparationMode == 'station' &&
-                                    (_stationId.isEmpty ||
-                                        item.productionStationId == _stationId),
-                              ),
-                        )
-                        .toList();
-                    if (orders.isEmpty) {
-                      return RefreshIndicator(
-                        onRefresh: () async => _reload(),
-                        child: ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            SizedBox(height: 90),
-                            PosEmptyState(
-                              icon: Icons.soup_kitchen_outlined,
-                              title: 'Tidak ada antrean dapur',
-                              message:
-                                  'Pesanan baru akan tampil otomatis di sini.',
-                            ),
-                          ],
+            child: BlocConsumer<PosOrderManagementBloc, PosOrderManagementState>(
+              listener: (context, state) {
+                if (state.status == PosOrderManagementStatus.failure) {
+                  if (_pendingMove?.acknowledged == true) {
+                    setState(() => _pendingMove = null);
+                  }
+                  AppToast.error(context, state.errorMessage);
+                } else if (state.status == PosOrderManagementStatus.loaded &&
+                    _pendingMove?.acknowledged == true) {
+                  setState(() => _pendingMove = null);
+                }
+              },
+              builder: (context, state) {
+                if (state.status == PosOrderManagementStatus.loading &&
+                    state.orders.isEmpty &&
+                    _pendingMove == null) {
+                  return const PosOrderBoardSkeleton();
+                }
+                final orders = state.orders
+                    .where(
+                      (order) =>
+                          ['Baru', 'Diproses', 'Siap'].contains(order.status),
+                    )
+                    .toList();
+                if (orders.isEmpty && _pendingMove == null) {
+                  return RefreshIndicator(
+                    onRefresh: () async => _reload(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 90),
+                        PosEmptyState(
+                          icon: Icons.soup_kitchen_outlined,
+                          title: 'Tidak ada antrean dapur',
+                          message:
+                              'Pesanan dengan produk “Kirim ke dapur” akan tampil di sini. Produk langsung jadi tidak masuk antrean.',
                         ),
-                      );
+                      ],
+                    ),
+                  );
+                }
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= 850) {
+                      return _wideBoard(orders);
                     }
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        if (constraints.maxWidth >= 850) {
-                          return _wideBoard(orders);
-                        }
-                        final filtered = _filter.isEmpty
-                            ? orders
-                            : orders
-                                  .where((order) => order.status == _filter)
-                                  .toList();
-                        return Column(
-                          children: [
-                            _filterBar(orders),
-                            if (widget.canUpdate) _compactDropTargets(),
-                            Expanded(
-                              child: RefreshIndicator(
-                                onRefresh: () async => _reload(),
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.all(12),
-                                  itemCount: filtered.length,
-                                  itemBuilder: (_, index) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: _draggableTicket(filtered[index]),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                    final filtered = _filter.isEmpty
+                        ? orders
+                        : orders
+                              .where((order) => order.status == _filter)
+                              .toList();
+                    final pending = _pendingMove;
+                    final showPending =
+                        pending != null &&
+                        (_filter.isEmpty || _filter == pending.target) &&
+                        !filtered.any(
+                          (order) =>
+                              order.id == pending.orderId &&
+                              order.status == pending.target,
                         );
-                      },
+                    return Column(
+                      children: [
+                        _filterBar(orders),
+                        if (widget.canUpdate) _compactDropTargets(),
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: () async => _reload(),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount:
+                                  filtered.length + (showPending ? 1 : 0),
+                              itemBuilder: (_, index) {
+                                if (showPending && index == 0) {
+                                  return _pendingTicket();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _draggableTicket(
+                                    filtered[index - (showPending ? 1 : 0)],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   },
-                ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -445,7 +487,9 @@ class _KitchenBoardState extends State<_KitchenBoard> {
         ),
       ],
       selected: {_filter},
-      onSelectionChanged: (value) => setState(() => _filter = value.first),
+      onSelectionChanged: _pendingMove != null
+          ? null
+          : (value) => setState(() => _filter = value.first),
     ),
   );
 
@@ -453,6 +497,10 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: ['Baru', 'Diproses', 'Siap'].map((status) {
       final rows = orders.where((order) => order.status == status).toList();
+      final pending = _pendingMove;
+      final showPending =
+          pending?.target == status &&
+          !rows.any((order) => order.id == pending?.orderId);
       return Expanded(
         child: DragTarget<PosOrderDetail>(
           onWillAcceptWithDetails: (details) => _canDrop(details.data, status),
@@ -482,11 +530,15 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.all(10),
-                    itemCount: rows.length,
-                    itemBuilder: (_, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _draggableTicket(rows[index]),
-                    ),
+                    itemCount: rows.length + (showPending ? 1 : 0),
+                    itemBuilder: (_, index) => showPending && index == 0
+                        ? _pendingTicket()
+                        : Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _draggableTicket(
+                              rows[index - (showPending ? 1 : 0)],
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -535,7 +587,9 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   );
 
   Widget _draggableTicket(PosOrderDetail order) {
-    if (!widget.canUpdate || order.status == 'Siap') return _ticket(order);
+    if (!widget.canUpdate || order.status == 'Siap' || _pendingMove != null) {
+      return _ticket(order);
+    }
     return Draggable<PosOrderDetail>(
       data: order,
       maxSimultaneousDrags: 1,
@@ -561,11 +615,32 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   }
 
   bool _canDrop(PosOrderDetail order, String targetStatus) =>
+      _pendingMove == null &&
       {'Baru': 'Diproses', 'Diproses': 'Siap'}[order.status] == targetStatus;
+
+  Widget _pendingTicket() => Padding(
+    key: const ValueKey('pending-kitchen-ticket'),
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Semantics(
+      label: 'Memindahkan pesanan dapur',
+      child: const PosOrderTicketSkeleton(),
+    ),
+  );
 
   Widget _ticket(PosOrderDetail order) {
     final status = order.status ?? 'Baru';
-    final elapsed = _elapsed(order.createdAt);
+    final age = PosOrderAge.forOrder(
+      order,
+      _now,
+      warningMinutes: _warningMinutes,
+      criticalMinutes: _criticalMinutes,
+      stationId: _stationId,
+    );
+    final ageColor = switch (age.tone) {
+      PosOrderAgeTone.critical => AppColors.danger,
+      PosOrderAgeTone.warning => AppColors.warning,
+      PosOrderAgeTone.normal => AppColors.info,
+    };
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -602,21 +677,27 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: elapsed.$2,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    elapsed.$1,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                Tooltip(
+                  message: age.label,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ageColor.withValues(alpha: .13),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: ageColor.withValues(alpha: .45),
+                      ),
+                    ),
+                    child: Text(
+                      age.durationLabel,
+                      style: const TextStyle(
+                        color: AppColors.heading,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -688,11 +769,12 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                             _ => 'Status selesai',
                           },
                           onPressed:
-                              const {
-                                'queued',
-                                'preparing',
-                                'ready',
-                              }.contains(item.productionStatus)
+                              _pendingMove == null &&
+                                  const {
+                                    'queued',
+                                    'preparing',
+                                    'ready',
+                                  }.contains(item.productionStatus)
                               ? () => _advanceItem(order, item)
                               : null,
                           icon: Icon(switch (item.productionStatus) {
@@ -744,21 +826,34 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     );
   }
 
-  void _advanceItem(PosOrderDetail order, PosOrderItem item) {
+  Future<void> _advanceItem(PosOrderDetail order, PosOrderItem item) async {
+    if (_pendingMove != null) return;
+    final orderId = order.id?.trim() ?? '';
+    final itemId = item.id?.trim() ?? '';
+    if (orderId.isEmpty || itemId.isEmpty) {
+      AppToast.warning(
+        context,
+        'Item dapur belum memiliki ID yang valid. Muat ulang pesanan.',
+      );
+      _reload();
+      return;
+    }
     final nextStatus = switch (item.productionStatus) {
       'queued' => 'preparing',
       'preparing' => 'ready',
       'ready' => 'served',
       _ => item.productionStatus,
     };
-    context.read<PosOrderManagementBloc>().add(
-      UpdateItemStatus(
-        orderId: order.id ?? '',
-        itemId: item.id ?? '',
-        newStatus: nextStatus,
-        tableId: order.tableId ?? '',
-        storeId: _storeId,
-      ),
+    final result = await sl<PosOrderRepository>().updateOrderItemStatus(
+      orderId,
+      itemId,
+      nextStatus,
+      expectedRevision: item.revision,
+    );
+    if (!mounted) return;
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (_) => _reload(),
     );
   }
 
@@ -767,33 +862,95 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     String targetStatus, {
     String note = '',
   }) async {
-    final target =
-        const {
-          'Baru': 'queued',
-          'Diproses': 'preparing',
-          'Siap': 'ready',
-          'Disajikan': 'served',
-        }[targetStatus] ??
-        targetStatus;
-    final items = order.items
-        .where(
-          (item) =>
-              item.preparationMode == 'station' &&
-              (_stationId.isEmpty || item.productionStationId == _stationId) &&
-              item.id?.isNotEmpty == true &&
-              item.productionStatus != target,
-        )
-        .toList();
-    for (final item in items) {
-      await sl<PosOrderRepository>().updateOrderItemStatus(
-        order.id ?? '',
-        item.id!,
-        target,
-        note: note,
-        expectedRevision: item.revision,
-      );
+    if (!_canDrop(order, targetStatus)) return;
+    final orderId = order.id?.trim() ?? '';
+    if (orderId.isEmpty) {
+      AppToast.warning(context, 'ID pesanan tidak valid. Muat ulang pesanan.');
+      _reload();
+      return;
     }
-    if (mounted) _reload();
+    setState(() {
+      _pendingMove = (
+        orderId: orderId,
+        target: targetStatus,
+        acknowledged: false,
+      );
+      _filter = targetStatus;
+    });
+    try {
+      final target =
+          const {
+            'Baru': 'queued',
+            'Diproses': 'preparing',
+            'Siap': 'ready',
+            'Disajikan': 'served',
+          }[targetStatus] ??
+          targetStatus;
+      final items = order.items
+          .where(
+            (item) =>
+                item.preparationMode == 'station' &&
+                (_stationId.isEmpty ||
+                    item.productionStationId == _stationId) &&
+                item.id?.isNotEmpty == true &&
+                item.productionStatus != target,
+          )
+          .toList();
+      // Orders with only ready-stock/instant products do not have kitchen items.
+      // Their board movement is an order workflow transition, never an item
+      // production update.
+      if (items.isEmpty) {
+        final result = await sl<PosOrderRepository>().updateOrderStatus(
+          orderId,
+          targetStatus,
+          note: note,
+        );
+        if (!mounted) return;
+        result.fold((failure) {
+          setState(() => _pendingMove = null);
+          AppToast.error(context, failure.message);
+        }, (_) => _acknowledgeMove());
+        return;
+      }
+      for (final item in items) {
+        final result = await sl<PosOrderRepository>().updateOrderItemStatus(
+          orderId,
+          item.id!,
+          target,
+          note: note,
+          expectedRevision: item.revision,
+        );
+        if (!mounted) return;
+        if (result.isLeft()) {
+          setState(() => _pendingMove = null);
+          result.fold(
+            (failure) => AppToast.error(context, failure.message),
+            (_) {},
+          );
+          _reload();
+          return;
+        }
+      }
+      if (mounted) _acknowledgeMove();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _pendingMove = null);
+      AppToast.error(context, 'Gagal memindahkan pesanan. Coba lagi.');
+      _reload();
+    }
+  }
+
+  void _acknowledgeMove() {
+    final pending = _pendingMove;
+    if (pending == null) return;
+    setState(
+      () => _pendingMove = (
+        orderId: pending.orderId,
+        target: pending.target,
+        acknowledged: true,
+      ),
+    );
+    _reload();
   }
 
   int _count(List<PosOrderDetail> orders, String status) =>
@@ -817,20 +974,4 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     'reservation' => 'Reservasi',
     _ => 'Bawa pulang',
   };
-  (String, Color) _elapsed(String? raw) {
-    final created = DateTime.tryParse(raw ?? '')?.toLocal();
-    if (created == null) return ('-', Colors.blueGrey);
-    final minutes = _now.difference(created).inMinutes.clamp(0, 9999);
-    final label = minutes < 60
-        ? '$minutes mnt'
-        : '${minutes ~/ 60}j ${minutes % 60}m';
-    return (
-      label,
-      minutes >= 30
-          ? AppColors.danger
-          : minutes >= 15
-          ? AppColors.warning
-          : AppColors.info,
-    );
-  }
 }

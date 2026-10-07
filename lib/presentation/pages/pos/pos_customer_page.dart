@@ -5,6 +5,7 @@ import 'package:mobile_pos_pantoo/domain/models/pos_customer.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import 'widgets/pos_quick_customer_dialog.dart';
 
 class PosCustomerPage extends StatefulWidget {
@@ -217,17 +218,18 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            MediaQuery.viewInsetsOf(context).bottom + 20,
-          ),
+        builder: (context, setSheetState) => PosKeyboardStableSheet(
+          heightFactor: .85,
           child: SafeArea(
             child: Form(
               key: key,
               child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  MediaQuery.viewInsetsOf(context).bottom + 20,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

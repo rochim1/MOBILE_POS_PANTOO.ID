@@ -14,6 +14,8 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_p
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_product_management_state.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
@@ -912,17 +914,18 @@ class _PosProductPageState extends State<PosProductPage> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        builder: (_) => FractionallySizedBox(heightFactor: .92, child: form),
+        builder: (_) => PosKeyboardStableSheet(heightFactor: .92, child: form),
       );
     } else {
       await showDialog<void>(
         context: context,
-        builder: (_) => Dialog(
-          clipBehavior: Clip.antiAlias,
+        builder: (_) => PosKeyboardStableDialog(
+          width: 720,
+          height: 680,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: SizedBox(width: 720, height: 680, child: form),
+          child: form,
         ),
       );
     }
@@ -1392,7 +1395,12 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       (_) {},
       (items) => setState(() {
         _packageCandidates = items
-            .where((item) => item.id != widget.product?.id)
+            .where(
+              (item) =>
+                  item.id != widget.product?.id &&
+                  item.productType != 'deposit' &&
+                  (item.tracksStock || item.packageComponents.isNotEmpty),
+            )
             .toList();
       }),
     );
@@ -1506,80 +1514,144 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   Future<void> _choosePackageComponents() async {
     final selected = Set<String>.from(_componentQty.keys);
     var query = '';
-    final result = await showDialog<Set<String>>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setDialogState) => AlertDialog(
-          title: const Text('Pilih komponen paket'),
-          content: SizedBox(
-            width: 520,
-            height: 460,
-            child: Column(
-              children: [
-                TextField(
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Cari bahan atau komponen',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) =>
-                      setDialogState(() => query = value.trim().toLowerCase()),
+    Widget pickerContent(
+      BuildContext pickerContext,
+      StateSetter update, {
+      required bool mobile,
+    }) {
+      final keyboardInset = mobile
+          ? MediaQuery.viewInsetsOf(pickerContext).bottom
+          : 0.0;
+      final candidates = _packageCandidates.where((product) {
+        if (query.isEmpty) return true;
+        return '${product.name} ${product.code} ${product.sku} ${product.barcode}'
+            .toLowerCase()
+            .contains(query);
+      }).toList();
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: Column(
+          children: [
+            if (mobile)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pilih komponen paket',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Tutup',
+                      onPressed: () => Navigator.pop(pickerContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: Builder(
-                    builder: (_) {
-                      final candidates = _packageCandidates.where((product) {
-                        if (query.isEmpty) return true;
-                        return '${product.name} ${product.code} ${product.sku} ${product.barcode}'
-                            .toLowerCase()
-                            .contains(query);
-                      }).toList();
-                      if (candidates.isEmpty) {
-                        return const Center(
-                          child: Text('Komponen stok tidak ditemukan.'),
+              ),
+            TextField(
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Cari bahan atau komponen',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) =>
+                  update(() => query = value.trim().toLowerCase()),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: candidates.isEmpty
+                  ? const Center(child: Text('Komponen stok tidak ditemukan.'))
+                  : ListView.builder(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      itemCount: candidates.length,
+                      itemBuilder: (_, index) {
+                        final product = candidates[index];
+                        return CheckboxListTile(
+                          value: selected.contains(product.id),
+                          title: Text(product.name),
+                          subtitle: Text(
+                            '${product.code} • ${product.saleUnit}',
+                          ),
+                          onChanged: (checked) => update(() {
+                            if (checked == true) {
+                              selected.add(product.id);
+                            } else {
+                              selected.remove(product.id);
+                            }
+                          }),
                         );
-                      }
-                      return ListView.builder(
-                        itemCount: candidates.length,
-                        itemBuilder: (_, index) {
-                          final product = candidates[index];
-                          return CheckboxListTile(
-                            value: selected.contains(product.id),
-                            title: Text(product.name),
-                            subtitle: Text(
-                              '${product.code} • ${product.saleUnit}',
-                            ),
-                            onChanged: (checked) => setDialogState(() {
-                              if (checked == true) {
-                                selected.add(product.id);
-                              } else {
-                                selected.remove(product.id);
-                              }
-                            }),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                      },
+                    ),
+            ),
+            if (mobile)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(pickerContext),
+                      child: const Text('Batal'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(pickerContext, selected),
+                      child: const Text('Terapkan'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, selected),
-              child: const Text('Terapkan'),
-            ),
+              ),
           ],
         ),
-      ),
-    );
+      );
+    }
+
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final result = isMobile
+        ? await showModalBottomSheet<Set<String>>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            showDragHandle: true,
+            builder: (_) => PosKeyboardStableSheet(
+              heightFactor: .92,
+              child: StatefulBuilder(
+                builder: (pickerContext, update) => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: pickerContent(pickerContext, update, mobile: true),
+                ),
+              ),
+            ),
+          )
+        : await showDialog<Set<String>>(
+            context: context,
+            builder: (dialogContext) => StatefulBuilder(
+              builder: (pickerContext, update) => PosKeyboardStableFormDialog(
+                width: 520,
+                height: 570,
+                title: const Text('Pilih komponen paket'),
+                content: pickerContent(pickerContext, update, mobile: false),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Batal'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, selected),
+                    child: const Text('Terapkan'),
+                  ),
+                ],
+              ),
+            ),
+          );
     if (result == null || !mounted) return;
     setState(() {
       for (final id
@@ -1796,6 +1868,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           (_productType == 'package' || _useStockComposition)
           ? components
           : const [],
+      'composition_type': (_productType == 'package' || _useStockComposition)
+          ? (_productType == 'package' ? 'bundle' : 'bom')
+          : null,
       'base_unit': _usesUnits ? unit : 'unit',
       'unit': _usesUnits ? unit : 'unit',
       'unit_conversions': _usesUnits ? conversions : const [],
@@ -2182,7 +2257,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           title: const Text('Gunakan komposisi stok / resep (BOM)'),
           subtitle: const Text(
             'Untuk menu olahan atau layanan yang memakai bahan/suku cadang. '
-            'Master bahan baku, habis pakai, dan MRO dikelola melalui Inventory Web.',
+            'Paket boleh berisi produk berbom atau paket lain; stok akhirnya '
+            'dihitung dari komponen dasar. Master komponen dikelola melalui Inventory Web.',
           ),
           value: _productType == 'package' || _useStockComposition,
           onChanged: _productType == 'package'
@@ -2545,7 +2621,37 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4E5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFFE0B2)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            color: Color(0xFFE65100),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: const Text(
+                              'Data master produk akan disinkronisasi ke server pusat. Konflik SKU/Barcode akan diselesaikan oleh server.',
+                              style: TextStyle(
+                                color: Color(0xFFE65100),
+                                fontSize: 13,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     const Text(
                       'Data transaksi stok, batch, dan kedaluwarsa dicatat saat penerimaan.',
                       style: TextStyle(fontSize: 12, color: Colors.black54),

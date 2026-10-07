@@ -52,6 +52,20 @@ void main() {
       expect(actions, isNot(contains('receive_transfer')));
     });
 
+    test(
+      'cancelled transfer remains an audit record and cannot be deleted',
+      () {
+        final actions = PosInventoryActionPolicy.available(
+          type: PosInventoryDocumentType.transfer,
+          status: 'cancelled',
+          can: allowAll,
+        );
+
+        expect(actions, isNot(contains('delete')));
+        expect(actions, isNot(contains('cancel')));
+      },
+    );
+
     test('scrap draft supports edit, approve, reject, and delete', () {
       final actions = PosInventoryActionPolicy.available(
         type: PosInventoryDocumentType.scrap,

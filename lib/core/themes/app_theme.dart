@@ -37,6 +37,7 @@ class AppTheme {
         ),
       ),
       splashColor: AppColors.splash,
+      focusColor: AppColors.primary.withValues(alpha: 0.24),
       primaryColorLight: AppColors.primaryTheme,
       scaffoldBackgroundColor: AppColors.bgPrimary,
       dividerTheme: DividerThemeData(
@@ -68,13 +69,19 @@ class AppTheme {
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: AppColors.white,
         selectedColor: AppColors.primary,
+        secondarySelectedColor: AppColors.primary,
         side: const BorderSide(color: AppColors.neutralBorder),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+        labelStyle: const TextStyle(
+          color: AppColors.body,
+          fontWeight: FontWeight.w600,
+        ),
         secondaryLabelStyle: const TextStyle(
           color: AppColors.white,
           fontWeight: FontWeight.w700,
         ),
+        deleteIconColor: AppColors.textSecondary,
+        checkmarkColor: AppColors.white,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,

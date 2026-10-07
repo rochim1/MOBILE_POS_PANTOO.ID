@@ -8,6 +8,7 @@ import '../../bloc/pos_return/pos_return_bloc.dart';
 import '../../bloc/pos_return/pos_return_event.dart';
 import '../../bloc/pos_return/pos_return_state.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_ui.dart';
 import 'pos_add_return_page.dart';
 import 'package:intl/intl.dart';
@@ -390,24 +391,19 @@ class _PosReturnViewState extends State<PosReturnView> {
       barrierDismissible: false,
       builder: (dialogContext) {
         final size = MediaQuery.sizeOf(dialogContext);
-        return Dialog(
+        return PosKeyboardStableDialog(
+          width: 980,
+          height: size.height - (size.height < 700 ? 24 : 56),
           insetPadding: EdgeInsets.symmetric(
             horizontal: size.width < 700 ? 12 : 32,
             vertical: size.height < 700 ? 12 : 28,
           ),
-          clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 980,
-              maxHeight: size.height - (size.height < 700 ? 24 : 56),
-            ),
-            child: BlocProvider.value(
-              value: bloc,
-              child: const PosAddReturnPage(),
-            ),
+          child: BlocProvider.value(
+            value: bloc,
+            child: const PosAddReturnPage(),
           ),
         );
       },

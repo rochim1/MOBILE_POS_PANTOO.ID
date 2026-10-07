@@ -8,6 +8,7 @@ import '../../../bloc/pos/pos_bloc.dart';
 import '../../../bloc/pos/pos_event.dart';
 import '../../../bloc/pos/pos_state.dart';
 import '../../../widgets/app_toast.dart';
+import '../../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../../../domain/models/pos_product.dart';
 import '../../../../domain/models/pos_customer.dart';
 import '../../../../domain/models/pos_table.dart';
@@ -23,6 +24,7 @@ class PosProductPanel extends StatefulWidget {
   final List<String> categories;
   final ValueChanged<String> onCategorySelected;
   final GlobalKey? searchTourKey;
+  final FocusNode? searchFocusNode;
 
   const PosProductPanel({
     super.key,
@@ -31,6 +33,7 @@ class PosProductPanel extends StatefulWidget {
     required this.categories,
     required this.onCategorySelected,
     this.searchTourKey,
+    this.searchFocusNode,
   });
 
   @override
@@ -43,12 +46,14 @@ class _PosProductPanelState extends State<PosProductPanel> {
   Timer? _searchDebounce;
   int _searchVersion = 0;
   bool _remoteSearching = false;
-  final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _ownedSearchFocusNode = FocusNode();
+  FocusNode get _searchFocusNode =>
+      widget.searchFocusNode ?? _ownedSearchFocusNode;
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
-    _searchFocusNode.dispose();
+    _ownedSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -168,7 +173,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     final columns = compact
                         ? (availableWidth < 280 ? 2 : 3)
                         : (availableWidth / 180).floor().clamp(3, 6);
-                    final compactCardHeight = columns == 2 ? 136.0 : 108.0;
+                    final compactCardHeight = columns == 2 ? 144.0 : 118.0;
                     return SliverPadding(
                       padding: EdgeInsets.all(compact ? 8 : 16),
                       sliver: SliverGrid(
@@ -709,6 +714,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
 
   Widget _buildProductListItem(BuildContext context, PosProduct product) {
     return InkWell(
+      focusColor: AppColors.primary.withValues(alpha: 0.24),
       onTap: () {
         final state = context.read<PosBloc>().state;
         if (_isUnavailable(product, state)) {
@@ -778,6 +784,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
 
   Widget _buildProductGridItem(BuildContext context, PosProduct product) {
     return InkWell(
+      focusColor: AppColors.primary.withValues(alpha: 0.24),
       onTap: () {
         final state = context.read<PosBloc>().state;
         if (_isUnavailable(product, state)) {
@@ -895,7 +902,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
               ),
             ),
             SizedBox(
-              height: widget.isMobile ? 56 : 64,
+              height: widget.isMobile ? 66 : 70,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   widget.isMobile ? 7 : 8,
@@ -917,13 +924,39 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Text(
-                      'Rp ${product.price.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: widget.isMobile ? 11 : 12,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Rp ${product.price.toStringAsFixed(0)}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: widget.isMobile ? 11 : 12,
+                            ),
+                          ),
+                        ),
+                        if (product.tracksStock)
+                          Text(
+                            'Stok ${_formatStock(product.stock)}',
+                            style: TextStyle(
+                              color: product.stock <= 0
+                                  ? AppColors.danger
+                                  : AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: widget.isMobile ? 9 : 10,
+                            ),
+                          )
+                        else
+                          const Text(
+                            'Nonstok',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 9,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -934,6 +967,10 @@ class _PosProductPanelState extends State<PosProductPanel> {
       ),
     );
   }
+
+  String _formatStock(double value) => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
 
   Future<void> _scanBarcode(BuildContext context, PosState state) async {
     final code = await Navigator.push<String>(
@@ -983,7 +1020,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       item.name.toLowerCase().contains(normalized) ||
                       item.phone.toLowerCase().contains(normalized);
                 }).toList();
-                return FractionallySizedBox(
+                return PosKeyboardStableSheet(
                   heightFactor: 0.68,
                   child: Column(
                     children: [
@@ -1068,6 +1105,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
                                 child: Text('Pelanggan tidak ditemukan'),
                               )
                             : ListView.separated(
+                                padding: EdgeInsets.only(
+                                  bottom: MediaQuery.viewInsetsOf(
+                                    context,
+                                  ).bottom,
+                                ),
                                 keyboardDismissBehavior:
                                     ScrollViewKeyboardDismissBehavior.onDrag,
                                 itemCount: filtered.length,
@@ -1183,7 +1225,14 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
               child: tables.isEmpty
                   ? const Center(child: Text('Meja tidak ditemukan'))
                   : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        0,
+                        16,
+                        20 + MediaQuery.viewInsetsOf(context).bottom,
+                      ),
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 210,

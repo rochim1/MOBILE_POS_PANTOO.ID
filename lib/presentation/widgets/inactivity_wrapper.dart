@@ -171,6 +171,9 @@ class _InactivityWrapperState extends State<InactivityWrapper>
             _startTimer();
           } else if (state.status == AppLockStatus.locked) {
             _timer?.cancel();
+            // A cashier search/input may still have focus behind the lock.
+            // Release it before the PIN route requests keyboard focus.
+            FocusManager.instance.primaryFocus?.unfocus();
           }
         },
         builder: (context, state) {

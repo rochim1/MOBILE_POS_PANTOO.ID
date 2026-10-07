@@ -5,6 +5,8 @@ import '../../data/datasources/local/pos_local_database.dart';
 import '../../data/graphql/pos_queries.dart';
 import '../error/error_handler.dart';
 import 'graphql_client_provider.dart';
+import 'offline_network_failure.dart';
+import 'pos_operator_identity.dart';
 import '../utils/logger.dart';
 import '../database/database_platform_initializer.dart';
 
@@ -12,7 +14,9 @@ String classifyOfflineGraphQLErrors(List<GraphQLError> errors) {
   for (final error in errors) {
     final code = error.extensions?['code']?.toString().toUpperCase();
     final message = error.message.toLowerCase();
-    if (code == 'CONFLICT' ||
+    if (code == 'UNAUTHORIZED' ||
+        code == 'UNAUTHENTICATED' ||
+        code == 'CONFLICT' ||
         message.contains('harga') ||
         message.contains('promo') ||
         message.contains('stok') ||
@@ -25,9 +29,22 @@ String classifyOfflineGraphQLErrors(List<GraphQLError> errors) {
   return 'rejected';
 }
 
+bool offlineSaleNeedsReview({
+  required String serverStatus,
+  num? expectedTotal,
+  num? actualTotal,
+}) =>
+    serverStatus != 'synced' ||
+    (expectedTotal != null &&
+        actualTotal != null &&
+        (expectedTotal - actualTotal).abs() > 0.01);
+
 class SyncService {
   final GraphQLClientProvider _clientProvider;
   bool _isSyncing = false;
+  String _operatorToken = '';
+
+  void setOperatorSessionToken(String token) => _operatorToken = token.trim();
 
   SyncService(this._clientProvider);
 
@@ -56,11 +73,17 @@ class SyncService {
       counts[row['status']?.toString() ?? 'pending'] =
           (row['total'] as num?)?.toInt() ?? 0;
     }
+    final unresolvedRejected = await db.rawQuery(
+      "SELECT COUNT(*) AS total FROM offline_transactions WHERE instansi_id = ? AND status = 'rejected' AND (resolution IS NULL OR resolution != 'rejected_by_operator')",
+      [instansiId],
+    );
+    counts['rejected_unresolved'] =
+        (unresolvedRejected.first['total'] as num?)?.toInt() ?? 0;
     final oldest = await db.query(
       'offline_transactions',
       columns: const ['timestamp'],
       where:
-          "instansi_id = ? AND status IN ('pending','syncing','needs_review')",
+          "instansi_id = ? AND (status IN ('pending','syncing','needs_review') OR (status = 'rejected' AND (resolution IS NULL OR resolution != 'rejected_by_operator')))",
       whereArgs: [instansiId],
       orderBy: 'timestamp ASC',
       limit: 1,
@@ -70,7 +93,8 @@ class SyncService {
       'unresolved':
           (counts['pending'] ?? 0) +
           (counts['syncing'] ?? 0) +
-          (counts['needs_review'] ?? 0),
+          (counts['needs_review'] ?? 0) +
+          (counts['rejected_unresolved'] ?? 0),
       'oldest_pending_at': oldest.isEmpty ? null : oldest.first['timestamp'],
     };
   }
@@ -79,16 +103,16 @@ class SyncService {
   Future<void> syncOfflineTransactions({bool force = false}) async {
     if (!supportsOfflineDatabase) return;
     if (_isSyncing) return;
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      appLogger.w(
-        'SyncService: Tidak ada koneksi internet. Sinkronisasi dibatalkan.',
-      );
-      return;
-    }
-
     _isSyncing = true;
     try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        appLogger.w(
+          'SyncService: Tidak ada koneksi internet. Sinkronisasi dibatalkan.',
+        );
+        return;
+      }
+
       final db = await PosLocalDatabase.instance.database;
       final instansiId =
           _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
@@ -123,6 +147,7 @@ class SyncService {
         whereArgs: force
             ? ['pending', instansiId]
             : ['pending', instansiId, DateTime.now().toIso8601String()],
+        orderBy: 'timestamp ASC, id ASC',
       );
 
       if (pendingTransactions.isEmpty) {
@@ -137,6 +162,7 @@ class SyncService {
       for (var tx in pendingTransactions) {
         final id = tx['id'] as int;
         final payloadString = tx['payload'] as String;
+        final operationKind = tx['operation_kind']?.toString() ?? 'sale';
 
         try {
           await db.update(
@@ -149,10 +175,82 @@ class SyncService {
             where: 'id = ? AND status = ?',
             whereArgs: [id, 'pending'],
           );
-          final payload = jsonDecode(payloadString);
+          final payload = Map<String, dynamic>.from(
+            jsonDecode(payloadString) as Map,
+          );
+          final originalShiftId = tx['shift_id']?.toString() ?? '';
+          if ((payload['shift_id']?.toString() ?? '').isEmpty &&
+              originalShiftId.isNotEmpty) {
+            payload['shift_id'] = originalShiftId;
+          }
+          final savedToken =
+              payload['operator_session_token']?.toString() ?? '';
+          final snapshot = tx['client_snapshot'] == null
+              ? <String, dynamic>{}
+              : Map<String, dynamic>.from(
+                  jsonDecode(tx['client_snapshot'] as String) as Map,
+                );
+          final operatorId =
+              snapshot['operator_user_id']?.toString() ??
+              operatorIdFromToken(savedToken);
+          payload.remove('operator_session_token');
+          if (savedToken.isNotEmpty) {
+            await db.update(
+              'offline_transactions',
+              {
+                'payload': jsonEncode(payload),
+                'client_snapshot': jsonEncode({
+                  ...snapshot,
+                  if (operatorId.isNotEmpty) 'operator_user_id': operatorId,
+                }),
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+          }
+          if (operatorId.isNotEmpty) {
+            final renewed = operatorTokenForSync(
+              'offline_operator:$operatorId',
+              _operatorToken,
+            );
+            if (renewed != null) {
+              payload['operator_session_token'] = renewed;
+            } else {
+              await db.update(
+                'offline_transactions',
+                {
+                  'status': 'needs_review',
+                  'error':
+                      'Verifikasi PIN kasir asal saat online, lalu kirim ulang. Transaksi tetap tersimpan.',
+                  'resolution': 'operator_reauthentication_required',
+                },
+                where: 'id = ?',
+                whereArgs: [id],
+              );
+              continue;
+            }
+          }
+
+          if (operationKind != 'sale' && operationKind != 'create_order') {
+            await db.update(
+              'offline_transactions',
+              {
+                'status': 'needs_review',
+                'error': 'Jenis operasi antrean tidak dikenal: $operationKind',
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+            continue;
+          }
+          final isOrder = operationKind == 'create_order';
 
           final MutationOptions options = MutationOptions(
-            document: gql(PosQueries.processPOSPenjualan),
+            document: gql(
+              isOrder
+                  ? PosQueries.createPOSInvoice
+                  : PosQueries.processPOSPenjualan,
+            ),
             variables: {'input': payload},
           );
 
@@ -160,20 +258,49 @@ class SyncService {
             options,
           );
 
-          if (result.data != null &&
-              result.data!['ProcessPOSPenjualan'] != null) {
+          final resultKey = isOrder ? 'CreatePOSOrder' : 'ProcessPOSPenjualan';
+          if (result.data != null && result.data![resultKey] != null) {
             final serverTransaction = Map<String, dynamic>.from(
-              result.data!['ProcessPOSPenjualan'] as Map,
+              result.data![resultKey] as Map,
             );
             // Berhasil tersinkron, update status di lokal menjadi synced
+            final String serverSyncStatus = isOrder
+                ? 'synced'
+                : serverTransaction['sync_status']?.toString() ?? '';
+            final String serverSyncConflictReason =
+                serverTransaction['sync_conflict_reason']?.toString() ?? '';
+            final expectedTotal = (snapshot['total'] as num?)?.toDouble();
+            final actualTotal =
+                (serverTransaction[isOrder ? 'grand_total' : 'total'] as num?)
+                    ?.toDouble();
+            final totalChanged =
+                expectedTotal != null &&
+                actualTotal != null &&
+                (expectedTotal - actualTotal).abs() > 0.01;
+            final requiresReview = isOrder
+                ? totalChanged
+                : offlineSaleNeedsReview(
+                    serverStatus: serverSyncStatus,
+                    expectedTotal: expectedTotal,
+                    actualTotal: actualTotal,
+                  );
             await db.update(
               'offline_transactions',
               {
-                'status': 'synced',
-                'error': null,
+                'status': requiresReview ? 'needs_review' : 'synced',
+                'error': requiresReview
+                    ? (totalChanged
+                          ? isOrder
+                                ? 'Total pesanan server berbeda dari estimasi perangkat. Periksa pesanan sebelum menerima pembayaran.'
+                                : 'Total server berbeda dari uang yang dicatat offline. Cocokkan invoice dan kas fisik.'
+                          : serverSyncConflictReason.isNotEmpty
+                          ? serverSyncConflictReason
+                          : 'Status sinkronisasi server perlu diperiksa')
+                    : null,
                 'server_response': jsonEncode({
                   'id': serverTransaction['_id']?.toString(),
-                  'invoice': serverTransaction['invoice']?.toString(),
+                  'invoice': serverTransaction[isOrder ? 'order_no' : 'invoice']
+                      ?.toString(),
                 }),
                 'resolution': 'accepted_by_server',
                 'resolved_at': DateTime.now().toIso8601String(),
@@ -263,19 +390,7 @@ class SyncService {
   }
 
   bool _isRetryableNetworkFailure(OperationException? exception) {
-    final linkException = exception?.linkException;
-    if (linkException == null || _allGraphQLErrors(exception).isNotEmpty) {
-      return false;
-    }
-
-    // A server response means the request reached the API. Client/schema
-    // errors (4xx) must not be retried forever as connectivity failures.
-    if (linkException is HttpLinkServerException) {
-      final statusCode = linkException.response.statusCode;
-      return statusCode >= 500 || statusCode == 408 || statusCode == 429;
-    }
-
-    return true;
+    return isRetryableOfflineNetworkFailure(exception);
   }
 
   String _encodeServerErrors(OperationException? exception) {
@@ -345,7 +460,7 @@ class SyncService {
       },
       where:
           'id = ? AND instansi_id = ? AND status IN (?, ?, ?) AND '
-          '(resolution IS NULL OR resolution != ?)',
+          '(resolution IS NULL OR resolution NOT IN (?, ?))',
       whereArgs: [
         id,
         instansiId,
@@ -353,9 +468,29 @@ class SyncService {
         'needs_review',
         'rejected',
         'rejected_by_operator',
+        'accepted_by_server',
       ],
     );
     await syncOfflineTransactions(force: true);
+  }
+
+  Future<void> acknowledgeAcceptedTransaction(int id) async {
+    final instansiId =
+        _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
+    if (instansiId.isEmpty || !supportsOfflineDatabase) return;
+    final db = await PosLocalDatabase.instance.database;
+    await db.update(
+      'offline_transactions',
+      {
+        'status': 'synced',
+        'resolution': 'reviewed_after_server_acceptance',
+        'resolved_at': DateTime.now().toIso8601String(),
+        'next_retry_at': null,
+      },
+      where:
+          'id = ? AND instansi_id = ? AND status = ? AND resolution = ? AND server_response IS NOT NULL',
+      whereArgs: [id, instansiId, 'needs_review', 'accepted_by_server'],
+    );
   }
 
   Future<int> retryAllRejected() async {
@@ -393,8 +528,26 @@ class SyncService {
             : 'rejected_by_operator',
         'resolved_at': DateTime.now().toIso8601String(),
       },
-      where: 'id = ? AND instansi_id = ? AND status = ?',
-      whereArgs: [id, instansiId, 'needs_review'],
+      where:
+          'id = ? AND instansi_id = ? AND status = ? AND (resolution IS NULL OR resolution != ?)',
+      whereArgs: [id, instansiId, 'needs_review', 'accepted_by_server'],
+    );
+  }
+
+  Future<void> resolveRejectedTransaction(int id) async {
+    final instansiId =
+        _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
+    if (instansiId.isEmpty || !supportsOfflineDatabase) return;
+    final db = await PosLocalDatabase.instance.database;
+    await db.update(
+      'offline_transactions',
+      {
+        'resolution': 'rejected_by_operator',
+        'resolved_at': DateTime.now().toIso8601String(),
+      },
+      where:
+          'id = ? AND instansi_id = ? AND status = ? AND (resolution IS NULL OR resolution != ?)',
+      whereArgs: [id, instansiId, 'rejected', 'accepted_by_server'],
     );
   }
 }

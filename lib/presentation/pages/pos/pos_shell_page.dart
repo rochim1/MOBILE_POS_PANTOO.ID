@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,6 +29,7 @@ import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_drawer.dart';
+import 'utils/pos_keyboard_navigation_policy.dart';
 import '../home/home_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
@@ -37,9 +39,11 @@ import 'package:mobile_pos_pantoo/presentation/bloc/auth/auth_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
+import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_inventory_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_notification_repository.dart';
 import '../../widgets/pos_employee_avatar.dart';
+import '../../widgets/pos_customer_display_pairing.dart';
 
 class PosShellPage extends StatefulWidget {
   final bool prepareDashboard;
@@ -830,6 +834,83 @@ class _PosShellPageState extends State<PosShellPage>
     );
   }
 
+  void _navigateWithKeyboard(int index) {
+    if (_showUnlockLoading ||
+        context.read<AppLockCubit>().state.status != AppLockStatus.unlocked ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        FocusManager.instance.primaryFocus?.context
+                ?.findAncestorWidgetOfExactType<EditableText>() !=
+            null) {
+      return;
+    }
+    if (!canOpenPosKeyboardDestination(_posBloc.state.runtimeConfig, index)) {
+      return;
+    }
+    setState(() => _selectedIndex = index);
+  }
+
+  void _showKeyboardHelp() {
+    if (context.read<AppLockCubit>().state.status != AppLockStatus.unlocked) {
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Shortcut keyboard Pantoo POS'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Navigasi: Tab / Shift+Tab untuk berpindah, Enter atau Spasi untuk memilih.',
+              ),
+              SizedBox(height: 10),
+              Text('Alt+1 Dashboard · Alt+2 Kasir · Alt+3 Katalog'),
+              Text('Alt+4 Pesanan & Meja · Alt+5 Inventori · Alt+6 Riwayat'),
+              SizedBox(height: 10),
+              Text(
+                'Kasir: F2 cari produk · F3 scan barcode · F4 bayar/simpan meja',
+              ),
+              Text('F6 keranjang · F7 diskon · F8 simpan pesanan'),
+              Text('F9 pesanan tersimpan · F10 pengaturan penjualan'),
+              Text('Ctrl+Delete kosongkan keranjang · F1 tampilkan bantuan'),
+              SizedBox(height: 10),
+              Text(
+                'Shortcut halaman hanya tersedia jika operator mempunyai izin. Saat mengetik di formulir, shortcut navigasi tidak dijalankan.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _withKeyboardNavigation(Widget child) => CallbackShortcuts(
+    bindings: <ShortcutActivator, VoidCallback>{
+      const SingleActivator(LogicalKeyboardKey.digit1, alt: true): () =>
+          _navigateWithKeyboard(0),
+      const SingleActivator(LogicalKeyboardKey.digit2, alt: true): () =>
+          _navigateWithKeyboard(1),
+      const SingleActivator(LogicalKeyboardKey.digit3, alt: true): () =>
+          _navigateWithKeyboard(2),
+      const SingleActivator(LogicalKeyboardKey.digit4, alt: true): () =>
+          _navigateWithKeyboard(5),
+      const SingleActivator(LogicalKeyboardKey.digit5, alt: true): () =>
+          _navigateWithKeyboard(7),
+      const SingleActivator(LogicalKeyboardKey.digit6, alt: true): () =>
+          _navigateWithKeyboard(3),
+      const SingleActivator(LogicalKeyboardKey.f1): _showKeyboardHelp,
+    },
+    child: Focus(autofocus: true, child: child),
+  );
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -1057,6 +1138,40 @@ class _PosShellPageState extends State<PosShellPage>
                         },
                       ),
                       actions: [
+                        if (width >= 1200)
+                          IconButton(
+                            tooltip: 'Shortcut keyboard (F1)',
+                            icon: const Icon(
+                              Icons.keyboard_alt_outlined,
+                              color: Colors.white,
+                            ),
+                            onPressed: _showKeyboardHelp,
+                          ),
+                        if (!isSmallScreen)
+                          ValueListenableBuilder<PosCustomerDisplayState>(
+                            valueListenable:
+                                sl<PosCustomerDisplayService>().state,
+                            builder: (context, displayState, _) => IconButton(
+                              tooltip:
+                                  displayState.connection ==
+                                      PosCustomerDisplayConnection.connected
+                                  ? 'Layar pelanggan terhubung'
+                                  : 'Hubungkan layar pelanggan',
+                              icon: Badge(
+                                isLabelVisible:
+                                    displayState.connection ==
+                                    PosCustomerDisplayConnection.connected,
+                                smallSize: 8,
+                                backgroundColor: AppColors.success,
+                                child: const Icon(
+                                  Icons.connected_tv_outlined,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              onPressed: () =>
+                                  showPosCustomerDisplayPairing(context),
+                            ),
+                          ),
                         if (!isSmallScreen)
                           Builder(
                             builder: (posBlocContext) => IconButton(
@@ -1111,9 +1226,24 @@ class _PosShellPageState extends State<PosShellPage>
                                     }
                                   } else if (value == 'lock') {
                                     menuContext.read<AppLockCubit>().lock();
+                                  } else if (value == 'customer_display') {
+                                    showPosCustomerDisplayPairing(menuContext);
+                                  } else if (value == 'keyboard_help') {
+                                    _showKeyboardHelp();
                                   }
                                 },
                                 itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'keyboard_help',
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(
+                                        Icons.keyboard_alt_outlined,
+                                      ),
+                                      title: Text('Shortcut keyboard'),
+                                    ),
+                                  ),
                                   PopupMenuItem(
                                     value: 'setup',
                                     child: ListTile(
@@ -1121,6 +1251,17 @@ class _PosShellPageState extends State<PosShellPage>
                                       contentPadding: EdgeInsets.zero,
                                       leading: Icon(Icons.fact_check_outlined),
                                       title: Text('Checklist kesiapan'),
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'customer_display',
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(
+                                        Icons.connected_tv_outlined,
+                                      ),
+                                      title: Text('Layar pelanggan'),
                                     ),
                                   ),
                                   PopupMenuItem(
@@ -1303,9 +1444,11 @@ class _PosShellPageState extends State<PosShellPage>
                                   vertical: -2,
                                 ),
                               ),
-                              child: _buildShellBody(isMobile),
+                              child: _withKeyboardNavigation(
+                                _buildShellBody(isMobile),
+                              ),
                             )
-                          : _buildShellBody(isMobile),
+                          : _withKeyboardNavigation(_buildShellBody(isMobile)),
                     ),
                     floatingActionButton:
                         isMobile &&
@@ -1571,6 +1714,23 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('view_settings')) _sidebarItem(17),
       if (can('view_receipt')) _sidebarItem(14),
       _sidebarItem(15),
+      _sidebarSection('BANTUAN'),
+      if (_railExpanded)
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.keyboard_alt_outlined),
+          title: const Text('Shortcut keyboard'),
+          subtitle: const Text('F1 untuk melihat panduan'),
+          onTap: _showKeyboardHelp,
+        )
+      else
+        Tooltip(
+          message: 'Shortcut keyboard (F1)',
+          child: IconButton(
+            onPressed: _showKeyboardHelp,
+            icon: const Icon(Icons.keyboard_alt_outlined),
+          ),
+        ),
     ];
   }
 
@@ -1579,6 +1739,7 @@ class _PosShellPageState extends State<PosShellPage>
     final selected = _selectedIndex == index;
     final item = InkWell(
       onTap: () => setState(() => _selectedIndex = index),
+      focusColor: AppColors.primary.withValues(alpha: 0.24),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         height: 48,

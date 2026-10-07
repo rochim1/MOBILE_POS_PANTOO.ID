@@ -19,17 +19,24 @@ class PosStockQueries {
 
   static const String getStockByStore = r'''
     query GetInventarisAvailableInLocation($cabangId: ID!) {
-      GetInventarisAvailableInLocation(cabang_id: $cabangId) {
+      GetInventarisAvailableInLocation(cabang_id: $cabangId, include_non_sellable: true, include_zero_balance: true) {
         inventaris_id
         _id
         kode_inventaris
         nama_inventaris
         kategori
+        pos_product_type
+        composition_type
+        tracks_stock
         harga_jual
         harga_beli
         stok_minimum
+        stok_maksimum
+        titik_reorder
         sku
+        barcode
         unit
+        base_unit
         qty
         stock_balance_id
         location_count
@@ -46,8 +53,9 @@ class PosStockQueries {
         pagination: { page: 0, limit: 1000 }
       ) {
         items {
-          _id kode_inventaris nama_inventaris kategori harga_jual harga_beli
-          stok_minimum sku unit stok wajib_batch_number
+          _id kode_inventaris nama_inventaris kategori pos_product_type composition_type tracks_stock harga_jual harga_beli
+          stok_minimum sku barcode unit base_unit stok wajib_batch_number
+          stok_maksimum titik_reorder
           expiry_batches { qty aktif }
         }
       }

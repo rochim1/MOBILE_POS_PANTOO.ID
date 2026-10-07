@@ -10,6 +10,7 @@ import '../../../../domain/models/pos_customer.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import '../../../../injections.dart';
 import 'pos_quick_customer_dialog.dart';
+import '../../../widgets/pos_keyboard_stable_sheet.dart';
 
 class PosInfoPanel extends StatefulWidget {
   final bool isMobile;
@@ -93,7 +94,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return FractionallySizedBox(
+    return PosKeyboardStableSheet(
       heightFactor: 0.82,
       child: Column(
         children: [
@@ -144,6 +145,9 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
               itemCount: _items.length + 2,
               itemBuilder: (context, index) {
                 if (index == 0) {

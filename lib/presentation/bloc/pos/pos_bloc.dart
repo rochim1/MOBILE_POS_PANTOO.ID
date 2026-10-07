@@ -317,8 +317,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
             runtimeConfig['default_sales_channel']?.toString() ?? 'retail',
         priceLevel:
             runtimeConfig['default_price_level']?.toString() ?? 'retail',
-        taxPercent:
-            (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
+        taxPercent: (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
         discountPolicy:
             runtimeConfig['default_discount_policy']?.toString() ?? 'stack',
         errorMessage: '',
@@ -751,7 +750,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         tokoId: tokoId,
         shiftId: state.activeShift?['_id']?.toString() ?? '',
         unitPrices: state.manualUnitPrices,
-        cashReceived: event.cashReceived,
+        // Cash is stored in whole rupiah. Round here as a final guard against
+        // floating-point artefacts from discounts/tax calculations.
+        cashReceived: event.cashReceived.roundToDouble(),
         payments: event.payments,
         promoCode: state.promoCode.isNotEmpty ? state.promoCode : null,
         discountPolicy: state.discountPolicy,
@@ -806,7 +807,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       emit(
         state.copyWith(
           status: PosStatus.failure,
-          errorMessage: 'Terjadi kesalahan sistem',
+          errorMessage: e is StateError
+              ? e.message.toString()
+              : 'Terjadi kesalahan sistem',
         ),
       );
     }

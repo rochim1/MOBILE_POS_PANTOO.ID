@@ -90,7 +90,7 @@ class PosInventoryActionPolicy {
       PosInventoryDocumentType.purchase =>
         status == 'draft' || status == 'rejected',
       PosInventoryDocumentType.opname || PosInventoryDocumentType.transfer =>
-        const {'draft', 'rejected', 'cancelled'}.contains(status),
+        const {'draft', 'rejected'}.contains(status),
       PosInventoryDocumentType.scrap => status != 'completed',
     };
     if (deletable && can('delete')) actions.add('delete');

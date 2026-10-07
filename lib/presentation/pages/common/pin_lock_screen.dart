@@ -10,6 +10,8 @@ import '../../bloc/auth/auth_cubit.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/pos_employee_avatar.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
+import '../../widgets/pos_customer_display_pairing.dart';
 import '../pos/widgets/pos_setup_tour.dart';
 
 class PinLockScreen extends StatefulWidget {
@@ -159,6 +161,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
 class _PinLockScreenState extends State<PinLockScreen> {
   String _pin = '';
   final int _pinLength = 6;
+  final FocusNode _pinKeyboardFocusNode = FocusNode(debugLabel: 'PIN keypad');
   bool _isVerifying = false;
   bool _isLoggingOut = false;
   Timer? _searchDebounce;
@@ -166,9 +169,34 @@ class _PinLockScreenState extends State<PinLockScreen> {
   bool _employeeListFiltered = false;
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onHardwareKeyEvent);
+    // The lock is layered over a dashboard whose text field may still own
+    // focus. Give the PIN keypad focus as soon as its route is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusPinKeyboard());
+  }
+
+  bool _onHardwareKeyEvent(KeyEvent event) {
+    // Normal focused events are handled by the Focus widget below. This
+    // fallback is for a dashboard control retaining focus behind the lock.
+    if (_pinKeyboardFocusNode.hasFocus) return false;
+    return _onPinKeyEvent(_pinKeyboardFocusNode, event) ==
+        KeyEventResult.handled;
+  }
+
+  void _focusPinKeyboard() {
+    if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+      _pinKeyboardFocusNode.requestFocus();
+    }
+  }
+
+  @override
   void dispose() {
     _searchDebounce?.cancel();
     _lockoutTimer?.cancel();
+    HardwareKeyboard.instance.removeHandler(_onHardwareKeyEvent);
+    _pinKeyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -178,7 +206,6 @@ class _PinLockScreenState extends State<PinLockScreen> {
       setState(() {
         _pin += value;
       });
-
       if (_pin.length == _pinLength) {
         _verifyPin();
       }
@@ -186,12 +213,58 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   void _onDeleteTap() {
-    if (_isPinLocked) return;
+    if (_isVerifying || _isPinLocked) return;
     if (_pin.isNotEmpty) {
       setState(() {
         _pin = _pin.substring(0, _pin.length - 1);
       });
     }
+  }
+
+  KeyEventResult _onPinKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    // Keep text editing in PIN-owned fields (for example a PIN setup dialog)
+    // intact, while ignoring a dashboard field hidden behind this lock.
+    final focusedContext = FocusManager.instance.primaryFocus?.context;
+    if (focusedContext?.findAncestorWidgetOfExactType<EditableText>() != null &&
+        focusedContext?.findAncestorWidgetOfExactType<PinLockScreen>() !=
+            null) {
+      return KeyEventResult.ignored;
+    }
+    if (ModalRoute.of(context)?.isCurrent != true) {
+      return KeyEventResult.ignored;
+    }
+
+    final digit = switch (event.logicalKey) {
+      LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => '0',
+      LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => '1',
+      LogicalKeyboardKey.digit2 || LogicalKeyboardKey.numpad2 => '2',
+      LogicalKeyboardKey.digit3 || LogicalKeyboardKey.numpad3 => '3',
+      LogicalKeyboardKey.digit4 || LogicalKeyboardKey.numpad4 => '4',
+      LogicalKeyboardKey.digit5 || LogicalKeyboardKey.numpad5 => '5',
+      LogicalKeyboardKey.digit6 || LogicalKeyboardKey.numpad6 => '6',
+      LogicalKeyboardKey.digit7 || LogicalKeyboardKey.numpad7 => '7',
+      LogicalKeyboardKey.digit8 || LogicalKeyboardKey.numpad8 => '8',
+      LogicalKeyboardKey.digit9 || LogicalKeyboardKey.numpad9 => '9',
+      _ => null,
+    };
+    if (digit != null) {
+      _onKeypadTap(digit);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.backspace ||
+        event.logicalKey == LogicalKeyboardKey.delete) {
+      _onDeleteTap();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      _verifyPin();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   Future<void> _verifyPin() async {
@@ -205,6 +278,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         _pin = '';
         _isVerifying = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusPinKeyboard());
     } else {
       setState(() => _isVerifying = false);
     }
@@ -314,7 +388,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
       ),
       builder: (sheetContext) => BlocProvider.value(
         value: cubit,
-        child: FractionallySizedBox(
+        child: PosKeyboardStableSheet(
           heightFactor: 0.68,
           child: Column(
             children: [
@@ -394,7 +468,12 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       );
                     }
                     return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(8, 2, 8, 12),
+                      padding: EdgeInsets.fromLTRB(
+                        8,
+                        2,
+                        8,
+                        12 + MediaQuery.viewInsetsOf(context).bottom,
+                      ),
                       itemCount: state.employees.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
@@ -472,10 +551,22 @@ class _PinLockScreenState extends State<PinLockScreen> {
       _employeeListFiltered = false;
       await cubit.loadEmployees();
     }
+    _focusPinKeyboard();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screen = _buildScreen(context);
+    return Focus(
+      key: const Key('pin_keyboard_focus'),
+      focusNode: _pinKeyboardFocusNode,
+      autofocus: true,
+      onKeyEvent: _onPinKeyEvent,
+      child: screen,
+    );
+  }
+
+  Widget _buildScreen(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
@@ -796,6 +887,23 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               textAlign: TextAlign.center,
                                             ),
                                             const SizedBox(height: 4),
+                                            TextButton.icon(
+                                              onPressed: () =>
+                                                  showPosCustomerDisplayPairing(
+                                                    context,
+                                                  ),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    AppColors.primary,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.connected_tv_outlined,
+                                                size: 18,
+                                              ),
+                                              label: const Text(
+                                                'Hubungkan layar pelanggan',
+                                              ),
+                                            ),
                                             TextButton.icon(
                                               onPressed: _isLoggingOut
                                                   ? null

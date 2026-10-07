@@ -8,6 +8,8 @@ import '../../widgets/pos_ui.dart';
 import '../../widgets/app_toast.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
+import '../../../core/network/pos_operator_identity.dart';
+import '../../../domain/repositories/pos_repository.dart';
 
 class PosOfflineQueuePage extends StatefulWidget {
   const PosOfflineQueuePage({super.key});
@@ -46,6 +48,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     final results = await Future.wait<dynamic>([
       _syncService.getOfflineTransactions(status: _status),
@@ -61,6 +64,79 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       );
       _loading = false;
     });
+  }
+
+  Future<void> _verifyOperatorAndRetry(Map<String, dynamic> transaction) async {
+    final payload = _decodePayload(transaction['payload']);
+    final snapshot = _decodePayload(transaction['client_snapshot']);
+    final userId =
+        snapshot is Map &&
+            (snapshot['operator_user_id']?.toString() ?? '').isNotEmpty
+        ? snapshot['operator_user_id'].toString()
+        : operatorIdFromToken(
+            payload['operator_session_token']?.toString() ?? '',
+          );
+    if (userId.isEmpty) {
+      AppToast.error(
+        context,
+        'Identitas kasir asal tidak tersedia. Transaksi perlu ditinjau admin.',
+      );
+      return;
+    }
+    final controller = TextEditingController();
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verifikasi kasir asal'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            labelText: 'PIN kasir pembuat transaksi',
+            helperText: 'Memerlukan verifikasi online.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Verifikasi & kirim'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || pin == null || pin.isEmpty) return;
+    setState(() => _loading = true);
+    final result = await sl<PosRepository>().verifyPOSUserPin(userId, pin);
+    if (!mounted) return;
+    await result.fold(
+      (failure) async {
+        AppToast.error(context, failure.message);
+      },
+      (response) async {
+        final token = response['operator_token']?.toString() ?? '';
+        if (response['success'] != true ||
+            !operatorTokenIsCurrent(token) ||
+            operatorIdFromToken(token) != userId) {
+          AppToast.error(
+            context,
+            response['success'] == true
+                ? 'Verifikasi harus dilakukan saat server dapat dijangkau.'
+                : response['message']?.toString() ?? 'PIN tidak valid',
+          );
+          return;
+        }
+        _syncService.setOperatorSessionToken(token);
+        await _syncService.retryTransaction(transaction['id'] as int);
+      },
+    );
+    await _load();
   }
 
   Future<void> _sync() async {
@@ -172,7 +248,9 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
 
   Widget _queueHealthCard() {
     final unresolved = (_summary['unresolved'] as num?)?.toInt() ?? 0;
-    final review = (_summary['needs_review'] as num?)?.toInt() ?? 0;
+    final review =
+        ((_summary['needs_review'] as num?)?.toInt() ?? 0) +
+        ((_summary['rejected_unresolved'] as num?)?.toInt() ?? 0);
     final oldestRaw = _summary['oldest_pending_at']?.toString();
     final oldest = oldestRaw == null ? null : DateTime.tryParse(oldestRaw);
     final age = oldest == null ? null : DateTime.now().difference(oldest);
@@ -227,8 +305,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     style: TextStyle(fontSize: 11, color: Colors.black54),
                   ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Cakupan offline: penjualan tunai kasir. Pembayaran elektronik, shift, pelanggan, dan perubahan inventori wajib online.',
+                  const Text(
+                    'Cakupan offline: penjualan tunai dan penyimpanan pesanan kasir. Pesanan baru masuk meja/dapur setelah sinkronisasi; pembayaran elektronik, shift, pelanggan, dan perubahan inventori wajib online.',
                   style: TextStyle(fontSize: 11, color: Colors.black54),
                 ),
               ],
@@ -255,6 +333,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
 
   Widget _transactionCard(Map<String, dynamic> transaction) {
     final status = transaction['status']?.toString() ?? 'pending';
+    final isOrder = transaction['operation_kind']?.toString() == 'create_order';
     final payload = _decodePayload(transaction['payload']);
     final clientSnapshot = _decodePayload(transaction['client_snapshot']);
     final total = _findValue(clientSnapshot, const [
@@ -266,9 +345,12 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       'nomor_invoice',
       'invoice_number',
       'client_transaction_id',
+      'client_request_id',
     ]);
     final rejectedByOperator =
         transaction['resolution']?.toString() == 'rejected_by_operator';
+    final acceptedByServer =
+        transaction['resolution']?.toString() == 'accepted_by_server';
     final canRetry =
         status == 'pending' || (status == 'rejected' && !rejectedByOperator);
     final needsReview = status == 'needs_review';
@@ -286,7 +368,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                   Expanded(
                     child: Text(
                       reference?.toString() ??
-                          'Transaksi lokal #${transaction['id']}',
+                          '${isOrder ? 'Pesanan' : 'Transaksi'} lokal #${transaction['id']}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -297,6 +379,23 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               Text('Waktu: ${transaction['timestamp'] ?? '-'}'),
               if (total != null) Text('Total: Rp $total'),
               Text('Percobaan sinkron: ${transaction['attempts'] ?? 0}'),
+              if (status != 'synced' &&
+                  status != 'syncing' &&
+                  !rejectedByOperator &&
+                  !acceptedByServer &&
+                  ((clientSnapshot is Map &&
+                          (clientSnapshot['operator_user_id']?.toString() ?? '')
+                              .isNotEmpty) ||
+                      operatorIdFromToken(
+                        payload['operator_session_token']?.toString() ?? '',
+                      ).isNotEmpty))
+                TextButton.icon(
+                  onPressed: _loading
+                      ? null
+                      : () => _verifyOperatorAndRetry(transaction),
+                  icon: const Icon(Icons.pin_outlined),
+                  label: const Text('Verifikasi kasir & kirim ulang'),
+                ),
               if ((transaction['next_retry_at']?.toString() ?? '').isNotEmpty &&
                   status == 'pending')
                 Text('Retry otomatis: ${transaction['next_retry_at']}'),
@@ -323,7 +422,25 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     label: const Text('Coba ulang'),
                   ),
                 ),
-              if (needsReview)
+              if (status == 'rejected' && !rejectedByOperator)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => _rejectAfterReview(transaction),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Selesaikan manual'),
+                  ),
+                ),
+              if (needsReview && acceptedByServer)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: () => _acknowledgeAccepted(transaction),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Periksa transaksi server'),
+                  ),
+                ),
+              if (needsReview && !acceptedByServer)
                 Align(
                   alignment: Alignment.centerRight,
                   child: Wrap(
@@ -374,6 +491,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     dynamic payload,
     dynamic clientSnapshot,
   ) {
+    final isOrder = transaction['operation_kind']?.toString() == 'create_order';
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -386,7 +504,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           padding: const EdgeInsets.all(14),
           children: [
             Text(
-              'Detail transaksi #${transaction['id']}',
+              'Detail ${isOrder ? 'pesanan' : 'transaksi'} #${transaction['id']}',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
@@ -410,9 +528,11 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               SelectableText(transaction['error'].toString()),
             ],
             const SizedBox(height: 16),
-            const Text(
-              'Snapshot saat pembayaran',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              isOrder
+                  ? 'Snapshot saat pesanan disimpan'
+                  : 'Snapshot saat pembayaran',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             SelectableText(
@@ -457,14 +577,55 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     await _load();
   }
 
-  Future<void> _rejectAfterReview(Map<String, dynamic> transaction) async {
+  Future<void> _acknowledgeAccepted(Map<String, dynamic> transaction) async {
+    final isOrder = transaction['operation_kind']?.toString() == 'create_order';
+    final server = _decodePayload(transaction['server_response']);
+    final invoice = server is Map ? server['invoice']?.toString() ?? '-' : '-';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Tolak transaksi lokal?'),
-        content: const Text(
-          'Transaksi tidak akan dikirim ke server, tetapi tetap disimpan sebagai '
-          'jejak audit pada perangkat.',
+        title: Text(
+          isOrder
+              ? 'Pesanan sudah masuk server'
+              : 'Transaksi sudah masuk server',
+        ),
+        content: Text(
+          isOrder
+              ? 'Nomor pesanan server: $invoice. Periksa item, total, dan meja sebelum menandai pemeriksaan selesai. Jangan buat pesanan baru untuk menggantikannya.'
+              : 'Invoice server: $invoice. Periksa nilai transaksi, harga, dan kas fisik sebelum menandai pemeriksaan selesai. Jangan kirim ulang sebagai transaksi baru.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Belum'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sudah diperiksa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _syncService.acknowledgeAcceptedTransaction(transaction['id'] as int);
+    await _load();
+  }
+
+  Future<void> _rejectAfterReview(Map<String, dynamic> transaction) async {
+    final isOrder = transaction['operation_kind']?.toString() == 'create_order';
+    final wasRejected = transaction['status']?.toString() == 'rejected';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          wasRejected
+              ? 'Selesaikan transaksi ditolak?'
+              : 'Tolak transaksi lokal?',
+        ),
+        content: Text(
+          isOrder
+              ? 'Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.'
+              : 'Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.',
         ),
         actions: [
           TextButton(
@@ -480,7 +641,11 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       ),
     );
     if (confirmed != true) return;
-    await _syncService.rejectTransaction(transaction['id'] as int);
+    if (wasRejected) {
+      await _syncService.resolveRejectedTransaction(transaction['id'] as int);
+    } else {
+      await _syncService.rejectTransaction(transaction['id'] as int);
+    }
     await _load();
   }
 

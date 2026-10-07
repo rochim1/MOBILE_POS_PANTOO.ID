@@ -1,4 +1,23 @@
 class PosTableOrderQueries {
+  static const String getSlaThresholds = r'''
+    query GetPOSOrderSLAThresholds {
+      GetPOSRuntimeConfig { sla_warning_minutes sla_critical_minutes }
+    }
+  ''';
+
+  static const String getKitchenTickets = r'''
+    query GetPOSKitchenTickets($storeId: ID!, $stationId: ID) {
+      GetPOSKitchenTickets(toko_id: $storeId, production_station_id: $stationId) {
+        _id order_no pelanggan_id pelanggan_nama status status_pembayaran
+        subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
+        table_id table { _id name }
+        status_history { status at actor_id actor_name note }
+        items { _id produk_id nama kode qty unit harga_satuan subtotal catatan preparation_mode production_station_id production_station_name prep_time_minutes production_status revision production_status_history { status at actor_id revision } }
+        createdAt
+      }
+    }
+  ''';
+
   static const String getActiveOrders = r'''
     query GetActivePOSOrders($filter: POSOrderFilter, $pagination: pagination) {
       GetAllPOSOrder(
@@ -7,12 +26,12 @@ class PosTableOrderQueries {
         pagination: $pagination
       ) {
         items {
-          _id order_no pelanggan_id pelanggan_nama status status_pembayaran
+          _id order_no pelanggan_id pelanggan_nama pelanggan_telepon customer_profile_requested status status_pembayaran
           subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
           reservation_status reservation_start_at reservation_end_at reservation_guest_count reservation_deposit_amount reservation_deposit_paid
           status_history { status at actor_id actor_name note }
           table_id table { _id name }
-          items { _id produk_id nama kode qty unit harga_satuan subtotal catatan preparation_mode production_station_id production_station_name prep_time_minutes production_status revision }
+          items { _id produk_id nama kode qty unit harga_satuan subtotal catatan preparation_mode production_station_id production_station_name prep_time_minutes production_status revision production_status_history { status at actor_id revision } }
           service_order {
             service_type service_subject service_mode weight_kg item_count promised_at
             bag_tag fragrance finishing condition_notes status
@@ -32,6 +51,8 @@ class PosTableOrderQueries {
         order_no
         pelanggan_nama
         pelanggan_id
+        pelanggan_telepon
+        customer_profile_requested
         status
         status_pembayaran
         subtotal
@@ -72,6 +93,15 @@ class PosTableOrderQueries {
   static const String updateOrderItemStatus = r'''
     mutation UpdatePOSOrderItemProductionStatus($orderId: ID!, $itemId: ID!, $status: String!, $note: String, $expectedRevision: Int) {
       UpdatePOSOrderItemProductionStatus(_id: $orderId, item_id: $itemId, status: $status, note: $note, expected_revision: $expectedRevision) {
+        _id
+        status
+      }
+    }
+  ''';
+
+  static const String updateOrderStatus = r'''
+    mutation UpdatePOSOrderStatus($orderId: ID!, $status: String!, $note: String) {
+      UpdatePOSOrderStatus(_id: $orderId, status: $status, note: $note) {
         _id
         status
       }

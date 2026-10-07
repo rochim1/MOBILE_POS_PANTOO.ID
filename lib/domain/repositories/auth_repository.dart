@@ -8,6 +8,7 @@ import '../../core/error/error_handler.dart';
 import '../../core/network/graphql_client_provider.dart';
 import '../../data/graphql/pos_queries.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../data/datasources/local/pos_local_database.dart';
 import '../../core/utils/logger.dart';
 import '../../core/database/database_platform_initializer.dart';
@@ -194,13 +195,31 @@ class AuthRepository {
 
   Future<Either<Failure, String>> login(
     String username,
-    String password,
-  ) async {
+    String password, {
+    String? captchaId,
+    String? captchaAnswer,
+  }) async {
     try {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        // Password must never be cached locally. A previously authenticated
+        // session is restored by [checkSession] at app start; a new login (or
+        // login after explicit logout) still needs the server.
+        return const Left(
+          ServerFailure(
+            'Perangkat sedang offline. Sesi yang pernah login akan dibuka otomatis; login pertama atau setelah logout memerlukan internet.',
+          ),
+        );
+      }
       final MutationOptions options = MutationOptions(
         document: gql(PosQueries.login),
         variables: {
-          'input': {'email_or_username': username, 'password': password},
+          'input': {
+            'email_or_username': username,
+            'password': password,
+            if (captchaId != null) 'captcha_id': captchaId,
+            if (captchaAnswer != null) 'captcha_answer': captchaAnswer,
+          },
         },
       );
 
@@ -212,6 +231,21 @@ class AuthRepository {
       );
 
       if (result.hasException) {
+        final exception = result.exception!;
+        final errors = [
+          ...exception.graphqlErrors,
+          if (exception.linkException is ServerException)
+            ...?((exception.linkException as ServerException)
+                .parsedResponse
+                ?.errors),
+        ];
+        for (final error in errors) {
+          final captcha = LoginCaptchaFailure.fromExtensions(
+            error.extensions,
+            message: error.message,
+          );
+          if (captcha != null) return Left(captcha);
+        }
         appLogger.e('[Auth] GraphQL request failed', error: result.exception);
         if (result.exception?.linkException != null) {
           appLogger.e(
@@ -343,6 +377,10 @@ class AuthRepository {
 
   Future<void> logout() async {
     final previousInstansiId = _prefs.getString('instansi_id') ?? '';
+    final previousUserId =
+        _prefs.getString('user_id')?.trim() ??
+        _prefs.getString('username')?.trim().toLowerCase() ??
+        '';
     final refreshToken = await _secureStorage.read(key: 'refresh_token');
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
@@ -366,6 +404,17 @@ class AuthRepository {
     await _prefs.remove('instansi_id');
     await _prefs.remove('pos_runtime_config');
     await _prefs.remove('needs_workspace_setup');
+    // Dashboard snapshots contain turnover data. They are scoped per account
+    // while the session exists and deliberately removed at logout as well.
+    final snapshotPrefix =
+        'pos_dashboard_snapshot_v1:$previousInstansiId:$previousUserId:';
+    for (final key
+        in _prefs
+            .getKeys()
+            .where((key) => key.startsWith(snapshotPrefix))
+            .toList()) {
+      await _prefs.remove(key);
+    }
     if (!supportsOfflineDatabase) return;
     try {
       final db = await PosLocalDatabase.instance.database;

@@ -14,6 +14,7 @@ class PosTableRepository {
   Future<Either<Failure, List<PosTableModel>>> getTables({
     required String storeId,
     String? search,
+    int limit = 100,
   }) async {
     try {
       final QueryOptions options = QueryOptions(
@@ -23,7 +24,7 @@ class PosTableRepository {
         variables: {
           'tokoId': storeId,
           'search': search ?? '',
-          'limit': 100,
+          'limit': limit,
           'page': 0,
         },
         fetchPolicy: FetchPolicy.networkOnly,

@@ -16,6 +16,7 @@ class PosOrderItem extends Equatable {
   final String productionStatus;
   final int prepTimeMinutes;
   final int revision;
+  final List<Map<String, dynamic>> productionStatusHistory;
 
   const PosOrderItem({
     this.id,
@@ -33,6 +34,7 @@ class PosOrderItem extends Equatable {
     this.productionStatus = 'not_required',
     this.prepTimeMinutes = 0,
     this.revision = 0,
+    this.productionStatusHistory = const [],
   });
 
   factory PosOrderItem.fromJson(Map<String, dynamic> json) {
@@ -58,6 +60,10 @@ class PosOrderItem extends Equatable {
       productionStatus: _text(json['production_status']) ?? 'not_required',
       prepTimeMinutes: (json['prep_time_minutes'] as num?)?.toInt() ?? 0,
       revision: (json['revision'] as num?)?.toInt() ?? 0,
+      productionStatusHistory: (json['production_status_history'] as List? ?? const [])
+          .whereType<Map>()
+          .map((value) => Map<String, dynamic>.from(value))
+          .toList(),
     );
   }
 
@@ -78,6 +84,7 @@ class PosOrderItem extends Equatable {
     productionStatus,
     prepTimeMinutes,
     revision,
+    productionStatusHistory,
   ];
 }
 
@@ -86,6 +93,8 @@ class PosOrderDetail extends Equatable {
   final String? orderNumber;
   final String? customerName;
   final String? customerId;
+  final String? customerPhone;
+  final bool customerProfileRequested;
   final String? orderType;
   final String? status; // e.g., 'active', 'completed', 'cancelled'
   final String? _paymentStatus;
@@ -116,6 +125,8 @@ class PosOrderDetail extends Equatable {
     this.orderNumber,
     this.customerName,
     this.customerId,
+    this.customerPhone,
+    this.customerProfileRequested = false,
     this.orderType,
     this.status,
     String? paymentStatus = 'belum_bayar',
@@ -152,6 +163,8 @@ class PosOrderDetail extends Equatable {
       orderNumber: _text(json['order_no'] ?? json['order_number']),
       customerName: _text(json['pelanggan_nama'] ?? json['customer_name']),
       customerId: _text(json['pelanggan_id']),
+      customerPhone: _text(json['pelanggan_telepon']),
+      customerProfileRequested: json['customer_profile_requested'] == true,
       orderType: _text(json['tipe_pesanan']) ?? 'take_away',
       status: _text(json['status']),
       paymentStatus: _text(json['status_pembayaran']) ?? 'belum_bayar',
@@ -207,6 +220,8 @@ class PosOrderDetail extends Equatable {
     orderNumber,
     customerName,
     customerId,
+    customerPhone,
+    customerProfileRequested,
     orderType,
     status,
     paymentStatus,

@@ -214,7 +214,10 @@ class PosState extends Equatable {
   double _roundPayableTotal(double value) {
     final configured = runtimeConfig['price_rounding']?.toString() ?? 'none';
     final factor = const {'100': 100, '500': 500, '1000': 1000}[configured];
-    if (factor == null || value <= 0) return value;
+    // Rupiah has no fractional unit. Normalize floating point artefacts so an
+    // exact cash payment is not sent as a few fractions short to the API.
+    if (value <= 0) return 0;
+    if (factor == null) return value.roundToDouble();
     return (value / factor).ceil() * factor.toDouble();
   }
 

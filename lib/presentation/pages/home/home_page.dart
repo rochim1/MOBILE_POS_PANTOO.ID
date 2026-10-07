@@ -191,6 +191,9 @@ class _HomePageState extends State<HomePage> {
         final topProducts =
             (data?['top_products'] as List?)?.cast<Map<String, dynamic>>() ??
             [];
+        final usingOfflineSnapshot = data?['_offline_snapshot'] == true;
+        final offlineCachedAt =
+            data?['_offline_cached_at']?.toString().trim() ?? '';
 
         // Fallback values from existing state
         final todayOrders = state.orders.where((o) {
@@ -235,6 +238,11 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         _buildDashboardHeader(isTablet),
                         const SizedBox(height: 20),
+
+                        if (usingOfflineSnapshot) ...[
+                          _buildOfflineSnapshotNotice(offlineCachedAt),
+                          const SizedBox(height: 16),
+                        ],
 
                         if ((state.runtimeConfig['configuration_health']
                                 as Map?)?['valid'] ==
@@ -336,6 +344,47 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildOfflineSnapshotNotice(String cachedAt) {
+    final savedAt = DateTime.tryParse(cachedAt)?.toLocal();
+    final label = savedAt == null
+        ? 'Data terakhir yang tersimpan di perangkat'
+        : 'Data terakhir disimpan ${savedAt.day.toString().padLeft(2, '0')}/${savedAt.month.toString().padLeft(2, '0')} '
+              '${savedAt.hour.toString().padLeft(2, '0')}:${savedAt.minute.toString().padLeft(2, '0')}';
+    return Semantics(
+      liveRegion: true,
+      label: 'Mode offline. $label. Data bukan pembaruan langsung.',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.warningBackground,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.warning.withValues(alpha: .35)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 19,
+              color: AppColors.warning,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                'Mode offline · $label',
+                style: const TextStyle(
+                  color: AppColors.body,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1150,9 +1199,11 @@ class _HomePageState extends State<HomePage> {
   // ─── Section 5: Low Stock Alert ──────────────────────────────────────────
 
   Widget _buildLowStockAlert(List<PosProduct> products, bool isTablet) {
-    final lowStockProducts = products
-        .where((PosProduct p) => p.stock > 0 && p.stock <= 5)
-        .toList();
+    final lowStockProducts = products.where((PosProduct p) {
+      if (!p.tracksStock) return false;
+      final threshold = p.reorderPoint > 0 ? p.reorderPoint : p.minimumStock;
+      return p.stock <= 0 || (threshold > 0 && p.stock <= threshold);
+    }).toList();
     if (lowStockProducts.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -1173,7 +1224,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              '${lowStockProducts.length} produk memiliki stok menipis dan perlu diperiksa.',
+              '${lowStockProducts.length} produk kosong atau mencapai batas pesan ulang.',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(

@@ -1,16 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
 
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_event.dart';
 import '../../bloc/pos/pos_state.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import '../../../../domain/repositories/pos_order_repository.dart';
+import '../../../../domain/repositories/pos_receipt_repository.dart';
 import '../../../../injections.dart';
 import 'widgets/pos_product_panel.dart';
 import 'widgets/pos_cart_panel.dart';
@@ -45,6 +50,10 @@ class PosPageView extends StatefulWidget {
 
 class _PosPageViewState extends State<PosPageView> {
   bool _savingTableOrder = false;
+  bool _cartHasFocus = false;
+  TabController? _cashierTabs;
+  final FocusNode _cartFocusNode = FocusNode();
+  final FocusNode _productSearchFocusNode = FocusNode();
   String _selectedCategory = 'Semua Kategori';
   final List<String> _categories = [
     'Semua Kategori',
@@ -56,6 +65,58 @@ class _PosPageViewState extends State<PosPageView> {
     'Makanan',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    sl<PosCustomerDisplayService>().state.addListener(
+      _onCustomerDisplayConnectionChanged,
+    );
+    // Warm the receipt template while the cashier is idle. Printing from the
+    // success page can then use the cached data without a visible network
+    // delay. Errors remain non-blocking; the print flow still has its normal
+    // fallback handling.
+    unawaited(sl<PosReceiptRepository>().preloadReceiptPrintData());
+  }
+
+  @override
+  void dispose() {
+    _cartFocusNode.dispose();
+    _productSearchFocusNode.dispose();
+    sl<PosCustomerDisplayService>().state.removeListener(
+      _onCustomerDisplayConnectionChanged,
+    );
+    super.dispose();
+  }
+
+  void _focusProductSearch() {
+    if (MediaQuery.sizeOf(context).width < 900) {
+      _cashierTabs?.animateTo(0, duration: Duration.zero);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _productSearchFocusNode.context != null) {
+        _productSearchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _focusCart() {
+    if (MediaQuery.sizeOf(context).width < 900) {
+      _cashierTabs?.animateTo(1, duration: Duration.zero);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _cartFocusNode.context != null) {
+        _cartFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _onCustomerDisplayConnectionChanged() {
+    if (!mounted || !sl<PosCustomerDisplayService>().state.value.isActive) {
+      return;
+    }
+    _publishCustomerDisplay(context.read<PosBloc>().state);
+  }
+
   Future<void> _onRefresh() async {
     final bloc = context.read<PosBloc>();
     bloc.add(LoadPosData());
@@ -63,6 +124,34 @@ class _PosPageViewState extends State<PosPageView> {
         .firstWhere((s) => s.status != PosStatus.loading)
         .timeout(const Duration(seconds: 5), onTimeout: () => bloc.state);
     if (mounted) AppToast.success(context, 'Data berhasil dimuat ulang');
+  }
+
+  void _publishCustomerDisplay(PosState state) {
+    final service = sl<PosCustomerDisplayService>();
+    if (!service.state.value.isActive) return;
+    final storeName =
+        state.activeShift?['toko']?['nama_toko']?.toString() ??
+        (state.stores.length == 1 ? state.stores.first.name : 'Pantoo POS');
+    service.publishCart(
+      items: state.cart.entries
+          .map(
+            (entry) => <String, dynamic>{
+              'name': entry.key.name,
+              'quantity': entry.value,
+              'unit_price': state.unitPriceFor(entry.key),
+              'subtotal': state.unitPriceFor(entry.key) * entry.value,
+              'image_url': entry.key.imageUrl,
+            },
+          )
+          .toList(),
+      subtotal: state.subTotal,
+      discount: state.totalDiscount,
+      total: state.grandTotal,
+      storeName: storeName,
+      status: state.status == PosStatus.paymentSuccess
+          ? 'payment_success'
+          : 'cart',
+    );
   }
 
   @override
@@ -75,6 +164,12 @@ class _PosPageViewState extends State<PosPageView> {
       backgroundColor: AppColors.bgPrimary,
       body: CallbackShortcuts(
         bindings: <ShortcutActivator, VoidCallback>{
+          const SingleActivator(LogicalKeyboardKey.f2): _focusProductSearch,
+          const SingleActivator(LogicalKeyboardKey.f6): _focusCart,
+          const SingleActivator(LogicalKeyboardKey.f7): () {
+            final state = context.read<PosBloc>().state;
+            if (state.cart.isNotEmpty) _showDiscountDialog(context, state);
+          },
           const SingleActivator(LogicalKeyboardKey.f4): () {
             final bloc = context.read<PosBloc>();
             if (bloc.state.cart.isEmpty) return;
@@ -109,6 +204,13 @@ class _PosPageViewState extends State<PosPageView> {
               _holdOrder(context);
             }
           },
+          const SingleActivator(LogicalKeyboardKey.f9): () {
+            if (context.read<PosBloc>().state.heldOrders.isNotEmpty) {
+              _showHeldOrders(context);
+            }
+          },
+          const SingleActivator(LogicalKeyboardKey.f10): () =>
+              _showSalesContext(context),
           const SingleActivator(LogicalKeyboardKey.delete, control: true): () {
             if (context.read<PosBloc>().state.cart.isNotEmpty) {
               _confirmClearCart(context);
@@ -120,6 +222,7 @@ class _PosPageViewState extends State<PosPageView> {
           child: BlocListener<PosBloc, PosState>(
             listener: (context, state) {
               if (ModalRoute.of(context)?.isCurrent != true) return;
+              _publishCustomerDisplay(state);
               if (state.status == PosStatus.paymentSuccess) {
                 showDialog(
                   context: context,
@@ -207,6 +310,7 @@ class _PosPageViewState extends State<PosPageView> {
                 notificationPredicate: (_) => true,
                 child: BlocBuilder<PosBloc, PosState>(
                   builder: (context, state) {
+                    _cashierTabs = null;
                     final availableCategories = <String>{
                       ..._categories,
                       ...state.products.map((product) => product.category),
@@ -237,43 +341,56 @@ class _PosPageViewState extends State<PosPageView> {
                           child: isMobile
                               ? DefaultTabController(
                                   length: 2,
-                                  child: Column(
-                                    children: [
-                                      PosFullWidthTabBar(
-                                        tabs: [
-                                          const PosFullWidthTab(
-                                            icon: Icons.storefront_outlined,
-                                            label: 'Katalog Produk',
+                                  child: Builder(
+                                    builder: (tabContext) {
+                                      _cashierTabs = DefaultTabController.of(
+                                        tabContext,
+                                      );
+                                      return Column(
+                                        children: [
+                                          PosFullWidthTabBar(
+                                            tabs: [
+                                              const PosFullWidthTab(
+                                                icon: Icons.storefront_outlined,
+                                                label: 'Katalog Produk',
+                                              ),
+                                              PosFullWidthTab(
+                                                icon: Icons
+                                                    .shopping_cart_outlined,
+                                                label: state.cart.isEmpty
+                                                    ? 'Keranjang'
+                                                    : 'Keranjang ($cartQuantityLabel)',
+                                              ),
+                                            ],
                                           ),
-                                          PosFullWidthTab(
-                                            icon: Icons.shopping_cart_outlined,
-                                            label: state.cart.isEmpty
-                                                ? 'Keranjang'
-                                                : 'Keranjang ($cartQuantityLabel)',
+                                          Expanded(
+                                            child: TabBarView(
+                                              children: [
+                                                PosProductPanel(
+                                                  searchFocusNode:
+                                                      _productSearchFocusNode,
+                                                  searchTourKey: widget
+                                                      .tourTargets
+                                                      ?.search,
+                                                  isMobile: isMobile,
+                                                  selectedCategory:
+                                                      _selectedCategory,
+                                                  categories:
+                                                      availableCategories,
+                                                  onCategorySelected:
+                                                      (category) => setState(
+                                                        () =>
+                                                            _selectedCategory =
+                                                                category,
+                                                      ),
+                                                ),
+                                                _buildRightSide(isMobile),
+                                              ],
+                                            ),
                                           ),
                                         ],
-                                      ),
-                                      Expanded(
-                                        child: TabBarView(
-                                          children: [
-                                            PosProductPanel(
-                                              searchTourKey:
-                                                  widget.tourTargets?.search,
-                                              isMobile: isMobile,
-                                              selectedCategory:
-                                                  _selectedCategory,
-                                              categories: availableCategories,
-                                              onCategorySelected: (category) =>
-                                                  setState(
-                                                    () => _selectedCategory =
-                                                        category,
-                                                  ),
-                                            ),
-                                            _buildRightSide(isMobile),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
                                 )
                               : Row(
@@ -291,6 +408,8 @@ class _PosPageViewState extends State<PosPageView> {
                                     Expanded(
                                       flex: 5,
                                       child: PosProductPanel(
+                                        searchFocusNode:
+                                            _productSearchFocusNode,
                                         searchTourKey:
                                             widget.tourTargets?.search,
                                         isMobile: isMobile,
@@ -323,16 +442,27 @@ class _PosPageViewState extends State<PosPageView> {
   }
 
   Widget _buildRightSide(bool isMobile) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(left: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Column(
-        children: [
-          const Expanded(child: PosCartPanel()),
-          _buildFooterActions(context),
-        ],
+    return Focus(
+      focusNode: _cartFocusNode,
+      onFocusChange: (focused) {
+        if (mounted) setState(() => _cartHasFocus = focused);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            left: BorderSide(
+              color: _cartHasFocus ? AppColors.primary : Colors.grey.shade200,
+              width: _cartHasFocus ? 3 : 1,
+            ),
+          ),
+        ),
+        child: Column(
+          children: [
+            const Expanded(child: PosCartPanel()),
+            _buildFooterActions(context),
+          ],
+        ),
       ),
     );
   }
@@ -643,7 +773,7 @@ class _PosPageViewState extends State<PosPageView> {
       ),
       builder: (_) => BlocProvider.value(
         value: posBloc,
-        child: FractionallySizedBox(
+        child: PosKeyboardStableSheet(
           heightFactor: isMobile ? 0.82 : 0.68,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
@@ -874,6 +1004,7 @@ class _PosPageViewState extends State<PosPageView> {
       salesChannel: state.salesChannel,
       customerSegment: state.customerSegment,
       priceLevel: state.priceLevel,
+      expectedTotal: state.grandTotal,
       itemPrices: {
         for (final product in state.cart.keys)
           product.id: state.unitPriceFor(product),
@@ -882,6 +1013,14 @@ class _PosPageViewState extends State<PosPageView> {
     if (!mounted) return;
     setState(() => _savingTableOrder = false);
     result.fold((failure) => AppToast.error(context, failure.message), (order) {
+      if (order['offline_queued'] == true) {
+        context.read<PosBloc>().add(ClearCart());
+        AppToast.warning(
+          context,
+          'Pesanan offline tersimpan. Belum masuk meja/dapur; cek Antrean & Sinkronisasi.',
+        );
+        return;
+      }
       final tableName = state.selectedTableName ?? 'terpilih';
       context.read<PosBloc>()
         ..add(ClearCart())

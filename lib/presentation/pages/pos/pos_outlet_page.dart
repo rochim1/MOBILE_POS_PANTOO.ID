@@ -9,6 +9,7 @@ import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_event.dart';
 import '../../bloc/pos/pos_state.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import 'widgets/pos_setup_tour.dart';
 
 class PosOutletPage extends StatefulWidget {
@@ -229,193 +230,201 @@ class _PosOutletPageState extends State<PosOutletPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          if (guided && !guideScheduled) {
-            guideScheduled = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              await Future<void>.delayed(const Duration(milliseconds: 180));
-              if (!sheetContext.mounted || widget.setupTourTargets == null) {
-                return;
-              }
-              final targets = widget.setupTourTargets!;
-              await showInteractivePosSetupTour(
-                sheetContext,
-                fallbackTarget: targets.outletName,
-                stepTitle: 'Langkah 2 · Toko POS aktif',
-                stageNumberOffset: 1,
-                totalStageCount: 4,
-                stages: [
-                  PosSetupTourStage(
-                    title: 'Identitas toko POS',
-                    description:
-                        'Isi nama dan kode toko yang akan tampil pada transaksi dan struk.',
-                    target: targets.outletName,
-                  ),
-                  PosSetupTourStage(
-                    title: 'Hubungkan lokasi stok',
-                    description:
-                        'Pilih warehouse berstatus lokasi penjualan sebagai sumber stok toko.',
-                    target: targets.outletWarehouse,
-                  ),
-                  PosSetupTourStage(
-                    title: 'Simpan toko aktif',
-                    description:
-                        'Simpan setelah identitas dan lokasi stok terisi.',
-                    target: targets.outletSave,
-                  ),
-                ],
-              );
-            });
-          }
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                MediaQuery.viewInsetsOf(context).bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    store == null ? 'Tambah Outlet' : 'Edit Outlet',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    key: widget.setupTourTargets?.outletName,
-                    child: TextField(
-                      controller: name,
-                      decoration: const InputDecoration(
-                        labelText: 'Nama outlet',
+      builder: (sheetContext) => PosKeyboardStableSheet(
+        heightFactor: .85,
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
+            if (guided && !guideScheduled) {
+              guideScheduled = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                await Future<void>.delayed(const Duration(milliseconds: 180));
+                if (!sheetContext.mounted || widget.setupTourTargets == null) {
+                  return;
+                }
+                final targets = widget.setupTourTargets!;
+                await showInteractivePosSetupTour(
+                  sheetContext,
+                  fallbackTarget: targets.outletName,
+                  stepTitle: 'Langkah 2 · Toko POS aktif',
+                  stageNumberOffset: 1,
+                  totalStageCount: 4,
+                  stages: [
+                    PosSetupTourStage(
+                      title: 'Identitas toko POS',
+                      description:
+                          'Isi nama dan kode toko yang akan tampil pada transaksi dan struk.',
+                      target: targets.outletName,
+                    ),
+                    PosSetupTourStage(
+                      title: 'Hubungkan lokasi stok',
+                      description:
+                          'Pilih warehouse berstatus lokasi penjualan sebagai sumber stok toko.',
+                      target: targets.outletWarehouse,
+                    ),
+                    PosSetupTourStage(
+                      title: 'Simpan toko aktif',
+                      description:
+                          'Simpan setelah identitas dan lokasi stok terisi.',
+                      target: targets.outletSave,
+                    ),
+                  ],
+                );
+              });
+            }
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  MediaQuery.viewInsetsOf(context).bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      store == null ? 'Tambah Outlet' : 'Edit Outlet',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      key: widget.setupTourTargets?.outletName,
+                      child: TextField(
+                        controller: name,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama outlet',
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: code,
-                    decoration: const InputDecoration(labelText: 'Kode outlet'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: address,
-                    decoration: const InputDecoration(labelText: 'Alamat'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: phone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Telepon'),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    key: widget.setupTourTargets?.outletWarehouse,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: selectedWarehouseId,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: code,
+                      decoration: const InputDecoration(
+                        labelText: 'Kode outlet',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: address,
+                      decoration: const InputDecoration(labelText: 'Alamat'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Telepon'),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      key: widget.setupTourTargets?.outletWarehouse,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedWarehouseId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Lokasi penjualan / warehouse',
+                          helperText:
+                              'Hanya warehouse aktif dengan capability Lokasi Penjualan',
+                        ),
+                        items: warehouses
+                            .map(
+                              (warehouse) => DropdownMenuItem<String>(
+                                value: warehouse['_id']?.toString(),
+                                child: Text(
+                                  warehouse['nama_cabang']?.toString() ??
+                                      'Warehouse',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) => selectedWarehouseId = value,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: shiftMode,
                       isExpanded: true,
                       decoration: const InputDecoration(
-                        labelText: 'Lokasi penjualan / warehouse',
+                        labelText: 'Mode shift kasir',
                         helperText:
-                            'Hanya warehouse aktif dengan capability Lokasi Penjualan',
+                            'Register bersama untuk satu laci; per operator memisahkan rekonsiliasi setiap PIN.',
                       ),
-                      items: warehouses
-                          .map(
-                            (warehouse) => DropdownMenuItem<String>(
-                              value: warehouse['_id']?.toString(),
-                              child: Text(
-                                warehouse['nama_cabang']?.toString() ??
-                                    'Warehouse',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => selectedWarehouseId = value,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'shared_register',
+                          child: Text('Register bersama'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'per_operator',
+                          child: Text('Shift per operator PIN'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          shiftMode = value ?? 'shared_register',
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: shiftMode,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Mode shift kasir',
-                      helperText:
-                          'Register bersama untuk satu laci; per operator memisahkan rekonsiliasi setiap PIN.',
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'shared_register',
-                        child: Text('Register bersama'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'per_operator',
-                        child: Text('Shift per operator PIN'),
-                      ),
-                    ],
-                    onChanged: (value) =>
-                        shiftMode = value ?? 'shared_register',
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      key: widget.setupTourTargets?.outletSave,
-                      onPressed: saving
-                          ? null
-                          : () async {
-                              if (name.text.trim().isEmpty ||
-                                  code.text.trim().isEmpty ||
-                                  selectedWarehouseId == null) {
-                                AppToast.error(
-                                  sheetContext,
-                                  'Nama, kode, dan lokasi penjualan wajib diisi',
-                                );
-                                return;
-                              }
-                              setSheetState(() => saving = true);
-                              final input = {
-                                'kode_toko': code.text.trim().toUpperCase(),
-                                'nama_toko': name.text.trim(),
-                                'alamat': address.text.trim(),
-                                'telepon': phone.text.trim(),
-                                'status': store?.status ?? 'active',
-                                'lokasi_cabang_id': selectedWarehouseId,
-                                'shift_mode': shiftMode,
-                              };
-                              final result = store == null
-                                  ? await _repository.createStore(input)
-                                  : await _repository.updateStore(
-                                      store.id,
-                                      input,
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        key: widget.setupTourTargets?.outletSave,
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                if (name.text.trim().isEmpty ||
+                                    code.text.trim().isEmpty ||
+                                    selectedWarehouseId == null) {
+                                  AppToast.error(
+                                    sheetContext,
+                                    'Nama, kode, dan lokasi penjualan wajib diisi',
+                                  );
+                                  return;
+                                }
+                                setSheetState(() => saving = true);
+                                final input = {
+                                  'kode_toko': code.text.trim().toUpperCase(),
+                                  'nama_toko': name.text.trim(),
+                                  'alamat': address.text.trim(),
+                                  'telepon': phone.text.trim(),
+                                  'status': store?.status ?? 'active',
+                                  'lokasi_cabang_id': selectedWarehouseId,
+                                  'shift_mode': shiftMode,
+                                };
+                                final result = store == null
+                                    ? await _repository.createStore(input)
+                                    : await _repository.updateStore(
+                                        store.id,
+                                        input,
+                                      );
+                                if (!sheetContext.mounted) return;
+                                result.fold(
+                                  (failure) {
+                                    setSheetState(() => saving = false);
+                                    AppToast.error(
+                                      sheetContext,
+                                      failure.message,
                                     );
-                              if (!sheetContext.mounted) return;
-                              result.fold(
-                                (failure) {
-                                  setSheetState(() => saving = false);
-                                  AppToast.error(sheetContext, failure.message);
-                                },
-                                (_) {
-                                  Navigator.pop(sheetContext);
-                                  AppToast.success(
-                                    this.context,
-                                    'Outlet berhasil disimpan',
-                                  );
-                                  this.context.read<PosBloc>().add(
-                                    LoadPosData(),
-                                  );
-                                },
-                              );
-                            },
-                      child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+                                  },
+                                  (_) {
+                                    Navigator.pop(sheetContext);
+                                    AppToast.success(
+                                      this.context,
+                                      'Outlet berhasil disimpan',
+                                    );
+                                    this.context.read<PosBloc>().add(
+                                      LoadPosData(),
+                                    );
+                                  },
+                                );
+                              },
+                        child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
     // Navigator menyelesaikan future sebelum seluruh overlay bottom-sheet selesai

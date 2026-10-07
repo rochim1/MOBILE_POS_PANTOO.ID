@@ -5,6 +5,7 @@ class PosProduct {
   final String category;
   final String categoryId;
   final String productType;
+  final String compositionType;
   final bool promoEligible;
   final bool tracksStock;
   final String description;
@@ -36,6 +37,7 @@ class PosProduct {
     required this.category,
     this.categoryId = '',
     this.productType = 'product',
+    this.compositionType = '',
     this.promoEligible = false,
     this.tracksStock = true,
     this.description = '',
@@ -82,6 +84,8 @@ class PosProduct {
           json['productType']?.toString() ??
           json['pos_product_type']?.toString() ??
           'product',
+      compositionType: json['compositionType']?.toString() ??
+          json['composition_type']?.toString() ?? '',
       promoEligible:
           json['promoEligible'] == true || json['promo_eligible'] == true,
       tracksStock: json.containsKey('tracksStock')
@@ -194,6 +198,7 @@ class PosProduct {
       'category': category,
       'categoryId': categoryId,
       'productType': productType,
+      'compositionType': compositionType,
       'promoEligible': promoEligible,
       'tracksStock': tracksStock,
       'description': description,

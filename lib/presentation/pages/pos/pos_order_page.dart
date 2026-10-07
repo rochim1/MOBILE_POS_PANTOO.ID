@@ -13,6 +13,7 @@ import '../../../../domain/repositories/pos_receipt_repository.dart';
 import '../../../../domain/models/pos_receipt_template.dart';
 import '../../../../injections.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import 'pos_payment_page.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/pos_category_navigation.dart';
@@ -769,151 +770,165 @@ class _PosOrderPageState extends State<PosOrderPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => Container(
-          padding: EdgeInsets.fromLTRB(
-            14,
-            12,
-            14,
-            14 + MediaQuery.of(sheetContext).viewInsets.bottom,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
+      builder: (sheetContext) => PosKeyboardStableSheet(
+        heightFactor: .72,
+        child: StatefulBuilder(
+          builder: (context, setSheetState) => Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Proses Pembayaran Invoice',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                order.invoice,
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.bgPrimary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total tagihan'),
-                    Text(
-                      NumberFormat.currency(
-                        locale: 'id_ID',
-                        symbol: 'Rp ',
-                        decimalDigits: 0,
-                      ).format(order.total),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Proses Pembayaran Invoice',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    order.invoice,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgPrimary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total tagihan'),
+                        Text(
+                          NumberFormat.currency(
+                            locale: 'id_ID',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(order.total),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: method,
+                    decoration: const InputDecoration(
+                      labelText: 'Metode pembayaran',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'tunai', child: Text('Tunai')),
+                      DropdownMenuItem(value: 'qris', child: Text('QRIS')),
+                      DropdownMenuItem(
+                        value: 'debit',
+                        child: Text('Kartu Debit'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'kartu_kredit',
+                        child: Text('Kartu Kredit'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'transfer',
+                        child: Text('Transfer'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'e_wallet',
+                        child: Text('E-Wallet'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setSheetState(() => method = value ?? 'tunai'),
+                  ),
+                  if (method == 'tunai') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: cashController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: const [RupiahInputFormatter()],
+                      decoration: const InputDecoration(
+                        labelText: 'Uang diterima',
+                        prefixText: 'Rp ',
+                        border: OutlineInputBorder(),
                       ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                initialValue: method,
-                decoration: const InputDecoration(
-                  labelText: 'Metode pembayaran',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'tunai', child: Text('Tunai')),
-                  DropdownMenuItem(value: 'qris', child: Text('QRIS')),
-                  DropdownMenuItem(value: 'debit', child: Text('Kartu Debit')),
-                  DropdownMenuItem(
-                    value: 'kartu_kredit',
-                    child: Text('Kartu Kredit'),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final cash = method == 'tunai'
+                                ? parseRupiah(cashController.text)
+                                : order.total;
+                            if (method == 'tunai' && cash < order.total) {
+                              AppToast.error(
+                                this.context,
+                                'Uang diterima kurang dari total tagihan',
+                              );
+                              return;
+                            }
+                            setSheetState(() => isSubmitting = true);
+                            final result = await sl<PosRepository>()
+                                .payPendingOrder(
+                                  orderId: order.id,
+                                  method: method,
+                                  cashReceived: cash,
+                                );
+                            if (!mounted) return;
+                            result.fold(
+                              (failure) {
+                                setSheetState(() => isSubmitting = false);
+                                AppToast.error(this.context, failure.message);
+                              },
+                              (data) {
+                                Navigator.pop(sheetContext);
+                                this.context.read<PosBloc>().add(
+                                  RefreshOrders(),
+                                );
+                                AppToast.success(
+                                  this.context,
+                                  'Invoice ${order.invoice} berhasil dibayar',
+                                );
+                              },
+                            );
+                          },
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Bayar Sekarang'),
                   ),
-                  DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
-                  DropdownMenuItem(value: 'e_wallet', child: Text('E-Wallet')),
                 ],
-                onChanged: (value) =>
-                    setSheetState(() => method = value ?? 'tunai'),
               ),
-              if (method == 'tunai') ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: cashController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: const [RupiahInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: 'Uang diterima',
-                    prefixText: 'Rp ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-              FilledButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        final cash = method == 'tunai'
-                            ? parseRupiah(cashController.text)
-                            : order.total;
-                        if (method == 'tunai' && cash < order.total) {
-                          AppToast.error(
-                            this.context,
-                            'Uang diterima kurang dari total tagihan',
-                          );
-                          return;
-                        }
-                        setSheetState(() => isSubmitting = true);
-                        final result = await sl<PosRepository>()
-                            .payPendingOrder(
-                              orderId: order.id,
-                              method: method,
-                              cashReceived: cash,
-                            );
-                        if (!mounted) return;
-                        result.fold(
-                          (failure) {
-                            setSheetState(() => isSubmitting = false);
-                            AppToast.error(this.context, failure.message);
-                          },
-                          (data) {
-                            Navigator.pop(sheetContext);
-                            this.context.read<PosBloc>().add(RefreshOrders());
-                            AppToast.success(
-                              this.context,
-                              'Invoice ${order.invoice} berhasil dibayar',
-                            );
-                          },
-                        );
-                      },
-                child: isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Bayar Sekarang'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1150,7 +1165,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         builder: (_) => SafeArea(
-          child: FractionallySizedBox(heightFactor: .85, child: content),
+          child: PosKeyboardStableSheet(heightFactor: .85, child: content),
         ),
       );
     } else {
@@ -1345,8 +1360,15 @@ class _PosOrderPageState extends State<PosOrderPage> {
           order.items.length,
         ),
       );
-    } catch (_) {
-      if (mounted) AppToast.error(context, 'Gagal membuka layanan print struk');
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          error.toString().contains('PRINTER_NOT_CONFIGURED')
+              ? 'Pilih printer Bluetooth di Pengaturan Printer terlebih dahulu.'
+              : 'Printer Bluetooth tidak merespons. Periksa koneksi printer.',
+        );
+      }
     }
   }
 

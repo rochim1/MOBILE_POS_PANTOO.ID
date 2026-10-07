@@ -82,7 +82,7 @@ class PosInventoryQueries {
     query GetAllInventoryTransfers($filter: InventoryTransferFilter, $page: Int, $limit: Int) {
       GetAllInventoryTransfers(filter: $filter, page: $page, limit: $limit) {
         total page limit
-        data { _id no_transfer tanggal_transfer status catatan biaya_transfer { jenis_biaya deskripsi nominal akun_beban akun_beban_nama } biaya_mode biaya_alokasi dari { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } ke { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } items { _id inventaris_id kode_inventaris nama_inventaris qty unit } }
+        data { _id no_transfer tanggal_transfer status catatan total_biaya journal_status journal_error cancel_journal_status cancel_journal_error biaya_transfer { jenis_biaya deskripsi nominal akun_beban akun_beban_nama } biaya_mode biaya_alokasi dari { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } ke { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } items { _id inventaris_id kode_inventaris nama_inventaris qty received_qty unit } }
       }
     }
   ''';
@@ -91,22 +91,19 @@ class PosInventoryQueries {
     query GetAllInventoryScraps($filter: ScrapFilterInput, $pagination: PaginationInput) {
       GetAllInventoryScraps(filter: $filter, pagination: $pagination) {
         totalCount
-        items { _id no_scrap tanggal_scrap status alasan alasan_detail jenis_insiden lokasi_kejadian catatan total_nilai_scrap createdAt updatedAt tanggal_disetujui journal_id diajukan_oleh { _id name } disetujui_oleh { _id name } items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty unit nilai_per_unit total_nilai no_batch catatan_item lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama tindakan jumlah_hasil_recycle jumlah_hilang stok_sebelum stok_sesudah saldo_lokasi_sebelum saldo_lokasi_sesudah } }
+        items { _id no_scrap tanggal_scrap status alasan alasan_detail jenis_insiden lokasi_kejadian catatan total_nilai_scrap createdAt updatedAt tanggal_disetujui journal_id journal_status journal_error diajukan_oleh { _id name } disetujui_oleh { _id name } items { _id inventaris_id stock_balance_id kode_inventaris nama_inventaris qty unit nilai_per_unit total_nilai no_batch catatan_item lokasi_cabang_id lokasi_cabang_nama lokasi_gedung_kode lokasi_gedung_nama lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama tindakan jumlah_hasil_recycle jumlah_hilang stok_sebelum stok_sesudah saldo_lokasi_sebelum saldo_lokasi_sesudah } }
       }
     }
   ''';
 
   static const receiveTransfer = r'''
-    mutation ReceiveInventoryTransfer($id: ID!) {
-      ReceiveInventoryTransfer(id: $id) { _id no_transfer status received_at }
+    mutation ReceiveInventoryTransfer($id: ID!, $items: [InventoryTransferReceiptItemInput!], $request_id: String) {
+      ReceiveInventoryTransfer(id: $id, items: $items, request_id: $request_id) { _id no_transfer status received_at journal_status journal_error }
     }
   ''';
 
   static const lookups = r'''
     query GetPOSInventoryFormLookups {
-      GetAllSupplier(filter: { status: active }, pagination: { page: 0, limit: 100 }) {
-        suppliers { _id kode_supplier nama_supplier is_pkp default_ppn_persen }
-      }
       getAllCabangs(filter: { status: "active", has_warehouse: true }, pagination: { page: 0, limit: 100 }) {
         cabang {
           _id nama_cabang is_receiving_location is_transfer_source is_transfer_destination
@@ -132,6 +129,57 @@ class PosInventoryQueries {
           _id kode_inventaris nama_inventaris unit base_unit harga_beli stok
           unit_conversions { unit factor }
         }
+      }
+    }
+  ''';
+
+  static const purchaseLookups = r'''
+    query GetPOSPurchaseFormLookups {
+      GetPOSPurchaseInventory(limit: 200) {
+        _id kode_inventaris nama_inventaris unit base_unit harga_beli stok
+        unit_conversions { unit factor }
+      }
+    }
+  ''';
+
+  static const purchaseSuppliers = r'''
+    query GetPOSPurchaseSuppliers($search: String, $limit: Int) {
+      GetPOSPurchaseSuppliers(search: $search, limit: $limit) {
+        _id kode_supplier nama_supplier telepon is_pkp default_ppn_persen
+      }
+    }
+  ''';
+
+  static const createPurchaseSupplierQuick = r'''
+    mutation AddPOSPurchaseSupplierQuick($input: POSPurchaseSupplierQuickInput!) {
+      AddPOSPurchaseSupplierQuick(input: $input) {
+        _id kode_supplier nama_supplier telepon is_pkp default_ppn_persen
+      }
+    }
+  ''';
+
+  static const purchaseInventorySearch = r'''
+    query SearchPOSPurchaseInventory($search: String!) {
+      GetPOSPurchaseInventory(search: $search, limit: 30) {
+        _id kode_inventaris nama_inventaris sku barcode unit base_unit harga_beli stok
+        unit_conversions { unit factor }
+      }
+    }
+  ''';
+
+  static const purchaseInventoryById = r'''
+    query GetPOSPurchaseInventoryById($inventoryId: ID!) {
+      GetPOSPurchaseInventory(inventaris_id: $inventoryId, limit: 1) {
+        _id kode_inventaris nama_inventaris sku barcode unit base_unit harga_beli stok
+        unit_conversions { unit factor }
+      }
+    }
+  ''';
+
+  static const purchaseInventoryByCode = r'''
+    query GetPOSPurchaseInventoryByCode($code: String!) {
+      GetPOSPurchaseInventory(exact_code: $code, limit: 30) {
+        _id kode_inventaris nama_inventaris sku barcode unit base_unit
       }
     }
   ''';
@@ -179,14 +227,14 @@ class PosInventoryQueries {
   static const deletePurchase =
       r'''mutation DeleteInventoryPurchase($id: ID!, $reason: String) { DeleteInventoryPurchase(_id: $id, delete_reason: $reason) { _id status } }''';
   static const receivePurchase =
-      r'''mutation AddInventoryReceiving($input: InventoryReceivingInput!) { AddInventoryReceiving(input: $input) { _id no_grn purchase_id status } }''';
+      r'''mutation AddInventoryReceiving($input: InventoryReceivingInput!) { AddInventoryReceiving(input: $input) { _id no_grn purchase_id status journal_status journal_error } }''';
 
   static const purchaseReceivings = r'''
     query GetAllInventoryReceivings($purchaseId: ID!, $pagination: pagination) {
       GetAllInventoryReceivings(purchase_id: $purchaseId, pagination: $pagination) {
         totalCount
         items {
-          _id no_grn tanggal_terima no_surat_jalan status catatan foto_bukti
+          _id no_grn tanggal_terima no_surat_jalan status catatan foto_bukti journal_status journal_error cancel_journal_status cancel_journal_error
           cancel_reason cancelled_at createdAt
           created_by { _id name username }
           cancelled_by { _id name username }
@@ -241,7 +289,7 @@ class PosInventoryQueries {
   static const cancelPurchaseReceiving = r'''
     mutation CancelInventoryReceiving($input: CancelInventoryReceivingInput!) {
       CancelInventoryReceiving(input: $input) {
-        _id no_grn status cancel_reason cancelled_at
+        _id no_grn status cancel_reason cancelled_at cancel_journal_status cancel_journal_error
       }
     }
   ''';
@@ -274,9 +322,13 @@ class PosInventoryQueries {
   static const rejectTransfer =
       r'''mutation RejectInventoryTransfer($id: ID!, $reason: String!) { RejectInventoryTransfer(id: $id, alasan_penolakan: $reason) { _id no_transfer status } }''';
   static const postTransfer =
-      r'''mutation PostInventoryTransfer($id: ID!) { PostInventoryTransfer(id: $id) { _id no_transfer status } }''';
+      r'''mutation PostInventoryTransfer($id: ID!) { PostInventoryTransfer(id: $id) { _id no_transfer status journal_status journal_error } }''';
   static const cancelTransfer =
-      r'''mutation CancelInventoryTransfer($id: ID!, $reason: String) { CancelInventoryTransfer(id: $id, alasan: $reason) { _id no_transfer status } }''';
+      r'''mutation CancelInventoryTransfer($id: ID!, $reason: String) { CancelInventoryTransfer(id: $id, alasan: $reason) { _id no_transfer status cancel_journal_status cancel_journal_error } }''';
+  static const retryTransferJournal =
+      r'''mutation RetryInventoryTransferJournal($id: ID!) { RetryInventoryTransferJournal(id: $id) { _id status journal_status journal_error } }''';
+  static const retryTransferCancelJournal =
+      r'''mutation RetryInventoryTransferCancelJournal($id: ID!) { RetryInventoryTransferCancelJournal(id: $id) { _id status cancel_journal_status cancel_journal_error } }''';
   static const deleteTransfer =
       r'''mutation DeleteInventoryTransfer($id: ID!) { DeleteInventoryTransfer(id: $id) { _id no_transfer status } }''';
 
@@ -289,7 +341,13 @@ class PosInventoryQueries {
   static const rejectScrap =
       r'''mutation RejectInventoryScrap($id: ID!, $reason: String!) { RejectInventoryScrap(_id: $id, catatan: $reason) { _id no_scrap status } }''';
   static const processScrap =
-      r'''mutation ProcessInventoryScrap($id: ID!) { ProcessInventoryScrap(_id: $id) { _id no_scrap status } }''';
+      r'''mutation ProcessInventoryScrap($id: ID!) { ProcessInventoryScrap(_id: $id) { _id no_scrap status journal_status journal_error } }''';
+  static const retryScrapJournal =
+      r'''mutation RetryInventoryScrapJournal($id: ID!) { RetryInventoryScrapJournal(_id: $id) { _id status journal_status journal_error } }''';
+  static const retryReceivingJournal =
+      r'''mutation RetryInventoryReceivingJournal($id: ID!) { RetryInventoryReceivingJournal(_id: $id) { _id journal_status journal_error } }''';
+  static const retryReceivingCancelJournal =
+      r'''mutation RetryInventoryReceivingCancelJournal($id: ID!) { RetryInventoryReceivingCancelJournal(_id: $id) { _id cancel_journal_status cancel_journal_error } }''';
   static const deleteScrap =
       r'''mutation DeleteInventoryScrap($id: ID!) { DeleteInventoryScrap(_id: $id) { success message } }''';
 }

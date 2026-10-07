@@ -69,6 +69,8 @@ class PosQueries {
         default_payment_method
         default_discount_policy
         default_note
+        sla_warning_minutes
+        sla_critical_minutes
         minimum_cash_transaction
         price_rounding
         invoice_prefix
@@ -169,6 +171,14 @@ class PosQueries {
         status
         status_pembayaran
         catatan
+        createdAt
+        tipe_pesanan
+        pelanggan_id
+        pelanggan_nama
+        subtotal
+        diskon_amount
+        pajak_amount
+        items { produk_id nama kode qty unit harga_satuan subtotal }
       }
     }
   ''';
@@ -401,6 +411,7 @@ class PosQueries {
           pos_product_type
           sellable_in_pos
           tracks_stock
+          composition_type
           preparation_mode
           production_station_id
           prep_time_minutes
@@ -441,6 +452,7 @@ class PosQueries {
         pos_product_type
         sellable_in_pos
         tracks_stock
+        composition_type
         preparation_mode
         production_station_id
         prep_time_minutes
@@ -524,6 +536,8 @@ class PosQueries {
         expired_sale_reason
         expired_sale_authorizer_name
         expired_sale_authorized_at
+        sync_status
+        sync_conflict_reason
         payments { metode jumlah }
         items { inventaris_id nama_inventaris qty unit harga_jual subtotal }
       }
@@ -605,6 +619,9 @@ class PosQueries {
           order_no
           pelanggan_id
           pelanggan_nama
+          pelanggan_telepon
+          customer_profile_requested
+          tipe_pesanan
           subtotal
           diskon_persen
           diskon_amount
@@ -714,6 +731,7 @@ class PosQueries {
         merchandise_category_id
         merchandise_category_name
         pos_product_type
+        composition_type
         tracks_stock
         preparation_mode
         production_station_id
@@ -785,6 +803,7 @@ class PosQueries {
         merchandise_category_id
         merchandise_category_name
         pos_product_type
+        composition_type
         tracks_stock
         preparation_mode
         production_station_id

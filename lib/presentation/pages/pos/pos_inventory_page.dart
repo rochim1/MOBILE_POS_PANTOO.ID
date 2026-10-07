@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
@@ -7,11 +9,14 @@ import 'package:intl/intl.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
+import '../../../domain/models/pos_stock.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_category_navigation.dart';
 import '../../widgets/inventory_action_style.dart';
+import '../../widgets/skeleton_loading.dart';
 import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
@@ -55,6 +60,116 @@ class PosInventoryPage extends StatefulWidget {
 
 class _PosInventoryPageState extends State<PosInventoryPage> {
   late _InventorySection _selected;
+  bool _checkingRestock = false;
+
+  Future<({double quantity, String? error})> _openPurchaseQuantity(
+    String inventoryId,
+  ) async {
+    const pageSize = 100;
+    var page = 1;
+    var total = 0;
+    var quantity = 0.0;
+    do {
+      final result = await sl<PosInventoryRepository>().getDocuments(
+        type: PosInventoryDocumentType.purchase,
+        openQuantityOnly: true,
+        inventoryId: inventoryId,
+        page: page,
+        limit: pageSize,
+      );
+      PosInventoryDocumentPage? data;
+      String? failureMessage;
+      result.fold(
+        (failure) => failureMessage = failure.message,
+        (value) => data = value,
+      );
+      if (failureMessage != null) {
+        return (quantity: quantity, error: failureMessage);
+      }
+      final current = data;
+      if (current == null) break;
+      total = current.totalCount;
+      for (final purchase in current.items) {
+        for (final item
+            in (purchase['items'] as List? ?? const []).whereType<Map>()) {
+          if (item['inventaris_id']?.toString() != inventoryId) continue;
+          final remaining =
+              PosPurchaseProgress.orderedBase(item) -
+              PosPurchaseProgress.receivedBase(item);
+          if (remaining > 0) quantity += remaining;
+        }
+      }
+      if (current.items.isEmpty) break;
+      page++;
+    } while ((page - 1) * pageSize < total);
+    return (quantity: quantity, error: null);
+  }
+
+  Future<void> _createPurchaseForStock(PosStock stock) async {
+    if (_checkingRestock) return;
+    setState(() => _checkingRestock = true);
+    AppToast.info(context, 'Memeriksa PO terbuka untuk barang ini…');
+    final open = await _openPurchaseQuantity(stock.id);
+    if (!mounted) return;
+    setState(() => _checkingRestock = false);
+    if (open.error != null) {
+      AppToast.error(
+        context,
+        'PO terbuka belum dapat diperiksa: ${open.error}',
+      );
+      return;
+    }
+    final threshold = stock.titikReorder > 0
+        ? stock.titikReorder
+        : stock.stokMinimum > 0
+        ? stock.stokMinimum
+        : 1.0;
+    final target = stock.stokMaksimum > threshold
+        ? stock.stokMaksimum
+        : threshold * 2;
+    final needed = (target - stock.stok - open.quantity)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    if (open.quantity > 0) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Sudah ada PO terbuka'),
+          content: Text(
+            '${stock.namaInventaris} masih memiliki ${open.quantity} ${stock.baseUnit} '
+            'dalam PO yang belum diterima. '
+            '${needed > 0 ? 'Usulan tambahan: $needed ${stock.baseUnit}.' : 'Jumlah PO terbuka sudah memenuhi target stok.'} '
+            'Periksa PO yang ada sebelum membuat pesanan baru.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Tetap Buat PO'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || proceed != true) return;
+    }
+    final suggestedQuantity = needed > 0 ? needed : 1.0;
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PosInventoryEditorPage(
+          type: PosInventoryDocumentType.purchase,
+          initialInventoryId: stock.id,
+          initialQuantity: suggestedQuantity,
+        ),
+      ),
+    );
+    if (mounted && saved == true) {
+      setState(() => _selected = _InventorySection.purchase);
+    }
+  }
 
   @override
   void initState() {
@@ -99,7 +214,8 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     final transferEnabled =
         inventoryPolicy['use_transfer_request'] == true ||
         inventoryPolicy['inventory_profile'] == 'centralized' ||
-        inventoryPolicy['inventory_profile'] == 'advanced';
+        inventoryPolicy['inventory_profile'] == 'advanced' ||
+        inventoryPolicy['inventory_profile'] == 'custom';
     final sections = <_InventoryMenu>[
       if (permissions['view_warehouses'] == true)
         const _InventoryMenu(
@@ -215,6 +331,12 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     ),
     _InventorySection.stock => PosStockPage(
       isGridView: widget.isGridView,
+      onCreatePurchase:
+          permissions['view_inventory_purchases'] == true &&
+              permissions['create_inventory_purchases'] == true &&
+              !_checkingRestock
+          ? _createPurchaseForStock
+          : null,
       onOpenStockOpname: permissions['view_inventory_opnames'] == true
           ? () => setState(() => _selected = _InventorySection.opname)
           : null,
@@ -256,6 +378,35 @@ class _InventoryMenu {
   final String label;
   final IconData icon;
   const _InventoryMenu(this.section, this.label, this.icon);
+}
+
+class _InventoryPurchaseSkeletonCard extends StatelessWidget {
+  const _InventoryPurchaseSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Row(
+            children: [
+              Expanded(child: SkeletonBox(height: 16, borderRadius: 4)),
+              SizedBox(width: 20),
+              SkeletonBox(width: 64, height: 24, borderRadius: 8),
+            ],
+          ),
+          SizedBox(height: 12),
+          SkeletonBox(width: 170, height: 12, borderRadius: 4),
+          SizedBox(height: 8),
+          SkeletonBox(height: 12, borderRadius: 4),
+          SizedBox(height: 12),
+          SkeletonBox(width: 112, height: 34, borderRadius: 8),
+        ],
+      ),
+    ),
+  );
 }
 
 class _InventoryDocumentPage extends StatefulWidget {
@@ -571,14 +722,36 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       widget.permissions['${action}_$_permissionPrefix'] == true;
 
   Future<void> _openEditor([Map<String, dynamic>? existing]) async {
-    final changed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            PosInventoryEditorPage(type: widget.type, existing: existing),
-      ),
-    );
-    if (changed == true) _load(page: 1);
+    final bool? changed;
+    if ((widget.type == PosInventoryDocumentType.opname ||
+            widget.type == PosInventoryDocumentType.scrap) &&
+        existing == null) {
+      changed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          final size = MediaQuery.sizeOf(dialogContext);
+          final compact = size.width < 600;
+          return PosKeyboardStableDialog(
+            width: widget.type == PosInventoryDocumentType.scrap ? 960 : 760,
+            height: size.height * .9,
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 32,
+              vertical: compact ? 12 : 24,
+            ),
+            child: PosInventoryEditorPage(type: widget.type, inModal: true),
+          );
+        },
+      );
+    } else {
+      changed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              PosInventoryEditorPage(type: widget.type, existing: existing),
+        ),
+      );
+    }
+    if (changed == true && mounted) _load(page: 1);
   }
 
   Future<void> _runAction(Map<String, dynamic> item, String action) async {
@@ -642,9 +815,23 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     );
     if (!mounted) return;
     var succeeded = false;
-    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+    result.fold((failure) => AppToast.error(context, failure.message), (
+      document,
+    ) {
       succeeded = true;
-      AppToast.success(context, 'Status dokumen berhasil diperbarui');
+      if (document is Map && document['cancel_journal_status'] == 'failed') {
+        AppToast.error(
+          context,
+          'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${document['cancel_journal_error'] ?? ''}',
+        );
+      } else if (document is Map && document['journal_status'] == 'failed') {
+        AppToast.error(
+          context,
+          'Stok sudah diproses, tetapi jurnal perlu diperiksa: ${document['journal_error'] ?? ''}',
+        );
+      } else {
+        AppToast.success(context, 'Status dokumen berhasil diperbarui');
+      }
     });
     if (succeeded) {
       if (widget.type == PosInventoryDocumentType.purchase) {
@@ -681,33 +868,180 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   Future<void> _receive(Map<String, dynamic> item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Terima mutasi stok?'),
-        content: Text(
-          'Stok ${item['no_transfer'] ?? ''} akan dimasukkan ke lokasi tujuan.',
+    final remaining = (item['items'] as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .where(
+          (row) =>
+              ((row['qty'] as num?)?.toDouble() ?? 0) -
+                  ((row['received_qty'] as num?)?.toDouble() ?? 0) >
+              0.000001,
+        )
+        .toList();
+    if (remaining.isEmpty) {
+      AppToast.error(context, 'Tidak ada sisa barang untuk diterima');
+      return;
+    }
+    final controllers = remaining.map((row) {
+      final qty =
+          ((row['qty'] as num?)?.toDouble() ?? 0) -
+          ((row['received_qty'] as num?)?.toDouble() ?? 0);
+      return TextEditingController(text: qty.toString());
+    }).toList();
+    List<Map<String, dynamic>>? receiptItems;
+    String? validationError;
+    try {
+      receiptItems = await showDialog<List<Map<String, dynamic>>>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return PosKeyboardStableFormDialog(
+              width: 560,
+              height: 580,
+              title: const Text('Terima mutasi stok'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(dialogContext).bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Isi jumlah yang benar-benar tiba. Sisa tetap dalam perjalanan.',
+                      ),
+                      for (
+                        var index = 0;
+                        index < remaining.length;
+                        index++
+                      ) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: controllers[index],
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText:
+                                remaining[index]['nama_inventaris']
+                                    ?.toString() ??
+                                'Barang',
+                            helperText:
+                                'Sisa ${((remaining[index]['qty'] as num?)?.toDouble() ?? 0) - ((remaining[index]['received_qty'] as num?)?.toDouble() ?? 0)}',
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                      if (validationError != null) Text(validationError ?? ''),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Batal'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final rows = <Map<String, dynamic>>[];
+                    for (var index = 0; index < remaining.length; index++) {
+                      final max =
+                          ((remaining[index]['qty'] as num?)?.toDouble() ?? 0) -
+                          ((remaining[index]['received_qty'] as num?)
+                                  ?.toDouble() ??
+                              0);
+                      final qty = double.tryParse(
+                        controllers[index].text.trim(),
+                      );
+                      if (qty == null || qty < 0 || qty > max + 0.000001) {
+                        setDialogState(
+                          () => validationError = 'Jumlah diterima tidak valid',
+                        );
+                        return;
+                      }
+                      if (qty > 0) {
+                        rows.add({
+                          'item_id': remaining[index]['_id'],
+                          'qty': qty,
+                        });
+                      }
+                    }
+                    if (rows.isEmpty) {
+                      setDialogState(
+                        () => validationError =
+                            'Isi minimal satu jumlah diterima',
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, rows);
+                  },
+                  child: const Text('Terima jumlah ini'),
+                ),
+              ],
+            );
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Terima'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+      );
+    } finally {
+      for (final controller in controllers) {
+        controller.dispose();
+      }
+    }
+    if (receiptItems == null) return;
+    final transferId = item['_id'].toString();
+    final snapshot =
+        ((item['items'] as List?) ?? const [])
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .map(
+              (row) => [
+                row['_id'].toString(),
+                (row['received_qty'] as num?)?.toDouble() ?? 0,
+              ],
+            )
+            .toList()
+          ..sort((a, b) => a[0].toString().compareTo(b[0].toString()));
+    final requested =
+        receiptItems
+            .map(
+              (row) => [
+                row['item_id'].toString(),
+                (row['qty'] as num).toDouble(),
+              ],
+            )
+            .toList()
+          ..sort((a, b) => a[0].toString().compareTo(b[0].toString()));
+    final requestId =
+        'transfer-receive-${sha256.convert(utf8.encode(jsonEncode([transferId, snapshot, requested])))}';
     setState(() => _loading = true);
-    final result = await _repository.receiveTransfer(item['_id'].toString());
+    final result = await _repository.receiveTransfer(
+      transferId,
+      receiptItems,
+      requestId,
+    );
     if (!mounted) return;
     var succeeded = false;
-    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+    result.fold((failure) => AppToast.error(context, failure.message), (
+      document,
+    ) {
       succeeded = true;
-      AppToast.success(context, 'Mutasi stok berhasil diterima');
+      if (document['journal_status'] == 'failed') {
+        AppToast.error(
+          context,
+          'Stok diterima, tetapi jurnal biaya perlu dicoba ulang',
+        );
+      } else {
+        AppToast.success(
+          context,
+          document['status'] == 'posted'
+              ? 'Seluruh mutasi stok berhasil diterima'
+              : 'Penerimaan sebagian berhasil dicatat',
+        );
+      }
     });
     if (succeeded) {
       await _load(page: 1);
@@ -850,11 +1184,22 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               },
             ),
           ),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _load,
-              child: _items.isEmpty && !_loading
+              child: _loading && _items.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(14),
+                      children: const [
+                        _InventoryPurchaseSkeletonCard(),
+                        SizedBox(height: 8),
+                        _InventoryPurchaseSkeletonCard(),
+                        SizedBox(height: 8),
+                        _InventoryPurchaseSkeletonCard(),
+                      ],
+                    )
+                  : _items.isEmpty && !_loading
                   ? ListView(
                       children: [
                         const SizedBox(height: 90),
@@ -916,6 +1261,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   Widget _documentCard(Map<String, dynamic> item) {
     final itemCount = (item['items'] as List?)?.length ?? 0;
+    final transferReceived = (item['items'] as List? ?? const [])
+        .whereType<Map>()
+        .fold<double>(
+          0,
+          (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0),
+        );
     final rawStatus = item['status']?.toString() ?? '-';
     final status = widget.type == PosInventoryDocumentType.purchase
         ? PosPurchaseProgress.effectiveStatus(item)
@@ -956,6 +1307,13 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: Colors.black45),
                 ),
+                if (widget.type == PosInventoryDocumentType.transfer &&
+                    rawStatus == 'in_transit' &&
+                    transferReceived > 0)
+                  Text(
+                    '${_compactNumber(transferReceived)} dari ${_compactNumber((item['items'] as List? ?? const []).whereType<Map>().fold<double>(0, (sum, row) => sum + ((row['qty'] as num?)?.toDouble() ?? 0)))} sudah diterima',
+                    style: const TextStyle(fontSize: 12, color: AppColors.info),
+                  ),
                 if (widget.type == PosInventoryDocumentType.purchase &&
                     rawStatus == 'completed' &&
                     status == 'partially_received')
@@ -1163,6 +1521,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       label:
                           '${(PosPurchaseProgress.completionRatio(item) * 100).round()}% diterima',
                     ),
+                  if (widget.type == PosInventoryDocumentType.transfer)
+                    _DetailMetric(
+                      icon: Icons.move_to_inbox_outlined,
+                      label:
+                          '${_compactNumber(rows.fold<double>(0, (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0)))} diterima',
+                    ),
                   if (widget.type == PosInventoryDocumentType.opname) ...[
                     _DetailMetric(
                       icon: Icons.approval_outlined,
@@ -1225,6 +1589,34 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text('Catatan: ${item['catatan']}'),
+                ),
+              ],
+              if (widget.type == PosInventoryDocumentType.transfer &&
+                  item['status'] == 'posted' &&
+                  (item['total_biaya'] as num? ?? 0) > 0 &&
+                  [
+                    'failed',
+                    'pending',
+                    'unknown',
+                  ].contains(item['journal_status'])) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Stok sudah diproses, tetapi jurnal biaya perlu diperiksa: ${item['journal_error'] ?? 'belum terkonfirmasi'}',
+                  style: TextStyle(color: AppColors.danger),
+                ),
+              ],
+              if (widget.type == PosInventoryDocumentType.transfer &&
+                  item['status'] == 'cancelled' &&
+                  (item['total_biaya'] as num? ?? 0) > 0 &&
+                  [
+                    'failed',
+                    'pending',
+                    'unknown',
+                  ].contains(item['cancel_journal_status'])) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${item['cancel_journal_error'] ?? 'belum terkonfirmasi'}',
+                  style: TextStyle(color: AppColors.danger),
                 ),
               ],
               if (widget.type == PosInventoryDocumentType.opname &&
@@ -1295,7 +1687,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(row['nama_inventaris']?.toString() ?? '-'),
-                    subtitle: isScrap
+                    subtitle: widget.type == PosInventoryDocumentType.transfer
+                        ? Text(
+                            'Diterima ${_compactNumber(row['received_qty'] ?? 0)} • Sisa ${_compactNumber(((row['qty'] as num?)?.toDouble() ?? 0) - ((row['received_qty'] as num?)?.toDouble() ?? 0))}',
+                          )
+                        : isScrap
                         ? Text(
                             '${source.isEmpty ? 'Sumber stok tidak tercatat' : source}'
                             '${(row['no_batch']?.toString() ?? '').isEmpty ? '' : ' • Batch ${row['no_batch']}'}\n'
@@ -1385,7 +1781,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final canApproveDocument =
         approvalHistoryId.isEmpty ||
         _pendingPurchaseApprovalIds.contains(item['_id']?.toString());
-    return PosInventoryActionPolicy.available(
+    final actions = PosInventoryActionPolicy.available(
       type: widget.type,
       status: status,
       can: _can,
@@ -1395,6 +1791,31 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           widget.type == PosInventoryDocumentType.purchase &&
           PosPurchaseProgress.hasRemaining(item),
     );
+    if (widget.type == PosInventoryDocumentType.scrap &&
+        status == 'completed' &&
+        ['failed', 'pending'].contains(item['journal_status']) &&
+        _can('process')) {
+      return [...actions, 'retry_journal'];
+    }
+    if (widget.type == PosInventoryDocumentType.transfer &&
+        status == 'posted' &&
+        (item['total_biaya'] as num? ?? 0) > 0 &&
+        ['failed', 'pending', 'unknown'].contains(item['journal_status']) &&
+        _can('post')) {
+      return [...actions, 'retry_journal'];
+    }
+    if (widget.type == PosInventoryDocumentType.transfer &&
+        status == 'cancelled' &&
+        (item['total_biaya'] as num? ?? 0) > 0 &&
+        [
+          'failed',
+          'pending',
+          'unknown',
+        ].contains(item['cancel_journal_status']) &&
+        _can('cancel')) {
+      return [...actions, 'retry_cancel_journal'];
+    }
+    return actions;
   }
 
   Future<void> _handleCardAction(
@@ -1425,6 +1846,27 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     Map<String, dynamic> item,
     String action,
   ) async {
+    if (action == 'retry_journal' &&
+        widget.type == PosInventoryDocumentType.scrap) {
+      setState(() => _loading = true);
+      final result = await _repository.retryScrapJournal(
+        item['_id'].toString(),
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) => AppToast.error(context, failure.message),
+        (document) =>
+            document is Map &&
+                ['posted', 'not_required'].contains(document['journal_status'])
+            ? AppToast.success(context, 'Jurnal scrap berhasil diperbarui')
+            : AppToast.error(
+                context,
+                'Jurnal belum selesai: ${document is Map ? document['journal_error'] ?? '' : ''}',
+              ),
+      );
+      await _load(page: 1);
+      return;
+    }
     if (action == 'edit') {
       await _openEditor(item);
       return;
@@ -1650,6 +2092,8 @@ String _actionLabel(String action) => switch (action) {
   'delete' => 'Hapus',
   'receive_purchase' => 'Terima Barang',
   'receive_transfer' => 'Terima Mutasi',
+  'retry_journal' => 'Ulangi Jurnal',
+  'retry_cancel_journal' => 'Ulangi Jurnal Batal',
   _ => action,
 };
 IconData _actionIcon(String action) => switch (action) {
@@ -1662,6 +2106,8 @@ IconData _actionIcon(String action) => switch (action) {
   'delete' => Icons.delete_outline,
   'receive_purchase' => Icons.inventory_2_outlined,
   'receive_transfer' => Icons.download_done,
+  'retry_journal' => Icons.refresh,
+  'retry_cancel_journal' => Icons.restart_alt,
   _ => Icons.more_horiz,
 };
 

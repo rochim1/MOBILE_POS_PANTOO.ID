@@ -19,6 +19,7 @@ class PosSettingsQueries {
         invoice_prefix
         auto_print_receipt
         allow_out_of_shift
+        web_order_pay_before_processing
         allow_kasir_price_edit
         expired_sale_policy
         pos_lock_enabled
@@ -27,6 +28,8 @@ class PosSettingsQueries {
         default_catatan
         min_transaksi_tunai
         pembulatan_harga
+        sla_warning_minutes
+        sla_critical_minutes
        }
       }
     }
@@ -52,6 +55,7 @@ class PosSettingsQueries {
         invoice_prefix
         auto_print_receipt
         allow_out_of_shift
+        web_order_pay_before_processing
         allow_kasir_price_edit
         expired_sale_policy
         pos_lock_enabled
@@ -60,6 +64,8 @@ class PosSettingsQueries {
         default_catatan
         min_transaksi_tunai
         pembulatan_harga
+        sla_warning_minutes
+        sla_critical_minutes
        }
       }
     }

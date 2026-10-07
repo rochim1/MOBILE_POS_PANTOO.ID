@@ -5,28 +5,51 @@ class PosStock extends Equatable {
   final String kodeInventaris;
   final String namaInventaris;
   final String kategori;
+  final String productType;
+  final String compositionType;
+  final bool tracksStock;
   final double hargaJual;
   final double hargaPokok;
   final double stok;
   final double stokMinimum;
+  final double stokMaksimum;
+  final double titikReorder;
   final String sku;
+  final String barcode;
   final String unit;
+  final String baseUnit;
   final String status;
   final String? stockBalanceId;
   final int locationCount;
   final bool requiresBatchAdjustment;
+
+  bool get canRestockDirectly =>
+      tracksStock &&
+      !const {'service', 'deposit', 'package'}.contains(productType) &&
+      compositionType != 'bom';
+
+  bool get needsRestock =>
+      canRestockDirectly &&
+      (stok <= 0 || stok <= (titikReorder > 0 ? titikReorder : stokMinimum));
 
   const PosStock({
     required this.id,
     required this.kodeInventaris,
     required this.namaInventaris,
     required this.kategori,
+    this.productType = 'product',
+    this.compositionType = '',
+    this.tracksStock = true,
     required this.hargaJual,
     required this.hargaPokok,
     required this.stok,
     required this.stokMinimum,
+    this.stokMaksimum = 0,
+    this.titikReorder = 0,
     required this.sku,
+    this.barcode = '',
     required this.unit,
+    this.baseUnit = 'unit',
     required this.status,
     this.stockBalanceId,
     this.locationCount = 0,
@@ -39,13 +62,28 @@ class PosStock extends Equatable {
       kodeInventaris: json['kode_inventaris']?.toString() ?? '',
       namaInventaris: json['nama_inventaris']?.toString() ?? '',
       kategori: json['kategori']?.toString() ?? '',
+      productType: json['pos_product_type']?.toString() ?? 'product',
+      compositionType: json['composition_type']?.toString() ?? '',
+      tracksStock: json['tracks_stock'] == null
+          ? !const {
+              'service',
+              'deposit',
+            }.contains(json['pos_product_type']?.toString())
+          : json['tracks_stock'] == true,
       hargaJual: double.tryParse(json['harga_jual']?.toString() ?? '0') ?? 0,
       hargaPokok: double.tryParse(json['harga_beli']?.toString() ?? '0') ?? 0,
       stok: double.tryParse(json['stok']?.toString() ?? '0') ?? 0,
       stokMinimum:
           double.tryParse(json['stok_minimum']?.toString() ?? '0') ?? 0,
+      stokMaksimum:
+          double.tryParse(json['stok_maksimum']?.toString() ?? '0') ?? 0,
+      titikReorder:
+          double.tryParse(json['titik_reorder']?.toString() ?? '0') ?? 0,
       sku: json['sku']?.toString() ?? '',
+      barcode: json['barcode']?.toString() ?? '',
       unit: json['unit']?.toString() ?? 'pcs',
+      baseUnit:
+          json['base_unit']?.toString() ?? json['unit']?.toString() ?? 'pcs',
       status: json['status']?.toString() ?? '',
       stockBalanceId: json['stock_balance_id']?.toString(),
       locationCount:
@@ -60,12 +98,19 @@ class PosStock extends Equatable {
       'kode_inventaris': kodeInventaris,
       'nama_inventaris': namaInventaris,
       'kategori': kategori,
+      'pos_product_type': productType,
+      'composition_type': compositionType,
+      'tracks_stock': tracksStock,
       'harga_jual': hargaJual,
       'harga_pokok': hargaPokok,
       'stok': stok,
       'stok_minimum': stokMinimum,
+      'stok_maksimum': stokMaksimum,
+      'titik_reorder': titikReorder,
       'sku': sku,
+      'barcode': barcode,
       'unit': unit,
+      'base_unit': baseUnit,
       'status': status,
       'stock_balance_id': stockBalanceId,
       'location_count': locationCount,
@@ -79,12 +124,19 @@ class PosStock extends Equatable {
     kodeInventaris,
     namaInventaris,
     kategori,
+    productType,
+    compositionType,
+    tracksStock,
     hargaJual,
     hargaPokok,
     stok,
     stokMinimum,
+    stokMaksimum,
+    titikReorder,
     sku,
+    barcode,
     unit,
+    baseUnit,
     status,
     stockBalanceId,
     locationCount,

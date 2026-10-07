@@ -10,14 +10,18 @@ import '../../bloc/pos_stock/pos_stock_state.dart';
 import '../../../domain/models/pos_stock.dart';
 import '../../../domain/repositories/pos_stock_repository.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../bloc/pos/pos_bloc.dart';
+import 'widgets/pos_stock_barcode_sheet.dart';
 
 class PosStockPage extends StatelessWidget {
   final bool isGridView;
   final VoidCallback? onOpenStockOpname;
+  final ValueChanged<PosStock>? onCreatePurchase;
   final GlobalKey? locationTourKey;
   final GlobalKey? contentTourKey;
   final GlobalKey? adjustmentTourKey;
@@ -26,6 +30,7 @@ class PosStockPage extends StatelessWidget {
     super.key,
     this.isGridView = true,
     this.onOpenStockOpname,
+    this.onCreatePurchase,
     this.locationTourKey,
     this.contentTourKey,
     this.adjustmentTourKey,
@@ -57,6 +62,7 @@ class PosStockPage extends StatelessWidget {
       child: _PosStockView(
         isGridView: isGridView,
         onOpenStockOpname: onOpenStockOpname,
+        onCreatePurchase: onCreatePurchase,
         locationTourKey: locationTourKey,
         contentTourKey: contentTourKey,
         adjustmentTourKey: adjustmentTourKey,
@@ -108,6 +114,7 @@ class _StockAccessMessage extends StatelessWidget {
 class _PosStockView extends StatefulWidget {
   final bool isGridView;
   final VoidCallback? onOpenStockOpname;
+  final ValueChanged<PosStock>? onCreatePurchase;
   final GlobalKey? locationTourKey;
   final GlobalKey? contentTourKey;
   final GlobalKey? adjustmentTourKey;
@@ -115,6 +122,7 @@ class _PosStockView extends StatefulWidget {
   const _PosStockView({
     required this.isGridView,
     this.onOpenStockOpname,
+    this.onCreatePurchase,
     this.locationTourKey,
     this.contentTourKey,
     this.adjustmentTourKey,
@@ -168,6 +176,33 @@ class _PosStockViewState extends State<_PosStockView> {
     final permissions =
         context.read<PosBloc>().state.runtimeConfig['permissions'] as Map?;
     return permissions?['view_stock'] == true || _canAdjustStock;
+  }
+
+  bool _needsRestock(PosStock stock) => stock.needsRestock;
+
+  void _createPurchase(PosStock stock, {BuildContext? sheetContext}) {
+    if (sheetContext != null) Navigator.pop(sheetContext);
+    widget.onCreatePurchase?.call(stock);
+  }
+
+  void _showBarcodeLabels(PosStock stock) {
+    if (stock.barcode.isEmpty &&
+        stock.sku.isEmpty &&
+        stock.kodeInventaris.isEmpty) {
+      AppToast.error(context, 'Produk belum memiliki kode untuk label.');
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => MediaQuery.sizeOf(sheetContext).width < 700
+          ? PosKeyboardStableSheet(
+              heightFactor: .68,
+              child: PosStockBarcodeSheet(stock: stock),
+            )
+          : PosStockBarcodeSheet(stock: stock),
+    );
   }
 
   Future<void> _onRefresh() async {
@@ -690,6 +725,21 @@ class _PosStockViewState extends State<_PosStockView> {
                                 size: 19,
                               ),
                             ),
+                            IconButton(
+                              tooltip: 'Cetak label barcode',
+                              onPressed: () => _showBarcodeLabels(stock),
+                              icon: const Icon(Icons.barcode_reader, size: 19),
+                            ),
+                            if (widget.onCreatePurchase != null &&
+                                _needsRestock(stock))
+                              IconButton(
+                                tooltip: 'Buat PO untuk stok ini',
+                                onPressed: () => _createPurchase(stock),
+                                icon: const Icon(
+                                  Icons.add_shopping_cart,
+                                  size: 19,
+                                ),
+                              ),
                             if (_canAdjustStock)
                               IconButton(
                                 key: index == 0
@@ -851,6 +901,17 @@ class _PosStockViewState extends State<_PosStockView> {
                 const SizedBox(height: 14),
                 const Divider(height: 1),
                 const SizedBox(height: 10),
+                if (widget.onCreatePurchase != null &&
+                    _needsRestock(stock)) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _createPurchase(stock),
+                      icon: const Icon(Icons.add_shopping_cart, size: 17),
+                      label: const Text('Buat PO'),
+                    ),
+                  ),
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -888,6 +949,12 @@ class _PosStockViewState extends State<_PosStockView> {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      tooltip: 'Cetak label barcode',
+                      onPressed: () => _showBarcodeLabels(stock),
+                      icon: const Icon(Icons.barcode_reader, size: 18),
+                      visualDensity: VisualDensity.compact,
                     ),
                     if (_canAdjustStock)
                       OutlinedButton.icon(
@@ -1063,6 +1130,13 @@ class _PosStockViewState extends State<_PosStockView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if (widget.onCreatePurchase != null && _needsRestock(stock))
+                      TextButton.icon(
+                        onPressed: () =>
+                            _createPurchase(stock, sheetContext: sheetContext),
+                        icon: const Icon(Icons.add_shopping_cart),
+                        label: const Text('Buat PO'),
+                      ),
                     TextButton(
                       onPressed: () => Navigator.pop(sheetContext),
                       child: const Text('Tutup'),
@@ -1374,9 +1448,22 @@ class _PosStockViewState extends State<_PosStockView> {
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => PosKeyboardStableFormDialog(
+          width: 540,
+          height: 620,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.sizeOf(context).width < 600 ? 12 : 40,
+            vertical: 24,
+          ),
           title: Text('Koreksi darurat ${stock.namaInventaris}'),
           content: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              20,
+              16,
+              20,
+              20 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
             child: Form(
               key: formKey,
               child: Column(
@@ -1647,22 +1734,27 @@ class _PosStockViewState extends State<_PosStockView> {
   // --- Helpers ---
 
   Color _getStockColor(PosStock stock) {
+    if (!stock.tracksStock) return const Color(0xFF737B89);
     if (stock.stok <= 0) return AppColors.danger;
-    if (stock.stok <= stock.stokMinimum) return AppColors.warning;
+    if (_needsRestock(stock)) return AppColors.warning;
     return const Color(0xFF737B89);
   }
 
   String _getStockLabel(PosStock stock) {
+    if (!stock.tracksStock) return 'Tidak dilacak';
     if (stock.stok <= 0) return 'Habis';
-    if (stock.stok <= stock.stokMinimum) return 'Rendah';
+    if (_needsRestock(stock)) return 'Pesan ulang';
     return 'Tersedia';
   }
 
   double _getStockRatio(PosStock stock) {
-    if (stock.stokMinimum <= 0) {
+    final threshold = stock.titikReorder > 0
+        ? stock.titikReorder
+        : stock.stokMinimum;
+    if (threshold <= 0) {
       return stock.stok > 0 ? 1.0 : 0.0;
     }
-    return stock.stok / stock.stokMinimum;
+    return stock.stok / threshold;
   }
 
   String _formatStock(double value) {

@@ -3,15 +3,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_table.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_table_repository.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_table/pos_table_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_table/pos_table_event.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos_table/pos_table_state.dart';
 import 'package:mobile_pos_pantoo/presentation/widgets/app_toast.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_keyboard_stable_dialog.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_keyboard_stable_sheet.dart';
 import 'package:mobile_pos_pantoo/presentation/widgets/pos_ui.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'utils/pos_table_qr_document.dart';
+import 'utils/pos_table_qr_branding.dart';
+import 'utils/pos_table_qr_link.dart';
+import 'utils/pos_table_qr_print_settings.dart';
+import 'widgets/pos_table_qr_print_settings_dialog.dart';
+import 'widgets/pos_table_qr_sheet.dart';
 
 class PosTableManagementPage extends StatelessWidget {
   final bool? _isGridView;
@@ -129,6 +141,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
   String _statusFilter = '';
   String _locationFilter = '';
   String _sort = 'occupied_first';
+  bool _printingAllQr = false;
 
   bool get _isTablet => MediaQuery.of(context).size.width >= 600;
 
@@ -161,6 +174,123 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
   void _reload() => context.read<PosTableBloc>().add(
     LoadTables(storeId: widget.storeId, search: _searchController.text),
   );
+
+  String get _instansiId =>
+      sl<SharedPreferences>().getString('instansi_id')?.trim() ?? '';
+
+  String get _storeName =>
+      context
+          .read<PosBloc>()
+          .state
+          .stores
+          .where((store) => store.id == widget.storeId)
+          .firstOrNull
+          ?.name ??
+      'Toko';
+
+  String? _webOrderUrl() {
+    final value = PosTableQrLink.configuredBaseUrl;
+    if (PosTableQrLink.parseBaseUrl(value) != null) return value;
+    AppToast.error(context, 'URL Web Order pada build aplikasi tidak valid.');
+    return null;
+  }
+
+  PosTableQrEntry? _qrEntry(PosTableModel table, String baseUrl) {
+    if (!table.statusAktif || table.storeId != widget.storeId) return null;
+    final url = PosTableQrLink.forTable(
+      baseUrl: baseUrl,
+      instansiId: _instansiId,
+      storeId: widget.storeId,
+      tableId: table.id,
+    );
+    if (url == null) return null;
+    return PosTableQrEntry(
+      storeName: _storeName,
+      tableName: table.name,
+      capacity: table.capacity,
+      area: table.area,
+      floor: table.floor,
+      url: url,
+    );
+  }
+
+  Future<void> _showTableQr(PosTableModel table) async {
+    final baseUrl = _webOrderUrl();
+    if (baseUrl == null) return;
+    final entry = _qrEntry(table, baseUrl);
+    if (entry == null) {
+      AppToast.error(context, 'Data toko atau meja tidak valid untuk QR.');
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => PosTableQrSheet(
+        entry: entry,
+        preferences: sl<SharedPreferences>(),
+        instansiId: _instansiId,
+      ),
+    );
+  }
+
+  Future<void> _printAllTableQr() async {
+    if (_printingAllQr) return;
+    final baseUrl = _webOrderUrl();
+    if (baseUrl == null) return;
+    final preferences = sl<SharedPreferences>();
+    final settings = await showDialog<PosTableQrPrintSettings>(
+      context: context,
+      builder: (_) => PosTableQrPrintSettingsDialog(
+        initial: PosTableQrPrintSettings.load(preferences, _instansiId),
+      ),
+    );
+    if (!mounted || settings == null) return;
+    await settings.save(preferences, _instansiId);
+    if (!mounted) return;
+    setState(() => _printingAllQr = true);
+    try {
+      // Fetch without a search filter or pagination so "semua meja" really
+      // includes every active table in the selected store.
+      final result = await sl<PosTableRepository>().getTables(
+        storeId: widget.storeId,
+        limit: 0,
+      );
+      if (!mounted) return;
+      final tables = result.fold<List<PosTableModel>>(
+        (_) => const [],
+        (items) => items,
+      );
+      if (result.isLeft()) {
+        AppToast.error(context, 'Gagal memuat semua meja untuk dicetak.');
+        return;
+      }
+      final entries = tables
+          .map((table) => _qrEntry(table, baseUrl))
+          .whereType<PosTableQrEntry>()
+          .toList();
+      if (entries.length != tables.length || entries.isEmpty) {
+        AppToast.error(context, 'Tidak ada meja valid untuk dicetak.');
+        return;
+      }
+      final logoBytes = settings.useLogo
+          ? await PosTableQrBranding.loadLogoPng()
+          : null;
+      final bytes = await PosTableQrDocument.build(
+        entries,
+        settings: settings,
+        logoBytes: logoBytes,
+      );
+      await Printing.layoutPdf(
+        name: 'QR-Meja-$_storeName',
+        onLayout: (_) async => bytes,
+      );
+    } catch (_) {
+      if (mounted) AppToast.error(context, 'Gagal menyiapkan QR semua meja.');
+    } finally {
+      if (mounted) setState(() => _printingAllQr = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -413,6 +543,21 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                           setState(() => _sort = value ?? 'occupied_first'),
                     ),
                   ),
+                  SizedBox(
+                    width: controlHeight,
+                    height: controlHeight,
+                    child: IconButton(
+                      tooltip: 'Cetak QR semua meja',
+                      icon: _printingAllQr
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.qr_code_2_outlined),
+                      onPressed: _printingAllQr ? null : _printAllTableQr,
+                    ),
+                  ),
                 ],
               );
               if (constraints.maxWidth < 650) {
@@ -521,6 +666,21 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                 children: [
                   Icon(Icons.table_restaurant, size: 23, color: accent),
                   const Spacer(),
+                  IconButton(
+                    tooltip: 'QR ${table.name}',
+                    onPressed: () => _showTableQr(table),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 30,
+                      minHeight: 30,
+                    ),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.qr_code_2_outlined,
+                      size: 19,
+                      color: AppColors.primary,
+                    ),
+                  ),
                   _buildStatusBadge(table.status, compact: true),
                 ],
               ),
@@ -680,6 +840,10 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                 onSelected: (value) => _handleMenuAction(value, table),
                 itemBuilder: (_) => isAvailable
                     ? const [
+                        PopupMenuItem(
+                          value: 'qr',
+                          child: Text('Lihat / Cetak QR meja'),
+                        ),
                         PopupMenuItem(value: 'edit', child: Text('Edit')),
                         PopupMenuItem(
                           value: 'delete',
@@ -690,6 +854,10 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                         ),
                       ]
                     : const [
+                        PopupMenuItem(
+                          value: 'qr',
+                          child: Text('Lihat / Cetak QR meja'),
+                        ),
                         PopupMenuItem(
                           value: 'order',
                           child: Text('Lihat pesanan aktif'),
@@ -878,6 +1046,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
 
   void _handleMenuAction(String action, PosTableModel table) {
     switch (action) {
+      case 'qr':
+        _showTableQr(table);
+        break;
       case 'edit':
         _showTableForm(context, table: table);
         break;
@@ -891,10 +1062,6 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
   }
 
   void _showTableActions(BuildContext context, PosTableModel table) {
-    if (table.status.toLowerCase() == 'terisi') {
-      _showOccupiedTable(context, table);
-      return;
-    }
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -914,30 +1081,49 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
               ),
             ),
             ListTile(
-              leading: const Icon(
-                Icons.edit_outlined,
-                color: AppColors.primary,
-              ),
-              title: const Text('Edit Meja'),
+              leading: const Icon(Icons.qr_code_2, color: AppColors.primary),
+              title: const Text('Lihat / Cetak QR meja'),
               onTap: () {
                 Navigator.pop(context);
-                _showTableForm(context, table: table);
+                _showTableQr(table);
               },
             ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: AppColors.danger,
+            if (table.status.toLowerCase() == 'terisi')
+              ListTile(
+                leading: const Icon(Icons.receipt_long_outlined),
+                title: const Text('Lihat pesanan aktif'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showOccupiedTable(context, table);
+                },
               ),
-              title: const Text(
-                'Hapus Meja',
-                style: TextStyle(color: AppColors.danger),
+            if (table.status.toLowerCase() != 'terisi') ...[
+              ListTile(
+                leading: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.primary,
+                ),
+                title: const Text('Edit Meja'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showTableForm(context, table: table);
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDelete(context, table);
-              },
-            ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.danger,
+                ),
+                title: const Text(
+                  'Hapus Meja',
+                  style: TextStyle(color: AppColors.danger),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(context, table);
+                },
+              ),
+            ],
             const SizedBox(height: 8),
           ],
         ),
@@ -994,14 +1180,13 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     if (_isTablet) {
       showDialog(
         context: context,
-        builder: (_) => Dialog(
+        builder: (_) => PosKeyboardStableDialog(
+          width: 420,
+          height: 600,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          child: SizedBox(
-            width: 420,
-            child: _TableFormContent(table: table, bloc: bloc),
-          ),
+          child: _TableFormContent(table: table, bloc: bloc),
         ),
       );
     } else {
@@ -1011,10 +1196,8 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
-        builder: (_) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
+        builder: (_) => PosKeyboardStableSheet(
+          heightFactor: .82,
           child: _TableFormContent(table: table, bloc: bloc),
         ),
       );
@@ -1095,7 +1278,12 @@ class _TableFormContentState extends State<_TableFormContent> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          24 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: Form(
           key: _formKey,
           child: Column(

@@ -82,6 +82,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   bool _autoPrintReceipt = false;
   bool _allowKasirPriceEdit = false;
   bool _allowOutOfShift = false;
+  bool _webOrderPayBeforeProcessing = false;
   bool _posLockEnabled = true;
   bool _posLockOnBackground = true;
 
@@ -508,6 +509,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
     _autoPrintReceipt = s.autoPrintReceipt ?? false;
     _allowKasirPriceEdit = s.allowKasirPriceEdit ?? false;
     _allowOutOfShift = s.allowOutOfShift ?? false;
+    _webOrderPayBeforeProcessing = s.webOrderPayBeforeProcessing ?? false;
     _posLockEnabled = s.posLockEnabled ?? true;
     _posLockOnBackground = s.posLockOnBackground ?? true;
 
@@ -559,6 +561,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       'auto_print_receipt': _autoPrintReceipt,
       'allow_kasir_price_edit': _allowKasirPriceEdit,
       'allow_out_of_shift': _allowOutOfShift,
+      'web_order_pay_before_processing': _webOrderPayBeforeProcessing,
       'expired_sale_policy': _expiredSalePolicy,
       'pos_lock_enabled': _posLockEnabled,
       'pos_lock_on_background': _posLockOnBackground,
@@ -871,6 +874,14 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             'Default Catatan',
             _defaultCatatanController,
             maxLines: 3,
+          ),
+          _buildSwitch(
+            'Pesanan QR diproses setelah bayar di kasir',
+            _webOrderPayBeforeProcessing,
+            (value) => setState(() => _webOrderPayBeforeProcessing = value),
+          ),
+          const Text(
+            'Web Order saat ini hanya menerima pembayaran langsung di kasir; pembayaran online belum tersedia.',
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_event.dart';
 import '../../bloc/pos/pos_state.dart';
@@ -10,6 +11,8 @@ import 'pos_success_page.dart';
 import '../../../../injections.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/models/pos_customer.dart';
 import 'widgets/pos_quick_customer_dialog.dart';
@@ -17,8 +20,16 @@ import 'widgets/pos_quick_customer_dialog.dart';
 class PosPaymentPage extends StatefulWidget {
   final PosOrder? pendingOrder;
   final PosCustomer? initialCustomer;
+  final String requestedCustomerName;
+  final String requestedCustomerPhone;
 
-  const PosPaymentPage({super.key, this.pendingOrder, this.initialCustomer});
+  const PosPaymentPage({
+    super.key,
+    this.pendingOrder,
+    this.initialCustomer,
+    this.requestedCustomerName = '',
+    this.requestedCustomerPhone = '',
+  });
 
   @override
   State<PosPaymentPage> createState() => _PosPaymentPageState();
@@ -30,6 +41,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   List<Map<String, dynamic>> _splitPayments = [];
   String _invoiceNote = '';
   bool _creatingInvoice = false;
+  bool _invoiceFlowOpen = false;
+  final String _invoiceRequestId = const Uuid().v4();
   bool _payingPendingInvoice = false;
   bool _customerPromptOpen = false;
   PosCustomer? _paymentCustomer;
@@ -683,7 +696,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                 0.01) ||
                                         (_paymentMethod != 'Tunai' &&
                                             _paymentMethod != 'Pisah Bayar') ||
-                                        _cashReceived >= total)
+                                        _cashReceived + 0.5 >= total)
                                   ? () async {
                                       final normalizedMethod =
                                           switch (_paymentMethod) {
@@ -697,6 +710,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             _ => '',
                                           };
                                       if (normalizedMethod.isEmpty) return;
+                                      if (widget.pendingOrder == null &&
+                                          state.orderType == 'reservation') {
+                                        await _createInvoice(
+                                          context,
+                                          state,
+                                          continueToPayment: true,
+                                        );
+                                        return;
+                                      }
                                       if (!await _ensureServiceOrder(state)) {
                                         return;
                                       }
@@ -756,7 +778,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             fontSize: 18,
                                             color:
                                                 (_paymentMethod != 'Tunai' ||
-                                                    _cashReceived >= total)
+                                                    _cashReceived + 0.5 >=
+                                                        total)
                                                 ? Colors.white
                                                 : Colors.grey,
                                           ),
@@ -765,7 +788,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                           Icons.chevron_right,
                                           color:
                                               (_paymentMethod != 'Tunai' ||
-                                                  _cashReceived >= total)
+                                                  _cashReceived + 0.5 >= total)
                                               ? Colors.white
                                               : Colors.grey,
                                         ),
@@ -792,38 +815,51 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final reasonController = TextEditingController();
     final authorization = await showDialog<Map<String, String>>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
-        title: const Text('Otorisasi Barang Kedaluwarsa'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+      builder: (dialogContext) => PosKeyboardStableFormDialog(
+        width: 480,
+        height: 540,
+        title: const Row(
           children: [
-            TextField(
-              controller: usernameController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Username supervisor',
-              ),
-            ),
-            TextField(
-              controller: pinController,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'PIN supervisor'),
-            ),
-            TextField(
-              controller: reasonController,
-              minLines: 2,
-              maxLines: 4,
-              maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Alasan penjualan',
-                hintText: 'Minimal 5 karakter',
-              ),
-            ),
+            Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+            SizedBox(width: 8),
+            Expanded(child: Text('Otorisasi Barang Kedaluwarsa')),
           ],
+        ),
+        content: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(dialogContext).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: usernameController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Username supervisor',
+                ),
+              ),
+              TextField(
+                controller: pinController,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(labelText: 'PIN supervisor'),
+              ),
+              TextField(
+                controller: reasonController,
+                minLines: 2,
+                maxLines: 4,
+                maxLength: 500,
+                decoration: const InputDecoration(
+                  labelText: 'Alasan penjualan',
+                  hintText: 'Minimal 5 karakter',
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -916,13 +952,19 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => PosKeyboardStableFormDialog(
+          width: 520,
+          height: 620,
           title: Text(
             profile == 'laundry' ? 'Detail cucian' : 'Detail layanan',
           ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1231,11 +1273,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     if (!await _ensureRequiredCustomer(state)) {
       return;
     }
+    if (!mounted) return;
     setState(() => _payingPendingInvoice = true);
     final result = await sl<PosRepository>().payPendingOrder(
       orderId: order.id,
       method: method,
-      cashReceived: method == 'tunai' ? _cashReceived : order.total,
+      cashReceived: (method == 'tunai' ? _cashReceived : order.total)
+          .roundToDouble(),
       splitPayments: method == 'split' ? _splitPayments : const [],
       customerId:
           _paymentCustomer?.id ??
@@ -1270,7 +1314,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final orderType = widget.pendingOrder?.orderType.isNotEmpty == true
         ? widget.pendingOrder!.orderType
         : state.orderType;
-    return (state.runtimeConfig['features'] as Map?)?['require_customer'] ==
+    return widget.requestedCustomerPhone.isNotEmpty ||
+        widget.pendingOrder?.customerProfileRequested == true ||
+        (state.runtimeConfig['features'] as Map?)?['require_customer'] ==
             true ||
         const {
           'delivery',
@@ -1296,6 +1342,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       (_orderHasNamedCustomer() ? widget.pendingOrder!.customer : null) ??
       'Pilih pelanggan';
 
+  String get _requestedCustomerPhone => widget.requestedCustomerPhone.isNotEmpty
+      ? widget.requestedCustomerPhone
+      : widget.pendingOrder?.customerPhone ?? '';
+
+  String get _requestedCustomerName => widget.requestedCustomerName.isNotEmpty
+      ? widget.requestedCustomerName
+      : widget.pendingOrder?.customer ?? '';
+
   Future<bool> _selectPaymentCustomer(PosState state) async {
     final customers = state.customers;
     final selected = await showModalBottomSheet<PosCustomer>(
@@ -1316,7 +1370,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       customer.phone.toLowerCase().contains(needle),
                 )
                 .toList();
-            return FractionallySizedBox(
+            return PosKeyboardStableSheet(
               heightFactor: .68,
               child: Column(
                 children: [
@@ -1356,6 +1410,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         onPressed: () async {
                           final created = await showPosQuickCustomerDialog(
                             context,
+                            initialName: _requestedCustomerName,
+                            initialPhone: _requestedCustomerPhone,
+                            requirePhone:
+                                widget.pendingOrder?.customerProfileRequested ==
+                                    true ||
+                                _requestedCustomerPhone.isNotEmpty,
                           );
                           if (created != null && sheetContext.mounted) {
                             Navigator.pop(sheetContext, created);
@@ -1371,6 +1431,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     child: filtered.isEmpty
                         ? const Center(child: Text('Pelanggan tidak ditemukan'))
                         : ListView.separated(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.viewInsetsOf(context).bottom,
+                            ),
                             itemCount: filtered.length,
                             separatorBuilder: (_, __) =>
                                 const Divider(height: 1),
@@ -1407,7 +1470,11 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     if (!_requiresCustomer(state) || _hasCustomer(state)) return true;
     return _showRequiredCustomerFlow(
       state,
-      message: 'Profil atau tipe pemenuhan ini mewajibkan pelanggan.',
+      message:
+          widget.pendingOrder?.customerProfileRequested == true ||
+              _requestedCustomerPhone.isNotEmpty
+          ? 'Pemesan meminta menjadi pelanggan dengan nomor $_requestedCustomerPhone. Konfirmasi lalu pilih profil yang ada atau tambah pelanggan baru.'
+          : 'Profil atau tipe pemenuhan ini mewajibkan pelanggan.',
     );
   }
 
@@ -1659,68 +1726,76 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           String dateLabel(DateTime? value) => value == null
               ? 'Pilih tanggal & waktu'
               : DateFormat('dd MMM yyyy, HH:mm').format(value);
-          return AlertDialog(
+          return PosKeyboardStableFormDialog(
+            width: 480,
+            height: 520,
             title: const Text('Detail reservasi'),
-            content: SizedBox(
-              width: 480,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Mulai reservasi *'),
-                    subtitle: Text(dateLabel(start)),
-                    trailing: const Icon(Icons.event_outlined),
-                    onTap: () => pickDateTime(true),
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Selesai reservasi *'),
-                    subtitle: Text(dateLabel(end)),
-                    trailing: const Icon(Icons.event_available_outlined),
-                    onTap: () => pickDateTime(false),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: guests,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Jumlah tamu',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: deposit,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.,]'),
+            content: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Mulai reservasi *'),
+                      subtitle: Text(dateLabel(start)),
+                      trailing: const Icon(Icons.event_outlined),
+                      onTap: () => pickDateTime(true),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Selesai reservasi *'),
+                      subtitle: Text(dateLabel(end)),
+                      trailing: const Icon(Icons.event_available_outlined),
+                      onTap: () => pickDateTime(false),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: guests,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Jumlah tamu',
                             ),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Deposit diminta',
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: deposit,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.,]'),
+                              ),
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Deposit diminta',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (error.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        error,
+                        style: const TextStyle(color: AppColors.danger),
                       ),
                     ],
-                  ),
-                  if (error.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      error,
-                      style: const TextStyle(color: AppColors.danger),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
             actions: [
@@ -1748,6 +1823,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   _reservationEndAt = end;
                   _reservationGuestCount = guestCount;
                   _reservationDepositAmount = depositAmount;
+                  if (_serviceOrder != null) {
+                    _serviceOrder = {
+                      ..._serviceOrder!,
+                      'appointment_at': start!.toIso8601String(),
+                    };
+                  }
                   Navigator.pop(dialogContext, true);
                 },
                 child: const Text('Simpan'),
@@ -1762,94 +1843,148 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     return result == true;
   }
 
-  Future<void> _createInvoice(BuildContext context, PosState state) async {
-    if (!await _ensureServiceOrder(state)) return;
-    if (!await _ensureReservationDetails(state)) return;
-    if (!context.mounted) return;
-    if (!await _ensureRequiredCustomer(state)) return;
-    if (!context.mounted) return;
-    if (state.orderType == 'dine_in' &&
-        (state.selectedTableId == null || state.selectedTableId!.isEmpty)) {
-      AppToast.warning(
-        context,
-        'Pilih meja terlebih dahulu dari halaman kasir.',
-      );
-      return;
-    }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          state.orderType == 'dine_in'
-              ? 'Simpan pesanan ke meja?'
-              : 'Jadikan Invoice?',
-        ),
-        content: Text(
-          state.orderType == 'dine_in'
-              ? 'Pesanan akan dicatat pada meja ${state.selectedTableName}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.'
-              : 'Pesanan akan disimpan sebagai tagihan belum dibayar. Stok belum dipotong sampai invoice dibayar dari Daftar Order.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+  Future<void> _createInvoice(
+    BuildContext context,
+    PosState state, {
+    bool continueToPayment = false,
+  }) async {
+    if (_invoiceFlowOpen || _creatingInvoice) return;
+    _invoiceFlowOpen = true;
+    try {
+      if (!await _ensureServiceOrder(state)) return;
+      if (!context.mounted) return;
+      if (!await _ensureReservationDetails(state)) return;
+      if (!context.mounted) return;
+      if (!await _ensureRequiredCustomer(state)) return;
+      if (!context.mounted) return;
+      state = context.read<PosBloc>().state;
+      if (state.orderType == 'dine_in' &&
+          (state.selectedTableId == null || state.selectedTableId!.isEmpty)) {
+        AppToast.warning(
+          context,
+          'Pilih meja terlebih dahulu dari halaman kasir.',
+        );
+        return;
+      }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            continueToPayment
+                ? 'Simpan reservasi & lanjut bayar?'
+                : state.orderType == 'dine_in'
+                ? 'Simpan pesanan ke meja?'
+                : 'Jadikan Invoice?',
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              state.orderType == 'dine_in' ? 'Simpan ke Meja' : 'Buat Invoice',
+          content: Text(
+            continueToPayment
+                ? 'Jadwal reservasi diperiksa sebelum pembayaran. Jika pembayaran dibatalkan, reservasi tetap tersedia di Pesanan Aktif untuk dilanjutkan.'
+                : state.orderType == 'dine_in'
+                ? 'Pesanan akan dicatat pada meja ${state.selectedTableName}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.'
+                : 'Pesanan akan disimpan sebagai tagihan belum dibayar. Stok belum dipotong sampai invoice dibayar dari Daftar Order.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
             ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() => _creatingInvoice = true);
-    final activeShift = state.activeShift;
-    final result = await sl<PosRepository>().createUnpaidInvoice(
-      cart: state.cart,
-      tokoId: activeShift?['toko_id']?.toString() ?? '',
-      shiftId: activeShift?['_id']?.toString() ?? '',
-      orderType: state.orderType,
-      tableId: state.selectedTableId,
-      customerId: state.selectedCustomer?.id ?? widget.initialCustomer?.id,
-      customerName:
-          state.selectedCustomer?.name ?? widget.initialCustomer?.name,
-      note: _invoiceNote,
-      discountPercent: state.subTotal > 0
-          ? (state.totalDiscount / state.subTotal * 100)
-                .clamp(0, 100)
-                .toDouble()
-          : 0,
-      taxPercent: state.taxPercent,
-      salesChannel: state.salesChannel,
-      customerSegment: state.customerSegment,
-      priceLevel: state.priceLevel,
-      itemPrices: {
-        for (final product in state.cart.keys)
-          product.id: state.unitPriceFor(product),
-      },
-      serviceOrder: _serviceOrder,
-      reservationStartAt: _reservationStartAt,
-      reservationEndAt: _reservationEndAt,
-      reservationGuestCount: _reservationGuestCount,
-      reservationDepositAmount: _reservationDepositAmount,
-    );
-    if (!mounted) return;
-    setState(() => _creatingInvoice = false);
-    result.fold((failure) => AppToast.error(context, failure.message), (
-      invoice,
-    ) {
-      context.read<PosBloc>().add(ClearCart());
-      context.read<PosBloc>().add(RefreshOrders());
-      AppToast.success(
-        context,
-        state.orderType == 'dine_in'
-            ? 'Pesanan meja ${state.selectedTableName ?? ''} berhasil disimpan.'
-            : 'Invoice ${invoice['order_no'] ?? ''} berhasil dibuat.',
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                state.orderType == 'dine_in'
+                    ? 'Simpan ke Meja'
+                    : 'Buat Invoice',
+              ),
+            ),
+          ],
+        ),
       );
-      Navigator.pop(context);
-    });
+      if (confirmed != true || !mounted) return;
+      setState(() => _creatingInvoice = true);
+      final activeShift = state.activeShift;
+      final result = await sl<PosRepository>().createUnpaidInvoice(
+        clientRequestId: _invoiceRequestId,
+        cart: state.cart,
+        tokoId: activeShift?['toko_id']?.toString() ?? '',
+        shiftId: activeShift?['_id']?.toString() ?? '',
+        orderType: state.orderType,
+        tableId: state.selectedTableId,
+        customerId: state.selectedCustomer?.id ?? widget.initialCustomer?.id,
+        customerName:
+            state.selectedCustomer?.name ?? widget.initialCustomer?.name,
+        note: _invoiceNote,
+        discountPercent: state.subTotal > 0
+            ? (state.totalDiscount / state.subTotal * 100)
+                  .clamp(0, 100)
+                  .toDouble()
+            : 0,
+        taxPercent: state.taxPercent,
+        salesChannel: state.salesChannel,
+        customerSegment: state.customerSegment,
+        priceLevel: state.priceLevel,
+        itemPrices: {
+          for (final product in state.cart.keys)
+            product.id: state.unitPriceFor(product),
+        },
+        serviceOrder: _serviceOrder,
+        reservationStartAt: _reservationStartAt,
+        reservationEndAt: _reservationEndAt,
+        reservationGuestCount: _reservationGuestCount,
+        reservationDepositAmount: _reservationDepositAmount,
+        expectedTotal: state.grandTotal,
+      );
+      if (!mounted) return;
+      setState(() => _creatingInvoice = false);
+      result.fold((failure) => AppToast.error(context, failure.message), (
+        invoice,
+      ) {
+        context.read<PosBloc>().add(ClearCart());
+        if (invoice['offline_queued'] == true) {
+          AppToast.warning(
+            context,
+            'Invoice offline tersimpan. Belum bisa dibayar; cek Antrean & Sinkronisasi.',
+          );
+          Navigator.pop(context);
+          return;
+        }
+        context.read<PosBloc>().add(RefreshOrders());
+        if (continueToPayment) {
+          final bloc = context.read<PosBloc>();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(
+              builder: (_) => BlocProvider.value(
+                value: bloc,
+                child: PosPaymentPage(
+                  pendingOrder: PosOrder.fromPendingOrderJson({
+                    ...invoice,
+                    'tipe_pesanan': state.orderType,
+                    'pelanggan_id':
+                        state.selectedCustomer?.id ??
+                        widget.initialCustomer?.id,
+                    'pelanggan_nama':
+                        state.selectedCustomer?.name ??
+                        widget.initialCustomer?.name,
+                  }),
+                  initialCustomer:
+                      state.selectedCustomer ?? widget.initialCustomer,
+                ),
+              ),
+            ),
+          );
+          return;
+        }
+        AppToast.success(
+          context,
+          state.orderType == 'dine_in'
+              ? 'Pesanan meja ${state.selectedTableName ?? ''} berhasil disimpan.'
+              : 'Invoice ${invoice['order_no'] ?? ''} berhasil dibuat.',
+        );
+        Navigator.pop(context);
+      });
+    } finally {
+      _invoiceFlowOpen = false;
+      if (mounted && _creatingInvoice) setState(() => _creatingInvoice = false);
+    }
   }
 
   Future<void> _enterCustomCash() async {
@@ -1911,11 +2046,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               drafts.length >= 2 &&
               drafts.every((draft) => draft.amount > 0) &&
               difference.abs() < 0.01;
-          return AlertDialog(
+          return PosKeyboardStableFormDialog(
+            width: 560,
+            height: 590,
             title: const Text('Pisah Bayar'),
             content: SizedBox(
               width: 560,
               child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

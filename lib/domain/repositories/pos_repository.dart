@@ -6,12 +6,16 @@ import 'package:uuid/uuid.dart';
 import '../../core/error/failures.dart';
 import '../../core/error/error_handler.dart';
 import '../../core/network/graphql_client_provider.dart';
+import '../../core/network/offline_network_failure.dart';
+import '../../core/network/pos_operator_identity.dart';
 import '../../core/database/database_platform_initializer.dart';
 import '../../core/utils/logger.dart';
 import '../../data/graphql/pos_queries.dart';
 import '../../data/graphql/pos_return_queries.dart';
 import '../../data/datasources/local/pos_local_database.dart';
+import '../../data/datasources/local/pos_offline_pin_store.dart';
 import '../models/pos_product.dart';
+import '../models/pos_offline_stock.dart';
 import '../models/pos_customer.dart';
 import '../models/pos_store.dart';
 import '../models/pos_order.dart';
@@ -228,19 +232,78 @@ class PosRepository {
   }
 
   Future<Map<String, dynamic>> getDashboardData({int days = 7}) async {
-    final result = await _clientProvider.client.query(
-      QueryOptions(
-        document: gql(PosQueries.getPOSDashboardData),
-        variables: {'days': days},
-        fetchPolicy: FetchPolicy.networkOnly,
-      ),
-    );
-    if (result.hasException) throw result.exception!;
-    final data = result.data?['GetPOSDashboardData'];
-    if (data is! Map) {
-      throw const ServerFailure('Data dashboard POS tidak tersedia');
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosQueries.getPOSDashboardData),
+          variables: {'days': days},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) throw result.exception!;
+      final data = result.data?['GetPOSDashboardData'];
+      if (data is! Map) {
+        throw const ServerFailure('Data dashboard POS tidak tersedia');
+      }
+      final dashboard = Map<String, dynamic>.from(data)
+        ..['_offline_snapshot'] = false;
+      await _saveDashboardSnapshot(days, dashboard);
+      return dashboard;
+    } catch (error) {
+      final snapshot = _readDashboardSnapshot(days);
+      if (snapshot != null) return snapshot;
+      rethrow;
     }
-    return Map<String, dynamic>.from(data);
+  }
+
+  String _dashboardSnapshotKey(int days) {
+    final tenant = _prefs.getString('instansi_id')?.trim() ?? '';
+    final user =
+        _prefs.getString('user_id')?.trim() ??
+        _prefs.getString('username')?.trim().toLowerCase() ??
+        '';
+    // Dashboard may reveal turnover, therefore it must never be shared with a
+    // different account on the same device.
+    return 'pos_dashboard_snapshot_v1:$tenant:$user:$days';
+  }
+
+  Future<void> _saveDashboardSnapshot(
+    int days,
+    Map<String, dynamic> dashboard,
+  ) async {
+    try {
+      final snapshot = Map<String, dynamic>.from(dashboard)
+        ..remove('_offline_snapshot');
+      await _prefs.setString(
+        _dashboardSnapshotKey(days),
+        jsonEncode({
+          'cached_at': DateTime.now().toUtc().toIso8601String(),
+          'data': snapshot,
+        }),
+      );
+    } catch (error, stackTrace) {
+      // Dashboard cache is optional and must not make a successful online
+      // dashboard load fail (for example when platform storage is full).
+      appLogger.w(
+        '[POS] Dashboard snapshot tidak dapat disimpan',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Map<String, dynamic>? _readDashboardSnapshot(int days) {
+    try {
+      final raw = _prefs.getString(_dashboardSnapshotKey(days));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map || decoded['data'] is! Map) return null;
+      return Map<String, dynamic>.from(decoded['data'] as Map)
+        ..['_offline_snapshot'] = true
+        ..['_offline_cached_at'] = decoded['cached_at']?.toString() ?? '';
+    } catch (_) {
+      return null;
+    }
   }
 
   String get _heldOrderUserKey =>
@@ -436,6 +499,16 @@ class PosRepository {
     bool? hasPin,
   }) async {
     try {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        final cached = await _offlinePinStore().employees(search: search);
+        if (cached.isNotEmpty) return Right(cached);
+        return const Left(
+          ServerFailure(
+            'Perangkat sedang offline. Operator belum memiliki cache PIN lokal; sambungkan internet sekali untuk verifikasi awal.',
+          ),
+        );
+      }
       final result = await _clientProvider.client.query(
         QueryOptions(
           document: gql(PosQueries.getPOSPinUsers),
@@ -448,20 +521,28 @@ class PosRepository {
         ),
       );
       if (result.hasException) {
+        final cached = await _offlinePinStore().employees(search: search);
+        if (cached.isNotEmpty) return Right(cached);
         return Left(AppErrorHandler.handle(result.exception!));
       }
       final rows =
           result.data?['GetPOSPinUsers']?['items'] as List? ?? const [];
-      return Right(
-        rows.map((row) {
-          final employee = Map<String, dynamic>.from(row as Map);
-          employee['photo_url'] = _clientProvider.resolveMediaUrl(
-            employee['photo_url'],
-          );
-          return employee;
-        }).toList(),
+      final employees = rows.map((row) {
+        final employee = Map<String, dynamic>.from(row as Map);
+        employee['photo_url'] = _clientProvider.resolveMediaUrl(
+          employee['photo_url'],
+        );
+        return employee;
+      }).toList();
+      await _offlinePinStore().cacheEmployees(
+        employees,
+        completeRoster:
+            search.trim().isEmpty && hasPin == null && employees.length < 100,
       );
+      return Right(employees);
     } catch (error) {
+      final cached = await _offlinePinStore().employees(search: search);
+      if (cached.isNotEmpty) return Right(cached);
       return Left(AppErrorHandler.handle(error));
     }
   }
@@ -471,9 +552,22 @@ class PosRepository {
     String pin,
   ) async {
     try {
-      if (!await _clientProvider.hasAccessToken()) {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        final local = await _offlinePinStore().verify(userId, pin);
+        if (local != null) return Right(local);
         return const Left(
-          AuthFailure('Sesi telah berakhir. Silakan login kembali.'),
+          ServerFailure(
+            'PIN offline belum tersedia di perangkat. Verifikasi operator saat online terlebih dahulu.',
+          ),
+        );
+      }
+      final hasToken = await _clientProvider.hasAccessToken();
+      if (!hasToken) {
+        final local = await _offlinePinStore().verify(userId, pin);
+        if (local != null) return Right(local);
+        return const Left(
+          AuthFailure('Sesi login dan cache PIN offline tidak ditemukan.'),
         );
       }
       final result = await _clientProvider.client.mutate(
@@ -483,17 +577,41 @@ class PosRepository {
         ),
       );
       if (result.hasException) {
+        if (!_isRetryableNetworkFailure(result.exception)) {
+          await _offlinePinStore().invalidate(userId);
+          return Left(AppErrorHandler.handle(result.exception!));
+        }
+        final local = await _offlinePinStore().verify(userId, pin);
+        if (local != null) return Right(local);
         return Left(AppErrorHandler.handle(result.exception!));
       }
       final data = result.data?['VerifyPOSUserPin'];
       if (data is! Map) {
         return const Left(ServerFailure('Verifikasi operator tidak tersedia'));
       }
-      return Right(Map<String, dynamic>.from(data));
+      final response = Map<String, dynamic>.from(data);
+      if (response['success'] == true) {
+        await _offlinePinStore().cacheVerifiedPin(
+          userId: userId,
+          pin: pin,
+          response: response,
+        );
+      } else {
+        await _offlinePinStore().invalidate(userId);
+      }
+      return Right(response);
     } catch (error) {
+      if (error is LinkException ||
+          (error is OperationException && _isRetryableNetworkFailure(error))) {
+        final local = await _offlinePinStore().verify(userId, pin);
+        if (local != null) return Right(local);
+      }
       return Left(AppErrorHandler.handle(error));
     }
   }
+
+  PosOfflinePinStore _offlinePinStore() =>
+      PosOfflinePinStore(scope: _prefs.getString('instansi_id') ?? 'default');
 
   Future<Either<Failure, String>> adminSetPOSPin(String userId, String pin) =>
       _adminPinMutation(
@@ -594,6 +712,7 @@ class PosRepository {
                   : 'Belum dikategorikan',
               categoryId: e['merchandise_category_id']?.toString() ?? '',
               productType: e['pos_product_type']?.toString() ?? 'product',
+              compositionType: e['composition_type']?.toString() ?? '',
               promoEligible: e['promo_eligible'] == true,
               tracksStock:
                   (e['pos_package_components'] as List? ?? const [])
@@ -711,6 +830,7 @@ class PosRepository {
                   : 'Belum dikategorikan',
               categoryId: row['merchandise_category_id']?.toString() ?? '',
               productType: row['pos_product_type']?.toString() ?? 'product',
+              compositionType: row['composition_type']?.toString() ?? '',
               promoEligible: row['promo_eligible'] == true,
               tracksStock:
                   (row['pos_package_components'] as List? ?? const [])
@@ -784,33 +904,46 @@ class PosRepository {
       final result = await db.query('products');
       return result
           .map(
-            (e) => PosProduct(
-              id: e['id'] as String,
-              code: e['code'] as String,
-              name: e['name'] as String,
-              category: e['category'] as String,
-              productType: e['product_type']?.toString() ?? 'product',
-              promoEligible: (e['promo_eligible'] as int? ?? 0) == 1,
-              tracksStock: (e['tracks_stock'] as int? ?? 1) == 1,
-              price: e['price'] as double,
-              stock: (e['stock'] as num).toDouble(),
-              sku: e['sku']?.toString() ?? '',
-              barcode: e['barcode']?.toString() ?? '',
-              imageUrl: e['image_url']?.toString() ?? '',
-              baseUnit: e['base_unit']?.toString() ?? 'unit',
-              unitConversions: _decodeUnitConversions(
-                e['unit_conversions']?.toString(),
-              ),
-              preparationMode: e['preparation_mode']?.toString() ?? 'instant',
-              productionStationId: e['production_station_id']?.toString() ?? '',
-              productionStationName:
-                  e['production_station_name']?.toString() ?? '',
-              prepTimeMinutes:
-                  int.tryParse(e['prep_time_minutes']?.toString() ?? '0') ?? 0,
-              allowStationOverride:
-                  e['allow_station_override'] == true ||
-                  e['allow_station_override'] == 1,
-            ),
+            (e) => (e['product_json']?.toString().isNotEmpty == true)
+                ? PosProduct.fromJson({
+                    ...Map<String, dynamic>.from(
+                      jsonDecode(e['product_json'] as String) as Map,
+                    ),
+                    'stock': e['stock'],
+                  })
+                : PosProduct(
+                    id: e['id'] as String,
+                    code: e['code'] as String,
+                    name: e['name'] as String,
+                    category: e['category'] as String,
+                    productType: e['product_type']?.toString() ?? 'product',
+                    compositionType: e['composition_type']?.toString() ?? '',
+                    promoEligible: (e['promo_eligible'] as int? ?? 0) == 1,
+                    tracksStock: (e['tracks_stock'] as int? ?? 1) == 1,
+                    price: e['price'] as double,
+                    stock: (e['stock'] as num).toDouble(),
+                    sku: e['sku']?.toString() ?? '',
+                    barcode: e['barcode']?.toString() ?? '',
+                    imageUrl: e['image_url']?.toString() ?? '',
+                    baseUnit: e['base_unit']?.toString() ?? 'unit',
+                    unitConversions: _decodeUnitConversions(
+                      e['unit_conversions']?.toString(),
+                    ),
+                    preparationMode:
+                        e['preparation_mode']?.toString() ?? 'instant',
+                    productionStationId:
+                        e['production_station_id']?.toString() ?? '',
+                    productionStationName:
+                        e['production_station_name']?.toString() ?? '',
+                    prepTimeMinutes:
+                        int.tryParse(
+                          e['prep_time_minutes']?.toString() ?? '0',
+                        ) ??
+                        0,
+                    allowStationOverride:
+                        e['allow_station_override'] == true ||
+                        e['allow_station_override'] == 1,
+                  ),
           )
           .toList();
     } catch (e) {
@@ -825,6 +958,7 @@ class PosRepository {
       batch.delete('products'); // Clear old data
       for (var product in products) {
         batch.insert('products', {
+          'product_json': jsonEncode(product.toJson()),
           'id': product.id,
           'code': product.code,
           'name': product.name,
@@ -1396,7 +1530,7 @@ class PosRepository {
       final pending =
           Sqflite.firstIntValue(
             await db.rawQuery(
-              "SELECT COUNT(*) FROM offline_transactions WHERE shift_id = ? AND status IN ('pending','syncing','needs_review')",
+              "SELECT COUNT(*) FROM offline_transactions WHERE shift_id = ? AND (status IN ('pending','syncing','needs_review') OR (status = 'rejected' AND (resolution IS NULL OR resolution != 'rejected_by_operator')))",
               [shiftId],
             ),
           ) ??
@@ -1557,6 +1691,7 @@ class PosRepository {
       'client_transaction_id': const Uuid().v4(),
       'tanggal': DateTime.now().toIso8601String(),
       'toko_id': tokoId,
+      if (shiftId.isNotEmpty) 'shift_id': shiftId,
       'pelanggan': pelangganName?.trim() ?? '',
       'pelanggan_id': pelangganId,
       'channel_penjualan': salesChannel,
@@ -1795,6 +1930,7 @@ class PosRepository {
   }
 
   Future<Either<Failure, Map<String, dynamic>>> createUnpaidInvoice({
+    String? clientRequestId,
     required Map<PosProduct, double> cart,
     required String tokoId,
     required String shiftId,
@@ -1814,57 +1950,87 @@ class PosRepository {
     DateTime? reservationEndAt,
     int reservationGuestCount = 1,
     double reservationDepositAmount = 0,
+    double? expectedTotal,
   }) async {
     try {
-      final result = await _clientProvider.client.mutate(
-        MutationOptions(
-          document: gql(PosQueries.createPOSInvoice),
-          variables: {
-            'input': {
-              'client_request_id': const Uuid().v4(),
-              if (_operatorSessionToken.isNotEmpty)
-                'operator_session_token': _operatorSessionToken,
-              'toko_id': tokoId,
-              'shift_id': shiftId,
-              'pelanggan_id': customerId,
-              'pelanggan_nama': customerName ?? '',
-              'channel': orderType == 'dine_in' ? 'Dine-In' : 'Take Away',
-              'sales_channel': salesChannel,
-              'customer_segment': customerSegment,
-              'price_level': priceLevel,
-              'tipe_pesanan': orderType,
-              if (tableId != null && tableId.isNotEmpty) 'table_id': tableId,
-              if (orderType == 'reservation' && reservationStartAt != null)
-                'reservation_start_at': reservationStartAt.toIso8601String(),
-              if (orderType == 'reservation' && reservationEndAt != null)
-                'reservation_end_at': reservationEndAt.toIso8601String(),
-              if (orderType == 'reservation')
-                'reservation_guest_count': reservationGuestCount,
-              if (orderType == 'reservation')
-                'reservation_deposit_amount': reservationDepositAmount,
-              'catatan': note ?? '',
-              'diskon_persen': discountPercent,
-              'pajak_persen': taxPercent,
-              'source': 'kasir',
-              if (serviceOrder != null) 'service_order': serviceOrder,
-              'items': cart.entries
-                  .map(
-                    (entry) => {
-                      'produk_id': entry.key.id,
-                      'nama': entry.key.name,
-                      'kode': entry.key.code,
-                      'qty': entry.value.toDouble(),
-                      'unit': entry.key.saleUnit,
-                      'harga_satuan':
-                          itemPrices[entry.key.id] ?? entry.key.price,
-                    },
-                  )
-                  .toList(),
-            },
-          },
-        ),
-      );
+      final requestId = clientRequestId ?? const Uuid().v4();
+      final input = <String, dynamic>{
+        'client_request_id': requestId,
+        if (_operatorSessionToken.isNotEmpty)
+          'operator_session_token': _operatorSessionToken,
+        'toko_id': tokoId,
+        'shift_id': shiftId,
+        'pelanggan_id': customerId,
+        'pelanggan_nama': customerName ?? '',
+        'channel': orderType == 'dine_in' ? 'Dine-In' : 'Take Away',
+        'sales_channel': salesChannel,
+        'customer_segment': customerSegment,
+        'price_level': priceLevel,
+        'tipe_pesanan': orderType,
+        if (tableId != null && tableId.isNotEmpty) 'table_id': tableId,
+        if (orderType == 'reservation' && reservationStartAt != null)
+          'reservation_start_at': reservationStartAt.toIso8601String(),
+        if (orderType == 'reservation' && reservationEndAt != null)
+          'reservation_end_at': reservationEndAt.toIso8601String(),
+        if (orderType == 'reservation')
+          'reservation_guest_count': reservationGuestCount,
+        if (orderType == 'reservation')
+          'reservation_deposit_amount': reservationDepositAmount,
+        'catatan': note ?? '',
+        'diskon_persen': discountPercent,
+        'pajak_persen': taxPercent,
+        'source': 'kasir',
+        if (serviceOrder != null) 'service_order': serviceOrder,
+        'items': cart.entries
+            .map(
+              (entry) => {
+                'produk_id': entry.key.id,
+                'nama': entry.key.name,
+                'kode': entry.key.code,
+                'qty': entry.value.toDouble(),
+                'unit': entry.key.saleUnit,
+                'harga_satuan': itemPrices[entry.key.id] ?? entry.key.price,
+              },
+            )
+            .toList(),
+      };
+      final QueryResult result;
+      try {
+        result = await _clientProvider.client.mutate(
+          MutationOptions(
+            document: gql(PosQueries.createPOSInvoice),
+            variables: {'input': input},
+          ),
+        );
+      } on LinkException catch (error) {
+        if (!supportsOfflineDatabase ||
+            !isRetryableOfflineNetworkFailure(
+              OperationException(linkException: error),
+            )) {
+          rethrow;
+        }
+        await _saveOrderToOfflineQueue(
+          input,
+          tokoId: tokoId,
+          shiftId: shiftId,
+          expectedTotal: expectedTotal,
+        );
+        return Right({'offline_queued': true, 'client_request_id': requestId});
+      }
       if (result.hasException) {
+        if (supportsOfflineDatabase &&
+            isRetryableOfflineNetworkFailure(result.exception)) {
+          await _saveOrderToOfflineQueue(
+            input,
+            tokoId: tokoId,
+            shiftId: shiftId,
+            expectedTotal: expectedTotal,
+          );
+          return Right({
+            'offline_queued': true,
+            'client_request_id': requestId,
+          });
+        }
         return Left(AppErrorHandler.handle(result.exception!));
       }
       final data = result.data?['CreatePOSOrder'];
@@ -1875,6 +2041,41 @@ class PosRepository {
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
     }
+  }
+
+  Future<void> _saveOrderToOfflineQueue(
+    Map<String, dynamic> input, {
+    required String tokoId,
+    required String shiftId,
+    double? expectedTotal,
+  }) async {
+    final instansiId = _prefs.getString('instansi_id') ?? '';
+    final requestId = input['client_request_id']?.toString() ?? '';
+    if (instansiId.isEmpty || tokoId.isEmpty || requestId.isEmpty) {
+      throw StateError(
+        'Identitas instansi, toko, atau pesanan offline belum tersedia',
+      );
+    }
+    final token = input['operator_session_token']?.toString() ?? '';
+    final operatorId = operatorIdFromToken(token);
+    final safeInput = Map<String, dynamic>.from(input)
+      ..remove('operator_session_token');
+    final db = await PosLocalDatabase.instance.database;
+    await db.insert('offline_transactions', {
+      'operation_kind': 'create_order',
+      'payload': jsonEncode(safeInput),
+      'status': 'pending',
+      'timestamp': DateTime.now().toIso8601String(),
+      'instansi_id': instansiId,
+      'toko_id': tokoId,
+      'shift_id': shiftId,
+      'client_transaction_id': requestId,
+      'client_snapshot': jsonEncode({
+        if (expectedTotal != null) 'total': expectedTotal,
+        'item_count': (input['items'] as List?)?.length ?? 0,
+        if (operatorId.isNotEmpty) 'operator_user_id': operatorId,
+      }),
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<Either<Failure, Map<String, dynamic>>> previewPricing({
@@ -1948,6 +2149,14 @@ class PosRepository {
     }
     if (linkException is HttpLinkServerException) {
       final status = linkException.response.statusCode;
+      return status >= 500 || status == 408 || status == 429;
+    }
+    if (linkException is HttpLinkParserException) {
+      final status = linkException.response.statusCode;
+      return status >= 500 || status == 408 || status == 429;
+    }
+    if (linkException is ServerException && linkException.statusCode != null) {
+      final status = linkException.statusCode!;
       return status >= 500 || status == 408 || status == 429;
     }
     return true;
@@ -2040,27 +2249,95 @@ class PosRepository {
     }
     final db = await PosLocalDatabase.instance.database;
     await db.transaction((txn) async {
+      final cachedRows = await txn.query('products');
+      final catalog = <String, PosProduct>{
+        for (final row in cachedRows)
+          if (row['product_json']?.toString().isNotEmpty == true)
+            row['id'] as String: PosProduct.fromJson({
+              ...Map<String, dynamic>.from(
+                jsonDecode(row['product_json'] as String) as Map,
+              ),
+              'stock': row['stock'],
+            }),
+      };
+      final existing = await txn.query(
+        'offline_transactions',
+        columns: ['id'],
+        where: 'client_transaction_id = ?',
+        whereArgs: [clientTransactionId],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) return;
+      bool trackStock = true;
+      try {
+        final config =
+            jsonDecode(_prefs.getString('pos_runtime_config') ?? '{}') as Map;
+        trackStock = (config['features'] as Map?)?['track_stock'] != false;
+      } on FormatException {
+        // Invalid cache must retain the conservative stock checks.
+      }
+      final consumption = offlineStockConsumption(
+        catalog,
+        (payload['items'] as List).map(
+          (item) => Map<String, dynamic>.from(item as Map),
+        ),
+        trackStock: trackStock,
+      );
+      final operatorUserId = operatorIdFromToken(
+        payload['operator_session_token']?.toString() ?? '',
+      );
+      final safePayload = Map<String, dynamic>.from(payload)
+        ..remove('operator_session_token');
       final rowId = await txn.insert('offline_transactions', {
-        'payload': jsonEncode(payload),
+        'payload': jsonEncode(safePayload),
         'status': 'pending',
         'timestamp': DateTime.now().toIso8601String(),
         'instansi_id': _prefs.getString('instansi_id') ?? '',
         'toko_id': tokoId,
         'shift_id': shiftId,
         'client_transaction_id': clientTransactionId,
-        'client_snapshot': jsonEncode(clientSnapshot),
+        'client_snapshot': jsonEncode({
+          ...clientSnapshot,
+          if (operatorUserId.isNotEmpty) 'operator_user_id': operatorUserId,
+        }),
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
       // Baris sudah ada berarti payload ini pernah disimpan. Jangan kurangi
       // cache stok untuk kedua kalinya.
       if (rowId == 0) return;
-      for (final rawItem in payload['items'] as List<dynamic>? ?? const []) {
-        final item = Map<String, dynamic>.from(rawItem as Map);
-        final productId = item['inventaris_id']?.toString();
-        final qty = (item['qty'] as num?)?.toDouble() ?? 0;
-        if (productId == null || qty <= 0) continue;
+      for (final entry in consumption.entries) {
         await txn.rawUpdate(
           'UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ?',
-          [qty, productId],
+          [entry.value, entry.key],
+        );
+        catalog[entry.key] = PosProduct.fromJson({
+          ...catalog[entry.key]!.toJson(),
+          'stock': catalog[entry.key]!.stock - entry.value,
+        });
+      }
+      // Derived availability must also follow shared ingredients after a sale.
+      if (!trackStock) return;
+      for (final product in catalog.values.where(
+        (p) => p.packageComponents.isNotEmpty,
+      )) {
+        double available = 0;
+        try {
+          final perUnit = offlineStockConsumption(catalog, [
+            {'inventaris_id': product.id, 'qty': 1, 'unit': product.saleUnit},
+          ], validateStock: false);
+          if (perUnit.isNotEmpty) {
+            available = perUnit.entries
+                .map((e) => catalog[e.key]!.stock / e.value)
+                .reduce((a, b) => a < b ? a : b)
+                .floorToDouble();
+          }
+        } on StateError {
+          // Missing recipe data must never advertise stock available offline.
+        }
+        await txn.update(
+          'products',
+          {'stock': available},
+          where: 'id = ?',
+          whereArgs: [product.id],
         );
       }
     });

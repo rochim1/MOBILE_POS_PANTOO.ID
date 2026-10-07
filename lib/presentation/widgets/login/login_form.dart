@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,6 +23,8 @@ class _LoginFormState extends State<LoginForm> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _captchaController = TextEditingController();
+  final _captchaFocusNode = FocusNode();
   bool _obscurePassword = true;
 
   @override
@@ -36,14 +40,25 @@ class _LoginFormState extends State<LoginForm> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _captchaController.dispose();
+    _captchaFocusNode.dispose();
     super.dispose();
   }
 
   void _onLoginTap() {
-    if (!_formKey.currentState!.validate()) return;
+    final status = context.read<AuthCubit>().state;
+    if (status.isCheckingSession ||
+        status.isAuthenticating ||
+        status.isAuthenticated) {
+      return;
+    }
+    if (_formKey.currentState?.validate() != true) return;
     context.read<AuthCubit>().login(
       _usernameController.text.trim(),
       _passwordController.text,
+      captchaAnswer: status.captcha == null
+          ? null
+          : _captchaController.text.trim(),
     );
   }
 
@@ -99,9 +114,15 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthCubit, AuthState>(
+    return BlocConsumer<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state.isFailure) _captchaController.clear();
+      },
       builder: (context, state) {
-        final isLoading = state.isAuthenticating;
+        final isLoading =
+            state.isCheckingSession ||
+            state.isAuthenticating ||
+            state.isAuthenticated;
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -154,6 +175,12 @@ class _LoginFormState extends State<LoginForm> {
                     controller: _usernameController,
                     decoration: const InputDecoration(labelText: 'Username'),
                     textInputAction: TextInputAction.next,
+                    onChanged: (_) {
+                      if (context.read<AuthCubit>().state.captcha != null) {
+                        _captchaController.clear();
+                        context.read<AuthCubit>().clearCaptcha();
+                      }
+                    },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Username wajib diisi';
@@ -182,7 +209,13 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _onLoginTap(),
+                    onFieldSubmitted: (_) {
+                      if (state.captcha != null) {
+                        _captchaFocusNode.requestFocus();
+                      } else {
+                        _onLoginTap();
+                      }
+                    },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Password wajib diisi';
@@ -190,6 +223,48 @@ class _LoginFormState extends State<LoginForm> {
                       return null;
                     },
                   ),
+                  if (state.captcha != null) ...[
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Verifikasi CAPTCHA',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Image.memory(
+                      base64Decode(state.captcha!.image.split(',').last),
+                      width: 190,
+                      height: 55,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'Kode CAPTCHA enam karakter',
+                      errorBuilder: (_, __, ___) => const Text(
+                        'Gambar CAPTCHA tidak dapat ditampilkan. Coba login kembali.',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _captchaController,
+                      focusNode: _captchaFocusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Kode CAPTCHA',
+                        hintText: 'Ketik enam karakter pada gambar',
+                      ),
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      textCapitalization: TextCapitalization.characters,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _onLoginTap(),
+                      validator: (value) {
+                        if (state.captcha == null) return null;
+                        if ((value?.trim().length ?? 0) != 6) {
+                          return 'Masukkan enam karakter CAPTCHA';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -197,7 +272,14 @@ class _LoginFormState extends State<LoginForm> {
                     child: ElevatedButton(
                       onPressed: isLoading ? null : _onLoginTap,
                       child: isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : const Text('Masuk'),
                     ),
                   ),
@@ -226,7 +308,9 @@ class _LoginFormState extends State<LoginForm> {
                       ),
                     ],
                   ),
-                  if (!state.isAuthenticated && state.isFailure) ...[
+                  if (!state.isAuthenticated &&
+                      state.isFailure &&
+                      state.captcha == null) ...[
                     const SizedBox(height: 16),
                     Text(
                       state.error ?? 'Login gagal.',

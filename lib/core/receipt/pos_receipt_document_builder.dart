@@ -70,17 +70,23 @@ class PosReceiptDocumentBuilder {
     );
     final pageFormat = pageFormatFor(template, data.items.length);
     final fontSize = (template.fontSize ?? 12).clamp(8, 18).toDouble();
-    final headerTitle = _resolve(template.headerTitle, company);
-    final headerLines = [
-      template.headerSubtitle,
-      template.headerLine3,
-      template.headerLine4,
-    ].map((line) => _resolve(line, company)).where((line) => line.isNotEmpty);
-    final footerLines = [
-      template.footerLine1,
-      template.footerLine2,
-      template.footerLine3,
-    ].map((line) => _resolve(line, company)).where((line) => line.isNotEmpty);
+    final headerTitle = _resolve(
+      template.headerTitle,
+      company,
+      cashierName: data.cashierName,
+    );
+    final headerLines =
+        [template.headerSubtitle, template.headerLine3, template.headerLine4]
+            .map(
+              (line) => _resolve(line, company, cashierName: data.cashierName),
+            )
+            .where((line) => line.isNotEmpty);
+    final footerLines =
+        [template.footerLine1, template.footerLine2, template.footerLine3]
+            .map(
+              (line) => _resolve(line, company, cashierName: data.cashierName),
+            )
+            .where((line) => line.isNotEmpty);
     final logo = await _loadLogo(template, company);
 
     document.addPage(
@@ -207,6 +213,104 @@ class PosReceiptDocumentBuilder {
     );
   }
 
+  /// Text equivalent of [build] for ESC/POS Bluetooth printers. It follows
+  /// the exact same template switches, ordering, placeholder resolution and
+  /// footer rules as the PDF renderer, while avoiding PDF/raster conversion.
+  static String buildThermalText({
+    required PosReceiptDocumentData data,
+    required PosReceiptTemplate template,
+    required Map<String, String> company,
+  }) {
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    final lines = <String>[];
+    void add(String value) {
+      if (value.trim().isNotEmpty) lines.add(value.trim());
+    }
+
+    final title = _resolve(
+      template.headerTitle,
+      company,
+      cashierName: data.cashierName,
+    );
+    add(title);
+    for (final value in [
+      template.headerSubtitle,
+      template.headerLine3,
+      template.headerLine4,
+    ]) {
+      add(_resolve(value, company, cashierName: data.cashierName));
+    }
+    lines.add('------------------------------');
+    if (template.showInvoice != false) add('No: ${data.invoice}');
+    if (template.showTanggal != false && data.dateLabel.isNotEmpty) {
+      add('Tanggal: ${data.dateLabel}');
+    }
+    if (template.showKasir != false && data.cashierName.isNotEmpty) {
+      add('Kasir: ${data.cashierName}');
+    }
+    if (template.showToko != false && data.storeName.isNotEmpty) {
+      add('Toko: ${data.storeName}');
+    }
+    if (template.showPelanggan != false && data.customerName.isNotEmpty) {
+      add('Pelanggan: ${data.customerName}');
+    }
+    if (template.showChannel == true && data.salesChannel.isNotEmpty) {
+      add('Channel: ${data.salesChannel}');
+    }
+    if (template.showSegment == true && data.customerSegment.isNotEmpty) {
+      add('Segmen: ${data.customerSegment}');
+    }
+    if (template.showOrderType != false && data.orderType.isNotEmpty) {
+      add('Jenis pesanan: ${_orderTypeLabel(data.orderType)}');
+    }
+    add('Bayar: ${data.paymentMethod.toUpperCase()}');
+    lines.add('------------------------------');
+    for (final item in data.items) {
+      final name = item['nama_inventaris']?.toString() ??
+          item['name']?.toString() ??
+          item['nama']?.toString() ??
+          '-';
+      final qty = item['qty']?.toString() ?? '0';
+      final price = _number(
+        item['harga_jual'] ?? item['harga_satuan'] ?? item['unit_price'],
+      );
+      final lineSubtotal = _number(item['subtotal']);
+      add(name);
+      add('$qty x ${currency.format(price)}    ${currency.format(lineSubtotal)}');
+    }
+    lines.add('------------------------------');
+    add('Subtotal    ${currency.format(data.subtotal)}');
+    if (data.discount > 0) add('Diskon    -${currency.format(data.discount)}');
+    if (template.showPromo != false && data.promoDiscount > 0) {
+      add('Promo    -${currency.format(data.promoDiscount)}');
+    }
+    if (template.showPromo == true && data.promoCode.isNotEmpty) {
+      add('Kode promo    ${data.promoCode}');
+    }
+    if (data.tax > 0) add('Pajak    ${currency.format(data.tax)}');
+    add('TOTAL    ${currency.format(data.total)}');
+    if (data.cashReceived > 0) {
+      add('Diterima    ${currency.format(data.cashReceived)}');
+    }
+    if (data.change > 0) add('Kembalian    ${currency.format(data.change)}');
+    if (data.note.trim().isNotEmpty) add('Catatan: ${data.note}');
+    // Internal marker consumed by the ESC/POS writer; it is never sent to
+    // the printer and keeps the footer centered like the visual template.
+    lines.add('[[PANTOO_CENTER_FOOTER]]');
+    for (final footer in [
+      template.footerLine1,
+      template.footerLine2,
+      template.footerLine3,
+    ]) {
+      add(_resolve(footer, company, cashierName: data.cashierName));
+    }
+    return lines.join('\n');
+  }
+
   static PdfPageFormat pageFormatFor(
     PosReceiptTemplate template,
     int itemCount,
@@ -225,7 +329,11 @@ class PosReceiptDocumentBuilder {
   static double _number(dynamic value) =>
       double.tryParse(value?.toString() ?? '0') ?? 0;
 
-  static String _resolve(String? raw, Map<String, String> company) {
+  static String _resolve(
+    String? raw,
+    Map<String, String> company, {
+    String cashierName = '',
+  }) {
     var value = raw?.trim() ?? '';
     final replacements = <String, String>{
       'nama_instansi': company['nama_instansi'] ?? '',
@@ -238,6 +346,9 @@ class PosReceiptDocumentBuilder {
       'provinsi': company['provinsi'] ?? '',
       'kabupaten': company['kabupaten'] ?? '',
       'npwp': company['NPWP'] ?? '',
+      'nama_kasir': cashierName,
+      'kasir': cashierName,
+      'cashier_name': cashierName,
     };
     replacements.forEach((key, replacement) {
       value = value.replaceAll('{{$key}}', replacement);

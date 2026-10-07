@@ -7,6 +7,7 @@ import '../../bloc/pos_promo/pos_promo_bloc.dart';
 import '../../bloc/pos_promo/pos_promo_event.dart';
 import '../../bloc/pos_promo/pos_promo_state.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_ui.dart';
 import '../../../domain/models/pos_promo.dart';
 
@@ -544,14 +545,13 @@ class _PosPromoViewState extends State<_PosPromoView> {
     if (isTablet) {
       showDialog(
         context: context,
-        builder: (_) => Dialog(
+        builder: (_) => PosKeyboardStableDialog(
+          width: 500,
+          height: 680,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          child: SizedBox(
-            width: 500,
-            child: _PromoFormContent(bloc: bloc, promo: promo),
-          ),
+          child: _PromoFormContent(bloc: bloc, promo: promo),
         ),
       );
     } else {
@@ -560,9 +560,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          maxChildSize: 0.95,
-          minChildSize: 0.5,
+          initialChildSize: .9,
+          minChildSize: .5,
+          maxChildSize: .95,
           builder: (_, scrollController) => Container(
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -743,9 +743,13 @@ class _PromoFormContentState extends State<_PromoFormContent> {
       key: _formKey,
       child: ListView(
         controller: widget.scrollController,
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         children: [
-          // Handle bar (mobile only)
           if (widget.scrollController != null)
             Center(
               child: Container(
@@ -758,7 +762,6 @@ class _PromoFormContentState extends State<_PromoFormContent> {
                 ),
               ),
             ),
-
           Text(
             isEdit ? 'Edit Promo' : 'Tambah Promo Baru',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

@@ -251,7 +251,7 @@ class _IntroPageState extends State<IntroPage> {
                               (route) => false,
                             );
                           }
-                          if (state.isFailure) {
+                          if (state.isFailure && state.captcha == null) {
                             final message =
                                 state.error ?? 'Login gagal. Coba lagi.';
                             ScaffoldMessenger.of(context).showSnackBar(

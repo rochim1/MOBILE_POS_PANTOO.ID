@@ -1,12 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/common/pin_lock_screen.dart';
 import 'package:mobile_pos_pantoo/presentation/widgets/inactivity_wrapper.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_setup_tour.dart';
+
+class TestPosRepository extends Fake implements PosRepository {
+  @override
+  Future<Map<String, dynamic>> getRuntimeConfig() async => {
+    'pos_lock_enabled': true,
+    'pos_lock_on_background': false,
+    'pos_auto_lock_minutes': 5,
+  };
+}
 
 class TestLockCubit extends AppLockCubit {
+  final enteredPins = <String>[];
+
+  @override
+  Future<bool> unlock(String enteredPin) async {
+    enteredPins.add(enteredPin);
+    return false;
+  }
+
   void seedLocked() => emit(
     const AppLockState(
       status: AppLockStatus.locked,
@@ -52,6 +73,12 @@ class TestLockCubit extends AppLockCubit {
 }
 
 void main() {
+  setUp(() {
+    sl.registerSingleton<PosRepository>(TestPosRepository());
+  });
+  tearDown(() async {
+    await sl.reset();
+  });
   testWidgets('PIN tidak menutupi intro atau login tanpa sesi autentikasi', (
     tester,
   ) async {
@@ -120,13 +147,108 @@ void main() {
     );
     await tester.pump();
 
-    final panelRect = tester.getRect(
-      find.byKey(const ValueKey('pin-entry-panel')),
-    );
+    final panelRect = tester.getRect(find.byKey(posPinSetupTourTarget));
     expect(panelRect.center.dx, greaterThan(600));
     expect(panelRect.center.dx, closeTo(900, 1));
+    expect(find.byKey(const Key('pin_keyboard_focus')), findsOneWidget);
+    expect(find.byKey(const Key('pin_keyboard_input')), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('PIN accepts keyboard digits, numpad, Backspace, and Enter', (
+    tester,
+  ) async {
+    final cubit = TestLockCubit()..seedLocked();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(
+      BlocProvider<AppLockCubit>.value(
+        value: cubit,
+        child: const MaterialApp(home: PinLockScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.numpad2);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit3);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit4);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit5);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(cubit.enteredPins, ['1245']);
+    for (final key in [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5,
+      LogicalKeyboardKey.digit6,
+    ]) {
+      await tester.sendKeyEvent(key);
+    }
+    await tester.pump();
+    expect(cubit.enteredPins, ['1245', '123456']);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'PIN receives keyboard focus after locking over a focused field',
+    (tester) async {
+      final cubit = TestLockCubit()..seedUnlocked();
+      addTearDown(cubit.close);
+      final dashboardFocus = FocusNode();
+      final dashboardText = TextEditingController();
+      addTearDown(dashboardFocus.dispose);
+      addTearDown(dashboardText.dispose);
+      await tester.pumpWidget(
+        BlocProvider<AppLockCubit>.value(
+          value: cubit,
+          child: MaterialApp(
+            builder: (context, child) =>
+                InactivityWrapper(authenticated: true, child: child!),
+            home: Scaffold(
+              body: TextField(
+                autofocus: true,
+                focusNode: dashboardFocus,
+                controller: dashboardText,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<EditableText>(),
+        isNotNull,
+      );
+
+      cubit.seedLocked();
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Focus>(find.byKey(const Key('pin_keyboard_focus')))
+            .focusNode
+            ?.hasFocus,
+        isTrue,
+      );
+      // A stale dashboard control must not prevent direct PIN typing.
+      dashboardFocus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit3);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit4);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      expect(cubit.enteredPins, ['1234']);
+      expect(dashboardText.text, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('employee picker modal opens from lock overlay navigator', (
     tester,

@@ -21,6 +21,45 @@ void main() {
     expect(updated.requiresBatchAdjustment, isFalse);
   });
 
+  test('batas restock dan satuan dasar bertahan saat stok disalin', () {
+    final stock = PosStock.fromJson({
+      '_id': 'inventory-2',
+      'nama_inventaris': 'Kopi',
+      'stok': 4,
+      'stok_minimum': 2,
+      'titik_reorder': 5,
+      'stok_maksimum': 24,
+      'unit': 'dus',
+      'base_unit': 'pcs',
+    });
+
+    final restored = PosStock.fromJson(stock.toJson());
+    expect(restored.titikReorder, 5);
+    expect(restored.stokMaksimum, 24);
+    expect(restored.baseUnit, 'pcs');
+    expect(restored.needsRestock, isTrue);
+  });
+
+  test('layanan dan produk komposisi tidak diarahkan ke PO stok', () {
+    for (final fields in [
+      {'pos_product_type': 'service', 'tracks_stock': false},
+      {'pos_product_type': 'package', 'tracks_stock': true},
+      {
+        'pos_product_type': 'product',
+        'composition_type': 'bom',
+        'tracks_stock': true,
+      },
+    ]) {
+      final stock = PosStock.fromJson({
+        '_id': 'inventory-3',
+        'nama_inventaris': 'Bukan stok langsung',
+        'stok': 0,
+        ...fields,
+      });
+      expect(stock.needsRestock, isFalse);
+    }
+  });
+
   test('riwayat stok membaca pelaku dan jalur lokasi', () {
     final movement = PosStockMovement.fromJson({
       'nama_inventaris': 'Produk Uji',

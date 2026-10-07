@@ -10,6 +10,7 @@ import 'presentation/pages/intro/intro_page.dart';
 import 'presentation/bloc/lock/lock_cubit.dart';
 import 'presentation/widgets/inactivity_wrapper.dart';
 import 'domain/repositories/pos_repository.dart';
+import 'core/customer_display/pos_customer_display_service.dart';
 
 import 'package:chucker_flutter/chucker_flutter.dart';
 
@@ -86,6 +87,8 @@ class App extends StatelessWidget {
                   (route) => false,
                 );
               } else if (state.status == AuthStatus.unauthenticated) {
+                await sl<PosCustomerDisplayService>().disconnect();
+                if (!context.mounted) return;
                 context.read<AppLockCubit>().reset();
                 final hasSeenIntro =
                     sl<SharedPreferences>().getBool('has_seen_intro') ?? false;
@@ -118,6 +121,13 @@ class App extends StatelessWidget {
         theme: AppTheme.light(),
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
+            // Keep the loading view visible while the saved session and POS
+            // lock are being prepared by the auth listener above.
+            if (state.isCheckingSession ||
+                state.isAuthenticating ||
+                state.isAuthenticated) {
+              return const LoginPage();
+            }
             final hasSeenIntro =
                 sl<SharedPreferences>().getBool('has_seen_intro') ?? false;
 
@@ -125,11 +135,6 @@ class App extends StatelessWidget {
               return const IntroPage();
             }
 
-            if (state.isAuthenticated) {
-              return PosOnboardingPage.initialDestination(
-                sl<SharedPreferences>(),
-              );
-            }
             return const LoginPage();
           },
         ),

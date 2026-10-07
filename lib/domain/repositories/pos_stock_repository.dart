@@ -121,15 +121,26 @@ class PosStockRepository {
               (item) =>
                   item.namaInventaris.toLowerCase().contains(keyword) ||
                   item.kodeInventaris.toLowerCase().contains(keyword) ||
-                  item.sku.toLowerCase().contains(keyword),
+                  item.sku.toLowerCase().contains(keyword) ||
+                  item.barcode.toLowerCase().contains(keyword),
             )
             .toList();
       }
       if (stockFilter == 'out') {
-        stocks = stocks.where((item) => item.stok <= 0).toList();
+        stocks = stocks
+            .where((item) => item.tracksStock && item.stok <= 0)
+            .toList();
       } else if (stockFilter == 'low') {
         stocks = stocks
-            .where((item) => item.stok > 0 && item.stok <= item.stokMinimum)
+            .where(
+              (item) =>
+                  item.tracksStock &&
+                  item.stok > 0 &&
+                  item.stok <=
+                      (item.titikReorder > 0
+                          ? item.titikReorder
+                          : item.stokMinimum),
+            )
             .toList();
       }
       return Right(stocks);

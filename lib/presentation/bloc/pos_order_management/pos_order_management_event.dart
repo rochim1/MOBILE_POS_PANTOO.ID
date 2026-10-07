@@ -31,6 +31,16 @@ class LoadActiveOrders extends PosOrderManagementEvent {
   List<Object?> get props => [storeId, search, status];
 }
 
+class LoadKitchenTickets extends PosOrderManagementEvent {
+  final String storeId;
+  final String stationId;
+
+  const LoadKitchenTickets({required this.storeId, this.stationId = ''});
+
+  @override
+  List<Object?> get props => [storeId, stationId];
+}
+
 class UpdateItemStatus extends PosOrderManagementEvent {
   final String orderId;
   final String itemId;
@@ -56,6 +66,40 @@ class UpdateItemStatus extends PosOrderManagementEvent {
   List<Object?> get props => [
     orderId,
     itemId,
+    newStatus,
+    tableId,
+    storeId,
+    search,
+    statusFilter,
+    note,
+  ];
+}
+
+/// Changes the status of the whole order (Baru → Diproses → Siap, etc.).
+/// Do not use [UpdateItemStatus] for this: it is reserved for a concrete
+/// kitchen item and requires a non-empty item ID.
+class UpdateOrderStatus extends PosOrderManagementEvent {
+  final String orderId;
+  final String newStatus;
+  final String tableId;
+  final String storeId;
+  final String search;
+  final String statusFilter;
+  final String note;
+
+  const UpdateOrderStatus({
+    required this.orderId,
+    required this.newStatus,
+    required this.tableId,
+    this.storeId = '',
+    this.search = '',
+    this.statusFilter = '',
+    this.note = '',
+  });
+
+  @override
+  List<Object?> get props => [
+    orderId,
     newStatus,
     tableId,
     storeId,

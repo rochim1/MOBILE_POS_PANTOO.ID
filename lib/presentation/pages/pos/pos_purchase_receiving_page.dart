@@ -1,10 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
+import '../../widgets/skeleton_loading.dart';
+import 'pos_barcode_scanner_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseReceivingPage extends StatefulWidget {
@@ -25,6 +31,11 @@ class PosPurchaseReceivingPage extends StatefulWidget {
 
 class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   final _repository = sl<PosInventoryRepository>();
+  final _receivingRequestId = const Uuid().v4();
+  Map<String, dynamic>? _pendingInput;
+  bool _pendingPayloadUnreadable = false;
+  String get _pendingKey =>
+      'inventory.receiving.pending:${widget.purchase['_id']}';
   final _deliveryNote = TextEditingController();
   final _notes = TextEditingController();
   PosInventoryLookups? _lookups;
@@ -48,6 +59,21 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   @override
   void initState() {
     super.initState();
+    final saved = sl<SharedPreferences>().getString(_pendingKey);
+    if (saved != null) {
+      try {
+        final payload = Map<String, dynamic>.from(jsonDecode(saved) as Map);
+        if (payload['purchase_id']?.toString() ==
+                widget.purchase['_id']?.toString() &&
+            (payload['client_request_id']?.toString() ?? '').isNotEmpty) {
+          _pendingInput = payload;
+        } else {
+          _pendingPayloadUnreadable = true;
+        }
+      } catch (_) {
+        _pendingPayloadUnreadable = true;
+      }
+    }
     _receivingDate = DateTime.now();
     _items = (widget.purchase['items'] as List? ?? const [])
         .map((raw) {
@@ -145,7 +171,173 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       .where((value) => value.isNotEmpty)
       .toList();
 
+  Future<void> _scanReceivingBarcode() async {
+    if (_warehouseId.isEmpty) {
+      AppToast.error(context, 'Pilih cabang penerimaan sebelum scan.');
+      return;
+    }
+    final scanned = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const PosBarcodeScannerPage()),
+    );
+    if (!mounted || scanned == null || scanned.trim().isEmpty) return;
+    final code = scanned.trim().toLowerCase();
+    final result = await _repository.findPurchaseInventoryByCode(
+      scanned.trim(),
+    );
+    if (!mounted) return;
+    final matches = result.fold<List<Map<String, dynamic>>>(
+      (failure) {
+        AppToast.error(context, failure.message);
+        return const [];
+      },
+      (items) => items
+          .where(
+            (item) => [
+              item['barcode'],
+              item['sku'],
+              item['kode_inventaris'],
+            ].any((value) => value?.toString().trim().toLowerCase() == code),
+          )
+          .toList(),
+    );
+    if (matches.isEmpty) {
+      AppToast.error(context, 'Kode produk tidak ditemukan.');
+      return;
+    }
+    if (matches.length != 1) {
+      AppToast.error(
+        context,
+        'Kode cocok dengan beberapa produk. Pilih manual.',
+      );
+      return;
+    }
+    final inventoryId = matches.single['_id']?.toString() ?? '';
+    final poLines = _items
+        .where((item) => item['inventaris_id']?.toString() == inventoryId)
+        .toList();
+    if (poLines.isEmpty) {
+      AppToast.error(context, 'Produk ini tidak ada pada sisa PO.');
+      return;
+    }
+    Map<String, dynamic>? item;
+    if (poLines.length == 1) {
+      item = poLines.single;
+    } else {
+      item = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: const Text('Pilih baris PO'),
+          children: poLines
+              .map(
+                (line) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(dialogContext, line),
+                  child: Text(
+                    '${line['nama_inventaris']} · sisa ${line['remaining']} ${line['unit'] ?? ''}',
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      );
+    }
+    if (!mounted || item == null) return;
+    final selectedItem = item;
+    final controller = TextEditingController(
+      text: (selectedItem['receive_qty'] ?? 0).toString(),
+    );
+    final formKey = GlobalKey<FormState>();
+    final remaining = (selectedItem['remaining'] as num).toDouble();
+    final quantity = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(selectedItem['nama_inventaris']?.toString() ?? 'Barang PO'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Diterima sekarang (${selectedItem['unit'] ?? ''})',
+              helperText: 'Sisa PO: ${selectedItem['remaining']}',
+              border: const OutlineInputBorder(),
+            ),
+            validator: (raw) {
+              final qty = double.tryParse((raw ?? '').replaceAll(',', '.'));
+              return qty == null || !qty.isFinite || qty < 0 || qty > remaining
+                  ? 'Isi jumlah 0 sampai $remaining'
+                  : null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() == true) {
+                Navigator.pop(
+                  dialogContext,
+                  double.parse(controller.text.replaceAll(',', '.')),
+                );
+              }
+            },
+            child: const Text('Terapkan'),
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(kThemeAnimationDuration);
+    controller.dispose();
+    if (!mounted || quantity == null) return;
+    if (!quantity.isFinite || quantity < 0 || quantity > remaining) {
+      AppToast.error(
+        context,
+        'Jumlah harus 0 sampai $remaining ${selectedItem['unit'] ?? ''}.',
+      );
+      return;
+    }
+    setState(() => selectedItem['receive_qty'] = quantity);
+    AppToast.success(
+      context,
+      'Jumlah diterima diperbarui. Periksa batch dan lokasi sebelum simpan.',
+    );
+  }
+
   Future<void> _save() async {
+    if (_pendingPayloadUnreadable) {
+      AppToast.error(
+        context,
+        'Request penerimaan sebelumnya tidak dapat dibaca. Periksa riwayat GRN dan hubungi admin sebelum menerima ulang.',
+      );
+      return;
+    }
+    if (_pendingInput != null) {
+      final retry = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Ulangi penerimaan sebelumnya?'),
+          content: const Text(
+            'Permintaan terakhir belum dikonfirmasi. Data jumlah dan lokasi yang tersimpan akan dikirim ulang; perubahan form saat ini tidak ikut dikirim.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Periksa Riwayat'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Ulangi Request'),
+            ),
+          ],
+        ),
+      );
+      if (retry == true && mounted) await _sendReceiving(_pendingInput!);
+      return;
+    }
     final warehouse = _lookups?.warehouses
         .cast<Map<String, dynamic>?>()
         .firstWhere(
@@ -154,7 +346,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
         );
     final invalid = _items.cast<Map<String, dynamic>?>().firstWhere((item) {
       final qty = (item?['receive_qty'] as num? ?? 0).toDouble();
-      return qty < 0 || qty - (item?['remaining'] as num).toDouble() > 0.000001;
+      return !qty.isFinite ||
+          qty < 0 ||
+          qty - (item?['remaining'] as num).toDouble() > 0.000001;
     }, orElse: () => null);
     if (invalid != null) {
       AppToast.error(
@@ -237,8 +431,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _loading = true);
-    final result = await _repository.receivePurchase({
+    final input = <String, dynamic>{
+      'client_request_id': _receivingRequestId,
       'purchase_id': widget.purchase['_id'],
       'tanggal_terima': _receivingDate.toIso8601String().split('T').first,
       'no_surat_jalan': _deliveryNote.text.trim(),
@@ -273,18 +467,55 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
           ],
         };
       }).toList(),
-    });
+    };
+    try {
+      final saved = await sl<SharedPreferences>().setString(
+        _pendingKey,
+        jsonEncode(input),
+      );
+      if (!saved) throw StateError('Penyimpanan request ditolak perangkat');
+      _pendingInput = input;
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          'Request belum dikirim karena gagal disimpan di perangkat: $error',
+        );
+      }
+      return;
+    }
+    await _sendReceiving(input);
+  }
+
+  Future<void> _sendReceiving(Map<String, dynamic> input) async {
+    setState(() => _loading = true);
+    final result = await _repository.receivePurchase(input);
     if (!mounted) return;
+    var succeeded = false;
+    dynamic receipt;
     result.fold(
       (failure) {
         AppToast.error(context, failure.message);
         setState(() => _loading = false);
       },
-      (_) {
-        AppToast.success(context, 'Penerimaan pembelian berhasil dicatat');
-        _finish();
+      (value) {
+        succeeded = true;
+        receipt = value;
       },
     );
+    if (!succeeded) return;
+    await sl<SharedPreferences>().remove(_pendingKey);
+    _pendingInput = null;
+    if (!mounted) return;
+    if (receipt is Map && receipt['journal_status'] == 'failed') {
+      AppToast.error(
+        context,
+        'Stok sudah diterima, tetapi jurnal perlu diperiksa: ${receipt['journal_error'] ?? ''}',
+      );
+    } else {
+      AppToast.success(context, 'Penerimaan pembelian berhasil dicatat');
+    }
+    _finish();
   }
 
   String _shortDate(dynamic value) {
@@ -339,13 +570,66 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
         AppToast.error(context, failure.message);
         setState(() => _loading = false);
       },
-      (_) {
-        AppToast.success(context, 'Penerimaan berhasil dibatalkan');
+      (cancelled) {
+        if (cancelled is Map &&
+            cancelled['cancel_journal_status'] == 'failed') {
+          AppToast.error(
+            context,
+            'Stok dikembalikan, tetapi jurnal pembatalan gagal: ${cancelled['cancel_journal_error'] ?? ''}',
+          );
+        } else {
+          AppToast.success(context, 'Penerimaan berhasil dibatalkan');
+        }
         // Snapshot PO yang dibawa halaman ini sudah berubah. Kembali ke daftar
         // agar PO dan sisa kuantitas dimuat ulang dari server.
         _finish();
       },
     );
+  }
+
+  Future<void> _retryReceivingJournal(Map<String, dynamic> receipt) async {
+    setState(() => _loading = true);
+    final result = await _repository.retryReceivingJournal(
+      receipt['_id'].toString(),
+    );
+    if (!mounted) return;
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (updated) =>
+          updated is Map &&
+              ['posted', 'not_required'].contains(updated['journal_status'])
+          ? AppToast.success(context, 'Jurnal penerimaan berhasil diperbarui')
+          : AppToast.error(
+              context,
+              'Jurnal belum selesai: ${updated is Map ? updated['journal_error'] ?? '' : ''}',
+            ),
+    );
+    await _load();
+  }
+
+  Future<void> _retryReceivingCancelJournal(
+    Map<String, dynamic> receipt,
+  ) async {
+    setState(() => _loading = true);
+    final result = await _repository.retryReceivingCancelJournal(
+      receipt['_id'].toString(),
+    );
+    if (!mounted) return;
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (updated) =>
+          updated is Map &&
+              [
+                'posted',
+                'not_required',
+              ].contains(updated['cancel_journal_status'])
+          ? AppToast.success(context, 'Jurnal pembatalan berhasil diperbarui')
+          : AppToast.error(
+              context,
+              'Jurnal pembatalan belum selesai: ${updated is Map ? updated['cancel_journal_error'] ?? '' : ''}',
+            ),
+    );
+    await _load();
   }
 
   Widget _buildHistory() {
@@ -369,16 +653,64 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
             title: Text(receipt['no_grn']?.toString() ?? 'Penerimaan'),
             subtitle: Text(
               '${_shortDate(receipt['tanggal_terima'])}'
-              '${(receipt['no_surat_jalan']?.toString() ?? '').isEmpty ? '' : ' · SJ ${receipt['no_surat_jalan']}'}\n$lines',
+              '${(receipt['no_surat_jalan']?.toString() ?? '').isEmpty ? '' : ' · SJ ${receipt['no_surat_jalan']}'}\n$lines'
+              '${receipt['journal_status'] == 'failed'
+                  ? '\nJurnal asal gagal: ${receipt['journal_error'] ?? ''}'
+                  : receipt['journal_status'] == 'pending'
+                  ? '\nJurnal asal belum terkonfirmasi'
+                  : ''}'
+              '${receipt['cancel_journal_status'] == 'failed'
+                  ? '\nJurnal pembatalan gagal: ${receipt['cancel_journal_error'] ?? ''}'
+                  : cancelled && receipt['cancel_journal_status'] == 'pending'
+                  ? '\nJurnal pembatalan belum terkonfirmasi'
+                  : ''}',
             ),
             isThreeLine: true,
-            trailing: cancelled
+            trailing:
+                cancelled &&
+                    ![
+                      'failed',
+                      'pending',
+                    ].contains(receipt['journal_status']) &&
+                    ![
+                      'failed',
+                      'pending',
+                    ].contains(receipt['cancel_journal_status'])
                 ? const Chip(label: Text('Dibatalkan'))
-                : TextButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _cancelReceiving(receipt),
-                    child: const Text('Batalkan'),
+                : PopupMenuButton<String>(
+                    enabled: !_loading,
+                    tooltip: 'Aksi penerimaan',
+                    onSelected: (action) => switch (action) {
+                      'retry_journal' => _retryReceivingJournal(receipt),
+                      'retry_cancel_journal' => _retryReceivingCancelJournal(
+                        receipt,
+                      ),
+                      _ => _cancelReceiving(receipt),
+                    },
+                    itemBuilder: (_) => [
+                      if ([
+                        'failed',
+                        'pending',
+                      ].contains(receipt['journal_status']))
+                        const PopupMenuItem(
+                          value: 'retry_journal',
+                          child: Text('Ulangi Jurnal'),
+                        ),
+                      if (cancelled &&
+                          [
+                            'failed',
+                            'pending',
+                          ].contains(receipt['cancel_journal_status']))
+                        const PopupMenuItem(
+                          value: 'retry_cancel_journal',
+                          child: Text('Ulangi Jurnal Pembatalan'),
+                        ),
+                      if (!cancelled)
+                        const PopupMenuItem(
+                          value: 'cancel',
+                          child: Text('Batalkan Penerimaan'),
+                        ),
+                    ],
                   ),
           );
         }).toList(),
@@ -520,12 +852,22 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   @override
   Widget build(BuildContext context) {
     final body = _loading && _lookups == null
-        ? const Center(child: CircularProgressIndicator())
+        ? const _ReceivingFormSkeleton()
         : Stack(
             children: [
               ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (_pendingPayloadUnreadable)
+                    const Card(
+                      color: Color(0xFFFFEBEE),
+                      child: Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text(
+                          'Request penerimaan sebelumnya di perangkat tidak dapat dibaca. Penerimaan baru diblokir untuk mencegah stok ganda. Periksa riwayat GRN dan hubungi admin inventori.',
+                        ),
+                      ),
+                    ),
                   Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -616,6 +958,13 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                           ),
                         ),
                       ),
+                      IconButton(
+                        tooltip: 'Scan barcode barang PO',
+                        onPressed: _items.isEmpty
+                            ? null
+                            : _scanReceivingBarcode,
+                        icon: const Icon(Icons.qr_code_scanner),
+                      ),
                       TextButton.icon(
                         onPressed: _items.isEmpty
                             ? null
@@ -671,9 +1020,32 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                     'Boleh kurang dari sisa untuk pengiriman parsial',
                                 border: OutlineInputBorder(),
                               ),
-                              onChanged: (value) => item['receive_qty'] =
-                                  double.tryParse(value.replaceAll(',', '.')) ??
-                                  0,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              validator: (raw) {
+                                if ((raw ?? '').trim().isEmpty) return null;
+                                final qty = double.tryParse(
+                                  raw!.replaceAll(',', '.'),
+                                );
+                                final remaining = (item['remaining'] as num)
+                                    .toDouble();
+                                return qty == null ||
+                                        !qty.isFinite ||
+                                        qty < 0 ||
+                                        qty > remaining
+                                    ? 'Isi jumlah 0 sampai $remaining'
+                                    : null;
+                              },
+                              onChanged: (value) {
+                                final raw = value.trim();
+                                final parsed = raw.isEmpty
+                                    ? 0.0
+                                    : double.tryParse(raw.replaceAll(',', '.'));
+                                item['receive_qty'] =
+                                    parsed != null && parsed.isFinite
+                                    ? parsed
+                                    : double.nan;
+                              },
                             ),
                             ExpansionTile(
                               tilePadding: EdgeInsets.zero,
@@ -854,4 +1226,51 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       ],
     );
   }
+}
+
+class _ReceivingFormSkeleton extends StatelessWidget {
+  const _ReceivingFormSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(16),
+    children: const [
+      SkeletonBox(height: 88, borderRadius: 14),
+      SizedBox(height: 12),
+      SkeletonBox(height: 52, borderRadius: 10),
+      SizedBox(height: 10),
+      SkeletonBox(height: 52, borderRadius: 10),
+      SizedBox(height: 10),
+      SkeletonBox(height: 52, borderRadius: 10),
+      SizedBox(height: 18),
+      SkeletonBox(height: 20, width: 170, borderRadius: 5),
+      SizedBox(height: 10),
+      _ReceivingItemSkeletonCard(),
+      SizedBox(height: 10),
+      _ReceivingItemSkeletonCard(),
+      SizedBox(height: 18),
+      SkeletonBox(height: 48, borderRadius: 10),
+    ],
+  );
+}
+
+class _ReceivingItemSkeletonCard extends StatelessWidget {
+  const _ReceivingItemSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          SkeletonBox(width: 190, height: 16, borderRadius: 4),
+          SizedBox(height: 9),
+          SkeletonBox(width: 125, height: 12, borderRadius: 4),
+          SizedBox(height: 14),
+          SkeletonBox(height: 44, borderRadius: 8),
+        ],
+      ),
+    ),
+  );
 }

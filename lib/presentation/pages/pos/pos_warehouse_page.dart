@@ -6,6 +6,7 @@ import '../../../core/_core.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../injections.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/inventory_action_style.dart';
 import 'widgets/pos_setup_tour.dart';
@@ -225,223 +226,226 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          if (guided && !guideScheduled) {
-            guideScheduled = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              await Future<void>.delayed(const Duration(milliseconds: 180));
-              if (!sheetContext.mounted || widget.setupTourTargets == null) {
-                return;
-              }
-              final targets = widget.setupTourTargets!;
-              await showInteractivePosSetupTour(
-                sheetContext,
-                fallbackTarget: targets.warehouseName,
-                stepTitle: 'Langkah 1 · Lokasi stok siap',
-                stageNumberOffset: 1,
-                totalStageCount: 5,
-                stages: [
-                  PosSetupTourStage(
-                    title: 'Nama dan alamat lokasi',
-                    description:
-                        'Isi identitas warehouse. Nama dan alamat wajib agar lokasi mudah dikenali.',
-                    target: targets.warehouseName,
-                  ),
-                  PosSetupTourStage(
-                    title: 'Pilih tipe warehouse',
-                    description:
-                        'Pilih fungsi utama lokasi, misalnya gudang toko atau gudang pusat.',
-                    target: targets.warehouseType,
-                  ),
-                  PosSetupTourStage(
-                    title: 'Aktifkan lokasi penjualan',
-                    description:
-                        'Aktifkan opsi ini agar warehouse dapat dihubungkan ke toko POS.',
-                    target: targets.warehouseSellable,
-                  ),
-                  PosSetupTourStage(
-                    title: 'Simpan warehouse',
-                    description:
-                        'Setelah data wajib terisi, simpan. Status ringkasan akan diperbarui dari server.',
-                    target: targets.warehouseSave,
-                  ),
-                ],
-              );
-            });
-          }
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                MediaQuery.viewInsetsOf(context).bottom + 20,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    existing == null ? 'Tambah Warehouse' : 'Edit Warehouse',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    key: widget.setupTourTargets?.warehouseName,
-                    child: TextField(
-                      controller: name,
-                      decoration: const InputDecoration(
-                        labelText: 'Nama warehouse *',
+      builder: (sheetContext) => PosKeyboardStableSheet(
+        heightFactor: .85,
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
+            if (guided && !guideScheduled) {
+              guideScheduled = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                await Future<void>.delayed(const Duration(milliseconds: 180));
+                if (!sheetContext.mounted || widget.setupTourTargets == null) {
+                  return;
+                }
+                final targets = widget.setupTourTargets!;
+                await showInteractivePosSetupTour(
+                  sheetContext,
+                  fallbackTarget: targets.warehouseName,
+                  stepTitle: 'Langkah 1 · Lokasi stok siap',
+                  stageNumberOffset: 1,
+                  totalStageCount: 5,
+                  stages: [
+                    PosSetupTourStage(
+                      title: 'Nama dan alamat lokasi',
+                      description:
+                          'Isi identitas warehouse. Nama dan alamat wajib agar lokasi mudah dikenali.',
+                      target: targets.warehouseName,
+                    ),
+                    PosSetupTourStage(
+                      title: 'Pilih tipe warehouse',
+                      description:
+                          'Pilih fungsi utama lokasi, misalnya gudang toko atau gudang pusat.',
+                      target: targets.warehouseType,
+                    ),
+                    PosSetupTourStage(
+                      title: 'Aktifkan lokasi penjualan',
+                      description:
+                          'Aktifkan opsi ini agar warehouse dapat dihubungkan ke toko POS.',
+                      target: targets.warehouseSellable,
+                    ),
+                    PosSetupTourStage(
+                      title: 'Simpan warehouse',
+                      description:
+                          'Setelah data wajib terisi, simpan. Status ringkasan akan diperbarui dari server.',
+                      target: targets.warehouseSave,
+                    ),
+                  ],
+                );
+              });
+            }
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  MediaQuery.viewInsetsOf(context).bottom + 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      existing == null ? 'Tambah Warehouse' : 'Edit Warehouse',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      key: widget.setupTourTargets?.warehouseName,
+                      child: TextField(
+                        controller: name,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama warehouse *',
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: code,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Kode warehouse',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: address,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Alamat *'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: phone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Telepon'),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    key: widget.setupTourTargets?.warehouseType,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: type,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: code,
+                      textCapitalization: TextCapitalization.characters,
                       decoration: const InputDecoration(
-                        labelText: 'Tipe warehouse',
+                        labelText: 'Kode warehouse',
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'central',
-                          child: Text('Gudang pusat'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'branch',
-                          child: Text('Gudang cabang'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'store',
-                          child: Text('Gudang toko'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'display',
-                          child: Text('Area display'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'quarantine',
-                          child: Text('Karantina'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'other',
-                          child: Text('Lainnya'),
-                        ),
-                      ],
-                      onChanged: (value) => type = value ?? 'store',
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Capability operasional',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  Container(
-                    key: widget.setupTourTargets?.warehouseSellable,
-                    child: SwitchListTile(
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: address,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Alamat *'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Telepon'),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      key: widget.setupTourTargets?.warehouseType,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: type,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipe warehouse',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'central',
+                            child: Text('Gudang pusat'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'branch',
+                            child: Text('Gudang cabang'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'store',
+                            child: Text('Gudang toko'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'display',
+                            child: Text('Area display'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'quarantine',
+                            child: Text('Karantina'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'other',
+                            child: Text('Lainnya'),
+                          ),
+                        ],
+                        onChanged: (value) => type = value ?? 'store',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Capability operasional',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Container(
+                      key: widget.setupTourTargets?.warehouseSellable,
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Lokasi penjualan'),
+                        subtitle: const Text(
+                          'Stok dapat digunakan oleh kasir outlet',
+                        ),
+                        value: sellable,
+                        onChanged: (value) =>
+                            setSheetState(() => sellable = value),
+                      ),
+                    ),
+                    SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Lokasi penjualan'),
-                      subtitle: const Text(
-                        'Stok dapat digunakan oleh kasir outlet',
-                      ),
-                      value: sellable,
+                      title: const Text('Penerimaan barang'),
+                      value: receiving,
                       onChanged: (value) =>
-                          setSheetState(() => sellable = value),
+                          setSheetState(() => receiving = value),
                     ),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Penerimaan barang'),
-                    value: receiving,
-                    onChanged: (value) =>
-                        setSheetState(() => receiving = value),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Sumber mutasi stok'),
-                    value: transferSource,
-                    onChanged: (value) =>
-                        setSheetState(() => transferSource = value),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Tujuan mutasi stok'),
-                    value: transferDestination,
-                    onChanged: (value) =>
-                        setSheetState(() => transferDestination = value),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    key: widget.setupTourTargets?.warehouseSave,
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            if (name.text.trim().isEmpty ||
-                                address.text.trim().isEmpty) {
-                              AppToast.error(
-                                sheetContext,
-                                'Nama dan alamat warehouse wajib diisi',
-                              );
-                              return;
-                            }
-                            setSheetState(() => saving = true);
-                            final result = await _repository.saveWarehouse({
-                              'branch_code': code.text.trim().toUpperCase(),
-                              'nama_cabang': name.text.trim(),
-                              'alamat_cabang': address.text.trim(),
-                              'no_telp': phone.text.trim(),
-                              'tipe_cabang': 'gudang',
-                              'is_warehouse': true,
-                              'warehouse_type': type,
-                              'is_sellable_location': sellable,
-                              'is_receiving_location': receiving,
-                              'is_transfer_source': transferSource,
-                              'is_transfer_destination': transferDestination,
-                            }, id: existing?['_id']?.toString());
-                            if (!sheetContext.mounted) return;
-                            result.fold(
-                              (failure) {
-                                setSheetState(() => saving = false);
-                                AppToast.error(sheetContext, failure.message);
-                              },
-                              (_) {
-                                Navigator.pop(sheetContext);
-                                AppToast.success(
-                                  this.context,
-                                  'Warehouse berhasil disimpan',
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Sumber mutasi stok'),
+                      value: transferSource,
+                      onChanged: (value) =>
+                          setSheetState(() => transferSource = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Tujuan mutasi stok'),
+                      value: transferDestination,
+                      onChanged: (value) =>
+                          setSheetState(() => transferDestination = value),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      key: widget.setupTourTargets?.warehouseSave,
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (name.text.trim().isEmpty ||
+                                  address.text.trim().isEmpty) {
+                                AppToast.error(
+                                  sheetContext,
+                                  'Nama dan alamat warehouse wajib diisi',
                                 );
-                                _load();
-                              },
-                            );
-                          },
-                    child: Text(saving ? 'Menyimpan...' : 'Simpan'),
-                  ),
-                ],
+                                return;
+                              }
+                              setSheetState(() => saving = true);
+                              final result = await _repository.saveWarehouse({
+                                'branch_code': code.text.trim().toUpperCase(),
+                                'nama_cabang': name.text.trim(),
+                                'alamat_cabang': address.text.trim(),
+                                'no_telp': phone.text.trim(),
+                                'tipe_cabang': 'gudang',
+                                'is_warehouse': true,
+                                'warehouse_type': type,
+                                'is_sellable_location': sellable,
+                                'is_receiving_location': receiving,
+                                'is_transfer_source': transferSource,
+                                'is_transfer_destination': transferDestination,
+                              }, id: existing?['_id']?.toString());
+                              if (!sheetContext.mounted) return;
+                              result.fold(
+                                (failure) {
+                                  setSheetState(() => saving = false);
+                                  AppToast.error(sheetContext, failure.message);
+                                },
+                                (_) {
+                                  Navigator.pop(sheetContext);
+                                  AppToast.success(
+                                    this.context,
+                                    'Warehouse berhasil disimpan',
+                                  );
+                                  _load();
+                                },
+                              );
+                            },
+                      child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
     // Tunggu route overlay benar-benar terlepas sebelum controller form dibuang.

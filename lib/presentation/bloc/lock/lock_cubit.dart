@@ -3,6 +3,7 @@ import '../../../../injections.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lock_state.dart';
+import '../../../../core/network/sync_service.dart';
 
 class AppLockCubit extends Cubit<AppLockState> {
   AppLockCubit() : super(const AppLockState()) {
@@ -32,11 +33,21 @@ class AppLockCubit extends Cubit<AppLockState> {
       search: search,
       hasPin: true,
     );
-    final lockStatusResult = await repository.getMyPOSLockStatus();
-    final myHasPin = lockStatusResult.fold(
-      (_) => true,
-      (status) => status['has_pin'] == true,
+    // A cached employee list is the complete source for the offline lock
+    // screen. Do not make a second status request that can block the UI.
+    final usingOfflineCache = result.fold(
+      (_) => false,
+      (employees) => employees.any((row) => row['offline_cached'] == true),
     );
+    final lockStatusResult = usingOfflineCache
+        ? null
+        : await repository.getMyPOSLockStatus();
+    final myHasPin = lockStatusResult == null
+        ? true
+        : lockStatusResult.fold(
+            (_) => true,
+            (status) => status['has_pin'] == true,
+          );
     result.fold(
       (failure) => emit(
         state.copyWith(errorMessage: failure.message, loadingEmployees: false),
@@ -176,7 +187,10 @@ class AppLockCubit extends Cubit<AppLockState> {
         (response) {
           if (response['success'] == true) {
             final operatorToken = response['operator_token']?.toString() ?? '';
+            // Preserve the operator identity on queued transactions. Sync
+            // requires online PIN verification by that same operator.
             sl<PosRepository>().setOperatorSessionToken(operatorToken);
+            sl<SyncService>().setOperatorSessionToken(operatorToken);
             emit(
               state.copyWith(
                 status: AppLockStatus.unlocked,
@@ -221,6 +235,7 @@ class AppLockCubit extends Cubit<AppLockState> {
 
   void reset() {
     sl<PosRepository>().setOperatorSessionToken('');
+    sl<SyncService>().setOperatorSessionToken('');
     emit(const AppLockState(status: AppLockStatus.unlocked));
   }
 }

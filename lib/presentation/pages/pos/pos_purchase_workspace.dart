@@ -7,6 +7,7 @@ import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_full_width_tabs.dart';
 import '../../widgets/inventory_action_style.dart';
+import '../../widgets/skeleton_loading.dart';
 import 'pos_purchase_receiving_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
@@ -27,6 +28,7 @@ class PosPurchaseWorkspace extends StatefulWidget {
 
 class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
   int _tab = 0;
+  int _revision = 0;
   Map<String, dynamic>? _activeReceiving;
 
   @override
@@ -36,7 +38,10 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
       return PosPurchaseReceivingPage(
         purchase: receiving,
         embedded: true,
-        onFinished: () => setState(() => _activeReceiving = null),
+        onFinished: () => setState(() {
+          _activeReceiving = null;
+          _revision++;
+        }),
       );
     }
     return Column(
@@ -60,10 +65,14 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
           child: IndexedStack(
             index: _tab,
             children: [
-              widget.purchaseListBuilder(
-                (purchase) => setState(() => _activeReceiving = purchase),
+              KeyedSubtree(
+                key: ValueKey('purchase-list-$_revision'),
+                child: widget.purchaseListBuilder(
+                  (purchase) => setState(() => _activeReceiving = purchase),
+                ),
               ),
               _ReceivingList(
+                key: ValueKey('receiving-list-$_revision'),
                 canReceive:
                     widget.permissions['receive_inventory_purchases'] == true,
                 onReceive: (purchase) =>
@@ -80,7 +89,11 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
 class _ReceivingList extends StatefulWidget {
   final bool canReceive;
   final ValueChanged<Map<String, dynamic>> onReceive;
-  const _ReceivingList({required this.canReceive, required this.onReceive});
+  const _ReceivingList({
+    super.key,
+    required this.canReceive,
+    required this.onReceive,
+  });
 
   @override
   State<_ReceivingList> createState() => _ReceivingListState();
@@ -89,10 +102,18 @@ class _ReceivingList extends StatefulWidget {
 class _ReceivingListState extends State<_ReceivingList> {
   final _repository = sl<PosInventoryRepository>();
   final _search = TextEditingController();
+  final _poSearch = TextEditingController();
   Timer? _debounce;
+  Timer? _poDebounce;
   List<Map<String, dynamic>> _items = const [];
   List<Map<String, dynamic>> _receivablePurchases = const [];
   bool _loading = true;
+  bool _poLoading = false;
+  int _poPage = 1;
+  int _poTotal = 0;
+  int _poRequestVersion = 0;
+  int _receiptRequestVersion = 0;
+  static const _poLimit = 30;
   String _status = '';
   int _page = 1;
   int _total = 0;
@@ -101,47 +122,73 @@ class _ReceivingListState extends State<_ReceivingList> {
   void initState() {
     super.initState();
     _load();
+    if (widget.canReceive) _loadPurchases();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _poDebounce?.cancel();
     _search.dispose();
+    _poSearch.dispose();
     super.dispose();
   }
 
   Future<void> _load({int? page}) async {
     final target = page ?? _page;
+    final requestVersion = ++_receiptRequestVersion;
+    final search = _search.text;
+    final status = _status;
     setState(() => _loading = true);
     final result = await _repository.getGlobalPurchaseReceivings(
-      search: _search.text,
-      status: _status,
+      search: search,
+      status: status,
       page: target,
     );
-    final purchasesResult = widget.canReceive
-        ? await _repository.getDocuments(
-            type: PosInventoryDocumentType.purchase,
-            limit: 100,
-          )
-        : null;
-    if (!mounted) return;
+    if (!mounted ||
+        requestVersion != _receiptRequestVersion ||
+        search != _search.text ||
+        status != _status) {
+      return;
+    }
     result.fold((failure) => AppToast.error(context, failure.message), (data) {
       _items = data.items;
       _total = data.totalCount;
       _page = target;
     });
-    purchasesResult?.fold(
-      (failure) => AppToast.error(
-        context,
-        'Daftar PO yang dapat diterima gagal dimuat: ${failure.message}',
-      ),
-      (data) => _receivablePurchases = data.items.where((purchase) {
-        final status = PosPurchaseProgress.effectiveStatus(purchase);
-        return const {'approved', 'partially_received'}.contains(status) &&
-            PosPurchaseProgress.hasRemaining(purchase);
-      }).toList(),
-    );
     setState(() => _loading = false);
+  }
+
+  Future<void> _loadPurchases({int page = 1}) async {
+    final requestVersion = ++_poRequestVersion;
+    final search = _poSearch.text;
+    setState(() => _poLoading = true);
+    final result = await _repository.getDocuments(
+      type: PosInventoryDocumentType.purchase,
+      receivableOnly: true,
+      search: search,
+      page: page,
+      limit: _poLimit,
+    );
+    if (!mounted ||
+        requestVersion != _poRequestVersion ||
+        search != _poSearch.text) {
+      return;
+    }
+    result.fold(
+      (failure) =>
+          AppToast.error(context, 'Daftar PO gagal dimuat: ${failure.message}'),
+      (data) {
+        _poPage = page;
+        _poTotal = data.totalCount;
+        _receivablePurchases = data.items.where((purchase) {
+          final status = PosPurchaseProgress.effectiveStatus(purchase);
+          return const {'approved', 'partially_received'}.contains(status) &&
+              PosPurchaseProgress.hasRemaining(purchase);
+        }).toList();
+      },
+    );
+    setState(() => _poLoading = false);
   }
 
   Future<void> _receive(Map<String, dynamic> purchase) async {
@@ -163,6 +210,14 @@ class _ReceivingListState extends State<_ReceivingList> {
   void _searchChanged(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 450), () => _load(page: 1));
+  }
+
+  void _poSearchChanged(String _) {
+    _poDebounce?.cancel();
+    _poDebounce = Timer(
+      const Duration(milliseconds: 450),
+      () => _loadPurchases(),
+    );
   }
 
   String _date(dynamic value) {
@@ -258,7 +313,10 @@ class _ReceivingListState extends State<_ReceivingList> {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 600;
     return RefreshIndicator(
-      onRefresh: () => _load(page: 1),
+      onRefresh: () async {
+        await _load(page: 1);
+        if (widget.canReceive) await _loadPurchases();
+      },
       child: ListView(
         padding: EdgeInsets.all(compact ? 12 : 16),
         children: [
@@ -303,10 +361,24 @@ class _ReceivingListState extends State<_ReceivingList> {
             ],
           ),
           const SizedBox(height: 12),
+          if (widget.canReceive) ...[
+            TextField(
+              controller: _poSearch,
+              onChanged: _poSearchChanged,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                labelText: 'Cari PO yang akan diterima',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           if (_loading)
-            const LinearProgressIndicator()
+            const _PurchaseReceivingListSkeleton()
           else ...[
-            if (_receivablePurchases.isNotEmpty) ...[
+            if (_poLoading)
+              const _PurchaseOrderSkeleton()
+            else if (widget.canReceive) ...[
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -315,6 +387,13 @@ class _ReceivingListState extends State<_ReceivingList> {
                 ),
               ),
               const SizedBox(height: 8),
+              if (_receivablePurchases.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Tidak ada PO siap diterima pada halaman ini. Cari nomor PO/supplier atau buka halaman berikutnya.',
+                  ),
+                ),
               ..._receivablePurchases.map((purchase) {
                 final rows = (purchase['items'] as List? ?? const [])
                     .whereType<Map>();
@@ -402,6 +481,25 @@ class _ReceivingListState extends State<_ReceivingList> {
                   ),
                 );
               }),
+              if (_poTotal > _poLimit)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: _poPage > 1
+                          ? () => _loadPurchases(page: _poPage - 1)
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Text('PO halaman $_poPage'),
+                    IconButton(
+                      onPressed: _poPage * _poLimit < _poTotal
+                          ? () => _loadPurchases(page: _poPage + 1)
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 18),
             ],
             const Align(
@@ -462,4 +560,68 @@ class _ReceivingListState extends State<_ReceivingList> {
       ),
     );
   }
+}
+
+class _PurchaseReceivingListSkeleton extends StatelessWidget {
+  const _PurchaseReceivingListSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(14),
+    children: [
+      const SkeletonBox(width: 190, height: 20, borderRadius: 5),
+      const SizedBox(height: 12),
+      ...List.generate(
+        4,
+        (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 10),
+          child: _PurchaseDocumentSkeletonCard(),
+        ),
+      ),
+    ],
+  );
+}
+
+class _PurchaseOrderSkeleton extends StatelessWidget {
+  const _PurchaseOrderSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: List.generate(
+      3,
+      (_) => const Padding(
+        padding: EdgeInsets.only(bottom: 10),
+        child: _PurchaseDocumentSkeletonCard(),
+      ),
+    ),
+  );
+}
+
+class _PurchaseDocumentSkeletonCard extends StatelessWidget {
+  const _PurchaseDocumentSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Row(
+            children: [
+              Expanded(child: SkeletonBox(height: 16, borderRadius: 4)),
+              SizedBox(width: 20),
+              SkeletonBox(width: 64, height: 24, borderRadius: 8),
+            ],
+          ),
+          SizedBox(height: 12),
+          SkeletonBox(width: 170, height: 12, borderRadius: 4),
+          SizedBox(height: 8),
+          SkeletonBox(height: 12, borderRadius: 4),
+          SizedBox(height: 12),
+          SkeletonBox(width: 112, height: 34, borderRadius: 8),
+        ],
+      ),
+    ),
+  );
 }

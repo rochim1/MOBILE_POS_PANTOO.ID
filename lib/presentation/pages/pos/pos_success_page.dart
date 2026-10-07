@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:printing/printing.dart';
@@ -164,32 +166,8 @@ class PosSuccessPage extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
-                                    child: OutlinedButton.icon(
+                                    child: _PrintReceiptButton(
                                       onPressed: () => _printReceipt(context),
-                                      icon: const Icon(
-                                        Icons.print,
-                                        color: AppColors.primary,
-                                        size: 18,
-                                      ),
-                                      label: const Text(
-                                        'Cetak Struk',
-                                        style: TextStyle(
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        side: const BorderSide(
-                                          color: AppColors.primary,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
                                     ),
                                   ),
                                 ],
@@ -263,11 +241,71 @@ class PosSuccessPage extends StatelessWidget {
 
   String get _receiptText =>
       'Struk ${transaction.invoice}\n'
+      '${transaction.storeName.isEmpty ? '' : '${transaction.storeName}\n'}'
+      '${transaction.cashierName.isEmpty ? '' : 'Kasir: ${transaction.cashierName}\n'}'
       '${transaction.customerName.isEmpty ? '' : 'Pelanggan: ${transaction.customerName}\n'}'
+      '${transaction.date.isEmpty ? '' : '${transaction.date}\n'}'
+      '\n'
+      '${transaction.items.map(_formatThermalItem).join('\n')}\n'
+      '\n'
+      'Subtotal: ${_currency(transaction.subtotal)}\n'
+      '${transaction.discount > 0 ? 'Diskon: -${_currency(transaction.discount)}\n' : ''}'
       'Total: ${_currency(transaction.total)}\n'
       'Pembayaran: ${transaction.paymentMethod.toUpperCase()}\n'
+      'Dibayar: ${_currency(transaction.cashReceived)}\n'
       '${transaction.change > 0 ? 'Kembalian: ${_currency(transaction.change)}\n' : ''}'
+      '${transaction.note.trim().isEmpty ? '' : 'Catatan: ${transaction.note}\n'}'
       'Terima kasih.';
+
+  String _buildThermalReceiptText(PosReceiptPrintData printData) {
+    final parsedDate = DateTime.tryParse(transaction.date)?.toLocal();
+    return PosReceiptDocumentBuilder.buildThermalText(
+      data: PosReceiptDocumentData(
+        invoice: transaction.invoice,
+        dateLabel: parsedDate == null
+            ? DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())
+            : DateFormat('dd/MM/yyyy HH:mm').format(parsedDate),
+        cashierName: transaction.cashierName,
+        storeName: transaction.storeName,
+        customerName: transaction.customerName,
+        paymentMethod: transaction.paymentMethod,
+        salesChannel: transaction.salesChannel,
+        customerSegment: transaction.customerSegment,
+        orderType: transaction.orderType,
+        promoCode: transaction.promoCode,
+        subtotal: transaction.subtotal,
+        discount: transaction.discount,
+        promoDiscount: transaction.promoDiscount,
+        tax: transaction.tax,
+        total: transaction.total,
+        cashReceived: transaction.cashReceived,
+        change: transaction.change,
+        note: transaction.note,
+        items: transaction.items,
+      ),
+      template: printData.template,
+      company: printData.company,
+    );
+  }
+
+  String _formatThermalItem(Map<String, dynamic> item) {
+    final name = (item['nama'] ??
+            item['nama_produk'] ??
+            item['name'] ??
+            item['product_name'] ??
+            'Produk')
+        .toString();
+    final qty = item['qty'] ?? item['quantity'] ?? item['jumlah'] ?? 1;
+    final amount = item['total'] ??
+        item['subtotal'] ??
+        item['jumlah_harga'] ??
+        item['harga_total'] ??
+        0;
+    final amountValue = amount is num
+        ? amount.toDouble()
+        : double.tryParse(amount.toString()) ?? 0;
+    return '$name x$qty  ${_currency(amountValue)}';
+  }
 
   Future<void> _showShareOptions(BuildContext context) async {
     await showModalBottomSheet<void>(
@@ -481,19 +519,59 @@ class PosSuccessPage extends StatelessWidget {
 
   Future<void> _printReceipt(BuildContext context) async {
     try {
-      final printData = await _loadReceiptPrintData();
-      final bytes = await _buildReceiptPdf(printData: printData);
-      await PosReceiptPrintService(sl()).printPdf(
-        bytes: bytes,
-        name: 'Struk-${transaction.invoice}',
-        format: PosReceiptDocumentBuilder.pageFormatFor(
-          printData.template,
-          transaction.items.length,
-        ),
+      final printService = PosReceiptPrintService(sl());
+      // Mini Bluetooth printers are text/ESC-POS devices. Use their direct
+      // text channel instead of rendering a PDF to a bitmap first. The PDF
+      // option remains available when visual fidelity/logo is preferred.
+      if (printService.selectedBluetoothAddress.isNotEmpty &&
+          printService.renderMode == 'fast') {
+        final printData = await _loadReceiptPrintData().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => const PosReceiptPrintData(
+            template: PosReceiptTemplate(),
+            company: {},
+          ),
+        );
+        try {
+          await printService
+              .printText(
+                text: _buildThermalReceiptText(printData),
+                charactersPerLine:
+                    printData.template.paperWidth == 80 ? 48 : 32,
+              )
+              .timeout(const Duration(seconds: 10));
+          return;
+        } catch (_) {
+          // Some mini printers expose Bluetooth but reject raw text writes.
+          // Fall through to the image/PDF path so printing still succeeds.
+        }
+      }
+      final printData = await _loadReceiptPrintData().timeout(
+        const Duration(seconds: 10),
       );
-    } catch (_) {
+      final bytes = await _buildReceiptPdf(
+        printData: printData,
+      ).timeout(const Duration(seconds: 15));
+      await printService
+          .printPdf(
+            bytes: bytes,
+            name: 'Struk-${transaction.invoice}',
+            format: PosReceiptDocumentBuilder.pageFormatFor(
+              printData.template,
+              transaction.items.length,
+            ),
+          )
+          .timeout(const Duration(seconds: 45));
+    } catch (error) {
       if (context.mounted) {
-        AppToast.error(context, 'Gagal membuka layanan print struk');
+        AppToast.error(
+          context,
+          error is TimeoutException
+              ? 'Printer terlalu lama merespons. Periksa koneksi lalu coba lagi.'
+              : error.toString().contains('PRINTER_NOT_CONFIGURED')
+              ? 'Pilih printer Bluetooth di Pengaturan Printer terlebih dahulu.'
+              : 'Printer Bluetooth tidak merespons. Periksa koneksi printer.',
+        );
       }
     }
   }
@@ -510,6 +588,51 @@ class PosSuccessPage extends StatelessWidget {
   }
 }
 
+class _PrintReceiptButton extends StatefulWidget {
+  final Future<void> Function() onPressed;
+
+  const _PrintReceiptButton({required this.onPressed});
+
+  @override
+  State<_PrintReceiptButton> createState() => _PrintReceiptButtonState();
+}
+
+class _PrintReceiptButtonState extends State<_PrintReceiptButton> {
+  bool _printing = false;
+
+  Future<void> _handlePressed() async {
+    if (_printing) return;
+    setState(() => _printing = true);
+    try {
+      await widget.onPressed();
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: _printing ? null : _handlePressed,
+      icon: _printing
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.print, color: AppColors.primary, size: 18),
+      label: Text(
+        _printing ? 'Mencetak…' : 'Cetak Struk',
+        style: const TextStyle(color: AppColors.primary),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        side: const BorderSide(color: AppColors.primary),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
 enum _ReceiptFileType { png, pdf }
 
 class _AutoPrintTrigger extends StatefulWidget {
@@ -522,14 +645,49 @@ class _AutoPrintTrigger extends StatefulWidget {
 }
 
 class _AutoPrintTriggerState extends State<_AutoPrintTrigger> {
+  bool _printing = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onPrint();
+      _runPrint();
     });
   }
 
+  Future<void> _runPrint() async {
+    await widget.onPrint();
+    if (!mounted) return;
+    setState(() => _printing = false);
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (mounted) setState(() {});
+  }
+
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    if (!_printing) return const SizedBox.shrink();
+    return Material(
+      color: Colors.white,
+      elevation: 8,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+          child: Row(
+            children: [
+              const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Mencetak struk…',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

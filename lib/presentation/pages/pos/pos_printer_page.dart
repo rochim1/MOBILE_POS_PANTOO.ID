@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/_core.dart';
@@ -62,20 +63,29 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   bool _printersLoading = true;
   List<Printer> _printers = const [];
   String _selectedPrinterUrl = '';
+  String _selectedBluetoothName = '';
   bool _isTestPrinting = false;
+  String _printMode = 'fast';
 
   @override
   void initState() {
     super.initState();
+    _printMode = PosReceiptPrintService(sl()).renderMode;
     _loadPrinters();
   }
 
   Future<void> _loadPrinters() async {
+    final service = PosReceiptPrintService(sl());
+    _selectedBluetoothName = service.selectedBluetoothName;
     // Browser tidak menyediakan enumerasi printer yang stabil. Memanggil
     // Printing.info/listPrinters saat debug web dapat mengganti execution
     // context Chrome dan memutus Flutter Inspector. Web selalu memakai dialog
     // cetak sistem, jadi lewati discovery printer sepenuhnya.
-    if (kIsWeb) {
+    // Android thermal uses the Bluetooth plugin directly. The `printing`
+    // plugin's system-printer enumeration is not available on many Android
+    // builds and is unrelated to Bluetooth discovery, so do not show a
+    // misleading "platform does not provide printers" state here.
+    if (kIsWeb || defaultTargetPlatform == TargetPlatform.android) {
       if (mounted) {
         setState(() {
           _printers = const [];
@@ -86,7 +96,6 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       return;
     }
 
-    final service = PosReceiptPrintService(sl());
     try {
       final printers = await service.availablePrinters().timeout(
         const Duration(seconds: 8),
@@ -118,6 +127,67 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         : _printers.where((item) => item.url == url).firstOrNull;
     await PosReceiptPrintService(sl()).selectPrinter(printer);
     if (mounted) setState(() => _selectedPrinterUrl = url ?? '');
+  }
+
+  Future<void> _selectBluetoothPrinter() async {
+    try {
+      final pickerContext = context;
+      if (!await _ensureBluetoothPermission()) return;
+      if (!pickerContext.mounted) return;
+      final selected = await PosReceiptPrintService(
+        sl(),
+      ).selectBluetoothPrinter(pickerContext);
+      if (!mounted || !selected) return;
+      setState(() {
+        _selectedBluetoothName = PosReceiptPrintService(
+          sl(),
+        ).selectedBluetoothName;
+        _selectedPrinterUrl = '';
+      });
+      AppToast.success(context, 'Printer Bluetooth berhasil dipilih');
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          'Bluetooth tidak dapat diakses. Aktifkan Bluetooth dan izinkan perangkat terdekat.',
+        );
+      }
+    }
+  }
+
+  Future<bool> _ensureBluetoothPermission() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    final requested = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+    ].request();
+    var ready = requested.values.every((status) => status.isGranted);
+
+    // Android 10/11 requires location permission while discovering nearby
+    // Bluetooth devices. Android 12+ uses Nearby devices instead.
+    if (!ready) {
+      final location = await Permission.locationWhenInUse.request();
+      ready =
+          location.isGranted &&
+          (await Permission.bluetoothScan.status).isGranted &&
+          (await Permission.bluetoothConnect.status).isGranted;
+    }
+    if (ready) return true;
+
+    final permanentlyDenied =
+        (await Permission.bluetoothScan.status).isPermanentlyDenied ||
+        (await Permission.bluetoothConnect.status).isPermanentlyDenied ||
+        (await Permission.locationWhenInUse.status).isPermanentlyDenied;
+    if (mounted) {
+      AppToast.error(
+        context,
+        permanentlyDenied
+            ? 'Izin Bluetooth ditolak permanen. Aktifkan Perangkat terdekat dari Pengaturan Aplikasi.'
+            : 'Izinkan Perangkat terdekat (Android 12+) atau Lokasi (Android 10/11) untuk mencari printer.',
+      );
+    }
+    if (permanentlyDenied) await openAppSettings();
+    return false;
   }
 
   @override
@@ -245,6 +315,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                     title: 'Header Struk',
                     icon: Icons.title,
                     children: [
+                      _buildPlaceholderHint(),
                       _buildSwitch(
                         'Tampilkan Logo Toko',
                         _showLogo,
@@ -319,6 +390,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                     title: 'Footer Struk',
                     icon: Icons.horizontal_rule,
                     children: [
+                      _buildPlaceholderHint(),
                       _buildTextField(
                         'Catatan Bawah 1',
                         _footerLine1Controller,
@@ -368,6 +440,27 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         onChanged: (val) =>
                             setState(() => _fontSize = int.parse(val!)),
                         suffix: 'pt',
+                      ),
+                      _buildDropdown(
+                        label: 'Mode Cetak Bluetooth',
+                        value: _printMode,
+                        items: const ['fast', 'pdf'],
+                        labels: const {
+                          'fast': 'Cepat (teks ESC/POS)',
+                          'pdf': 'Presisi (PDF + logo)',
+                        },
+                        onChanged: (val) async {
+                          final mode = val ?? 'fast';
+                          setState(() => _printMode = mode);
+                          await PosReceiptPrintService(
+                            sl(),
+                          ).setRenderMode(mode);
+                        },
+                      ),
+                      const Text(
+                        'Cepat memakai teks ESC/POS dan tetap mengikuti field template. '
+                        'Pilih Presisi jika logo dan tampilan PDF harus sama persis dengan preview.',
+                        style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),
                     ],
                   ),
@@ -510,12 +603,31 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
     );
   }
 
+  Widget _buildPlaceholderHint() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+      ),
+      child: const Text(
+        'Placeholder kasir: {{nama_kasir}}  (alias: {{kasir}}). '
+        'Contoh: Dilayani oleh {{nama_kasir}}',
+        style: TextStyle(fontSize: 12, color: Colors.black87),
+      ),
+    );
+  }
+
   Widget _buildDropdown({
     required String label,
     required String value,
     required List<String> items,
     required void Function(String?) onChanged,
     String? suffix,
+    Map<String, String>? labels,
   }) {
     final safeValue = items.contains(value) ? value : items.first;
 
@@ -539,7 +651,10 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
               ),
               items: items
                   .map(
-                    (item) => DropdownMenuItem(value: item, child: Text(item)),
+                    (item) => DropdownMenuItem(
+                      value: item,
+                      child: Text(labels?[item] ?? item),
+                    ),
                   )
                   .toList(),
               onChanged: onChanged,
@@ -622,7 +737,12 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       symbol: 'Rp ',
       decimalDigits: 0,
     );
-    final title = _interpolate(template.headerTitle, company);
+    const previewCashierName = 'Kasir Pantoo';
+    final title = _interpolate(
+      template.headerTitle,
+      company,
+      cashierName: previewCashierName,
+    );
     final receiptWidth = template.paperWidth == 80 ? 380.0 : 300.0;
 
     Widget line(String label, String value, {bool bold = false}) => Padding(
@@ -692,9 +812,17 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                     template.headerLine3,
                     template.headerLine4,
                   ])
-                    if (_interpolate(value, company).isNotEmpty)
+                    if (_interpolate(
+                      value,
+                      company,
+                      cashierName: previewCashierName,
+                    ).isNotEmpty)
                       Text(
-                        _interpolate(value, company),
+                        _interpolate(
+                          value,
+                          company,
+                          cashierName: previewCashierName,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                   const Divider(height: 18),
@@ -741,9 +869,17 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                     template.footerLine2,
                     template.footerLine3,
                   ])
-                    if (_interpolate(value, company).isNotEmpty)
+                    if (_interpolate(
+                      value,
+                      company,
+                      cashierName: previewCashierName,
+                    ).isNotEmpty)
                       Text(
-                        _interpolate(value, company),
+                        _interpolate(
+                          value,
+                          company,
+                          cashierName: previewCashierName,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                 ],
@@ -755,12 +891,19 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
     );
   }
 
-  String _interpolate(String? raw, Map<String, String> company) {
+  String _interpolate(
+    String? raw,
+    Map<String, String> company, {
+    String cashierName = '',
+  }) {
     var value = raw?.trim() ?? '';
     final aliases = <String, String>{
       ...company,
       'telpon_nomor': company['telpon_number'] ?? '',
       'npwp': company['NPWP'] ?? '',
+      'nama_kasir': cashierName,
+      'kasir': cashierName,
+      'cashier_name': cashierName,
     };
     aliases.forEach((key, replacement) {
       value = value.replaceAll('{{$key}}', replacement);
@@ -769,18 +912,101 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   }
 
   Widget _buildPrinterDeviceSection(Map<String, String> company) {
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     return _buildSection(
       title: 'Printer Terminal Ini',
       icon: Icons.print_outlined,
       children: [
-        if (_printersLoading)
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.bluetooth, color: Colors.teal),
+            title: Text(
+              _selectedBluetoothName.isEmpty
+                  ? 'Printer Bluetooth thermal'
+                  : _selectedBluetoothName,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              _selectedBluetoothName.isEmpty
+                  ? 'Cetak langsung tanpa dialog sistem'
+                  : 'Aktif untuk cetak struk kasir',
+            ),
+            trailing: FilledButton.icon(
+              onPressed: _selectBluetoothPrinter,
+              icon: const Icon(Icons.search, size: 17),
+              label: Text(_selectedBluetoothName.isEmpty ? 'Pilih' : 'Ganti'),
+            ),
+          ),
+          if (_selectedBluetoothName.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () async {
+                  await PosReceiptPrintService(sl()).clearBluetoothPrinter();
+                  if (mounted) setState(() => _selectedBluetoothName = '');
+                },
+                icon: const Icon(Icons.link_off, size: 16),
+                label: const Text('Gunakan printer sistem'),
+              ),
+            ),
+          const Divider(height: 12),
+        ],
+        if (!isAndroid && _printersLoading)
           const LinearProgressIndicator()
-        else if (_printers.isEmpty)
-          const Text(
-            'Platform tidak menyediakan daftar printer. Pencetakan tetap menggunakan dialog cetak sistem.',
-            style: TextStyle(color: Colors.black54),
-          )
-        else ...[
+        else if (!isAndroid && _printers.isEmpty) ...[
+          Text(
+            kIsWeb
+                ? 'Situs web tidak dapat meminta izin untuk membaca daftar printer sistem. Buka contoh struk PDF, lalu pilih printer melalui dialog cetak browser.'
+                : 'Belum ada printer sistem yang terdeteksi. Periksa koneksi dan driver printer, lalu muat ulang.',
+            style: const TextStyle(color: Colors.black54),
+          ),
+          if (kIsWeb) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Unduh contoh struk PDF, buka file tersebut lalu cetak dari browser. Untuk printer Bluetooth thermal langsung, gunakan aplikasi Android.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (!kIsWeb) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _loadPrinters,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Muat ulang'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _isTestPrinting ? null : () => _testPrint(company),
+                  icon: _isTestPrinting
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          kIsWeb
+                              ? Icons.download_outlined
+                              : Icons.print_outlined,
+                        ),
+                  label: Text(
+                    _isTestPrinting
+                        ? 'Menyiapkan…'
+                        : kIsWeb
+                        ? 'Unduh contoh struk'
+                        : 'Tes cetak',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else if (!isAndroid) ...[
           DropdownButtonFormField<String>(
             initialValue: _selectedPrinterUrl,
             decoration: const InputDecoration(
@@ -832,9 +1058,35 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             ],
           ),
         ],
+        if (isAndroid) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'Android menggunakan printer Bluetooth thermal yang dipilih di atas. Printer sistem/Wi‑Fi tidak digunakan untuk struk kasir.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _isTestPrinting ? null : () => _testPrint(company),
+                  icon: _isTestPrinting
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.print_outlined),
+                  label: Text(
+                    _isTestPrinting ? 'Menyiapkan…' : 'Tes cetak Bluetooth',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 8),
         const Text(
-          'Pilihan printer disimpan hanya pada perangkat ini. Jika direct print tidak didukung driver, sistem otomatis membuka dialog cetak.',
+          'Pilihan printer disimpan hanya pada perangkat ini. Printer Bluetooth thermal dicetak langsung dalam format ESC/POS; printer sistem menggunakan dialog cetak.',
           style: TextStyle(fontSize: 12, color: Colors.black54),
         ),
       ],
@@ -850,6 +1102,23 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         template: _draftTemplate,
         company: company,
       ).timeout(const Duration(seconds: 12));
+      if (kIsWeb) {
+        // printing_web.layoutPdf waits for an iframe load event that some
+        // browsers never dispatch. Downloading the sample avoids a stuck
+        // print dialog and lets the user print the PDF from the browser.
+        final downloaded = await Printing.sharePdf(
+          bytes: bytes,
+          filename: 'Tes-Struk-Pantoo.pdf',
+        ).timeout(const Duration(seconds: 8));
+        if (!downloaded) throw StateError('Unduhan contoh struk dibatalkan');
+        if (mounted) {
+          AppToast.success(
+            context,
+            'Contoh struk diunduh. Buka PDF untuk mencetak.',
+          );
+        }
+        return;
+      }
       await PosReceiptPrintService(sl())
           .printPdf(
             bytes: bytes,
@@ -864,11 +1133,19 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       if (mounted) {
         AppToast.error(
           context,
-          'Printer tidak merespons. Periksa koneksi atau driver printer.',
+          kIsWeb
+              ? 'Contoh struk gagal disiapkan. Coba lagi tanpa logo atau periksa koneksi.'
+              : 'Printer tidak merespons. Periksa koneksi atau driver printer.',
         );
       }
-    } catch (_) {
-      if (mounted) AppToast.error(context, 'Tes cetak gagal dibuka');
+    } catch (error) {
+      debugPrint('[Printer] Tes cetak gagal: $error');
+      if (mounted) {
+        AppToast.error(
+          context,
+          kIsWeb ? 'Contoh struk gagal diunduh' : 'Tes cetak gagal dibuka',
+        );
+      }
     } finally {
       if (mounted) setState(() => _isTestPrinting = false);
     }

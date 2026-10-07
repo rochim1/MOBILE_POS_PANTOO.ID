@@ -32,6 +32,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
         title: const PosAppBarTitle(
@@ -100,7 +101,12 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
         },
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          16 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

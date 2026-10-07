@@ -64,7 +64,7 @@ class PosOrderBoardSkeleton extends StatelessWidget {
                           cardsPerColumn,
                           (_) => const Padding(
                             padding: EdgeInsets.only(bottom: 10),
-                            child: _OrderTicketSkeleton(),
+                            child: PosOrderTicketSkeleton(),
                           ),
                         ),
                       ],
@@ -80,8 +80,8 @@ class PosOrderBoardSkeleton extends StatelessWidget {
   );
 }
 
-class _OrderTicketSkeleton extends StatelessWidget {
-  const _OrderTicketSkeleton();
+class PosOrderTicketSkeleton extends StatelessWidget {
+  const PosOrderTicketSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) => Container(

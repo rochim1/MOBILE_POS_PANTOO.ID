@@ -7,6 +7,7 @@ import '../../../bloc/pos_shift/pos_shift_event.dart';
 import '../../../bloc/pos_shift/pos_shift_state.dart';
 import '../../../bloc/lock/lock_cubit.dart';
 import 'package:intl/intl.dart';
+import '../../../widgets/pos_keyboard_stable_sheet.dart';
 
 class PosActiveShiftTab extends StatefulWidget {
   final GlobalKey? storeTourKey;
@@ -570,73 +571,79 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (bottomSheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
-          left: 16,
-          right: 16,
-          top: 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              type == 'in'
-                  ? 'Kas Masuk (Tambah Modal)'
-                  : 'Kas Keluar (Ambil Kas)',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              keyboardType: TextInputType.number,
-              inputFormatters: const [RupiahInputFormatter()],
-              decoration: InputDecoration(
-                labelText: 'Jumlah (Rp)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+      builder: (bottomSheetContext) => PosKeyboardStableSheet(
+        heightFactor: .68,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            24,
+            16,
+            MediaQuery.viewInsetsOf(bottomSheetContext).bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                type == 'in'
+                    ? 'Kas Masuk (Tambah Modal)'
+                    : 'Kas Keluar (Ambil Kas)',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              onChanged: (val) => amount = parseRupiah(val),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Keterangan',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              maxLines: 2,
-              onChanged: (val) => notes = val,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                if (amount <= 0) return;
-                context.read<PosShiftBloc>().add(
-                  AddPettyCashEvent(
-                    shiftId: shiftId,
-                    type: type,
-                    amount: amount,
-                    notes: notes,
-                    tokoId: selectedTokoId!,
+              const SizedBox(height: 16),
+              TextField(
+                keyboardType: TextInputType.number,
+                inputFormatters: const [RupiahInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Jumlah (Rp)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-                Navigator.pop(bottomSheetContext);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
                 ),
+                onChanged: (val) => amount = parseRupiah(val),
               ),
-              child: const Text('Simpan'),
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Keterangan',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                maxLines: 2,
+                onChanged: (val) => notes = val,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  if (amount <= 0) return;
+                  context.read<PosShiftBloc>().add(
+                    AddPettyCashEvent(
+                      shiftId: shiftId,
+                      type: type,
+                      amount: amount,
+                      notes: notes,
+                      tokoId: selectedTokoId!,
+                    ),
+                  );
+                  Navigator.pop(bottomSheetContext);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Simpan'),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -653,73 +660,100 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (bottomSheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
-          left: 16,
-          right: 16,
-          top: 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Tutup Shift',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              initialValue: formatRupiahInput(actualCash),
-              keyboardType: TextInputType.number,
-              inputFormatters: const [RupiahInputFormatter()],
-              decoration: InputDecoration(
-                labelText: 'Kas Fisik Aktual (Saat Tutup)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+      builder: (bottomSheetContext) => PosKeyboardStableSheet(
+        heightFactor: .68,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            24,
+            16,
+            MediaQuery.viewInsetsOf(bottomSheetContext).bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Tutup Shift',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              onChanged: (val) => actualCash = parseRupiah(val),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Catatan Tutup Shift',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              maxLines: 2,
-              onChanged: (val) => notes = val,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                context.read<PosShiftBloc>().add(
-                  CloseShiftEvent(
-                    shiftId: shift['_id'],
-                    actualCash: actualCash,
-                    notes: notes,
-                    tokoId: selectedTokoId!,
+              const SizedBox(height: 16),
+              TextFormField(
+                initialValue: formatRupiahInput(actualCash),
+                keyboardType: TextInputType.number,
+                inputFormatters: const [RupiahInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Kas Fisik Aktual (Saat Tutup)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-                Navigator.pop(bottomSheetContext);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.danger,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                ),
+                onChanged: (val) => actualCash = parseRupiah(val),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Catatan Tutup Shift',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                maxLines: 2,
+                onChanged: (val) => notes = val,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: bottomSheetContext,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Periksa perangkat kasir lain'),
+                      content: const Text(
+                        'Perangkat lain yang masih offline tidak dapat dideteksi. Pastikan semua kasir pada shift ini telah sinkron dan kas fisik telah dicocokkan.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Periksa dulu'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text('Sudah diperiksa'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true ||
+                      !context.mounted ||
+                      !bottomSheetContext.mounted) {
+                    return;
+                  }
+                  context.read<PosShiftBloc>().add(
+                    CloseShiftEvent(
+                      shiftId: shift['_id'],
+                      actualCash: actualCash,
+                      notes: notes,
+                      tokoId: selectedTokoId!,
+                    ),
+                  );
+                  Navigator.pop(bottomSheetContext);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Konfirmasi Tutup Shift',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-              child: const Text(
-                'Konfirmasi Tutup Shift',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
