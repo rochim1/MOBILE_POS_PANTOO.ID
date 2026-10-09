@@ -21,6 +21,7 @@ import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
 import 'pos_purchase_receiving_page.dart';
+import 'pos_purchase_payable_page.dart';
 import 'pos_purchase_workspace.dart';
 import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
@@ -346,11 +347,12 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     ),
     _InventorySection.purchase => PosPurchaseWorkspace(
       permissions: permissions,
-      purchaseListBuilder: (onReceive) => _InventoryDocumentPage(
+      purchaseListBuilder: (onReceive, onPay) => _InventoryDocumentPage(
         key: const ValueKey(PosInventoryDocumentType.purchase),
         type: PosInventoryDocumentType.purchase,
         permissions: permissions,
         onReceivePurchase: onReceive,
+        onPayPurchase: onPay,
       ),
     ),
     _InventorySection.opname => _InventoryDocumentPage(
@@ -414,12 +416,14 @@ class _InventoryDocumentPage extends StatefulWidget {
   final bool canReceiveTransfer;
   final Map<String, dynamic> permissions;
   final ValueChanged<Map<String, dynamic>>? onReceivePurchase;
+  final ValueChanged<Map<String, dynamic>>? onPayPurchase;
   const _InventoryDocumentPage({
     super.key,
     required this.type,
     required this.permissions,
     this.canReceiveTransfer = false,
     this.onReceivePurchase,
+    this.onPayPurchase,
   });
 
   @override
@@ -1437,338 +1441,366 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     );
   }
 
-  Future<void> _showDetail(
-    Map<String, dynamic> item,
-  ) => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) {
-      final rows = (item['items'] as List? ?? const []).cast<Map>();
-      final totalQty = rows.fold<double>(0, (sum, row) {
-        final value = row['qty_ordered'] ?? row['qty'] ?? row['qty_fisik'] ?? 0;
-        return sum + ((value as num?)?.toDouble() ?? 0);
-      });
-      final totalSystem = rows.fold<double>(
-        0,
-        (sum, row) => sum + ((row['qty_system'] as num?)?.toDouble() ?? 0),
-      );
-      final totalPhysical = rows.fold<double>(
-        0,
-        (sum, row) => sum + ((row['qty_fisik'] as num?)?.toDouble() ?? 0),
-      );
-      final totalDifference = totalPhysical - totalSystem;
-      final totalNetLoss = rows.fold<double>(0, (sum, row) {
-        final qty = (row['qty'] as num?)?.toDouble() ?? 0;
-        final recycled = (row['jumlah_hasil_recycle'] as num?)?.toDouble() ?? 0;
-        return sum +
-            ((row['jumlah_hilang'] as num?)?.toDouble() ?? qty - recycled);
-      });
-      return SafeArea(
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: .68,
-          maxChildSize: .92,
-          builder: (_, controller) => ListView(
-            controller: controller,
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
-            children: [
-              Text(
-                _number(item),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _subtitle(item),
-                style: const TextStyle(color: Colors.black54),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _InventoryStatus(
-                    widget.type == PosInventoryDocumentType.purchase
-                        ? PosPurchaseProgress.effectiveStatus(item)
-                        : item['status']?.toString() ?? '-',
-                  ),
-                  const Spacer(),
-                  Text(_date(_dateValue(item))),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _DetailMetric(
-                    icon: Icons.inventory_2_outlined,
-                    label: '${rows.length} jenis barang',
-                  ),
-                  _DetailMetric(
-                    icon: Icons.numbers_outlined,
-                    label: '${_compactNumber(totalQty)} total jumlah',
-                  ),
-                  if (widget.type == PosInventoryDocumentType.purchase)
-                    _DetailMetric(
-                      icon: Icons.payments_outlined,
-                      label: _money(item['grand_total']),
-                    ),
-                  if (widget.type == PosInventoryDocumentType.purchase)
-                    _DetailMetric(
-                      icon: Icons.inventory_outlined,
-                      label:
-                          '${(PosPurchaseProgress.completionRatio(item) * 100).round()}% diterima',
-                    ),
-                  if (widget.type == PosInventoryDocumentType.transfer)
-                    _DetailMetric(
-                      icon: Icons.move_to_inbox_outlined,
-                      label:
-                          '${_compactNumber(rows.fold<double>(0, (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0)))} diterima',
-                    ),
-                  if (widget.type == PosInventoryDocumentType.opname) ...[
-                    _DetailMetric(
-                      icon: Icons.approval_outlined,
-                      label:
-                          'Persetujuan ${item['approval_current_level'] ?? 0}/${item['approval_required_level'] ?? 1}',
-                    ),
-                    _DetailMetric(
-                      icon: Icons.computer_outlined,
-                      label: '${_compactNumber(totalSystem)} stok sistem',
-                    ),
-                    _DetailMetric(
-                      icon: Icons.fact_check_outlined,
-                      label: '${_compactNumber(totalPhysical)} hasil fisik',
-                    ),
-                    _DetailMetric(
-                      icon: totalDifference == 0
-                          ? Icons.check_circle_outline
-                          : Icons.compare_arrows,
-                      label:
-                          '${totalDifference > 0 ? '+' : ''}${_compactNumber(totalDifference)} selisih',
-                    ),
-                  ],
-                  if (widget.type == PosInventoryDocumentType.scrap) ...[
-                    _DetailMetric(
-                      icon: Icons.delete_sweep_outlined,
-                      label: '${_compactNumber(totalNetLoss)} kerugian bersih',
-                    ),
-                    _DetailMetric(
-                      icon: Icons.payments_outlined,
-                      label: _money(item['total_nilai_scrap']),
-                    ),
-                  ],
-                ],
-              ),
-              if (widget.type == PosInventoryDocumentType.opname &&
-                  (item['alasan_penolakan']?.toString().trim() ?? '')
-                      .isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerBackground,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.dangerBorder),
-                  ),
-                  child: Text(
-                    'Alasan penolakan: ${item['alasan_penolakan']}',
-                    style: TextStyle(color: AppColors.danger),
-                  ),
-                ),
-              ],
-              if ((item['catatan']?.toString().trim() ?? '').isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('Catatan: ${item['catatan']}'),
-                ),
-              ],
-              if (widget.type == PosInventoryDocumentType.transfer &&
-                  item['status'] == 'posted' &&
-                  (item['total_biaya'] as num? ?? 0) > 0 &&
-                  [
-                    'failed',
-                    'pending',
-                    'unknown',
-                  ].contains(item['journal_status'])) ...[
-                const SizedBox(height: 12),
+  Future<void> _showDetail(Map<String, dynamic> item) async {
+    final selectedAction = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        final rows = (item['items'] as List? ?? const []).cast<Map>();
+        final totalQty = rows.fold<double>(0, (sum, row) {
+          final value =
+              row['qty_ordered'] ?? row['qty'] ?? row['qty_fisik'] ?? 0;
+          return sum + ((value as num?)?.toDouble() ?? 0);
+        });
+        final totalSystem = rows.fold<double>(
+          0,
+          (sum, row) => sum + ((row['qty_system'] as num?)?.toDouble() ?? 0),
+        );
+        final totalPhysical = rows.fold<double>(
+          0,
+          (sum, row) => sum + ((row['qty_fisik'] as num?)?.toDouble() ?? 0),
+        );
+        final totalDifference = totalPhysical - totalSystem;
+        final totalNetLoss = rows.fold<double>(0, (sum, row) {
+          final qty = (row['qty'] as num?)?.toDouble() ?? 0;
+          final recycled =
+              (row['jumlah_hasil_recycle'] as num?)?.toDouble() ?? 0;
+          return sum +
+              ((row['jumlah_hilang'] as num?)?.toDouble() ?? qty - recycled);
+        });
+        return SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: .68,
+            maxChildSize: .92,
+            builder: (_, controller) => ListView(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+              children: [
                 Text(
-                  'Stok sudah diproses, tetapi jurnal biaya perlu diperiksa: ${item['journal_error'] ?? 'belum terkonfirmasi'}',
-                  style: TextStyle(color: AppColors.danger),
-                ),
-              ],
-              if (widget.type == PosInventoryDocumentType.transfer &&
-                  item['status'] == 'cancelled' &&
-                  (item['total_biaya'] as num? ?? 0) > 0 &&
-                  [
-                    'failed',
-                    'pending',
-                    'unknown',
-                  ].contains(item['cancel_journal_status'])) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${item['cancel_journal_error'] ?? 'belum terkonfirmasi'}',
-                  style: TextStyle(color: AppColors.danger),
-                ),
-              ],
-              if (widget.type == PosInventoryDocumentType.opname &&
-                  (item['approval_logs'] as List? ?? const []).isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Riwayat persetujuan',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  _number(item),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 6),
-                ...(item['approval_logs'] as List).map((raw) {
-                  final log = Map<String, dynamic>.from(raw as Map);
-                  final action = (log['action']?.toString() ?? '-').replaceAll(
-                    '_',
-                    ' ',
-                  );
-                  final note = log['note']?.toString().trim() ?? '';
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.check_circle_outline, size: 20),
-                    title: Text(
-                      action,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                Text(
+                  _subtitle(item),
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _InventoryStatus(
+                      widget.type == PosInventoryDocumentType.purchase
+                          ? PosPurchaseProgress.effectiveStatus(item)
+                          : item['status']?.toString() ?? '-',
                     ),
-                    subtitle: Text(
-                      [
-                        if ((log['level'] as num? ?? 0) > 0)
-                          'Level ${log['level']}',
-                        if (note.isNotEmpty) note,
-                      ].join(' • '),
+                    const Spacer(),
+                    Text(_date(_dateValue(item))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _DetailMetric(
+                      icon: Icons.inventory_2_outlined,
+                      label: '${rows.length} jenis barang',
                     ),
-                    trailing: Text(_date(log['at'])),
-                  );
-                }),
-              ],
-              const Divider(height: 28),
-              const Text(
-                'Daftar barang',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              if (rows.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('Tidak ada rincian barang')),
-                )
-              else
-                ...rows.map((row) {
-                  final qty =
-                      row['qty_ordered'] ?? row['qty'] ?? row['qty_fisik'] ?? 0;
-                  final system = row['qty_system'];
-                  final isScrap = widget.type == PosInventoryDocumentType.scrap;
-                  final source =
-                      [
-                            row['lokasi_cabang_nama'],
-                            row['lokasi_gedung_nama'] ??
-                                row['lokasi_gedung_kode'],
-                            row['lokasi_ruangan_nama'] ??
-                                row['lokasi_ruangan_kode'],
-                            row['lokasi_rak_nama'],
-                          ]
-                          .map((value) => value?.toString().trim() ?? '')
-                          .where((value) => value.isNotEmpty)
-                          .join(' / ');
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(row['nama_inventaris']?.toString() ?? '-'),
-                    subtitle: widget.type == PosInventoryDocumentType.transfer
-                        ? Text(
-                            'Diterima ${_compactNumber(row['received_qty'] ?? 0)} • Sisa ${_compactNumber(((row['qty'] as num?)?.toDouble() ?? 0) - ((row['received_qty'] as num?)?.toDouble() ?? 0))}',
-                          )
-                        : isScrap
-                        ? Text(
-                            '${source.isEmpty ? 'Sumber stok tidak tercatat' : source}'
-                            '${(row['no_batch']?.toString() ?? '').isEmpty ? '' : ' • Batch ${row['no_batch']}'}\n'
-                            '${row['tindakan'] == 'recycle' ? 'Recycle ${_compactNumber(row['jumlah_hasil_recycle'])} • ' : ''}'
-                            'Hilang ${_compactNumber(row['jumlah_hilang'] ?? row['qty'])}',
-                          )
-                        : system == null
-                        ? null
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sistem: $system • Selisih: ${row['selisih'] ?? 0}',
-                              ),
-                              if ((row['batch_counts'] as List? ?? const [])
-                                  .isNotEmpty)
-                                Text(
-                                  '${(row['batch_counts'] as List).length} batch tercatat',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              if ((row['catatan_item']?.toString().trim() ?? '')
-                                  .isNotEmpty)
-                                Text(
-                                  'Alasan selisih: ${row['catatan_item']}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                            ],
-                          ),
-                    trailing: Text(
-                      '$qty ${row['unit'] ?? ''}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    _DetailMetric(
+                      icon: Icons.numbers_outlined,
+                      label: '${_compactNumber(totalQty)} total jumlah',
                     ),
-                  );
-                }),
-              if (_detailActions(item).isNotEmpty) ...[
+                    if (widget.type == PosInventoryDocumentType.purchase)
+                      _DetailMetric(
+                        icon: Icons.payments_outlined,
+                        label: _money(item['grand_total']),
+                      ),
+                    if (widget.type == PosInventoryDocumentType.purchase)
+                      _DetailMetric(
+                        icon: Icons.inventory_outlined,
+                        label:
+                            '${(PosPurchaseProgress.completionRatio(item) * 100).round()}% diterima',
+                      ),
+                    if (widget.type == PosInventoryDocumentType.transfer)
+                      _DetailMetric(
+                        icon: Icons.move_to_inbox_outlined,
+                        label:
+                            '${_compactNumber(rows.fold<double>(0, (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0)))} diterima',
+                      ),
+                    if (widget.type == PosInventoryDocumentType.opname) ...[
+                      _DetailMetric(
+                        icon: Icons.approval_outlined,
+                        label:
+                            'Persetujuan ${item['approval_current_level'] ?? 0}/${item['approval_required_level'] ?? 1}',
+                      ),
+                      _DetailMetric(
+                        icon: Icons.computer_outlined,
+                        label: '${_compactNumber(totalSystem)} stok sistem',
+                      ),
+                      _DetailMetric(
+                        icon: Icons.fact_check_outlined,
+                        label: '${_compactNumber(totalPhysical)} hasil fisik',
+                      ),
+                      _DetailMetric(
+                        icon: totalDifference == 0
+                            ? Icons.check_circle_outline
+                            : Icons.compare_arrows,
+                        label:
+                            '${totalDifference > 0 ? '+' : ''}${_compactNumber(totalDifference)} selisih',
+                      ),
+                    ],
+                    if (widget.type == PosInventoryDocumentType.scrap) ...[
+                      _DetailMetric(
+                        icon: Icons.delete_sweep_outlined,
+                        label:
+                            '${_compactNumber(totalNetLoss)} kerugian bersih',
+                      ),
+                      _DetailMetric(
+                        icon: Icons.payments_outlined,
+                        label: _money(item['total_nilai_scrap']),
+                      ),
+                    ],
+                  ],
+                ),
+                if (widget.type == PosInventoryDocumentType.opname &&
+                    (item['alasan_penolakan']?.toString().trim() ?? '')
+                        .isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerBackground,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.dangerBorder),
+                    ),
+                    child: Text(
+                      'Alasan penolakan: ${item['alasan_penolakan']}',
+                      style: TextStyle(color: AppColors.danger),
+                    ),
+                  ),
+                ],
+                if ((item['catatan']?.toString().trim() ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Catatan: ${item['catatan']}'),
+                  ),
+                ],
+                if (widget.type == PosInventoryDocumentType.transfer &&
+                    item['status'] == 'posted' &&
+                    (item['total_biaya'] as num? ?? 0) > 0 &&
+                    [
+                      'failed',
+                      'pending',
+                      'unknown',
+                    ].contains(item['journal_status'])) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Stok sudah diproses, tetapi jurnal biaya perlu diperiksa: ${item['journal_error'] ?? 'belum terkonfirmasi'}',
+                    style: TextStyle(color: AppColors.danger),
+                  ),
+                ],
+                if (widget.type == PosInventoryDocumentType.transfer &&
+                    item['status'] == 'cancelled' &&
+                    (item['total_biaya'] as num? ?? 0) > 0 &&
+                    [
+                      'failed',
+                      'pending',
+                      'unknown',
+                    ].contains(item['cancel_journal_status'])) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${item['cancel_journal_error'] ?? 'belum terkonfirmasi'}',
+                    style: TextStyle(color: AppColors.danger),
+                  ),
+                ],
+                if (widget.type == PosInventoryDocumentType.opname &&
+                    (item['approval_logs'] as List? ?? const [])
+                        .isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Riwayat persetujuan',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  ...(item['approval_logs'] as List).map((raw) {
+                    final log = Map<String, dynamic>.from(raw as Map);
+                    final action = (log['action']?.toString() ?? '-')
+                        .replaceAll('_', ' ');
+                    final note = log['note']?.toString().trim() ?? '';
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.check_circle_outline, size: 20),
+                      title: Text(
+                        action,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        [
+                          if ((log['level'] as num? ?? 0) > 0)
+                            'Level ${log['level']}',
+                          if (note.isNotEmpty) note,
+                        ].join(' • '),
+                      ),
+                      trailing: Text(_date(log['at'])),
+                    );
+                  }),
+                ],
                 const Divider(height: 28),
-                Wrap(spacing: 8, runSpacing: 8, children: _detailActions(item)),
+                const Text(
+                  'Daftar barang',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                if (rows.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: Text('Tidak ada rincian barang')),
+                  )
+                else
+                  ...rows.map((row) {
+                    final qty =
+                        row['qty_ordered'] ??
+                        row['qty'] ??
+                        row['qty_fisik'] ??
+                        0;
+                    final system = row['qty_system'];
+                    final isScrap =
+                        widget.type == PosInventoryDocumentType.scrap;
+                    final source =
+                        [
+                              row['lokasi_cabang_nama'],
+                              row['lokasi_gedung_nama'] ??
+                                  row['lokasi_gedung_kode'],
+                              row['lokasi_ruangan_nama'] ??
+                                  row['lokasi_ruangan_kode'],
+                              row['lokasi_rak_nama'],
+                            ]
+                            .map((value) => value?.toString().trim() ?? '')
+                            .where((value) => value.isNotEmpty)
+                            .join(' / ');
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(row['nama_inventaris']?.toString() ?? '-'),
+                      subtitle: widget.type == PosInventoryDocumentType.transfer
+                          ? Text(
+                              'Diterima ${_compactNumber(row['received_qty'] ?? 0)} • Sisa ${_compactNumber(((row['qty'] as num?)?.toDouble() ?? 0) - ((row['received_qty'] as num?)?.toDouble() ?? 0))}',
+                            )
+                          : isScrap
+                          ? Text(
+                              '${source.isEmpty ? 'Sumber stok tidak tercatat' : source}'
+                              '${(row['no_batch']?.toString() ?? '').isEmpty ? '' : ' • Batch ${row['no_batch']}'}\n'
+                              '${row['tindakan'] == 'recycle' ? 'Recycle ${_compactNumber(row['jumlah_hasil_recycle'])} • ' : ''}'
+                              'Hilang ${_compactNumber(row['jumlah_hilang'] ?? row['qty'])}',
+                            )
+                          : system == null
+                          ? null
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sistem: $system • Selisih: ${row['selisih'] ?? 0}',
+                                ),
+                                if ((row['batch_counts'] as List? ?? const [])
+                                    .isNotEmpty)
+                                  Text(
+                                    '${(row['batch_counts'] as List).length} batch tercatat',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                if ((row['catatan_item']?.toString().trim() ??
+                                        '')
+                                    .isNotEmpty)
+                                  Text(
+                                    'Alasan selisih: ${row['catatan_item']}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                              ],
+                            ),
+                      trailing: Text(
+                        '$qty ${row['unit'] ?? ''}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    );
+                  }),
+                if (_detailActions(item, (action) {
+                  Navigator.pop(context, action);
+                }).isNotEmpty) ...[
+                  const Divider(height: 28),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _detailActions(item, (action) {
+                      Navigator.pop(context, action);
+                    }),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+    if (selectedAction != null && mounted) {
+      await _executeItemAction(item, selectedAction);
+    }
+  }
 
-  List<Widget> _detailActions(Map<String, dynamic> item) {
+  List<Widget> _detailActions(
+    Map<String, dynamic> item,
+    ValueChanged<String> onAction,
+  ) {
     return _availableActions(item).map((action) {
       if (action == 'edit') {
         return OutlinedButton.icon(
-          onPressed: () => _handleDetailAction(item, action),
+          onPressed: () => onAction(action),
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Ubah'),
         );
       }
       if (action == 'receive_purchase') {
         return FilledButton.icon(
-          onPressed: () => _handleDetailAction(item, action),
+          onPressed: () => onAction(action),
           icon: const Icon(Icons.inventory),
           label: const Text('Terima Barang'),
         );
       }
       if (action == 'receive_transfer') {
         return FilledButton.icon(
-          onPressed: () => _handleDetailAction(item, action),
+          onPressed: () => onAction(action),
           icon: const Icon(Icons.download_done),
           label: const Text('Terima Mutasi'),
+        );
+      }
+      if (action == 'pay_purchase') {
+        return FilledButton.icon(
+          onPressed: () => onAction(action),
+          icon: const Icon(Icons.payments_outlined),
+          label: const Text('Bayar / Lihat Hutang'),
         );
       }
       final destructive = const {'delete', 'reject', 'cancel'}.contains(action);
       return destructive
           ? OutlinedButton.icon(
-              onPressed: () => _handleDetailAction(item, action),
+              onPressed: () => onAction(action),
               icon: Icon(_actionIcon(action)),
               label: Text(_actionLabel(action)),
             )
           : FilledButton.icon(
-              onPressed: () => _handleDetailAction(item, action),
+              onPressed: () => onAction(action),
               icon: Icon(_actionIcon(action)),
               label: Text(_actionLabel(action)),
             );
@@ -1790,6 +1822,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       purchaseHasRemaining:
           widget.type == PosInventoryDocumentType.purchase &&
           PosPurchaseProgress.hasRemaining(item),
+      canPayPurchase:
+          widget.permissions['view_payables'] == true &&
+          widget.permissions['record_payable_payment'] == true &&
+          const {
+            'approved',
+            'partially_received',
+            'completed',
+          }.contains(status),
     );
     if (widget.type == PosInventoryDocumentType.scrap &&
         status == 'completed' &&
@@ -1834,14 +1874,6 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     await _executeItemAction(item, action);
   }
 
-  Future<void> _handleDetailAction(
-    Map<String, dynamic> item,
-    String action,
-  ) async {
-    Navigator.pop(context);
-    await _executeItemAction(item, action);
-  }
-
   Future<void> _executeItemAction(
     Map<String, dynamic> item,
     String action,
@@ -1879,10 +1911,33 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => PosPurchaseReceivingPage(purchase: item),
+          builder: (_) => PosPurchaseReceivingPage(
+            purchase: item,
+            canViewPayable: widget.permissions['view_payables'] == true,
+            canRecordPayment:
+                widget.permissions['record_payable_payment'] == true,
+          ),
         ),
       );
       if (changed == true) _load(page: 1);
+      return;
+    }
+    if (action == 'pay_purchase') {
+      if (widget.onPayPurchase != null) {
+        widget.onPayPurchase!(item);
+        return;
+      }
+      final changed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PosPurchasePayablePage(
+            purchase: item,
+            canRecordPayment:
+                widget.permissions['record_payable_payment'] == true,
+          ),
+        ),
+      );
+      if (changed == true) await _load(page: 1);
       return;
     }
     if (action == 'receive_transfer') {
@@ -2091,6 +2146,7 @@ String _actionLabel(String action) => switch (action) {
   'cancel' => 'Batalkan',
   'delete' => 'Hapus',
   'receive_purchase' => 'Terima Barang',
+  'pay_purchase' => 'Lihat Hutang / Bayar',
   'receive_transfer' => 'Terima Mutasi',
   'retry_journal' => 'Ulangi Jurnal',
   'retry_cancel_journal' => 'Ulangi Jurnal Batal',
@@ -2105,6 +2161,7 @@ IconData _actionIcon(String action) => switch (action) {
   'cancel' => Icons.block,
   'delete' => Icons.delete_outline,
   'receive_purchase' => Icons.inventory_2_outlined,
+  'pay_purchase' => Icons.payments_outlined,
   'receive_transfer' => Icons.download_done,
   'retry_journal' => Icons.refresh,
   'retry_cancel_journal' => Icons.restart_alt,

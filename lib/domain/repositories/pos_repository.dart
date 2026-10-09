@@ -108,6 +108,8 @@ class PosRepository {
       'update_purchase_returns': false,
       'delete_purchase_returns': false,
       'view_inventory_purchases': false,
+      'view_payables': false,
+      'record_payable_payment': false,
       'view_inventory_opnames': false,
       'view_inventory_transfers': false,
       'receive_inventory_transfers': false,

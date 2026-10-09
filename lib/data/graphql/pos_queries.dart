@@ -125,6 +125,8 @@ class PosQueries {
           update_purchase_returns
           delete_purchase_returns
           view_inventory_purchases
+          view_payables
+          record_payable_payment
           view_inventory_opnames
           view_inventory_transfers
           receive_inventory_transfers

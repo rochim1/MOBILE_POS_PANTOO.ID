@@ -11,17 +11,24 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
+import 'pos_purchase_payable_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseReceivingPage extends StatefulWidget {
   final Map<String, dynamic> purchase;
   final bool embedded;
+  final bool canViewPayable;
+  final bool canRecordPayment;
   final VoidCallback? onFinished;
+  final ValueChanged<Map<String, dynamic>>? onPayRequested;
   const PosPurchaseReceivingPage({
     super.key,
     required this.purchase,
     this.embedded = false,
+    this.canViewPayable = false,
+    this.canRecordPayment = false,
     this.onFinished,
+    this.onPayRequested,
   });
 
   @override
@@ -515,6 +522,50 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     } else {
       AppToast.success(context, 'Penerimaan pembelian berhasil dicatat');
     }
+    // A PO creates its payable at approval. A receipt is only a due-date
+    // trigger for "saat penerimaan" terms; it is not a prerequisite to pay
+    // immediate or credit terms, including after a partial receipt.
+    if (!widget.canViewPayable) {
+      _finish();
+      return;
+    }
+    final openPayable = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Penerimaan selesai'),
+        content: const Text(
+          'Anda dapat melihat sisa hutang PO ini dan mencatat pembayaran sekarang atau nanti.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Nanti'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.payments_outlined),
+            label: const Text('Lihat hutang'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (openPayable == true) {
+      if (widget.embedded && widget.onPayRequested != null) {
+        widget.onPayRequested!(widget.purchase);
+        _finish();
+        return;
+      }
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => PosPurchasePayablePage(
+            purchase: widget.purchase,
+            canRecordPayment: widget.canRecordPayment,
+          ),
+        ),
+      );
+    }
+    if (!mounted) return;
     _finish();
   }
 

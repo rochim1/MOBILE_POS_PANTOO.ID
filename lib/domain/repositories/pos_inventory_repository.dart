@@ -526,6 +526,77 @@ class PosInventoryRepository {
     'input': input,
   }, 'AddInventoryReceiving');
 
+  Future<Either<Failure, Map<String, dynamic>?>> getPayableForPurchase(
+    String purchaseId,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.payableForPurchase),
+          variables: {
+            'filter': {'purchase_id': purchaseId},
+            'pagination': {'page': 0, 'limit': 100},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException)
+        return Left(AppErrorHandler.handle(result.exception!));
+      final rows =
+          result.data?['GetAllInventoryPayables']?['items'] as List? ??
+          const [];
+      for (final row in rows) {
+        final item = Map<String, dynamic>.from(row as Map);
+        if (item['purchase_id']?.toString() == purchaseId) return Right(item);
+      }
+      return const Right(null);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  getActiveBankAccounts() async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.activeBankAccounts),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException)
+        return Left(AppErrorHandler.handle(result.exception!));
+      final rows =
+          result.data?['GetAllBankAccounts']?['items'] as List? ?? const [];
+      return Right(
+        rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> payInventoryPayable(
+    Map<String, dynamic> input,
+  ) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PosInventoryQueries.payInventoryPayable),
+          variables: {'input': input},
+        ),
+      );
+      if (result.hasException)
+        return Left(AppErrorHandler.handle(result.exception!));
+      final data = result.data?['PayInventoryPayable'];
+      if (data is! Map)
+        return const Left(ServerFailure('Pembayaran hutang gagal disimpan'));
+      return Right(Map<String, dynamic>.from(data));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, dynamic>> retryReceivingJournal(String id) => _mutate(
     PosInventoryQueries.retryReceivingJournal,
     {'id': id},

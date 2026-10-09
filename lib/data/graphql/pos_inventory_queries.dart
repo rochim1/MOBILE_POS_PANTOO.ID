@@ -135,6 +135,17 @@ class PosInventoryQueries {
 
   static const purchaseLookups = r'''
     query GetPOSPurchaseFormLookups {
+      getAllCabangs(
+        filter: { status: "active" }
+        sorting: { nama_cabang: asc }
+        pagination: { page: 0, limit: 100 }
+      ) {
+        cabang {
+          _id branch_code nama_cabang alamat_cabang no_telp status
+          is_warehouse warehouse_type is_sellable_location
+          is_receiving_location is_transfer_source is_transfer_destination
+        }
+      }
       GetPOSPurchaseInventory(limit: 200) {
         _id kode_inventaris nama_inventaris unit base_unit harga_beli stok
         unit_conversions { unit factor }
@@ -228,6 +239,37 @@ class PosInventoryQueries {
       r'''mutation DeleteInventoryPurchase($id: ID!, $reason: String) { DeleteInventoryPurchase(_id: $id, delete_reason: $reason) { _id status } }''';
   static const receivePurchase =
       r'''mutation AddInventoryReceiving($input: InventoryReceivingInput!) { AddInventoryReceiving(input: $input) { _id no_grn purchase_id status journal_status journal_error } }''';
+
+  static const payableForPurchase = r'''
+    query GetInventoryPayablesForPurchase($filter: InventoryPayableFilter, $pagination: pagination) {
+      GetAllInventoryPayables(filter: $filter, pagination: $pagination) {
+        items {
+          _id purchase_id no_po supplier_name bill_date due_date due_date_basis
+          payment_term_type term_days total_amount paid_amount outstanding_amount
+          status notes jadwal_termin {
+            no_termin amount due_date status paid_date paid_amount
+          } payment_history {
+            _id amount payment_date payment_method bank_account_name
+            reference_number notes no_termin recorded_at
+          }
+        }
+      }
+    }
+  ''';
+
+  static const activeBankAccounts = r'''
+    query GetActiveBankAccountsForPayable {
+      GetAllBankAccounts(filter: { is_active: true }, pagination: { page: 0, limit: 100 }) {
+        items { _id bank_name account_number account_holder is_active }
+      }
+    }
+  ''';
+
+  static const payInventoryPayable = r'''
+    mutation PayInventoryPayable($input: PayInventoryPayableInput!) {
+      PayInventoryPayable(input: $input) { _id status paid_amount outstanding_amount }
+    }
+  ''';
 
   static const purchaseReceivings = r'''
     query GetAllInventoryReceivings($purchaseId: ID!, $pagination: pagination) {

@@ -8,8 +8,10 @@ import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
+import '../../widgets/pos_full_width_tabs.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'utils/pos_inventory_barcode_match.dart';
+import 'utils/pos_purchase_amount.dart';
 
 class PosInventoryEditorPage extends StatefulWidget {
   final PosInventoryDocumentType type;
@@ -49,7 +51,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   DateTime? _deliveryDate;
   DateTime? _dueDate;
   String _deliveryAddress = '';
-  String _paymentMethod = 'transfer';
+  String _deliveryAddressMode = 'manual';
+  String _deliveryWarehouseId = '';
   String _paymentTerms = 'tunai';
   String _creditType = 'net30';
   String _priority = 'normal';
@@ -62,7 +65,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   double _discountPercent = 0;
   double _discountFixed = 0;
   double _ppnPercent = 0;
-  double _shippingCost = 0;
   bool _supplierIsPkp = false;
   String _scrapReason = 'rusak';
   String _incidentType = 'disposal';
@@ -71,9 +73,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   String _incidentLocation = 'gudang';
   bool _loading = true;
   bool _showPurchaseAdvanced = false;
+  int _purchaseStep = 0;
 
   bool get _editing => widget.existing != null;
   bool get _usesLocation => widget.type != PosInventoryDocumentType.purchase;
+  bool get _hasValidPurchaseDestination =>
+      _deliveryAddress.trim().isNotEmpty &&
+      (_deliveryAddressMode != 'warehouse' || _deliveryWarehouseId.isNotEmpty);
 
   @override
   void initState() {
@@ -103,11 +109,26 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       widget.existing?['due_date']?.toString() ?? '',
     );
     _deliveryAddress = widget.existing?['alamat_pengiriman']?.toString() ?? '';
-    _paymentMethod =
-        widget.existing?['metode_pembayaran']?.toString() ?? 'transfer';
+    final legacyPaymentMethod =
+        widget.existing?['metode_pembayaran']?.toString().toLowerCase() ?? '';
+    final legacyCreditTerms = <String>{
+      'net30',
+      'net45',
+      'net60',
+      'net90',
+      'tempo',
+      'termin',
+    };
     _paymentTerms =
-        widget.existing?['syarat_pembayaran']?.toString() ?? 'tunai';
-    _creditType = widget.existing?['tipe_kredit']?.toString() ?? 'net30';
+        widget.existing?['syarat_pembayaran']?.toString() ??
+        (legacyCreditTerms.contains(legacyPaymentMethod) ? 'kredit' : 'tunai');
+    _creditType =
+        widget.existing?['tipe_kredit']?.toString() ??
+        (legacyPaymentMethod == 'tempo'
+            ? 'custom'
+            : (legacyCreditTerms.contains(legacyPaymentMethod)
+                  ? legacyPaymentMethod
+                  : 'net30'));
     _priority = widget.existing?['prioritas']?.toString() ?? 'normal';
     _discountType = widget.existing?['diskon_type']?.toString() ?? 'persen';
     _ppnSource = widget.existing?['ppn_source']?.toString() ?? 'none';
@@ -122,8 +143,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _discountFixed =
         (widget.existing?['diskon_fixed'] as num?)?.toDouble() ?? 0;
     _ppnPercent = (widget.existing?['ppn_persen'] as num?)?.toDouble() ?? 0;
-    _shippingCost =
-        (widget.existing?['biaya_pengiriman'] as num?)?.toDouble() ?? 0;
     _supplierIsPkp = widget.existing?['supplier_is_pkp'] == true;
     _additionalCosts.addAll(
       (widget.existing?['biaya_tambahan'] as List? ?? const [])
@@ -136,6 +155,15 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             },
           ),
     );
+    final legacyShippingCost =
+        (widget.existing?['biaya_pengiriman'] as num?)?.toDouble() ?? 0;
+    if (_additionalCosts.isEmpty && legacyShippingCost > 0) {
+      _additionalCosts.add({
+        'jenis_biaya': 'ongkir',
+        'deskripsi': '',
+        'nominal': legacyShippingCost,
+      });
+    }
     _scrapReason = widget.existing?['alasan']?.toString() ?? 'rusak';
     _incidentType = widget.existing?['jenis_insiden']?.toString() ?? 'disposal';
     _opnameDate =
@@ -199,6 +227,21 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       },
       (data) async {
         _lookups = data;
+        if (widget.type == PosInventoryDocumentType.purchase &&
+            _deliveryAddress.trim().isNotEmpty) {
+          final normalizedAddress = _deliveryAddress.trim().toLowerCase();
+          for (final warehouse in data.warehouses) {
+            final warehouseAddress =
+                warehouse['alamat_cabang']?.toString().trim().toLowerCase() ??
+                '';
+            if (warehouseAddress.isNotEmpty &&
+                warehouseAddress == normalizedAddress) {
+              _deliveryAddressMode = 'warehouse';
+              _deliveryWarehouseId = warehouse['_id']?.toString() ?? '';
+              break;
+            }
+          }
+        }
         String validOption(String current, List<Map<String, dynamic>> options) {
           if (options.any((option) => option['value'] == current)) {
             return current;
@@ -398,8 +441,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           controller: search,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'Cari nama / kode barang',
+            labelText: 'Cari barang',
+            hintText: 'Nama atau kode barang',
             prefixIcon: Icon(Icons.search),
+            floatingLabelBehavior: FloatingLabelBehavior.always,
           ),
           onChanged: (value) {
             if (widget.type == PosInventoryDocumentType.purchase &&
@@ -556,7 +601,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       picked = prepared;
     }
     if (!mounted) return;
-    final selectedItem = picked;
+    final selectedItem = Map<String, dynamic>.from(picked);
+    if (widget.type == PosInventoryDocumentType.purchase) {
+      // New PO lines use the inventory's canonical unit by default. The
+      // legacy `unit` field can differ from base_unit and may not have a
+      // matching conversion row on older inventory records.
+      selectedItem['unit'] =
+          selectedItem['base_unit'] ?? selectedItem['unit'] ?? 'unit';
+    }
     final id = (selectedItem['inventaris_id'] ?? selectedItem['_id'])
         .toString();
     setState(() {
@@ -917,16 +969,40 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       return;
     }
     if (widget.type == PosInventoryDocumentType.purchase &&
-        (_discountPercent < 0 ||
+        !_hasValidPurchaseDestination) {
+      AppToast.error(
+        context,
+        _deliveryAddressMode == 'warehouse' && _deliveryWarehouseId.isEmpty
+            ? 'Pilih gudang tujuan atau tulis alamat secara manual'
+            : 'Isi alamat pengiriman',
+      );
+      return;
+    }
+    if (widget.type == PosInventoryDocumentType.purchase &&
+        _selected.values.any(_invalidPurchaseItem)) {
+      AppToast.error(
+        context,
+        'Periksa jumlah, harga beli, dan diskon setiap barang',
+      );
+      return;
+    }
+    if (widget.type == PosInventoryDocumentType.purchase &&
+        (!_purchaseSubtotal.isFinite ||
+            !_purchaseGrandTotal.isFinite ||
+            !_discountPercent.isFinite ||
+            !_discountFixed.isFinite ||
+            !_ppnPercent.isFinite ||
+            !_effectivePurchaseCost.isFinite ||
+            _discountPercent < 0 ||
             _discountPercent > 100 ||
             _discountFixed < 0 ||
             _discountFixed > _purchaseSubtotal ||
             _ppnPercent < 0 ||
             _ppnPercent > 100 ||
-            _shippingCost < 0 ||
-            _additionalCosts.any(
-              (row) => ((row['nominal'] as num?)?.toDouble() ?? 0) < 0,
-            ))) {
+            _additionalCosts.any((row) {
+              final amount = (row['nominal'] as num?)?.toDouble() ?? 0;
+              return !amount.isFinite || amount < 0;
+            }))) {
       AppToast.error(
         context,
         'Diskon, pajak, atau biaya pembelian tidak valid',
@@ -1082,7 +1158,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             ? ''
             : _dateValue(_deliveryDate!),
         'alamat_pengiriman': _deliveryAddress.trim(),
-        'metode_pembayaran': _paymentMethod,
         'syarat_pembayaran': _paymentTerms,
         'tipe_kredit': _paymentTerms == 'kredit' ? _creditType : '',
         'payment_term_type': _paymentTerms == 'kredit'
@@ -1090,7 +1165,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             : 'immediate',
         'term_days': _paymentTerms == 'kredit' ? _termDays : 0,
         'due_date': _dueDate == null ? '' : _dateValue(_dueDate!),
-        'due_date_basis': widget.existing?['due_date_basis'] ?? 'invoice_date',
+        'due_date_basis': _paymentTerms == 'saat_penerimaan'
+            ? 'receiving_date'
+            : 'invoice_date',
         'jumlah_termin': _creditType == 'termin' ? _installmentCount : 1,
         if (_creditType == 'termin')
           'jadwal_termin': _generatedInstallmentSchedule,
@@ -1101,7 +1178,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         'ppn_persen': _ppnPercent,
         'ppn_source': _ppnSource,
         'supplier_is_pkp': _supplierIsPkp,
-        'biaya_pengiriman': _shippingCost,
+        'biaya_pengiriman': 0,
         'biaya_tambahan': _additionalCosts
             .where((row) => ((row['nominal'] as num?)?.toDouble() ?? 0) > 0)
             .map(
@@ -1254,6 +1331,22 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         orElse: () => null,
       ) ??
       {};
+
+  List<Map<String, dynamic>> get _purchaseDeliveryLocations {
+    final locations = List<Map<String, dynamic>>.from(
+      _lookups?.warehouses ?? const [],
+    );
+    locations.sort((a, b) {
+      final aWarehouse = a['is_warehouse'] == true;
+      final bWarehouse = b['is_warehouse'] == true;
+      if (aWarehouse != bWarehouse) return aWarehouse ? -1 : 1;
+      return (a['nama_cabang']?.toString() ?? '').compareTo(
+        b['nama_cabang']?.toString() ?? '',
+      );
+    });
+    return locations;
+  }
+
   Map<String, dynamic> _locationInput(Map<String, dynamic> warehouse) => {
     'cabang_id': warehouse['_id'],
     'cabang_nama': warehouse['nama_cabang'],
@@ -1317,6 +1410,25 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         : raw * (1 - discount.clamp(0, 100) / 100);
   }
 
+  bool _invalidPurchaseItem(Map<String, dynamic> item) {
+    final quantity = (item['input_qty'] as num?)?.toDouble();
+    final price = (item['input_price'] as num?)?.toDouble();
+    final discount = (item['diskon_item'] as num?)?.toDouble() ?? 0;
+    if (quantity == null ||
+        !quantity.isFinite ||
+        quantity <= 0 ||
+        price == null ||
+        !price.isFinite ||
+        price < 0 ||
+        !discount.isFinite ||
+        discount < 0) {
+      return true;
+    }
+    return item['diskon_item_type'] == 'fixed'
+        ? discount > quantity * price
+        : discount > 100;
+  }
+
   double get _purchaseSubtotal => _selected.values.fold<double>(
     0,
     (sum, item) => sum + _purchaseLineTotal(item),
@@ -1336,17 +1448,247 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       _purchaseTax +
       _effectivePurchaseCost;
 
-  double get _effectivePurchaseCost => _additionalCosts.isEmpty
-      ? _shippingCost
-      : _additionalCosts.fold<double>(
-          0,
-          (sum, row) => sum + ((row['nominal'] as num?)?.toDouble() ?? 0),
-        );
+  void _advancePurchaseStep() {
+    if (_purchaseStep == 0 && _supplierId.isEmpty) {
+      AppToast.error(context, 'Pilih supplier untuk melanjutkan');
+      return;
+    }
+    if (_purchaseStep == 0 && !_hasValidPurchaseDestination) {
+      AppToast.error(
+        context,
+        _deliveryAddressMode == 'warehouse' && _deliveryWarehouseId.isEmpty
+            ? 'Pilih gudang tujuan atau tulis alamat secara manual'
+            : 'Pilih gudang atau isi alamat pengiriman',
+      );
+      return;
+    }
+    if (_purchaseStep == 1 &&
+        (_selected.isEmpty || _selected.values.any(_invalidPurchaseItem))) {
+      AppToast.error(
+        context,
+        'Periksa jumlah, harga beli, dan diskon setiap barang',
+      );
+      return;
+    }
+    if (_purchaseStep < 2) setState(() => _purchaseStep++);
+  }
+
+  void _selectPurchaseStep(int step) {
+    if (step <= _purchaseStep) {
+      setState(() => _purchaseStep = step);
+      return;
+    }
+    while (_purchaseStep < step) {
+      final previousStep = _purchaseStep;
+      _advancePurchaseStep();
+      if (_purchaseStep == previousStep) return;
+    }
+  }
+
+  Widget _buildPurchaseTabs() => PosFullWidthTabs(
+    height: 58,
+    tabs: const [
+      PosFullWidthTab(icon: Icons.description_outlined, label: 'Info'),
+      PosFullWidthTab(icon: Icons.inventory_2_outlined, label: 'Barang'),
+      PosFullWidthTab(icon: Icons.fact_check_outlined, label: 'Tinjau'),
+    ],
+    selectedIndex: _purchaseStep,
+    onSelected: _selectPurchaseStep,
+  );
+
+  Widget _buildPurchaseReviewDetails() => Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: const BorderSide(color: Color(0xFFE1E5E9)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ringkasan pembelian',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          _PurchaseSummaryRowText(label: 'Supplier', value: _supplierName),
+          _PurchaseSummaryRowText(
+            label: 'Tanggal',
+            value: _dateValue(_purchaseDate),
+          ),
+          _PurchaseSummaryRowText(
+            label: 'Kirim ke',
+            value: _deliveryAddressMode == 'warehouse'
+                ? (_warehouse(
+                        _deliveryWarehouseId,
+                      )['nama_cabang']?.toString() ??
+                      'Gudang')
+                : 'Alamat manual',
+          ),
+          _PurchaseSummaryRowText(label: 'Alamat', value: _deliveryAddress),
+          if (_deliveryDate != null)
+            _PurchaseSummaryRowText(
+              label: 'Pengiriman',
+              value: _dateValue(_deliveryDate!),
+            ),
+          const Divider(height: 20),
+          ..._selected.values.map((item) {
+            final quantity = _numberText(item['input_qty']);
+            final unit = item['unit']?.toString() ?? '';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${item['nama_inventaris'] ?? '-'}\n$quantity $unit × Rp ${_PurchaseSummaryRow._currency((item['input_price'] as num?)?.toDouble() ?? 0)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Rp ${_PurchaseSummaryRow._currency(_purchaseLineTotal(item))}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    ),
+  );
+
+  Widget _buildPurchaseDeliveryFields() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F5),
+          border: Border.all(color: const Color(0xFFDCE4E7)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _DeliveryAddressModeOption(
+                icon: Icons.warehouse_outlined,
+                label: 'Pilih gudang',
+                selected: _deliveryAddressMode == 'warehouse',
+                onTap: () => setState(() {
+                  _deliveryAddressMode = 'warehouse';
+                  if (_deliveryWarehouseId.isNotEmpty) {
+                    _deliveryAddress =
+                        _warehouse(
+                          _deliveryWarehouseId,
+                        )['alamat_cabang']?.toString() ??
+                        _deliveryAddress;
+                  }
+                }),
+              ),
+            ),
+            const SizedBox(width: 3),
+            Expanded(
+              child: _DeliveryAddressModeOption(
+                icon: Icons.edit_outlined,
+                label: 'Tulis manual',
+                selected: _deliveryAddressMode == 'manual',
+                onTap: () => setState(() {
+                  _deliveryAddressMode = 'manual';
+                  _deliveryWarehouseId = '';
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (_deliveryAddressMode == 'warehouse') ...[
+        DropdownButtonFormField<String>(
+          initialValue: _deliveryWarehouseId.isEmpty
+              ? null
+              : _deliveryWarehouseId,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Gudang / cabang tujuan *',
+            border: OutlineInputBorder(),
+          ),
+          items: _purchaseDeliveryLocations
+              .map(
+                (warehouse) => DropdownMenuItem(
+                  value: warehouse['_id']?.toString(),
+                  child: Row(
+                    children: [
+                      Icon(
+                        warehouse['is_warehouse'] == true
+                            ? Icons.warehouse_outlined
+                            : Icons.store_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          warehouse['nama_cabang']?.toString() ?? '-',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) => setState(() {
+            _deliveryWarehouseId = value ?? '';
+            _deliveryAddress =
+                _warehouse(_deliveryWarehouseId)['alamat_cabang']?.toString() ??
+                '';
+          }),
+        ),
+        if (_purchaseDeliveryLocations.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              'Belum ada gudang aktif. Pilih Tulis manual untuk mengisi alamat.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ),
+      ],
+      if (_deliveryAddressMode == 'manual' ||
+          _deliveryWarehouseId.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        TextFormField(
+          key: ValueKey(
+            'purchase-delivery-address-$_deliveryAddressMode-$_deliveryWarehouseId',
+          ),
+          initialValue: _deliveryAddress,
+          maxLines: 2,
+          decoration: InputDecoration(
+            labelText: _deliveryAddressMode == 'warehouse'
+                ? 'Alamat gudang *'
+                : 'Alamat pengiriman *',
+            helperText: _deliveryAddressMode == 'warehouse'
+                ? 'Alamat gudang bisa disesuaikan untuk pengiriman ini.'
+                : null,
+            border: const OutlineInputBorder(),
+          ),
+          onChanged: (value) => _deliveryAddress = value,
+        ),
+      ],
+    ],
+  );
+
+  double get _effectivePurchaseCost => _additionalCosts.fold<double>(
+    0,
+    (sum, row) => sum + ((row['nominal'] as num?)?.toDouble() ?? 0),
+  );
 
   List<Map<String, dynamic>> get _generatedInstallmentSchedule {
     if (_creditType != 'termin') return const [];
     final count = _installmentCount.clamp(2, 12);
-    final amount = count == 0 ? 0 : _purchaseGrandTotal / count;
+    final amount = (_purchaseGrandTotal / count).floorToDouble();
     final start = _purchaseDate;
     return List.generate(
       count,
@@ -1356,7 +1698,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             ? _purchaseGrandTotal - (amount * (count - 1))
             : amount,
         'due_date': _dateValue(
-          DateTime(start.year, start.month + index + 1, start.day),
+          start.add(Duration(days: (index + 1) * 30)),
         ),
       },
     );
@@ -1375,274 +1717,240 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     return units.toList();
   }
 
-  Widget _buildPurchaseItemsTable() {
+  Widget _buildPurchaseItems() => _buildPurchaseItemCards();
+
+  Widget _buildPurchaseItemCards() {
     const fieldDecoration = InputDecoration(
       border: OutlineInputBorder(),
       isDense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 9, vertical: 12),
+      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
     );
     return Card(
       margin: const EdgeInsets.only(top: 12),
-      clipBehavior: Clip.antiAlias,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: Color(0xFFE1E5E9)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_selected.isNotEmpty && MediaQuery.sizeOf(context).width < 800)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(12, 10, 12, 0),
-              child: Text(
-                'Geser tabel ke samping untuk mengisi kolom lainnya.',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
+      child: _selected.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const Icon(Icons.inventory_2_outlined, color: Colors.black45),
+                  const SizedBox(height: 8),
+                  const Text('Belum ada barang di faktur'),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _chooseItem,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah barang'),
+                  ),
+                ],
               ),
-            ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowHeight: 44,
-              dataRowMinHeight: 76,
-              dataRowMaxHeight: 76,
-              horizontalMargin: 12,
-              columnSpacing: 12,
-              headingRowColor: const WidgetStatePropertyAll(Color(0xFFF3F7F7)),
-              headingTextStyle: const TextStyle(
-                color: Color(0xFF344455),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-              showBottomBorder: true,
-              columns: const [
-                DataColumn(label: SizedBox(width: 190, child: Text('Barang'))),
-                DataColumn(label: SizedBox(width: 80, child: Text('Jumlah'))),
-                DataColumn(label: SizedBox(width: 115, child: Text('Satuan'))),
-                DataColumn(
-                  label: SizedBox(width: 110, child: Text('Harga beli')),
-                ),
-                DataColumn(
-                  label: SizedBox(width: 108, child: Text('Jenis diskon')),
-                ),
-                DataColumn(label: SizedBox(width: 85, child: Text('Diskon'))),
-                DataColumn(
-                  label: SizedBox(width: 105, child: Text('Subtotal')),
-                ),
-                DataColumn(label: SizedBox(width: 160, child: Text('Catatan'))),
-                DataColumn(label: SizedBox(width: 48)),
-              ],
-              rows: _selected.entries.map((entry) {
+            )
+          : Column(
+              children: _selected.entries.map((entry) {
                 final item = entry.value;
                 final units = _purchaseUnits(item);
                 final discountType = item['diskon_item_type'] == 'fixed'
                     ? 'fixed'
                     : 'persen';
-                final lineTotal = _purchaseLineTotal(item);
-                return DataRow(
-                  key: ValueKey(entry.key),
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 190,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['nama_inventaris']?.toString() ?? '-',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              item['kode_inventaris']?.toString() ?? '-',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 80,
-                        child: TextFormField(
-                          key: ValueKey('purchase-qty-${entry.key}'),
-                          initialValue: _numberText(item['input_qty']),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: fieldDecoration,
-                          onChanged: (value) => setState(
-                            () => item['input_qty'] =
-                                double.tryParse(value.replaceAll(',', '.')) ??
-                                double.nan,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 115,
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey('purchase-unit-${entry.key}'),
-                          initialValue: item['unit']?.toString() ?? units.first,
-                          isExpanded: true,
-                          decoration: fieldDecoration,
-                          items: units
-                              .map(
-                                (unit) => DropdownMenuItem(
-                                  value: unit,
-                                  child: Text(
-                                    unit,
-                                    overflow: TextOverflow.ellipsis,
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item['nama_inventaris']?.toString() ?? '-',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (value) => setState(
-                            () => item['unit'] = value ?? units.first,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 110,
-                        child: TextFormField(
-                          key: ValueKey('purchase-price-${entry.key}'),
-                          initialValue: _numberText(item['input_price']),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: fieldDecoration,
-                          onChanged: (value) => setState(
-                            () => item['input_price'] =
-                                double.tryParse(value.replaceAll(',', '.')) ??
-                                0,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 108,
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey('purchase-discount-type-${entry.key}'),
-                          initialValue: discountType,
-                          isExpanded: true,
-                          decoration: fieldDecoration,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'persen',
-                              child: Text('Persen'),
+                                Text(
+                                  item['kode_inventaris']?.toString() ?? '-',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
                             ),
-                            DropdownMenuItem(
-                              value: 'fixed',
-                              child: Text('Nominal'),
+                          ),
+                          IconButton(
+                            tooltip: 'Hapus barang',
+                            onPressed: () =>
+                                setState(() => _selected.remove(entry.key)),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              key: ValueKey('purchase-qty-${entry.key}'),
+                              initialValue: _numberText(item['input_qty']),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: fieldDecoration.copyWith(
+                                labelText: 'Jumlah',
+                              ),
+                              onChanged: (value) => setState(
+                                () => item['input_qty'] =
+                                    double.tryParse(
+                                      value.replaceAll(',', '.'),
+                                    ) ??
+                                    double.nan,
+                              ),
                             ),
-                          ],
-                          onChanged: (value) => setState(
-                            () => item['diskon_item_type'] = value ?? 'persen',
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              key: ValueKey('purchase-unit-${entry.key}'),
+                              initialValue:
+                                  item['unit']?.toString() ?? units.first,
+                              isExpanded: true,
+                              decoration: fieldDecoration.copyWith(
+                                labelText: 'Satuan',
+                              ),
+                              items: units
+                                  .map(
+                                    (unit) => DropdownMenuItem(
+                                      value: unit,
+                                      child: Text(
+                                        unit,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) => setState(
+                                () => item['unit'] = value ?? units.first,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        key: ValueKey('purchase-price-${entry.key}'),
+                        initialValue: _numberText(item['input_price']),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: fieldDecoration.copyWith(
+                          labelText: 'Harga beli per satuan',
+                        ),
+                        onChanged: (value) => setState(
+                          () => item['input_price'] =
+                              double.tryParse(value.replaceAll(',', '.')) ?? 0,
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Subtotal  Rp ${_PurchaseSummaryRow._currency(_purchaseLineTotal(item))}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 85,
-                        child: TextFormField(
-                          key: ValueKey('purchase-discount-${entry.key}'),
-                          initialValue: _numberText(item['diskon_item']),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: fieldDecoration,
-                          onChanged: (value) => setState(
-                            () => item['diskon_item'] =
-                                double.tryParse(value.replaceAll(',', '.')) ??
-                                0,
-                          ),
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 12),
+                        title: const Text(
+                          'Diskon dan catatan (opsional)',
+                          style: TextStyle(fontSize: 13),
                         ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 105,
-                        child: Text(
-                          lineTotal.isFinite
-                              ? 'Rp ${_PurchaseSummaryRow._currency(lineTotal)}'
-                              : '-',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 160,
-                        child: TextFormField(
-                          key: ValueKey('purchase-note-${entry.key}'),
-                          initialValue: item['catatan_item']?.toString() ?? '',
-                          decoration: fieldDecoration.copyWith(
-                            hintText: 'Opsional',
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  key: ValueKey(
+                                    'purchase-discount-type-${entry.key}',
+                                  ),
+                                  initialValue: discountType,
+                                  decoration: fieldDecoration.copyWith(
+                                    labelText: 'Jenis diskon',
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'persen',
+                                      child: Text('Persen'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'fixed',
+                                      child: Text('Nominal'),
+                                    ),
+                                  ],
+                                  onChanged: (value) => setState(
+                                    () => item['diskon_item_type'] =
+                                        value ?? 'persen',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  key: ValueKey(
+                                    'purchase-discount-${entry.key}',
+                                  ),
+                                  initialValue: _numberText(
+                                    item['diskon_item'],
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  decoration: fieldDecoration.copyWith(
+                                    labelText: discountType == 'fixed'
+                                        ? 'Nominal'
+                                        : 'Diskon (%)',
+                                  ),
+                                  onChanged: (value) => setState(
+                                    () => item['diskon_item'] =
+                                        double.tryParse(
+                                          value.replaceAll(',', '.'),
+                                        ) ??
+                                        0,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          onChanged: (value) => item['catatan_item'] = value,
-                        ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            key: ValueKey('purchase-note-${entry.key}'),
+                            initialValue:
+                                item['catatan_item']?.toString() ?? '',
+                            decoration: fieldDecoration.copyWith(
+                              labelText: 'Catatan barang (opsional)',
+                            ),
+                            onChanged: (value) => item['catatan_item'] = value,
+                          ),
+                        ],
                       ),
-                    ),
-                    DataCell(
-                      IconButton(
-                        tooltip: 'Hapus barang',
-                        onPressed: () =>
-                            setState(() => _selected.remove(entry.key)),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ),
-                  ],
+                      if (entry.key != _selected.keys.last)
+                        const Divider(height: 1),
+                    ],
+                  ),
                 );
               }).toList(),
             ),
-          ),
-          if (_selected.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 26),
-              color: const Color(0xFFFAFBFC),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.inventory_2_outlined,
-                    size: 28,
-                    color: Color(0xFF7B8B99),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Belum ada barang di faktur',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Pilih barang dari katalog untuk mulai mengisi tabel.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _chooseItem,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Tambah barang'),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
     );
   }
 
@@ -1967,6 +2275,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   );
 
   Widget _buildPurchaseSetupCard() {
+    final isMobile = MediaQuery.sizeOf(context).width < 1280;
     Widget responsive(List<Widget> fields, {double breakpoint = 720}) =>
         LayoutBuilder(
           builder: (context, constraints) => constraints.maxWidth >= breakpoint
@@ -2034,13 +2343,30 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   value: _purchaseDate,
                   onChanged: (value) => setState(() => _purchaseDate = value),
                 ),
+                if (!isMobile)
+                  _purchaseDateField(
+                    label: 'Tanggal pengiriman',
+                    value: _deliveryDate,
+                    optional: true,
+                    onChanged: (value) => setState(() => _deliveryDate = value),
+                  ),
+              ]),
+              if (isMobile) ...[
+                const SizedBox(height: 12),
                 _purchaseDateField(
                   label: 'Tanggal pengiriman',
                   value: _deliveryDate,
                   optional: true,
                   onChanged: (value) => setState(() => _deliveryDate = value),
                 ),
-              ]),
+              ],
+              const SizedBox(height: 12),
+              const Text(
+                'Alamat pengiriman',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              _buildPurchaseDeliveryFields(),
               const SizedBox(height: 10),
               TextButton.icon(
                 onPressed: () => setState(
@@ -2052,23 +2378,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 label: Text(
                   _showPurchaseAdvanced
                       ? 'Sembunyikan opsi lanjutan'
-                      : 'Atur alamat, pembayaran, pajak & biaya',
+                      : 'Opsi lain: pembayaran, diskon & biaya',
                 ),
               ),
               if (_showPurchaseAdvanced) ...[
                 const SizedBox(height: 12),
-                TextFormField(
-                  initialValue: _deliveryAddress,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Alamat pengiriman',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => _deliveryAddress = value,
-                ),
-                const SizedBox(height: 18),
                 Text(
-                  'Pembayaran dan prioritas',
+                  'Syarat pembayaran dan prioritas',
                   style: Theme.of(
                     context,
                   ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -2076,34 +2392,29 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 const SizedBox(height: 10),
                 responsive([
                   DropdownButtonFormField<String>(
-                    initialValue: _paymentMethod,
-                    decoration: const InputDecoration(
-                      labelText: 'Metode pembayaran',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'transfer',
-                        child: Text('Transfer'),
-                      ),
-                      DropdownMenuItem(value: 'tunai', child: Text('Tunai')),
-                      DropdownMenuItem(value: 'giro', child: Text('Giro')),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _paymentMethod = value ?? 'transfer'),
-                  ),
-                  DropdownButtonFormField<String>(
                     initialValue: _paymentTerms,
                     decoration: const InputDecoration(
                       labelText: 'Syarat pembayaran',
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'tunai', child: Text('Langsung')),
+                      DropdownMenuItem(
+                        value: 'tunai',
+                        child: Text('Tunai (jatuh tempo tanggal PO)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'saat_penerimaan',
+                        child: Text('Saat diterima'),
+                      ),
                       DropdownMenuItem(value: 'kredit', child: Text('Kredit')),
                     ],
-                    onChanged: (value) =>
-                        setState(() => _paymentTerms = value ?? 'tunai'),
+                    onChanged: (value) => setState(() {
+                      _paymentTerms = value ?? 'tunai';
+                      if (_paymentTerms == 'saat_penerimaan' ||
+                          _paymentTerms == 'tunai') {
+                        _dueDate = null;
+                      }
+                    }),
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: _priority,
@@ -2113,7 +2424,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     ),
                     items: const [
                       DropdownMenuItem(value: 'normal', child: Text('Normal')),
-                      DropdownMenuItem(value: 'low', child: Text('Rendah')),
+                      DropdownMenuItem(value: 'low', child: Text('Segera')),
                       DropdownMenuItem(
                         value: 'urgent',
                         child: Text('Mendesak'),
@@ -2123,6 +2434,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         setState(() => _priority = value ?? 'normal'),
                   ),
                 ]),
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Metode dan akun pembayaran dipilih saat transaksi dicatat di Keuangan. Pembayaran dapat dilakukan bertahap.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ),
+                if (_paymentTerms == 'saat_penerimaan') ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Dicatat sebagai hutang. Jatuh tempo mengikuti tanggal penerimaan barang.',
+                    style: TextStyle(color: Colors.black54, fontSize: 12),
+                  ),
+                ],
                 if (_paymentTerms == 'kredit') ...[
                   const SizedBox(height: 12),
                   responsive([
@@ -2254,20 +2579,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       _ppnSource = _ppnPercent > 0 ? 'manual' : 'none';
                     }),
                   ),
-                  TextFormField(
-                    initialValue: _numberText(_shippingCost),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Biaya pengiriman',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) => setState(
-                      () => _shippingCost =
-                          double.tryParse(value.replaceAll(',', '.')) ?? 0,
-                    ),
-                  ),
                 ], breakpoint: 900),
                 const SizedBox(height: 12),
                 Row(
@@ -2293,83 +2604,103 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 ),
                 ..._additionalCosts.asMap().entries.map((entry) {
                   final row = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue:
-                                row['jenis_biaya']?.toString() ?? 'lainnya',
-                            decoration: const InputDecoration(
-                              labelText: 'Jenis biaya',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'ongkir',
-                                child: Text('Ongkos kirim'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'handling',
-                                child: Text('Handling'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'asuransi',
-                                child: Text('Asuransi'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'bea_cukai',
-                                child: Text('Bea cukai'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'lainnya',
-                                child: Text('Lainnya'),
-                              ),
-                            ],
-                            onChanged: (value) =>
-                                row['jenis_biaya'] = value ?? 'lainnya',
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: row['deskripsi']?.toString() ?? '',
-                            decoration: const InputDecoration(
-                              labelText: 'Deskripsi',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (value) => row['deskripsi'] = value,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: _numberText(row['nominal']),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            decoration: const InputDecoration(
-                              labelText: 'Nominal',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (value) => setState(
-                              () => row['nominal'] =
-                                  double.tryParse(value.replaceAll(',', '.')) ??
-                                  0,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Hapus biaya',
-                          onPressed: () => setState(
-                            () => _additionalCosts.removeAt(entry.key),
-                          ),
-                          icon: const Icon(Icons.delete_outline),
-                        ),
-                      ],
+                  Widget feeTypeField() => DropdownButtonFormField<String>(
+                    initialValue: row['jenis_biaya']?.toString() ?? 'lainnya',
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Jenis biaya',
+                      border: OutlineInputBorder(),
                     ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'ongkir',
+                        child: Text(
+                          'Ongkos kirim',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'handling',
+                        child: Text('Handling'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'asuransi',
+                        child: Text('Asuransi'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'bea_cukai',
+                        child: Text('Bea cukai'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'lainnya',
+                        child: Text('Lainnya'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        row['jenis_biaya'] = value ?? 'lainnya',
+                  );
+                  Widget descriptionField() => TextFormField(
+                    initialValue: row['deskripsi']?.toString() ?? '',
+                    decoration: const InputDecoration(
+                      labelText: 'Deskripsi',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => row['deskripsi'] = value,
+                  );
+                  Widget amountField() => TextFormField(
+                    initialValue: _numberText(row['nominal']),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Nominal',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => setState(
+                      () => row['nominal'] =
+                          double.tryParse(value.replaceAll(',', '.')) ?? 0,
+                    ),
+                  );
+                  Widget removeButton() => IconButton(
+                    tooltip: 'Hapus biaya',
+                    onPressed: () =>
+                        setState(() => _additionalCosts.removeAt(entry.key)),
+                    icon: const Icon(Icons.delete_outline),
+                  );
+
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final narrow = constraints.maxWidth < 720;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: narrow
+                            ? Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(child: feeTypeField()),
+                                      removeButton(),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  descriptionField(),
+                                  const SizedBox(height: 8),
+                                  amountField(),
+                                ],
+                              )
+                            : Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: feeTypeField()),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: descriptionField()),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: amountField()),
+                                  removeButton(),
+                                ],
+                              ),
+                      );
+                    },
                   );
                 }),
                 if (_additionalCosts.isNotEmpty) ...[
@@ -2763,6 +3094,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep the guided purchase flow on phones, tablets, and the current app
+    // preview width; only wide desktop layouts use the single-page form.
+    final isMobile = MediaQuery.sizeOf(context).width < 1280;
+    final isPurchase = widget.type == PosInventoryDocumentType.purchase;
+    final isMobilePurchase = isMobile && isPurchase;
+    final showPurchaseItems = !isMobilePurchase || _purchaseStep == 1;
+    final showPurchaseReview = !isMobilePurchase || _purchaseStep == 2;
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       resizeToAvoidBottomInset: !widget.inModal,
@@ -2778,806 +3116,1073 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               )
             : null,
       ),
-      body: _loading && _lookups == null
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    16,
-                    16,
-                    16 +
-                        (widget.inModal
-                            ? MediaQuery.viewInsetsOf(context).bottom
-                            : 0),
-                  ),
+      bottomNavigationBar: isMobile && isPurchase
+          ? SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFE1E5E9))),
+                ),
+                child: Row(
                   children: [
-                    if (widget.type == PosInventoryDocumentType.purchase)
-                      _buildPurchaseSetupCard(),
-                    if (_usesLocation &&
-                        widget.type != PosInventoryDocumentType.opname)
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: _sourceId.isEmpty ? null : _sourceId,
-                        decoration: const InputDecoration(
-                          labelText: 'Lokasi sumber',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: (_lookups?.warehouses ?? const [])
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item['_id'].toString(),
-                                child: Text(item['nama_cabang'].toString()),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          final id = value ?? '';
-                          setState(() {
-                            _sourceId = id;
-                            _selected.clear();
-                          });
-                          if (id.isNotEmpty) _loadLocationItems(id);
-                        },
-                      ),
-                    if (widget.type == PosInventoryDocumentType.opname)
-                      _buildOpnameSetupCard(),
-                    if (widget.type == PosInventoryDocumentType.transfer) ...[
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: _destinationId.isEmpty
-                            ? null
-                            : _destinationId,
-                        decoration: const InputDecoration(
-                          labelText: 'Lokasi tujuan',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: (_lookups?.warehouses ?? const [])
-                            .where(
-                              (item) => item['_id'].toString() != _sourceId,
-                            )
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item['_id'].toString(),
-                                child: Text(item['nama_cabang'].toString()),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _destinationId = value ?? ''),
-                      ),
-                    ],
-                    if (widget.type == PosInventoryDocumentType.scrap) ...[
-                      const SizedBox(height: 12),
-                      InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _scrapDate,
-                            firstDate: DateTime.now().subtract(
-                              const Duration(days: 365),
-                            ),
-                            lastDate: DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setState(() => _scrapDate = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Tanggal kejadian',
-                            prefixIcon: Icon(Icons.calendar_today_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(_dateValue(_scrapDate)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: _scrapReason,
-                        decoration: const InputDecoration(
-                          labelText: 'Alasan barang terbuang',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: (_lookups?.scrapReasons ?? const [])
-                            .map(
-                              (option) => DropdownMenuItem<String>(
-                                value: option['value']?.toString(),
-                                child: Text(option['label']?.toString() ?? ''),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(() {
-                          _scrapReason = value ?? 'rusak';
-                          _incidentType = switch (_scrapReason) {
-                            'rusak' || 'cacat_produksi' => 'kerusakan',
-                            'kadaluarsa' => 'kadaluarsa',
-                            'hilang' || 'kehilangan' => 'kehilangan',
-                            'kecelakaan' => 'kecelakaan',
-                            'mencair' => 'mencair',
-                            'tumpah' => 'tumpah',
-                            _ => 'disposal',
-                          };
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _incidentLocation,
-                        decoration: const InputDecoration(
-                          labelText: 'Lokasi kejadian',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: (_lookups?.scrapOccurrenceLocations ?? const [])
-                            .map(
-                              (option) => DropdownMenuItem<String>(
-                                value: option['value']?.toString(),
-                                child: Text(option['label']?.toString() ?? ''),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(
-                          () => _incidentLocation = value ?? 'gudang',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _reasonDetail,
-                        decoration: const InputDecoration(
-                          labelText: 'Detail alasan / kronologi',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: .09),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Saldo belum berkurang saat draft dibuat. Stok dan jurnal kerugian baru diproses setelah dokumen disetujui.',
-                        ),
-                      ),
-                    ],
-                    if (!(widget.type == PosInventoryDocumentType.opname &&
-                        !_editing)) ...[
-                      const SizedBox(height: 18),
-                      Row(
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Expanded(
-                            child: Text(
-                              'Daftar barang',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          const Text(
+                            'Total faktur',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
                             ),
                           ),
-                          if (widget.type == PosInventoryDocumentType.opname)
-                            FilledButton.icon(
-                              onPressed: _catalog.isEmpty
-                                  ? null
-                                  : _scanOpnameBarcode,
-                              icon: const Icon(Icons.qr_code_scanner),
-                              label: const Text('Scan'),
-                            )
-                          else if (widget.type ==
-                              PosInventoryDocumentType.scrap)
-                            Wrap(
-                              spacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: _catalog.isEmpty
-                                      ? null
-                                      : _scanScrapBarcode,
-                                  icon: const Icon(Icons.qr_code_scanner),
-                                  label: const Text('Scan'),
-                                ),
-                                FilledButton.icon(
-                                  onPressed: _catalog.isEmpty
-                                      ? null
-                                      : _chooseItem,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Tambah'),
-                                ),
-                              ],
-                            )
-                          else if (widget.type ==
-                              PosInventoryDocumentType.transfer)
-                            Wrap(
-                              spacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: _catalog.isEmpty
-                                      ? null
-                                      : _scanTransferBarcode,
-                                  icon: const Icon(Icons.qr_code_scanner),
-                                  label: const Text('Scan'),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: _catalog.isEmpty
-                                      ? null
-                                      : _chooseItem,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Tambah'),
-                                ),
-                              ],
-                            )
-                          else
-                            OutlinedButton.icon(
-                              onPressed: _chooseItem,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Tambah barang'),
+                          Text(
+                            'Rp ${_PurchaseSummaryRow._currency(_purchaseGrandTotal)}',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
                             ),
+                          ),
                         ],
                       ),
-                      if (widget.type == PosInventoryDocumentType.purchase &&
-                          widget.initialInventoryId != null) ...[
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Jumlah usulan mempertimbangkan stok dan PO terbuka. Periksa kembali kebutuhan, harga, dan supplier sebelum menyimpan PO.',
-                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: _loading
+                          ? null
+                          : _purchaseStep < 2
+                          ? _advancePurchaseStep
+                          : _save,
+                      icon: Icon(
+                        _purchaseStep < 2
+                            ? Icons.arrow_forward
+                            : Icons.save_outlined,
+                      ),
+                      label: Text(
+                        _purchaseStep == 0
+                            ? 'Lanjut'
+                            : _purchaseStep == 1
+                            ? 'Tinjau'
+                            : _editing
+                            ? 'Simpan'
+                            : 'Simpan draft',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
+      body: _loading && _lookups == null
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                if (isMobilePurchase) _buildPurchaseTabs(),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      ListView(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          16,
+                          16,
+                          16 +
+                              (widget.inModal
+                                  ? MediaQuery.viewInsetsOf(context).bottom
+                                  : 0),
                         ),
-                      ],
-                      if (_selected.isEmpty &&
-                          widget.type != PosInventoryDocumentType.purchase &&
-                          widget.type != PosInventoryDocumentType.scrap)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32),
-                          child: Center(
-                            child: Text('Belum ada barang dipilih'),
-                          ),
-                        ),
-                      if (widget.type == PosInventoryDocumentType.purchase)
-                        _buildPurchaseItemsTable(),
-                      if (widget.type == PosInventoryDocumentType.scrap)
-                        _buildScrapItemsTable(),
-                      if (widget.type != PosInventoryDocumentType.purchase &&
-                          widget.type != PosInventoryDocumentType.scrap)
-                        ..._selected.entries.map((entry) {
-                          final item = entry.value;
-                          return Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          item['nama_inventaris']?.toString() ??
-                                              '-',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      if (widget.type !=
-                                          PosInventoryDocumentType.opname)
-                                        IconButton(
-                                          onPressed: () => setState(
-                                            () => _selected.remove(entry.key),
-                                          ),
-                                          icon: const Icon(Icons.close),
-                                        ),
-                                    ],
-                                  ),
-                                  if (widget.type ==
-                                      PosInventoryDocumentType.opname) ...[
-                                    Align(
-                                      alignment: Alignment.centerLeft,
+                        children: [
+                          if (widget.type ==
+                                  PosInventoryDocumentType.purchase &&
+                              (!isMobilePurchase || _purchaseStep == 0))
+                            _buildPurchaseSetupCard(),
+                          if (_usesLocation &&
+                              widget.type != PosInventoryDocumentType.opname)
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _sourceId.isEmpty
+                                  ? null
+                                  : _sourceId,
+                              decoration: const InputDecoration(
+                                labelText: 'Lokasi sumber',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: (_lookups?.warehouses ?? const [])
+                                  .map(
+                                    (item) => DropdownMenuItem(
+                                      value: item['_id'].toString(),
                                       child: Text(
-                                        '${item['kode_inventaris'] ?? '-'} • Sistem ${_numberText(item['qty_system'] ?? item['qty'])} ${item['unit'] ?? ''}',
-                                        style: const TextStyle(
-                                          color: Colors.black54,
-                                          fontSize: 12,
-                                        ),
+                                        item['nama_cabang'].toString(),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                  ],
-                                  if (widget.type ==
-                                          PosInventoryDocumentType.opname &&
-                                      (item['batch_counts'] as List? ??
-                                              const [])
-                                          .isNotEmpty)
-                                    ...((item['batch_counts'] as List).whereType<Map>().map((
-                                      batch,
-                                    ) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 8,
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                final id = value ?? '';
+                                setState(() {
+                                  _sourceId = id;
+                                  _selected.clear();
+                                });
+                                if (id.isNotEmpty) _loadLocationItems(id);
+                              },
+                            ),
+                          if (widget.type == PosInventoryDocumentType.opname)
+                            _buildOpnameSetupCard(),
+                          if (widget.type ==
+                              PosInventoryDocumentType.transfer) ...[
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _destinationId.isEmpty
+                                  ? null
+                                  : _destinationId,
+                              decoration: const InputDecoration(
+                                labelText: 'Lokasi tujuan',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: (_lookups?.warehouses ?? const [])
+                                  .where(
+                                    (item) =>
+                                        item['_id'].toString() != _sourceId,
+                                  )
+                                  .map(
+                                    (item) => DropdownMenuItem(
+                                      value: item['_id'].toString(),
+                                      child: Text(
+                                        item['nama_cabang'].toString(),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) =>
+                                  setState(() => _destinationId = value ?? ''),
+                            ),
+                          ],
+                          if (widget.type ==
+                              PosInventoryDocumentType.scrap) ...[
+                            const SizedBox(height: 12),
+                            InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _scrapDate,
+                                  firstDate: DateTime.now().subtract(
+                                    const Duration(days: 365),
+                                  ),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  setState(() => _scrapDate = picked);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Tanggal kejadian',
+                                  prefixIcon: Icon(
+                                    Icons.calendar_today_outlined,
+                                  ),
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: Text(_dateValue(_scrapDate)),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _scrapReason,
+                              decoration: const InputDecoration(
+                                labelText: 'Alasan barang terbuang',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: (_lookups?.scrapReasons ?? const [])
+                                  .map(
+                                    (option) => DropdownMenuItem<String>(
+                                      value: option['value']?.toString(),
+                                      child: Text(
+                                        option['label']?.toString() ?? '',
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) => setState(() {
+                                _scrapReason = value ?? 'rusak';
+                                _incidentType = switch (_scrapReason) {
+                                  'rusak' || 'cacat_produksi' => 'kerusakan',
+                                  'kadaluarsa' => 'kadaluarsa',
+                                  'hilang' || 'kehilangan' => 'kehilangan',
+                                  'kecelakaan' => 'kecelakaan',
+                                  'mencair' => 'mencair',
+                                  'tumpah' => 'tumpah',
+                                  _ => 'disposal',
+                                };
+                              }),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              initialValue: _incidentLocation,
+                              decoration: const InputDecoration(
+                                labelText: 'Lokasi kejadian',
+                                border: OutlineInputBorder(),
+                              ),
+                              items:
+                                  (_lookups?.scrapOccurrenceLocations ??
+                                          const [])
+                                      .map(
+                                        (option) => DropdownMenuItem<String>(
+                                          value: option['value']?.toString(),
+                                          child: Text(
+                                            option['label']?.toString() ?? '',
+                                          ),
                                         ),
-                                        child: Row(
+                                      )
+                                      .toList(),
+                              onChanged: (value) => setState(
+                                () => _incidentLocation = value ?? 'gudang',
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _reasonDetail,
+                              decoration: const InputDecoration(
+                                labelText: 'Detail alasan / kronologi',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withValues(alpha: .09),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Saldo belum berkurang saat draft dibuat. Stok dan jurnal kerugian baru diproses setelah dokumen disetujui.',
+                              ),
+                            ),
+                          ],
+                          if (showPurchaseItems &&
+                              !(widget.type ==
+                                      PosInventoryDocumentType.opname &&
+                                  !_editing)) ...[
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Daftar barang',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                if (widget.type ==
+                                    PosInventoryDocumentType.opname)
+                                  FilledButton.icon(
+                                    onPressed: _catalog.isEmpty
+                                        ? null
+                                        : _scanOpnameBarcode,
+                                    icon: const Icon(Icons.qr_code_scanner),
+                                    label: const Text('Scan'),
+                                  )
+                                else if (widget.type ==
+                                    PosInventoryDocumentType.scrap)
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: _catalog.isEmpty
+                                            ? null
+                                            : _scanScrapBarcode,
+                                        icon: const Icon(Icons.qr_code_scanner),
+                                        label: const Text('Scan'),
+                                      ),
+                                      FilledButton.icon(
+                                        onPressed: _catalog.isEmpty
+                                            ? null
+                                            : _chooseItem,
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('Tambah'),
+                                      ),
+                                    ],
+                                  )
+                                else if (widget.type ==
+                                    PosInventoryDocumentType.transfer)
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: _catalog.isEmpty
+                                            ? null
+                                            : _scanTransferBarcode,
+                                        icon: const Icon(Icons.qr_code_scanner),
+                                        label: const Text('Scan'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: _catalog.isEmpty
+                                            ? null
+                                            : _chooseItem,
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('Tambah'),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  OutlinedButton.icon(
+                                    onPressed: _chooseItem,
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Tambah barang'),
+                                  ),
+                              ],
+                            ),
+                            if (widget.type ==
+                                    PosInventoryDocumentType.purchase &&
+                                widget.initialInventoryId != null) ...[
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Jumlah usulan mempertimbangkan stok dan PO terbuka. Periksa kembali kebutuhan, harga, dan supplier sebelum menyimpan PO.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                            if (_selected.isEmpty &&
+                                widget.type !=
+                                    PosInventoryDocumentType.purchase &&
+                                widget.type != PosInventoryDocumentType.scrap)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
+                                child: Center(
+                                  child: Text('Belum ada barang dipilih'),
+                                ),
+                              ),
+                            if (widget.type ==
+                                PosInventoryDocumentType.purchase)
+                              _buildPurchaseItems(),
+                            if (widget.type == PosInventoryDocumentType.scrap)
+                              _buildScrapItemsTable(),
+                            if (widget.type !=
+                                    PosInventoryDocumentType.purchase &&
+                                widget.type != PosInventoryDocumentType.scrap)
+                              ..._selected.entries.map((entry) {
+                                final item = entry.value;
+                                return Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      children: [
+                                        Row(
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                '${batch['no_batch']}\nSistem ${_numberText(batch['qty_system'])}${(batch['tanggal_kadaluarsa']?.toString() ?? '').isEmpty ? '' : ' • Exp ${batch['tanggal_kadaluarsa']}'}',
+                                                item['nama_inventaris']
+                                                        ?.toString() ??
+                                                    '-',
                                                 style: const TextStyle(
-                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(
-                                              width: 120,
-                                              child: TextFormField(
-                                                initialValue: _numberText(
-                                                  batch['qty_fisik'],
+                                            if (widget.type !=
+                                                PosInventoryDocumentType.opname)
+                                              IconButton(
+                                                onPressed: () => setState(
+                                                  () => _selected.remove(
+                                                    entry.key,
+                                                  ),
                                                 ),
-                                                keyboardType:
-                                                    const TextInputType.numberWithOptions(
-                                                      decimal: true,
-                                                    ),
-                                                decoration:
-                                                    const InputDecoration(
-                                                      labelText: 'Fisik',
-                                                      border:
-                                                          OutlineInputBorder(),
-                                                    ),
-                                                onChanged: (value) {
-                                                  batch['qty_fisik'] =
-                                                      double.tryParse(
-                                                        value.replaceAll(
-                                                          ',',
-                                                          '.',
-                                                        ),
-                                                      ) ??
-                                                      double.nan;
-                                                  item['input_qty'] =
-                                                      (item['batch_counts']
-                                                              as List)
-                                                          .whereType<Map>()
-                                                          .fold<double>(
-                                                            0,
-                                                            (sum, current) =>
-                                                                sum +
-                                                                ((current['qty_fisik']
-                                                                            as num?)
-                                                                        ?.toDouble() ??
-                                                                    0),
-                                                          );
-                                                },
+                                                icon: const Icon(Icons.close),
                                               ),
-                                            ),
                                           ],
-                                        ),
-                                      );
-                                    })),
-                                  if (!(widget.type ==
-                                          PosInventoryDocumentType.opname &&
-                                      (item['batch_counts'] as List? ??
-                                              const [])
-                                          .isNotEmpty))
-                                    if (widget.type ==
-                                        PosInventoryDocumentType.opname)
-                                      _buildUnitConversion(item),
-                                  if (!(widget.type ==
-                                          PosInventoryDocumentType.opname &&
-                                      (item['batch_counts'] as List? ??
-                                              const [])
-                                          .isNotEmpty))
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: TextFormField(
-                                            readOnly:
-                                                widget.type ==
-                                                    PosInventoryDocumentType
-                                                        .opname &&
-                                                item['use_conversion'] == true,
-                                            initialValue: item['input_qty']
-                                                .toString(),
-                                            keyboardType:
-                                                const TextInputType.numberWithOptions(
-                                                  decimal: true,
-                                                ),
-                                            decoration: InputDecoration(
-                                              labelText:
-                                                  widget.type ==
-                                                      PosInventoryDocumentType
-                                                          .opname
-                                                  ? 'Jumlah fisik'
-                                                  : 'Jumlah (${item['unit'] ?? ''})',
-                                              border:
-                                                  const OutlineInputBorder(),
-                                            ),
-                                            onChanged: (value) => setState(
-                                              () => item['input_qty'] =
-                                                  double.tryParse(
-                                                    value.replaceAll(',', '.'),
-                                                  ) ??
-                                                  double.nan,
-                                            ),
-                                          ),
                                         ),
                                         if (widget.type ==
                                             PosInventoryDocumentType
-                                                .purchase) ...[
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: TextFormField(
-                                              initialValue: item['input_price']
-                                                  .toString(),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              decoration: const InputDecoration(
-                                                labelText: 'Harga beli',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              onChanged: (value) => setState(
-                                                () => item['input_price'] =
-                                                    double.tryParse(value) ?? 0,
+                                                .opname) ...[
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              '${item['kode_inventaris'] ?? '-'} • Sistem ${_numberText(item['qty_system'] ?? item['qty'])} ${item['unit'] ?? ''}',
+                                              style: const TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 12,
                                               ),
                                             ),
                                           ),
+                                          const SizedBox(height: 8),
                                         ],
-                                      ],
-                                    ),
-                                  if (widget.type ==
-                                      PosInventoryDocumentType.purchase) ...[
-                                    const SizedBox(height: 10),
-                                    LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final fields = <Widget>[
-                                          DropdownButtonFormField<String>(
-                                            isExpanded: true,
-                                            initialValue:
-                                                item['unit']?.toString() ??
-                                                _purchaseUnits(item).first,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Satuan pembelian',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            items: _purchaseUnits(item)
-                                                .map(
-                                                  (unit) => DropdownMenuItem(
-                                                    value: unit,
-                                                    child: Text(unit),
-                                                  ),
-                                                )
-                                                .toList(),
-                                            onChanged: (value) => setState(
-                                              () => item['unit'] =
-                                                  value ?? 'unit',
-                                            ),
-                                          ),
-                                          DropdownButtonFormField<String>(
-                                            initialValue:
-                                                item['diskon_item_type']
-                                                    ?.toString() ??
-                                                'persen',
-                                            decoration: const InputDecoration(
-                                              labelText: 'Jenis diskon item',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            items: const [
-                                              DropdownMenuItem(
-                                                value: 'persen',
-                                                child: Text('Persen'),
+                                        if (widget.type ==
+                                                PosInventoryDocumentType
+                                                    .opname &&
+                                            (item['batch_counts'] as List? ??
+                                                    const [])
+                                                .isNotEmpty)
+                                          ...((item['batch_counts'] as List).whereType<Map>().map((
+                                            batch,
+                                          ) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 8,
                                               ),
-                                              DropdownMenuItem(
-                                                value: 'fixed',
-                                                child: Text('Nominal'),
-                                              ),
-                                            ],
-                                            onChanged: (value) => setState(
-                                              () => item['diskon_item_type'] =
-                                                  value ?? 'persen',
-                                            ),
-                                          ),
-                                          TextFormField(
-                                            initialValue: _numberText(
-                                              item['diskon_item'],
-                                            ),
-                                            keyboardType:
-                                                const TextInputType.numberWithOptions(
-                                                  decimal: true,
-                                                ),
-                                            decoration: const InputDecoration(
-                                              labelText: 'Diskon item',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            onChanged: (value) => setState(
-                                              () => item['diskon_item'] =
-                                                  double.tryParse(
-                                                    value.replaceAll(',', '.'),
-                                                  ) ??
-                                                  0,
-                                            ),
-                                          ),
-                                        ];
-                                        return constraints.maxWidth >= 720
-                                            ? Row(
+                                              child: Row(
                                                 children: [
-                                                  for (
-                                                    var i = 0;
-                                                    i < fields.length;
-                                                    i++
-                                                  ) ...[
-                                                    if (i > 0)
-                                                      const SizedBox(width: 10),
-                                                    Expanded(child: fields[i]),
-                                                  ],
-                                                ],
-                                              )
-                                            : Column(
-                                                children: [
-                                                  for (
-                                                    var i = 0;
-                                                    i < fields.length;
-                                                    i++
-                                                  ) ...[
-                                                    if (i > 0)
-                                                      const SizedBox(
-                                                        height: 10,
+                                                  Expanded(
+                                                    child: Text(
+                                                      '${batch['no_batch']}\nSistem ${_numberText(batch['qty_system'])}${(batch['tanggal_kadaluarsa']?.toString() ?? '').isEmpty ? '' : ' • Exp ${batch['tanggal_kadaluarsa']}'}',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
                                                       ),
-                                                    fields[i],
-                                                  ],
+                                                    ),
+                                                  ),
+                                                  SizedBox(
+                                                    width: 120,
+                                                    child: TextFormField(
+                                                      initialValue: _numberText(
+                                                        batch['qty_fisik'],
+                                                      ),
+                                                      keyboardType:
+                                                          const TextInputType.numberWithOptions(
+                                                            decimal: true,
+                                                          ),
+                                                      decoration:
+                                                          const InputDecoration(
+                                                            labelText: 'Fisik',
+                                                            border:
+                                                                OutlineInputBorder(),
+                                                          ),
+                                                      onChanged: (value) {
+                                                        batch['qty_fisik'] =
+                                                            double.tryParse(
+                                                              value.replaceAll(
+                                                                ',',
+                                                                '.',
+                                                              ),
+                                                            ) ??
+                                                            double.nan;
+                                                        item['input_qty'] =
+                                                            (item['batch_counts']
+                                                                    as List)
+                                                                .whereType<
+                                                                  Map
+                                                                >()
+                                                                .fold<double>(
+                                                                  0,
+                                                                  (
+                                                                    sum,
+                                                                    current,
+                                                                  ) =>
+                                                                      sum +
+                                                                      ((current['qty_fisik']
+                                                                                  as num?)
+                                                                              ?.toDouble() ??
+                                                                          0),
+                                                                );
+                                                      },
+                                                    ),
+                                                  ),
                                                 ],
-                                              );
-                                      },
-                                    ),
-                                    const SizedBox(height: 10),
-                                    TextFormField(
-                                      initialValue:
-                                          item['catatan_item']?.toString() ??
-                                          '',
-                                      decoration: const InputDecoration(
-                                        labelText: 'Catatan item',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      onChanged: (value) =>
-                                          item['catatan_item'] = value,
-                                    ),
-                                  ],
-                                  if (widget.type ==
-                                      PosInventoryDocumentType.scrap) ...[
-                                    const SizedBox(height: 12),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        '${_balanceLocationLabel(Map<String, dynamic>.from(item['selected_balance'] as Map? ?? const {}))}\nSaldo tersedia ${_numberText(item['available_qty'] ?? item['qty'])} ${item['unit'] ?? ''}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                    ),
-                                    if ((item['batch_options'] as List? ??
-                                            const [])
-                                        .isNotEmpty) ...[
-                                      const SizedBox(height: 10),
-                                      DropdownButtonFormField<String>(
-                                        isExpanded: true,
-                                        initialValue:
-                                            (item['no_batch']?.toString() ?? '')
-                                                .isEmpty
-                                            ? null
-                                            : item['no_batch'].toString(),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Batch sumber *',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        items: (item['batch_options'] as List)
-                                            .whereType<Map>()
-                                            .map(
-                                              (
-                                                batch,
-                                              ) => DropdownMenuItem<String>(
-                                                value: batch['no_batch']
-                                                    .toString(),
-                                                child: Text(
-                                                  '${batch['no_batch']} • ${_numberText(batch['qty'])} tersedia',
+                                              ),
+                                            );
+                                          })),
+                                        if (!(widget.type ==
+                                                PosInventoryDocumentType
+                                                    .opname &&
+                                            (item['batch_counts'] as List? ??
+                                                    const [])
+                                                .isNotEmpty))
+                                          if (widget.type ==
+                                              PosInventoryDocumentType.opname)
+                                            _buildUnitConversion(item),
+                                        if (!(widget.type ==
+                                                PosInventoryDocumentType
+                                                    .opname &&
+                                            (item['batch_counts'] as List? ??
+                                                    const [])
+                                                .isNotEmpty))
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: TextFormField(
+                                                  readOnly:
+                                                      widget.type ==
+                                                          PosInventoryDocumentType
+                                                              .opname &&
+                                                      item['use_conversion'] ==
+                                                          true,
+                                                  initialValue:
+                                                      item['input_qty']
+                                                          .toString(),
+                                                  keyboardType:
+                                                      const TextInputType.numberWithOptions(
+                                                        decimal: true,
+                                                      ),
+                                                  decoration: InputDecoration(
+                                                    labelText:
+                                                        widget.type ==
+                                                            PosInventoryDocumentType
+                                                                .opname
+                                                        ? 'Jumlah fisik'
+                                                        : 'Jumlah (${item['unit'] ?? ''})',
+                                                    border:
+                                                        const OutlineInputBorder(),
+                                                  ),
+                                                  onChanged: (value) => setState(
+                                                    () => item['input_qty'] =
+                                                        double.tryParse(
+                                                          value.replaceAll(
+                                                            ',',
+                                                            '.',
+                                                          ),
+                                                        ) ??
+                                                        double.nan,
+                                                  ),
                                                 ),
                                               ),
-                                            )
-                                            .toList(),
-                                        onChanged: (value) => setState(
-                                          () => item['no_batch'] = value ?? '',
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 10),
-                                    DropdownButtonFormField<String>(
-                                      initialValue:
-                                          item['tindakan']?.toString() ??
-                                          'kurangi_stok',
-                                      decoration: const InputDecoration(
-                                        labelText: 'Tindakan stok',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'kurangi_stok',
-                                          child: Text('Buang / kurangi stok'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'recycle',
-                                          child: Text('Recycle sebagian'),
-                                        ),
-                                      ],
-                                      onChanged: (value) => setState(
-                                        () => item['tindakan'] =
-                                            value ?? 'kurangi_stok',
-                                      ),
-                                    ),
-                                    if (item['tindakan'] == 'recycle') ...[
-                                      const SizedBox(height: 10),
-                                      TextFormField(
-                                        initialValue: _numberText(
-                                          item['jumlah_hasil_recycle'],
-                                        ),
-                                        keyboardType:
-                                            const TextInputType.numberWithOptions(
-                                              decimal: true,
-                                            ),
-                                        decoration: InputDecoration(
-                                          labelText:
-                                              'Jumlah berhasil direcycle',
-                                          helperText:
-                                              'Kerugian bersih = jumlah disposal dikurangi hasil recycle',
-                                          suffixText: item['unit']?.toString(),
-                                          border: const OutlineInputBorder(),
-                                        ),
-                                        onChanged: (value) =>
-                                            item['jumlah_hasil_recycle'] =
-                                                double.tryParse(
-                                                  value.replaceAll(',', '.'),
-                                                ) ??
-                                                0,
-                                      ),
-                                    ],
-                                    const SizedBox(height: 10),
-                                    TextFormField(
-                                      initialValue:
-                                          item['catatan_item']?.toString() ??
-                                          '',
-                                      decoration: const InputDecoration(
-                                        labelText: 'Catatan barang',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      onChanged: (value) =>
-                                          item['catatan_item'] = value,
-                                    ),
-                                  ],
-                                  if (widget.type ==
-                                      PosInventoryDocumentType.opname)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Column(
-                                        children: [
+                                              if (widget.type ==
+                                                  PosInventoryDocumentType
+                                                      .purchase) ...[
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: TextFormField(
+                                                    initialValue:
+                                                        item['input_price']
+                                                            .toString(),
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          labelText:
+                                                              'Harga beli',
+                                                          border:
+                                                              OutlineInputBorder(),
+                                                        ),
+                                                    onChanged: (value) => setState(
+                                                      () =>
+                                                          item['input_price'] =
+                                                              double.tryParse(
+                                                                value,
+                                                              ) ??
+                                                              0,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        if (widget.type ==
+                                            PosInventoryDocumentType
+                                                .purchase) ...[
+                                          const SizedBox(height: 10),
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final fields = <Widget>[
+                                                DropdownButtonFormField<String>(
+                                                  isExpanded: true,
+                                                  initialValue:
+                                                      item['unit']
+                                                          ?.toString() ??
+                                                      _purchaseUnits(
+                                                        item,
+                                                      ).first,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText:
+                                                            'Satuan pembelian',
+                                                        border:
+                                                            OutlineInputBorder(),
+                                                      ),
+                                                  items: _purchaseUnits(item)
+                                                      .map(
+                                                        (unit) =>
+                                                            DropdownMenuItem(
+                                                              value: unit,
+                                                              child: Text(unit),
+                                                            ),
+                                                      )
+                                                      .toList(),
+                                                  onChanged: (value) =>
+                                                      setState(
+                                                        () => item['unit'] =
+                                                            value ?? 'unit',
+                                                      ),
+                                                ),
+                                                DropdownButtonFormField<String>(
+                                                  initialValue:
+                                                      item['diskon_item_type']
+                                                          ?.toString() ??
+                                                      'persen',
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText:
+                                                            'Jenis diskon item',
+                                                        border:
+                                                            OutlineInputBorder(),
+                                                      ),
+                                                  items: const [
+                                                    DropdownMenuItem(
+                                                      value: 'persen',
+                                                      child: Text('Persen'),
+                                                    ),
+                                                    DropdownMenuItem(
+                                                      value: 'fixed',
+                                                      child: Text('Nominal'),
+                                                    ),
+                                                  ],
+                                                  onChanged: (value) => setState(
+                                                    () =>
+                                                        item['diskon_item_type'] =
+                                                            value ?? 'persen',
+                                                  ),
+                                                ),
+                                                TextFormField(
+                                                  initialValue: _numberText(
+                                                    item['diskon_item'],
+                                                  ),
+                                                  keyboardType:
+                                                      const TextInputType.numberWithOptions(
+                                                        decimal: true,
+                                                      ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText:
+                                                            'Diskon item',
+                                                        border:
+                                                            OutlineInputBorder(),
+                                                      ),
+                                                  onChanged: (value) => setState(
+                                                    () => item['diskon_item'] =
+                                                        double.tryParse(
+                                                          value.replaceAll(
+                                                            ',',
+                                                            '.',
+                                                          ),
+                                                        ) ??
+                                                        0,
+                                                  ),
+                                                ),
+                                              ];
+                                              return constraints.maxWidth >= 720
+                                                  ? Row(
+                                                      children: [
+                                                        for (
+                                                          var i = 0;
+                                                          i < fields.length;
+                                                          i++
+                                                        ) ...[
+                                                          if (i > 0)
+                                                            const SizedBox(
+                                                              width: 10,
+                                                            ),
+                                                          Expanded(
+                                                            child: fields[i],
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    )
+                                                  : Column(
+                                                      children: [
+                                                        for (
+                                                          var i = 0;
+                                                          i < fields.length;
+                                                          i++
+                                                        ) ...[
+                                                          if (i > 0)
+                                                            const SizedBox(
+                                                              height: 10,
+                                                            ),
+                                                          fields[i],
+                                                        ],
+                                                      ],
+                                                    );
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
                                           TextFormField(
                                             initialValue:
                                                 item['catatan_item']
                                                     ?.toString() ??
                                                 '',
                                             decoration: const InputDecoration(
-                                              labelText: 'Alasan selisih',
-                                              hintText:
-                                                  'Wajib diisi jika stok fisik berbeda',
+                                              labelText: 'Catatan item',
                                               border: OutlineInputBorder(),
                                             ),
                                             onChanged: (value) =>
                                                 item['catatan_item'] = value,
                                           ),
+                                        ],
+                                        if (widget.type ==
+                                            PosInventoryDocumentType.scrap) ...[
+                                          const SizedBox(height: 12),
                                           Align(
-                                            alignment: Alignment.centerRight,
-                                            child: TextButton.icon(
-                                              onPressed: () =>
-                                                  _editPhysicalQuantity(item),
-                                              icon: const Icon(
-                                                Icons.edit_outlined,
-                                                size: 17,
-                                              ),
-                                              label: const Text(
-                                                'Input hitung fisik',
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              '${_balanceLocationLabel(Map<String, dynamic>.from(item['selected_balance'] as Map? ?? const {}))}\nSaldo tersedia ${_numberText(item['available_qty'] ?? item['qty'])} ${item['unit'] ?? ''}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black54,
                                               ),
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                  if (widget.type ==
-                                      PosInventoryDocumentType.opname)
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 2),
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          'Alasan minimal 3 karakter diperlukan saat terdapat selisih.',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.black54,
+                                          if ((item['batch_options'] as List? ??
+                                                  const [])
+                                              .isNotEmpty) ...[
+                                            const SizedBox(height: 10),
+                                            DropdownButtonFormField<String>(
+                                              isExpanded: true,
+                                              initialValue:
+                                                  (item['no_batch']
+                                                              ?.toString() ??
+                                                          '')
+                                                      .isEmpty
+                                                  ? null
+                                                  : item['no_batch'].toString(),
+                                              decoration: const InputDecoration(
+                                                labelText: 'Batch sumber *',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              items: (item['batch_options'] as List)
+                                                  .whereType<Map>()
+                                                  .map(
+                                                    (
+                                                      batch,
+                                                    ) => DropdownMenuItem<String>(
+                                                      value: batch['no_batch']
+                                                          .toString(),
+                                                      child: Text(
+                                                        '${batch['no_batch']} • ${_numberText(batch['qty'])} tersedia',
+                                                      ),
+                                                    ),
+                                                  )
+                                                  .toList(),
+                                              onChanged: (value) => setState(
+                                                () => item['no_batch'] =
+                                                    value ?? '',
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 10),
+                                          DropdownButtonFormField<String>(
+                                            initialValue:
+                                                item['tindakan']?.toString() ??
+                                                'kurangi_stok',
+                                            decoration: const InputDecoration(
+                                              labelText: 'Tindakan stok',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            items: const [
+                                              DropdownMenuItem(
+                                                value: 'kurangi_stok',
+                                                child: Text(
+                                                  'Buang / kurangi stok',
+                                                ),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 'recycle',
+                                                child: Text('Recycle sebagian'),
+                                              ),
+                                            ],
+                                            onChanged: (value) => setState(
+                                              () => item['tindakan'] =
+                                                  value ?? 'kurangi_stok',
+                                            ),
                                           ),
-                                        ),
-                                      ),
+                                          if (item['tindakan'] ==
+                                              'recycle') ...[
+                                            const SizedBox(height: 10),
+                                            TextFormField(
+                                              initialValue: _numberText(
+                                                item['jumlah_hasil_recycle'],
+                                              ),
+                                              keyboardType:
+                                                  const TextInputType.numberWithOptions(
+                                                    decimal: true,
+                                                  ),
+                                              decoration: InputDecoration(
+                                                labelText:
+                                                    'Jumlah berhasil direcycle',
+                                                helperText:
+                                                    'Kerugian bersih = jumlah disposal dikurangi hasil recycle',
+                                                suffixText: item['unit']
+                                                    ?.toString(),
+                                                border:
+                                                    const OutlineInputBorder(),
+                                              ),
+                                              onChanged: (value) =>
+                                                  item['jumlah_hasil_recycle'] =
+                                                      double.tryParse(
+                                                        value.replaceAll(
+                                                          ',',
+                                                          '.',
+                                                        ),
+                                                      ) ??
+                                                      0,
+                                            ),
+                                          ],
+                                          const SizedBox(height: 10),
+                                          TextFormField(
+                                            initialValue:
+                                                item['catatan_item']
+                                                    ?.toString() ??
+                                                '',
+                                            decoration: const InputDecoration(
+                                              labelText: 'Catatan barang',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            onChanged: (value) =>
+                                                item['catatan_item'] = value,
+                                          ),
+                                        ],
+                                        if (widget.type ==
+                                            PosInventoryDocumentType.opname)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 8,
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                TextFormField(
+                                                  initialValue:
+                                                      item['catatan_item']
+                                                          ?.toString() ??
+                                                      '',
+                                                  decoration: const InputDecoration(
+                                                    labelText: 'Alasan selisih',
+                                                    hintText:
+                                                        'Wajib diisi jika stok fisik berbeda',
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                  ),
+                                                  onChanged: (value) =>
+                                                      item['catatan_item'] =
+                                                          value,
+                                                ),
+                                                Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
+                                                  child: TextButton.icon(
+                                                    onPressed: () =>
+                                                        _editPhysicalQuantity(
+                                                          item,
+                                                        ),
+                                                    icon: const Icon(
+                                                      Icons.edit_outlined,
+                                                      size: 17,
+                                                    ),
+                                                    label: const Text(
+                                                      'Input hitung fisik',
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        if (widget.type ==
+                                            PosInventoryDocumentType.opname)
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 2),
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(
+                                                'Alasan minimal 3 karakter diperlukan saat terdapat selisih.',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black54,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                ],
+                                  ),
+                                );
+                              }),
+                          ],
+                          const SizedBox(height: 12),
+                          if (isMobilePurchase && _purchaseStep == 2)
+                            _buildPurchaseReviewDetails(),
+                          if (widget.type ==
+                                  PosInventoryDocumentType.purchase &&
+                              showPurchaseReview)
+                            Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: const BorderSide(
+                                  color: Color(0xFFE1E5E9),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  children: [
+                                    _PurchaseSummaryRow(
+                                      label: 'Subtotal',
+                                      value: _purchaseSubtotal,
+                                    ),
+                                    _PurchaseSummaryRow(
+                                      label: 'Diskon',
+                                      value: -_purchaseDiscount,
+                                    ),
+                                    _PurchaseSummaryRow(
+                                      label: 'PPN ($_ppnPercent%)',
+                                      value: _purchaseTax,
+                                    ),
+                                    _PurchaseSummaryRow(
+                                      label: 'Biaya tambahan',
+                                      value: _effectivePurchaseCost,
+                                    ),
+                                    const Divider(height: 20),
+                                    _PurchaseSummaryRow(
+                                      label: 'Grand total',
+                                      value: _purchaseGrandTotal,
+                                      emphasized: true,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          );
-                        }),
-                    ],
-                    const SizedBox(height: 12),
-                    if (widget.type == PosInventoryDocumentType.purchase)
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: Color(0xFFE1E5E9)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              _PurchaseSummaryRow(
-                                label: 'Subtotal',
-                                value: _purchaseSubtotal,
+                          if (widget.type ==
+                                  PosInventoryDocumentType.purchase &&
+                              showPurchaseReview)
+                            const SizedBox(height: 12),
+                          if (widget.type != PosInventoryDocumentType.opname &&
+                              (!isMobilePurchase || _purchaseStep == 2))
+                            TextField(
+                              controller: _notes,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                labelText: 'Catatan',
+                                border: OutlineInputBorder(),
                               ),
-                              _PurchaseSummaryRow(
-                                label: 'Diskon',
-                                value: -_purchaseDiscount,
+                            ),
+                          const SizedBox(height: 18),
+                          if (!isMobilePurchase) ...[
+                            FilledButton.icon(
+                              onPressed: _loading ? null : _save,
+                              icon: const Icon(Icons.save),
+                              label: Text(
+                                _editing
+                                    ? 'Simpan Perubahan'
+                                    : widget.type ==
+                                          PosInventoryDocumentType.opname
+                                    ? 'Buat Opname'
+                                    : 'Simpan Draft',
                               ),
-                              _PurchaseSummaryRow(
-                                label: 'PPN ($_ppnPercent%)',
-                                value: _purchaseTax,
-                              ),
-                              _PurchaseSummaryRow(
-                                label: _additionalCosts.isEmpty
-                                    ? 'Biaya pengiriman'
-                                    : 'Biaya tambahan',
-                                value: _effectivePurchaseCost,
-                              ),
-                              const Divider(height: 20),
-                              _PurchaseSummaryRow(
-                                label: 'Grand total',
-                                value: _purchaseGrandTotal,
-                                emphasized: true,
-                              ),
-                            ],
+                            ),
+                            const SizedBox(height: 28),
+                          ] else
+                            const SizedBox(height: 96),
+                        ],
+                      ),
+                      if (_loading)
+                        const Positioned.fill(
+                          child: ColoredBox(
+                            color: Color(0x44FFFFFF),
+                            child: Center(child: CircularProgressIndicator()),
                           ),
                         ),
-                      ),
-                    if (widget.type == PosInventoryDocumentType.purchase)
-                      const SizedBox(height: 12),
-                    if (widget.type != PosInventoryDocumentType.opname)
-                      TextField(
-                        controller: _notes,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Catatan',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed: _loading ? null : _save,
-                      icon: const Icon(Icons.save),
-                      label: Text(
-                        _editing
-                            ? 'Simpan Perubahan'
-                            : widget.type == PosInventoryDocumentType.opname
-                            ? 'Buat Opname'
-                            : 'Simpan Draft',
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-                ),
-                if (_loading)
-                  const Positioned.fill(
-                    child: ColoredBox(
-                      color: Color(0x44FFFFFF),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
+                    ],
                   ),
+                ),
               ],
             ),
     );
   }
+}
+
+class _DeliveryAddressModeOption extends StatelessWidget {
+  const _DeliveryAddressModeOption({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: Material(
+        color: selected ? primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(9),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(9),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 42),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: selected ? Colors.white : const Color(0xFF58636E),
+                  ),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF424D57),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (selected) ...[
+                    const SizedBox(width: 5),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 15,
+                      color: Colors.white,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseSummaryRowText extends StatelessWidget {
+  const _PurchaseSummaryRowText({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 92,
+          child: Text(label, style: const TextStyle(color: Colors.black54)),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
 }
 
 class _PurchaseSummaryRow extends StatelessWidget {
@@ -3614,10 +4219,7 @@ class _PurchaseSummaryRow extends StatelessWidget {
     ),
   );
 
-  static String _currency(double value) {
-    final digits = value.round().toString();
-    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  }
+  static String _currency(double value) => formatPosPurchaseCurrency(value);
 }
 
 class _PurchaseItemPickerTable extends StatelessWidget {

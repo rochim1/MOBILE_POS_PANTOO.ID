@@ -9,11 +9,15 @@ import '../../widgets/pos_full_width_tabs.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_purchase_receiving_page.dart';
+import 'pos_purchase_payable_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseWorkspace extends StatefulWidget {
   final Map<String, dynamic> permissions;
-  final Widget Function(ValueChanged<Map<String, dynamic>> onReceive)
+  final Widget Function(
+    ValueChanged<Map<String, dynamic>> onReceive,
+    ValueChanged<Map<String, dynamic>> onPay,
+  )
   purchaseListBuilder;
 
   const PosPurchaseWorkspace({
@@ -30,6 +34,7 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
   int _tab = 0;
   int _revision = 0;
   Map<String, dynamic>? _activeReceiving;
+  Map<String, dynamic>? _activePayable;
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +43,26 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
       return PosPurchaseReceivingPage(
         purchase: receiving,
         embedded: true,
+        canViewPayable: widget.permissions['view_payables'] == true,
+        canRecordPayment: widget.permissions['record_payable_payment'] == true,
+        onPayRequested: (purchase) => setState(() {
+          _activeReceiving = null;
+          _activePayable = purchase;
+        }),
         onFinished: () => setState(() {
           _activeReceiving = null;
+          _revision++;
+        }),
+      );
+    }
+    final payable = _activePayable;
+    if (payable != null) {
+      return PosPurchasePayablePage(
+        purchase: payable,
+        canRecordPayment: widget.permissions['record_payable_payment'] == true,
+        embedded: true,
+        onFinished: () => setState(() {
+          _activePayable = null;
           _revision++;
         }),
       );
@@ -68,15 +91,24 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
               KeyedSubtree(
                 key: ValueKey('purchase-list-$_revision'),
                 child: widget.purchaseListBuilder(
-                  (purchase) => setState(() => _activeReceiving = purchase),
+                  (purchase) => setState(() {
+                    _activePayable = null;
+                    _activeReceiving = purchase;
+                  }),
+                  (purchase) => setState(() {
+                    _activeReceiving = null;
+                    _activePayable = purchase;
+                  }),
                 ),
               ),
               _ReceivingList(
                 key: ValueKey('receiving-list-$_revision'),
                 canReceive:
                     widget.permissions['receive_inventory_purchases'] == true,
-                onReceive: (purchase) =>
-                    setState(() => _activeReceiving = purchase),
+                onReceive: (purchase) => setState(() {
+                  _activePayable = null;
+                  _activeReceiving = purchase;
+                }),
               ),
             ],
           ),
@@ -566,19 +598,22 @@ class _PurchaseReceivingListSkeleton extends StatelessWidget {
   const _PurchaseReceivingListSkeleton();
 
   @override
-  Widget build(BuildContext context) => ListView(
+  Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(14),
-    children: [
-      const SkeletonBox(width: 190, height: 20, borderRadius: 5),
-      const SizedBox(height: 12),
-      ...List.generate(
-        4,
-        (_) => const Padding(
-          padding: EdgeInsets.only(bottom: 10),
-          child: _PurchaseDocumentSkeletonCard(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SkeletonBox(width: 190, height: 20, borderRadius: 5),
+        const SizedBox(height: 12),
+        ...List.generate(
+          4,
+          (_) => const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: _PurchaseDocumentSkeletonCard(),
+          ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 }
 

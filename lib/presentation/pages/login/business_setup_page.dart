@@ -29,12 +29,12 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   }
 
   Future<void> _create() async {
-    if (!_formKey.currentState!.validate() || _saving) return;
+    if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     final result = await sl<AuthRepository>().createWorkspace(
-      businessName: _businessName.text,
-      phone: _phone.text,
+      businessName: _businessName.text.trim(),
+      phone: _phone.text.trim(),
     );
     if (!mounted) return;
     setState(() => _saving = false);
@@ -90,7 +90,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Profil ini menjadi workspace utama untuk toko, produk, kasir, laporan, dan trial Pantoo Anda.',
+                          'Profil ini menjadi workspace utama untuk toko atau organisasi, produk, kasir, laporan, dan trial Pantoo Anda.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
@@ -100,12 +100,13 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           autofocus: true,
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
-                            labelText: 'Nama usaha',
-                            hintText: 'Contoh: Toko Pantoo Jaya',
+                            labelText: 'Nama Usaha/Organisasi',
+                            hintText:
+                                'Contoh: Toko Pantoo Jaya atau Koperasi Maju',
                             prefixIcon: Icon(Icons.storefront_outlined),
                           ),
                           validator: (value) => (value?.trim().length ?? 0) < 3
-                              ? 'Nama usaha minimal 3 karakter'
+                              ? 'Nama usaha atau organisasi minimal 3 karakter'
                               : null,
                         ),
                         const SizedBox(height: 16),
@@ -118,16 +119,21 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           ],
                           maxLength: 15,
                           decoration: const InputDecoration(
-                            labelText: 'Nomor telepon usaha',
+                            labelText: 'Nomor Telepon Usaha/Organisasi',
                             hintText: '08xxxxxxxxxx',
+                            helperText:
+                                'Boleh memakai nomor penanggung jawab sementara.',
+                            helperMaxLines: 2,
                             prefixIcon: Icon(Icons.phone_outlined),
                           ),
                           onFieldSubmitted: (_) => _create(),
                           validator: (value) {
-                            final length = value?.length ?? 0;
-                            return length < 8 || length > 15
-                                ? 'Nomor telepon harus 8–15 digit'
-                                : null;
+                            final phone = value?.trim() ?? '';
+                            return RegExp(
+                                  r'^(?:0[0-9]{8,13}|62[0-9]{8,13})$',
+                                ).hasMatch(phone)
+                                ? null
+                                : 'Gunakan nomor aktif yang diawali 0 atau 62';
                           },
                         ),
                         const SizedBox(height: 12),
