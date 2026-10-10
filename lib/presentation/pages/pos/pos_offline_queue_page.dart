@@ -140,25 +140,48 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   }
 
   Future<void> _sync() async {
-    setState(() => _loading = true);
-    await _syncService.syncOfflineTransactions(force: true);
-    await _load();
-    if (mounted) {
+    final completed = await _runQueueMutation(
+      () => _syncService.syncOfflineTransactions(force: true),
+    );
+    if (completed && mounted) {
       AppToast.success(context, 'Sinkronisasi antrean selesai diperiksa');
     }
   }
 
   Future<void> _retryAll() async {
-    final count = await _syncService.retryAllRejected();
-    if (count > 0) {
-      await _syncService.syncOfflineTransactions(force: true);
-    }
-    await _load();
-    if (mounted) {
+    var count = 0;
+    final completed = await _runQueueMutation(() async {
+      count = await _syncService.retryAllRejected();
+      if (count > 0) {
+        await _syncService.syncOfflineTransactions(force: true);
+      }
+    });
+    if (completed && mounted) {
       AppToast.info(
         context,
         '$count transaksi ditolak dimasukkan kembali ke antrean',
       );
+    }
+  }
+
+  Future<bool> _runQueueMutation(Future<void> Function() operation) async {
+    if (_loading) return false;
+    setState(() => _loading = true);
+    try {
+      await operation();
+      if (!mounted) return false;
+      await _load();
+      return mounted;
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          'Operasi antrean gagal. Muat ulang untuk memeriksa statusnya.',
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -305,8 +328,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     style: TextStyle(fontSize: 11, color: Colors.black54),
                   ),
                 const SizedBox(height: 4),
-                  const Text(
-                    'Cakupan offline: penjualan tunai dan penyimpanan pesanan kasir. Pesanan baru masuk meja/dapur setelah sinkronisasi; pembayaran elektronik, shift, pelanggan, dan perubahan inventori wajib online.',
+                const Text(
+                  'Cakupan offline: penjualan tunai dan penyimpanan pesanan kasir. Pesanan baru masuk meja/dapur setelah sinkronisasi; pembayaran elektronik, shift, pelanggan, dan perubahan inventori wajib online.',
                   style: TextStyle(fontSize: 11, color: Colors.black54),
                 ),
               ],
@@ -412,12 +435,13 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: () async {
-                      await _syncService.retryTransaction(
-                        transaction['id'] as int,
-                      );
-                      await _load();
-                    },
+                    onPressed: _loading
+                        ? null
+                        : () => _runQueueMutation(
+                            () => _syncService.retryTransaction(
+                              transaction['id'] as int,
+                            ),
+                          ),
                     icon: const Icon(Icons.replay),
                     label: const Text('Coba ulang'),
                   ),
@@ -607,8 +631,10 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       ),
     );
     if (confirmed != true) return;
-    await _syncService.acknowledgeAcceptedTransaction(transaction['id'] as int);
-    await _load();
+    await _runQueueMutation(
+      () =>
+          _syncService.acknowledgeAcceptedTransaction(transaction['id'] as int),
+    );
   }
 
   Future<void> _rejectAfterReview(Map<String, dynamic> transaction) async {
@@ -641,12 +667,11 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       ),
     );
     if (confirmed != true) return;
-    if (wasRejected) {
-      await _syncService.resolveRejectedTransaction(transaction['id'] as int);
-    } else {
-      await _syncService.rejectTransaction(transaction['id'] as int);
-    }
-    await _load();
+    await _runQueueMutation(
+      () => wasRejected
+          ? _syncService.resolveRejectedTransaction(transaction['id'] as int)
+          : _syncService.rejectTransaction(transaction['id'] as int),
+    );
   }
 
   dynamic _decodePayload(dynamic raw) {

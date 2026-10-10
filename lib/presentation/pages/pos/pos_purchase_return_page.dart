@@ -1286,6 +1286,12 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    if (_loading) ...[
+                      const LinearProgressIndicator(minHeight: 3),
+                      const SizedBox(height: 8),
+                      const Text('Memproses dan memperbarui retur...'),
+                      const SizedBox(height: 12),
+                    ],
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -1405,31 +1411,36 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
       if ((status == 'draft' || status == 'rejected') &&
           can('update_purchase_returns'))
         OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : _editFullReturn,
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Ubah'),
         ),
       if ((status == 'draft' || status == 'rejected') &&
           can('submit_purchase_returns'))
-        FilledButton.icon(
+        OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('submit'),
           icon: const Icon(Icons.send),
           label: const Text('Kirim Persetujuan'),
         ),
       if (status == 'pending_approval' && can('approve_purchase_returns'))
-        FilledButton.icon(
+        OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('approve'),
           icon: const Icon(Icons.check),
           label: const Text('Setujui'),
         ),
       if (status == 'pending_approval' && can('reject_purchase_returns'))
         OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('reject'),
           icon: const Icon(Icons.close),
           label: const Text('Tolak'),
         ),
       if (status == 'approved' && can('process_purchase_returns'))
-        FilledButton.icon(
+        OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('process'),
           icon: const Icon(Icons.play_arrow),
           label: const Text('Proses Retur'),
@@ -1437,6 +1448,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
       if (['failed', 'pending'].contains(data['journal_status']) &&
           can('process_purchase_returns'))
         OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('retry'),
           icon: const Icon(Icons.refresh),
           label: const Text('Coba Jurnal Lagi'),
@@ -1444,6 +1456,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
       if ((status == 'draft' || status == 'rejected') &&
           can('delete_purchase_returns'))
         OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : _deleteReturn,
           icon: const Icon(Icons.delete_outline),
           label: const Text('Hapus'),

@@ -1,10 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../injections.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
+import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
+import 'utils/pos_purchase_payment_proof_document.dart';
 
 class PosPurchasePayablePage extends StatefulWidget {
   final Map<String, dynamic> purchase;
@@ -33,6 +38,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
   List<Map<String, dynamic>> _banks = const [];
   bool _loading = true;
   bool _saving = false;
+  bool _paymentDataStale = false;
+  String? _proofLoadingId;
   bool _bankAccountsAvailable = true;
   String? _bankLoadError;
   String _method = 'transfer';
@@ -90,6 +97,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       value,
     ) {
       _payable = value as Map<String, dynamic>?;
+      _paymentDataStale = false;
       if (_payable != null) {
         _amountController.text = _amountText(
           (_payable!['outstanding_amount'] as num? ?? 0).toDouble(),
@@ -147,6 +155,13 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       'Rp ${((value as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
 
   Future<void> _pay() async {
+    if (_paymentDataStale) {
+      AppToast.error(
+        context,
+        'Muat ulang tagihan sebelum mencatat pembayaran lagi.',
+      );
+      return;
+    }
     final payable = _payable;
     final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
     if (payable == null || amount == null || amount <= 0) {
@@ -204,20 +219,154 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       if (_isTermin) 'no_termin': _terminNumber,
     });
     if (!mounted) return;
-    result.fold(
-      (failure) {
-        setState(() => _saving = false);
-        AppToast.error(context, failure.message);
-      },
-      (_) {
-        AppToast.success(context, 'Pembayaran berhasil dicatat.');
-        if (widget.embedded) {
-          widget.onFinished?.call();
-        } else {
-          Navigator.of(context).pop(true);
-        }
-      },
+    final paymentResult = result.fold<Map<String, dynamic>?>((failure) {
+      AppToast.error(context, failure.message);
+      return null;
+    }, (value) => value);
+    if (paymentResult == null) {
+      setState(() {
+        _saving = false;
+        _paymentDataStale = true;
+      });
+      AppToast.info(
+        context,
+        'Muat ulang tagihan sebelum mencoba pembayaran lagi.',
+      );
+      return;
+    }
+    final previousIds = (_payable?['payment_history'] as List? ?? const [])
+        .whereType<Map>()
+        .map((entry) => entry['_id']?.toString())
+        .whereType<String>()
+        .toSet();
+    final history = paymentResult['payment_history'] as List? ?? const [];
+    final paymentId =
+        history
+            .whereType<Map>()
+            .map((entry) => entry['_id']?.toString())
+            .whereType<String>()
+            .where((id) => !previousIds.contains(id))
+            .lastOrNull ??
+        '';
+    setState(() {
+      _payable = {...?_payable, ...paymentResult};
+      _paymentDataStale = true;
+      _saving = false;
+      _amountController.text = _amountText(
+        (paymentResult['outstanding_amount'] as num? ?? 0).toDouble(),
+      );
+      _terminNumber = null;
+      _referenceController.clear();
+      _notesController.clear();
+    });
+    final viewProof = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pembayaran tercatat'),
+        content: const Text(
+          'Bukti pencatatan pembayaran dapat dibuka kembali dari riwayat pembayaran.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Selesai'),
+          ),
+          if (paymentId.isNotEmpty)
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Lihat bukti'),
+            ),
+        ],
+      ),
     );
+    if (!mounted) return;
+    if (viewProof == true && !await _openPaymentProof(paymentId)) {
+      if (mounted) await _load();
+      return;
+    }
+    if (!mounted) return;
+    if (widget.embedded) {
+      widget.onFinished?.call();
+    } else {
+      Navigator.of(context).pop(true);
+    }
+  }
+
+  Future<bool> _openPaymentProof(String paymentId) async {
+    if (paymentId.isEmpty || _proofLoadingId != null) return false;
+    final payableId = _payable?['_id']?.toString() ?? '';
+    if (payableId.isEmpty) {
+      AppToast.error(context, 'ID tagihan tidak tersedia');
+      return false;
+    }
+    setState(() => _proofLoadingId = paymentId);
+    try {
+      final result = await _repository.getPayableForPaymentProof(payableId);
+      if (!mounted) return false;
+      final payable = result.fold<Map<String, dynamic>>(
+        (failure) => throw _PaymentProofException(failure.message),
+        (value) => value,
+      );
+      final matches = (payable['payment_history'] as List? ?? const [])
+          .whereType<Map>()
+          .where((row) => row['_id']?.toString() == paymentId);
+      if (matches.isEmpty) {
+        throw const _PaymentProofException('Pembayaran tidak ditemukan');
+      }
+      final payment = Map<String, dynamic>.from(matches.first);
+      final buyerResult = await sl<PosReceiptRepository>()
+          .getReceiptPrintData();
+      if (!mounted) return false;
+      final company = buyerResult.fold<Map<String, String>>(
+        (failure) => throw _PaymentProofException(
+          'Identitas pembeli tidak dapat dimuat: ${failure.message}',
+        ),
+        (data) => data.company,
+      );
+      if ((company['nama_resmi'] ?? '').trim().isEmpty &&
+          (company['nama_instansi'] ?? '').trim().isEmpty) {
+        throw const _PaymentProofException(
+          'Nama instansi belum tersedia untuk bukti pembayaran',
+        );
+      }
+      final Uint8List bytes = await PosPurchasePaymentProofDocument.build(
+        payable: payable,
+        payment: payment,
+        company: company,
+      );
+      if (!mounted) return false;
+      final active = PosPurchasePaymentProofDocument.canDistribute(payment);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Bukti Pembayaran')),
+            body: PdfPreview(
+              build: (_) async => bytes,
+              pdfFileName: 'Bukti-Pembayaran-$paymentId.pdf',
+              allowPrinting: active,
+              allowSharing: active,
+              canChangePageFormat: false,
+              canChangeOrientation: false,
+            ),
+          ),
+        ),
+      );
+      return true;
+    } on _PaymentProofException catch (error) {
+      if (mounted) {
+        AppToast.error(context, error.message);
+      }
+      return false;
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(context, 'Gagal membuka bukti pembayaran. Coba lagi.');
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _proofLoadingId = null);
+    }
   }
 
   @override
@@ -262,8 +411,10 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
 
   Widget _buildPayable() {
     final payable = _payable!;
+    final payableStatus = payable['status']?.toString() ?? '';
     final outstanding =
         (payable['outstanding_amount'] as num?)?.toDouble() ?? 0;
+    final canPay = !const {'paid', 'cancelled'}.contains(payableStatus);
     final history = (payable['payment_history'] as List? ?? const [])
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList()
@@ -292,6 +443,22 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                 ),
                 _summaryRow('Sudah dibayar', _currency(payable['paid_amount'])),
                 _summaryRow('Sisa hutang', _currency(outstanding), bold: true),
+                if (payableStatus == 'paid')
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Chip(
+                      avatar: Icon(Icons.check_circle, size: 18),
+                      label: Text('Lunas'),
+                    ),
+                  ),
+                if (payableStatus == 'cancelled')
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Chip(
+                      avatar: Icon(Icons.cancel_outlined, size: 18),
+                      label: Text('Hutang dibatalkan'),
+                    ),
+                  ),
                 _summaryRow(
                   'Jatuh tempo',
                   payable['due_date']?.toString().isNotEmpty == true
@@ -312,7 +479,10 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
               ),
             ),
           ),
-        if (!waitingReceipt && outstanding > 0 && !widget.canRecordPayment)
+        if (canPay &&
+            !waitingReceipt &&
+            outstanding > 0 &&
+            !widget.canRecordPayment)
           const Card(
             color: Color(0xFFEAF3F2),
             child: Padding(
@@ -322,7 +492,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
               ),
             ),
           ),
-        if (!waitingReceipt &&
+        if (canPay &&
+            !waitingReceipt &&
             outstanding > 0 &&
             widget.canRecordPayment &&
             (!_isTermin || _terms.isNotEmpty)) ...[
@@ -446,7 +617,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           ),
           const SizedBox(height: 14),
           FilledButton.icon(
-            onPressed: _saving ? null : _pay,
+            onPressed: _saving || _paymentDataStale ? null : _pay,
             style: InventoryActionStyle.primary(),
             icon: _saving
                 ? const SizedBox(
@@ -457,8 +628,20 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                 : const Icon(Icons.payments_outlined),
             label: Text(_saving ? 'Menyimpan...' : 'Simpan pembayaran'),
           ),
+          if (_paymentDataStale)
+            TextButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh),
+              label: const Text(
+                'Muat ulang tagihan sebelum pembayaran berikutnya',
+              ),
+            ),
         ],
-        if (!waitingReceipt && outstanding > 0 && _isTermin && _terms.isEmpty)
+        if (canPay &&
+            !waitingReceipt &&
+            outstanding > 0 &&
+            _isTermin &&
+            _terms.isEmpty)
           const Card(
             color: Color(0xFFFFF4D6),
             child: Padding(
@@ -475,18 +658,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          for (final payment in history)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.receipt_long_outlined),
-                title: Text(_currency(payment['amount'])),
-                subtitle: Text(
-                  '${payment['payment_date'] ?? '-'} · ${payment['payment_method'] ?? '-'}${payment['bank_account_name']?.toString().isNotEmpty == true ? '\n${payment['bank_account_name']}' : ''}',
-                ),
-                isThreeLine:
-                    payment['bank_account_name']?.toString().isNotEmpty == true,
-              ),
-            ),
+          for (final payment in history) _paymentHistoryCard(payment),
         ],
       ],
     );
@@ -507,6 +679,64 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           ],
         ),
       );
+
+  Widget _paymentHistoryCard(Map payment) {
+    final paymentId = payment['_id']?.toString() ?? '';
+    final status = payment['status']?.toString() ?? 'active';
+    final cancelledBy = payment['cancelled_by'];
+    final cancellationDetails = status == 'cancelled'
+        ? 'DIBATALKAN · ${payment['cancellation_reason'] ?? 'Alasan tidak dicatat'}'
+              '${payment['cancelled_at'] == null ? '' : '\n${payment['cancelled_at']}'}'
+              '${cancelledBy is Map ? '\nOleh ${cancelledBy['name'] ?? cancelledBy['username'] ?? '-'}' : ''}'
+        : status == 'cancellation_pending'
+        ? 'PEMBATALAN DIPROSES'
+        : '';
+    final hasBankAccount =
+        payment['bank_account_name']?.toString().isNotEmpty == true;
+
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          status == 'cancelled'
+              ? Icons.cancel_outlined
+              : Icons.receipt_long_outlined,
+          color: status == 'cancelled' ? Colors.red : null,
+        ),
+        title: Text(_currency(payment['amount'])),
+        subtitle: Text(
+          '${payment['payment_date'] ?? '-'} · ${payment['payment_method'] ?? '-'}'
+          '${hasBankAccount ? '\n${payment['bank_account_name']}' : ''}'
+          '${cancellationDetails.isEmpty ? '' : '\n$cancellationDetails'}',
+        ),
+        isThreeLine: hasBankAccount || cancellationDetails.isNotEmpty,
+        trailing: paymentId.isEmpty
+            ? null
+            : IconButton(
+                tooltip: status == 'active'
+                    ? 'Lihat / bagikan bukti pembayaran'
+                    : status == 'cancelled'
+                    ? 'Lihat bukti pembayaran yang dibatalkan'
+                    : 'Lihat bukti pembayaran yang menunggu pembatalan',
+                onPressed: _proofLoadingId != null
+                    ? null
+                    : () => _openPaymentProof(paymentId),
+                icon: _proofLoadingId == paymentId
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.picture_as_pdf_outlined),
+              ),
+      ),
+    );
+  }
+}
+
+class _PaymentProofException implements Exception {
+  final String message;
+
+  const _PaymentProofException(this.message);
 }
 
 class _PayableSkeleton extends StatelessWidget {

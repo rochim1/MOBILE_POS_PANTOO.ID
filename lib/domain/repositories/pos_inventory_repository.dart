@@ -41,6 +41,54 @@ class PosInventoryRepository {
   final GraphQLClientProvider _provider;
   PosInventoryRepository(this._provider);
 
+  Future<Either<Failure, Map<String, dynamic>>> getPayableForPaymentProof(
+    String payableId,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.payableForPaymentProof),
+          variables: {'id': payableId},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final raw = result.data?['GetOneInventoryPayable'];
+      if (raw is! Map) {
+        return const Left(ServerFailure('Pembayaran tidak ditemukan'));
+      }
+      return Right(Map<String, dynamic>.from(raw));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> getPurchaseForPrint(
+    String id,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseDetail),
+          variables: {'id': id},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final raw = result.data?['GetOneInventoryPurchase'];
+      if (raw is! Map) {
+        return const Left(ServerFailure('PO tidak ditemukan'));
+      }
+      return Right(Map<String, dynamic>.from(raw));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, List<Map<String, dynamic>>>> getWarehouses({
     String search = '',
   }) async {
@@ -540,8 +588,9 @@ class PosInventoryRepository {
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
-      if (result.hasException)
+      if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
+      }
       final rows =
           result.data?['GetAllInventoryPayables']?['items'] as List? ??
           const [];
@@ -564,8 +613,9 @@ class PosInventoryRepository {
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
-      if (result.hasException)
+      if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
+      }
       final rows =
           result.data?['GetAllBankAccounts']?['items'] as List? ?? const [];
       return Right(
@@ -586,11 +636,13 @@ class PosInventoryRepository {
           variables: {'input': input},
         ),
       );
-      if (result.hasException)
+      if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
+      }
       final data = result.data?['PayInventoryPayable'];
-      if (data is! Map)
+      if (data is! Map) {
         return const Left(ServerFailure('Pembayaran hutang gagal disimpan'));
+      }
       return Right(Map<String, dynamic>.from(data));
     } catch (error) {
       return Left(AppErrorHandler.handle(error));

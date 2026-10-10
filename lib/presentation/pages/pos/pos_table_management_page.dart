@@ -322,6 +322,8 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           return Column(
             children: [
               _buildSearchBar(),
+              if (state.status == PosTableStatus.loading)
+                const LinearProgressIndicator(minHeight: 3),
               if (state.tables.isNotEmpty)
                 _buildFilterPills(
                   sortedCapacities,

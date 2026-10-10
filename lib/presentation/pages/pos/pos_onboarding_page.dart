@@ -21,6 +21,22 @@ class PosOnboardingPage extends StatefulWidget {
 
   static bool isCompleted(SharedPreferences prefs) =>
       prefs.getBool(preferenceKey(prefs)) ?? false;
+
+  static bool? canManageSettings(SharedPreferences prefs) {
+    final raw = prefs.getString('pos_runtime_config');
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final runtime = jsonDecode(raw);
+      final permissions = runtime is Map ? runtime['permissions'] : null;
+      if (permissions is! Map || !permissions.containsKey('manage_settings')) {
+        return null;
+      }
+      return permissions['manage_settings'] == true;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static String setupPreferenceKey(SharedPreferences prefs) {
     final userId = prefs.getString('user_id') ?? 'unknown-user';
     final instansiId = prefs.getString('instansi_id') ?? 'unknown-instansi';
@@ -128,13 +144,16 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
       (_) async {
         // Saat server tidak dapat dijangkau, cache lokal hanya dipakai sebagai
         // fallback agar kasir yang sudah pernah setup tetap dapat bekerja.
-        return PosOnboardingPage.isCompleted(prefs)
-            ? PosShellPage(
-                showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(
-                  prefs,
-                ),
-              )
-            : const PosOnboardingPage();
+        if (PosOnboardingPage.isCompleted(prefs) ||
+            PosOnboardingPage.canManageSettings(prefs) == false) {
+          await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), true);
+          return PosShellPage(
+            showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(
+              prefs,
+            ),
+          );
+        }
+        return const PosOnboardingPage();
       },
       (settings) async {
         final completed = settings.onboardingCompleted == true;
@@ -142,6 +161,12 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
         if (!completed) {
           // Reset dari Web Admin/database harus menang terhadap cache perangkat.
           await PosOnboardingPage.clearOperationalSetupCompleted(prefs);
+          // Setup awal milik tenant. Operator tanpa izin kelola tetap masuk
+          // POS, bukan terjebak di wizard baca-saja yang tidak dapat mereka simpan.
+          if (PosOnboardingPage.canManageSettings(prefs) == false) {
+            await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), true);
+            return const PosShellPage();
+          }
           return const PosOnboardingPage();
         }
         if (settings.operationalSetupCompleted == true) {

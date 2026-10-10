@@ -16,6 +16,16 @@ abstract final class InventoryActionStyle {
     textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
   );
 
+  static ButtonStyle outlined({double controlHeight = height}) =>
+      OutlinedButton.styleFrom(
+        minimumSize: Size(0, controlHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+        ),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      );
+
   static ButtonStyle filter({double controlHeight = height}) =>
       IconButton.styleFrom(
         fixedSize: Size.square(controlHeight),

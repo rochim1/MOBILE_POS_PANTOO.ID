@@ -227,18 +227,6 @@ class _ReceivingListState extends State<_ReceivingList> {
     widget.onReceive(purchase);
   }
 
-  String _number(dynamic value) {
-    final number = value is num
-        ? value.toDouble()
-        : double.tryParse('$value') ?? 0;
-    return number == number.roundToDouble()
-        ? number.toInt().toString()
-        : number
-              .toStringAsFixed(2)
-              .replaceFirst(RegExp(r'0+$'), '')
-              .replaceFirst(RegExp(r'\.$'), '');
-  }
-
   void _searchChanged(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 450), () => _load(page: 1));
@@ -438,77 +426,107 @@ class _ReceivingListState extends State<_ReceivingList> {
                     .length;
                 final progress = PosPurchaseProgress.completionRatio(purchase);
                 return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _receive(purchase),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 440;
+                          final details = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
                                 purchase['no_po']?.toString() ??
                                     'Purchase Order',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
+                                  fontSize: 15,
                                 ),
                               ),
+                              const SizedBox(height: 3),
+                              Text(
+                                purchase['supplier_name']?.toString() ?? '-',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.black54),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '$remainingLines jenis barang tersisa · ${_date(purchase['tanggal_po'])}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black45,
+                                ),
+                              ),
+                            ],
+                          );
+                          final leading = CircleAvatar(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            child: Icon(
+                              Icons.receipt_long_outlined,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                            Text('${(progress * 100).round()}% diterima'),
-                          ],
-                        ),
-                        Text(
-                          '${purchase['supplier_name'] ?? '-'} · $remainingLines jenis barang masih tersisa',
-                          style: const TextStyle(color: Colors.black54),
-                        ),
-                        const SizedBox(height: 10),
-                        LinearProgressIndicator(value: progress),
-                        const SizedBox(height: 10),
-                        ...rows
-                            .where(
-                              (row) =>
-                                  PosPurchaseProgress.remainingInOrderedUnit(
-                                    row,
-                                  ) >
-                                  .000001,
-                            )
-                            .map(
-                              (row) => Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        row['nama_inventaris']?.toString() ??
-                                            '-',
-                                      ),
-                                    ),
-                                    Text(
-                                      'Sisa ${_number(PosPurchaseProgress.remainingInOrderedUnit(row))} ${row['unit'] ?? ''}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                          );
+                          final progressLabel = Text(
+                            '${(progress * 100).round()}% diterima',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          );
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  leading,
+                                  const SizedBox(width: 12),
+                                  Expanded(child: details),
+                                  if (!compact) ...[
+                                    const SizedBox(width: 8),
+                                    progressLabel,
                                   ],
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              LinearProgressIndicator(value: progress),
+                              if (compact) ...[
+                                const SizedBox(height: 6),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: progressLabel,
+                                ),
+                              ],
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: FilledButton.icon(
+                                  onPressed: () => _receive(purchase),
+                                  style: InventoryActionStyle.primary(),
+                                  icon: const Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    progress > 0
+                                        ? 'Terima Sisa'
+                                        : 'Terima Barang',
+                                  ),
                                 ),
                               ),
-                            ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: FilledButton.icon(
-                            onPressed: () => _receive(purchase),
-                            style: InventoryActionStyle.primary(),
-                            icon: const Icon(
-                              Icons.inventory_2_outlined,
-                              size: 18,
-                            ),
-                            label: Text(
-                              progress > 0 ? 'Terima Sisa' : 'Terima Barang',
-                            ),
-                          ),
-                        ),
-                      ],
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 );
@@ -551,21 +569,80 @@ class _ReceivingListState extends State<_ReceivingList> {
           else if (!_loading)
             ..._items.map(
               (receipt) => Card(
-                child: ListTile(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
                   onTap: () => _detail(receipt),
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.inventory_outlined),
-                  ),
-                  title: Text(receipt['no_grn']?.toString() ?? 'Penerimaan'),
-                  subtitle: Text(
-                    '${receipt['no_po'] ?? '-'} · ${receipt['supplier_name'] ?? '-'}\n${_date(receipt['tanggal_terima'])}',
-                  ),
-                  isThreeLine: true,
-                  trailing: Chip(
-                    label: Text(
-                      receipt['status']?.toString() == 'cancelled'
-                          ? 'Dibatalkan'
-                          : 'Selesai',
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 440;
+                        final rows = (receipt['items'] as List? ?? const []);
+                        final isCancelled = receipt['status'] == 'cancelled';
+                        final status = Chip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(isCancelled ? 'Dibatalkan' : 'Selesai'),
+                        );
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              child: Icon(
+                                Icons.inventory_outlined,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    receipt['no_grn']?.toString() ??
+                                        'Penerimaan',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${receipt['no_po'] ?? '-'} · ${receipt['supplier_name'] ?? '-'}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${rows.length} jenis barang · ${_date(receipt['tanggal_terima'])}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black45,
+                                    ),
+                                  ),
+                                  if (compact) ...[
+                                    const SizedBox(height: 6),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: status,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (!compact) ...[const SizedBox(width: 8), status],
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

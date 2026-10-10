@@ -12,7 +12,8 @@ class PosInventoryActionPolicy {
     bool canReceiveTransfer = false,
     bool canApproveDocument = true,
     bool purchaseHasRemaining = false,
-    bool canPayPurchase = false,
+    bool canViewPurchasePayments = false,
+    bool purchaseHasPayable = false,
   }) {
     final actions = <String>[];
     final editable = switch (type) {
@@ -45,8 +46,13 @@ class PosInventoryActionPolicy {
       actions.add('receive_purchase');
     }
     if (type == PosInventoryDocumentType.purchase &&
-        const {'approved', 'partially_received', 'completed'}.contains(status) &&
-        canPayPurchase) {
+        const {
+          'approved',
+          'partially_received',
+          'completed',
+        }.contains(status) &&
+        canViewPurchasePayments &&
+        purchaseHasPayable) {
       actions.add('pay_purchase');
     }
     if (type == PosInventoryDocumentType.opname &&

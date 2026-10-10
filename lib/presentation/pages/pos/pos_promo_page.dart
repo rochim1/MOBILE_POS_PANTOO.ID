@@ -139,6 +139,12 @@ class _PosPromoViewState extends State<_PosPromoView> {
           ),
 
           // List
+          BlocBuilder<PosPromoBloc, PosPromoState>(
+            buildWhen: (previous, current) => previous.status != current.status,
+            builder: (context, state) => state.status == PosPromoStatus.loading
+                ? const LinearProgressIndicator(minHeight: 3)
+                : const SizedBox.shrink(),
+          ),
           Expanded(
             child: BlocConsumer<PosPromoBloc, PosPromoState>(
               listener: (context, state) {

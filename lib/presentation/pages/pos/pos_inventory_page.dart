@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../domain/models/pos_stock.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
+import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
@@ -26,6 +28,7 @@ import 'pos_purchase_workspace.dart';
 import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
 import 'utils/pos_purchase_progress.dart';
+import 'utils/pos_purchase_order_document.dart';
 import 'widgets/pos_setup_tour.dart';
 
 enum _InventorySection {
@@ -444,6 +447,8 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   int _page = 1;
   int _total = 0;
   bool _loading = true;
+  String? _runningActionId;
+  String? _runningActionLabel;
   Set<String> _pendingPurchaseApprovalIds = const {};
   static const _limit = 20;
 
@@ -759,6 +764,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   Future<void> _runAction(Map<String, dynamic> item, String action) async {
+    if (_runningActionId != null) return;
     final requiresReason =
         const {'reject', 'cancel'}.contains(action) ||
         (action == 'delete' &&
@@ -810,40 +816,63 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       if (mounted) AppToast.error(context, 'Alasan minimal 3 karakter');
       return;
     }
-    setState(() => _loading = true);
-    final result = await _repository.runAction(
-      type: widget.type,
-      action: action,
-      id: item['_id'].toString(),
-      reason: reason,
-    );
-    if (!mounted) return;
-    var succeeded = false;
-    result.fold((failure) => AppToast.error(context, failure.message), (
-      document,
-    ) {
-      succeeded = true;
-      if (document is Map && document['cancel_journal_status'] == 'failed') {
-        AppToast.error(
-          context,
-          'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${document['cancel_journal_error'] ?? ''}',
-        );
-      } else if (document is Map && document['journal_status'] == 'failed') {
-        AppToast.error(
-          context,
-          'Stok sudah diproses, tetapi jurnal perlu diperiksa: ${document['journal_error'] ?? ''}',
-        );
-      } else {
-        AppToast.success(context, 'Status dokumen berhasil diperbarui');
-      }
+    if (!mounted || _runningActionId != null) return;
+    setState(() {
+      _loading = true;
+      _runningActionId = item['_id'].toString();
+      _runningActionLabel =
+          action == 'submit' && widget.type == PosInventoryDocumentType.purchase
+          ? 'Mengajukan PO ${_number(item)}...'
+          : '${_actionLabel(action)} ${_number(item)}...';
     });
-    if (succeeded) {
-      if (widget.type == PosInventoryDocumentType.purchase) {
-        await _loadPendingPurchaseApprovals();
+    try {
+      final result = await _repository.runAction(
+        type: widget.type,
+        action: action,
+        id: item['_id'].toString(),
+        reason: reason,
+      );
+      if (!mounted) return;
+      var succeeded = false;
+      result.fold((failure) => AppToast.error(context, failure.message), (
+        document,
+      ) {
+        succeeded = true;
+        if (document is Map && document['cancel_journal_status'] == 'failed') {
+          AppToast.error(
+            context,
+            'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${document['cancel_journal_error'] ?? ''}',
+          );
+        } else if (document is Map && document['journal_status'] == 'failed') {
+          AppToast.error(
+            context,
+            'Stok sudah diproses, tetapi jurnal perlu diperiksa: ${document['journal_error'] ?? ''}',
+          );
+        } else {
+          AppToast.success(context, 'Status dokumen berhasil diperbarui');
+        }
+      });
+      if (succeeded) {
+        if (widget.type == PosInventoryDocumentType.purchase) {
+          await _loadPendingPurchaseApprovals();
+        }
+        await _load(page: 1);
       }
-      await _load(page: 1);
-    } else if (mounted) {
-      setState(() => _loading = false);
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          'Gagal memproses dokumen. Muat ulang untuk memeriksa statusnya.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _runningActionId = null;
+          _runningActionLabel = null;
+        });
+      }
     }
   }
 
@@ -872,6 +901,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   Future<void> _receive(Map<String, dynamic> item) async {
+    if (_runningActionId != null) return;
     final remaining = (item['items'] as List? ?? const [])
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
@@ -1021,36 +1051,54 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           ..sort((a, b) => a[0].toString().compareTo(b[0].toString()));
     final requestId =
         'transfer-receive-${sha256.convert(utf8.encode(jsonEncode([transferId, snapshot, requested])))}';
-    setState(() => _loading = true);
-    final result = await _repository.receiveTransfer(
-      transferId,
-      receiptItems,
-      requestId,
-    );
-    if (!mounted) return;
-    var succeeded = false;
-    result.fold((failure) => AppToast.error(context, failure.message), (
-      document,
-    ) {
-      succeeded = true;
-      if (document['journal_status'] == 'failed') {
+    if (!mounted || _runningActionId != null) return;
+    setState(() {
+      _loading = true;
+      _runningActionId = transferId;
+      _runningActionLabel = 'Mencatat penerimaan mutasi ${_number(item)}...';
+    });
+    try {
+      final result = await _repository.receiveTransfer(
+        transferId,
+        receiptItems,
+        requestId,
+      );
+      if (!mounted) return;
+      var succeeded = false;
+      result.fold((failure) => AppToast.error(context, failure.message), (
+        document,
+      ) {
+        succeeded = true;
+        if (document['journal_status'] == 'failed') {
+          AppToast.error(
+            context,
+            'Stok diterima, tetapi jurnal biaya perlu dicoba ulang',
+          );
+        } else {
+          AppToast.success(
+            context,
+            document['status'] == 'posted'
+                ? 'Seluruh mutasi stok berhasil diterima'
+                : 'Penerimaan sebagian berhasil dicatat',
+          );
+        }
+      });
+      if (succeeded) await _load(page: 1);
+    } catch (_) {
+      if (mounted) {
         AppToast.error(
           context,
-          'Stok diterima, tetapi jurnal biaya perlu dicoba ulang',
-        );
-      } else {
-        AppToast.success(
-          context,
-          document['status'] == 'posted'
-              ? 'Seluruh mutasi stok berhasil diterima'
-              : 'Penerimaan sebagian berhasil dicatat',
+          'Penerimaan mutasi gagal. Muat ulang untuk memeriksa statusnya.',
         );
       }
-    });
-    if (succeeded) {
-      await _load(page: 1);
-    } else if (mounted) {
-      setState(() => _loading = false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _runningActionId = null;
+          _runningActionLabel = null;
+        });
+      }
     }
   }
 
@@ -1188,51 +1236,71 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               },
             ),
           ),
+          if (_runningActionLabel != null) ...[
+            const LinearProgressIndicator(minHeight: 3),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_runningActionLabel!)),
+                ],
+              ),
+            ),
+          ],
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _load,
-              child: _loading && _items.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(14),
-                      children: const [
-                        _InventoryPurchaseSkeletonCard(),
-                        SizedBox(height: 8),
-                        _InventoryPurchaseSkeletonCard(),
-                        SizedBox(height: 8),
-                        _InventoryPurchaseSkeletonCard(),
-                      ],
-                    )
-                  : _items.isEmpty && !_loading
-                  ? ListView(
-                      children: [
-                        const SizedBox(height: 90),
-                        Icon(_emptyIcon, size: 68, color: Colors.black26),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            _emptyText,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+            child: AbsorbPointer(
+              absorbing: _runningActionId != null,
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _loading && _items.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(14),
+                        children: const [
+                          _InventoryPurchaseSkeletonCard(),
+                          SizedBox(height: 8),
+                          _InventoryPurchaseSkeletonCard(),
+                          SizedBox(height: 8),
+                          _InventoryPurchaseSkeletonCard(),
+                        ],
+                      )
+                    : _items.isEmpty && !_loading
+                    ? ListView(
+                        children: [
+                          const SizedBox(height: 90),
+                          Icon(_emptyIcon, size: 68, color: Colors.black26),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Text(
+                              _emptyText,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Center(
-                          child: Text(
-                            'Tarik ke bawah untuk memuat ulang.',
-                            style: TextStyle(color: Colors.black54),
+                          const SizedBox(height: 6),
+                          const Center(
+                            child: Text(
+                              'Tarik ke bawah untuk memuat ulang.',
+                              style: TextStyle(color: Colors.black54),
+                            ),
                           ),
-                        ),
-                      ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(14),
-                      itemCount: _items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, index) => _documentCard(_items[index]),
-                    ),
+                        ],
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(14),
+                        itemCount: _items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (_, index) => _documentCard(_items[index]),
+                      ),
+              ),
             ),
           ),
           if (_total > _limit)
@@ -1275,6 +1343,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final status = widget.type == PosInventoryDocumentType.purchase
         ? PosPurchaseProgress.effectiveStatus(item)
         : rawStatus;
+    final payableStatus = item['payable_status']?.toString();
+    final payableOutstanding = (item['payable_outstanding_amount'] as num?)
+        ?.toDouble();
+    final payableIsSettled =
+        payableStatus == 'paid' ||
+        (const {'open', 'partial'}.contains(payableStatus) &&
+            payableOutstanding != null &&
+            payableOutstanding <= 0.01);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1327,8 +1403,46 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   ),
               ],
             );
+            final actionMenu = PopupMenuButton<String>(
+              tooltip: 'Aksi dokumen',
+              icon: const Icon(Icons.more_vert),
+              onSelected: (action) => _handleCardAction(item, action),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'detail',
+                  child: _ActionMenuItem(Icons.visibility_outlined, 'Detail'),
+                ),
+                const PopupMenuItem(
+                  value: 'copy_number',
+                  child: _ActionMenuItem(Icons.copy_outlined, 'Salin nomor'),
+                ),
+                ..._availableActions(item).map(
+                  (action) => PopupMenuItem(
+                    value: action,
+                    child: _ActionMenuItem(
+                      _actionIcon(action),
+                      action == 'preview_po'
+                          ? (PosPurchaseOrderDocument.isApproved(item)
+                                ? 'Bagikan / Cetak PO'
+                                : 'Pratinjau PO')
+                          : _actionLabel(action),
+                      destructive: const {
+                        'reject',
+                        'cancel',
+                        'delete',
+                      }.contains(action),
+                    ),
+                  ),
+                ),
+              ],
+            );
             final meta = <Widget>[
-              _InventoryStatus(status),
+              if (widget.type != PosInventoryDocumentType.purchase)
+                _InventoryStatus(status),
+              if (widget.type == PosInventoryDocumentType.purchase &&
+                  widget.permissions['view_payables'] == true &&
+                  payableIsSettled)
+                const _PayablePaidBadge(),
               if (widget.type == PosInventoryDocumentType.purchase)
                 Text(
                   _money(item['grand_total']),
@@ -1356,85 +1470,96 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   icon: const Icon(Icons.download_done, size: 16),
                   label: const Text('Terima'),
                 ),
-              PopupMenuButton<String>(
-                tooltip: 'Aksi dokumen',
-                icon: const Icon(Icons.more_vert),
-                onSelected: (action) => _handleCardAction(item, action),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'detail',
-                    child: _ActionMenuItem(Icons.visibility_outlined, 'Detail'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'copy_number',
-                    child: _ActionMenuItem(Icons.copy_outlined, 'Salin nomor'),
-                  ),
-                  ..._availableActions(item).map(
-                    (action) => PopupMenuItem(
-                      value: action,
-                      child: _ActionMenuItem(
-                        _actionIcon(action),
-                        _actionLabel(action),
-                        destructive: const {
-                          'reject',
-                          'cancel',
-                          'delete',
-                        }.contains(action),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              actionMenu,
             ];
+            final compactPurchaseMeta = Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _InventoryStatus(status),
+                    if (widget.permissions['view_payables'] == true &&
+                        payableIsSettled)
+                      const _PayablePaidBadge(),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _money(item['grand_total']),
+                      maxLines: 1,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(width: 2),
+                    actionMenu,
+                  ],
+                ),
+              ],
+            );
             final leading = CircleAvatar(
               backgroundColor: AppColors.primary.withValues(alpha: .1),
               child: Icon(_emptyIcon, color: AppColors.primary),
             );
-            return Padding(
-              padding: const EdgeInsets.all(14),
-              child: compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            leading,
-                            const SizedBox(width: 12),
-                            Expanded(child: info),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          alignment: WrapAlignment.end,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 10,
-                          runSpacing: 6,
-                          children: meta,
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        leading,
-                        const SizedBox(width: 12),
-                        Expanded(child: info),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: meta
-                              .expand(
-                                (widget) => [
-                                  widget,
-                                  if (widget != meta.last)
-                                    const SizedBox(height: 7),
-                                ],
-                              )
-                              .toList(),
-                        ),
-                      ],
-                    ),
-            );
+            final content = widget.type == PosInventoryDocumentType.purchase
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      leading,
+                      const SizedBox(width: 12),
+                      Expanded(child: info),
+                      const SizedBox(width: 8),
+                      compactPurchaseMeta,
+                    ],
+                  )
+                : compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          leading,
+                          const SizedBox(width: 12),
+                          Expanded(child: info),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 10,
+                        runSpacing: 6,
+                        children: meta,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      leading,
+                      const SizedBox(width: 12),
+                      Expanded(child: info),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: meta
+                            .expand(
+                              (widget) => [
+                                widget,
+                                if (widget != meta.last)
+                                  const SizedBox(height: 7),
+                              ],
+                            )
+                            .toList(),
+                      ),
+                    ],
+                  );
+            return Padding(padding: const EdgeInsets.all(14), child: content);
           },
         ),
       ),
@@ -1764,46 +1889,56 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     ValueChanged<String> onAction,
   ) {
     return _availableActions(item).map((action) {
+      if (action == 'preview_po') {
+        return OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
+          onPressed: () => onAction(action),
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: Text(
+            PosPurchaseOrderDocument.isApproved(item)
+                ? 'Bagikan / Cetak PO'
+                : 'Pratinjau PO',
+          ),
+        );
+      }
       if (action == 'edit') {
         return OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Ubah'),
         );
       }
       if (action == 'receive_purchase') {
-        return FilledButton.icon(
+        return OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.inventory),
           label: const Text('Terima Barang'),
         );
       }
       if (action == 'receive_transfer') {
-        return FilledButton.icon(
+        return OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.download_done),
           label: const Text('Terima Mutasi'),
         );
       }
       if (action == 'pay_purchase') {
-        return FilledButton.icon(
+        return OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.payments_outlined),
           label: const Text('Bayar / Lihat Hutang'),
         );
       }
-      final destructive = const {'delete', 'reject', 'cancel'}.contains(action);
-      return destructive
-          ? OutlinedButton.icon(
-              onPressed: () => onAction(action),
-              icon: Icon(_actionIcon(action)),
-              label: Text(_actionLabel(action)),
-            )
-          : FilledButton.icon(
-              onPressed: () => onAction(action),
-              icon: Icon(_actionIcon(action)),
-              label: Text(_actionLabel(action)),
-            );
+      return OutlinedButton.icon(
+        style: InventoryActionStyle.outlined(),
+        onPressed: () => onAction(action),
+        icon: Icon(_actionIcon(action)),
+        label: Text(_actionLabel(action)),
+      );
     }).toList();
   }
 
@@ -1822,15 +1957,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       purchaseHasRemaining:
           widget.type == PosInventoryDocumentType.purchase &&
           PosPurchaseProgress.hasRemaining(item),
-      canPayPurchase:
-          widget.permissions['view_payables'] == true &&
-          widget.permissions['record_payable_payment'] == true &&
-          const {
-            'approved',
-            'partially_received',
-            'completed',
-          }.contains(status),
+      canViewPurchasePayments: widget.permissions['view_payables'] == true,
+      purchaseHasPayable: item['payable_status'] != null,
     );
+    if (widget.type == PosInventoryDocumentType.purchase) {
+      actions.add('preview_po');
+    }
     if (widget.type == PosInventoryDocumentType.scrap &&
         status == 'completed' &&
         ['failed', 'pending'].contains(item['journal_status']) &&
@@ -1880,27 +2012,56 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   ) async {
     if (action == 'retry_journal' &&
         widget.type == PosInventoryDocumentType.scrap) {
-      setState(() => _loading = true);
-      final result = await _repository.retryScrapJournal(
-        item['_id'].toString(),
-      );
-      if (!mounted) return;
-      result.fold(
-        (failure) => AppToast.error(context, failure.message),
-        (document) =>
-            document is Map &&
-                ['posted', 'not_required'].contains(document['journal_status'])
-            ? AppToast.success(context, 'Jurnal scrap berhasil diperbarui')
-            : AppToast.error(
-                context,
-                'Jurnal belum selesai: ${document is Map ? document['journal_error'] ?? '' : ''}',
-              ),
-      );
-      await _load(page: 1);
+      if (_runningActionId != null) return;
+      setState(() {
+        _loading = true;
+        _runningActionId = item['_id'].toString();
+        _runningActionLabel = 'Mengulangi jurnal ${_number(item)}...';
+      });
+      try {
+        final result = await _repository.retryScrapJournal(
+          item['_id'].toString(),
+        );
+        if (!mounted) return;
+        result.fold(
+          (failure) => AppToast.error(context, failure.message),
+          (document) =>
+              document is Map &&
+                  [
+                    'posted',
+                    'not_required',
+                  ].contains(document['journal_status'])
+              ? AppToast.success(context, 'Jurnal scrap berhasil diperbarui')
+              : AppToast.error(
+                  context,
+                  'Jurnal belum selesai: ${document is Map ? document['journal_error'] ?? '' : ''}',
+                ),
+        );
+        await _load(page: 1);
+      } catch (_) {
+        if (mounted) {
+          AppToast.error(
+            context,
+            'Jurnal gagal diproses. Muat ulang untuk memeriksa statusnya.',
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _runningActionId = null;
+            _runningActionLabel = null;
+          });
+        }
+      }
       return;
     }
     if (action == 'edit') {
       await _openEditor(item);
+      return;
+    }
+    if (action == 'preview_po') {
+      await _previewPurchaseOrder(item);
       return;
     }
     if (action == 'receive_purchase') {
@@ -1945,6 +2106,83 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       return;
     }
     await _runAction(item, action);
+  }
+
+  Future<void> _previewPurchaseOrder(Map<String, dynamic> item) async {
+    final id = item['_id']?.toString() ?? '';
+    if (id.isEmpty) {
+      AppToast.error(context, 'ID PO tidak tersedia');
+      return;
+    }
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+    Map<String, dynamic>? purchase;
+    Uint8List? bytes;
+    String? errorMessage;
+    try {
+      final result = await _repository.getPurchaseForPrint(id);
+      if (!mounted) return;
+      purchase = result.fold<Map<String, dynamic>>(
+        (failure) => throw StateError(failure.message),
+        (value) => value,
+      );
+      final buyerResult = await sl<PosReceiptRepository>()
+          .getReceiptPrintData();
+      if (!mounted) return;
+      final company = buyerResult.fold<Map<String, String>>(
+        (failure) => throw StateError(
+          'Identitas pembeli tidak dapat dimuat: ${failure.message}',
+        ),
+        (data) => data.company,
+      );
+      if ((company['nama_resmi'] ?? '').trim().isEmpty &&
+          (company['nama_instansi'] ?? '').trim().isEmpty) {
+        throw StateError('Nama instansi belum tersedia untuk dokumen PO');
+      }
+      bytes = await PosPurchaseOrderDocument.build(
+        purchase: purchase,
+        company: company,
+      );
+    } catch (error) {
+      errorMessage = error is StateError
+          ? error.message
+          : 'Gagal menyiapkan PO: $error';
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+    if (!mounted) return;
+    if (errorMessage != null) {
+      AppToast.error(context, errorMessage);
+      return;
+    }
+    if (purchase == null || bytes == null) return;
+    final official = PosPurchaseOrderDocument.isApproved(purchase);
+    final number = (purchase['no_po']?.toString() ?? 'PO').replaceAll(
+      RegExp(r'[^A-Za-z0-9._-]'),
+      '_',
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(official ? 'Bagikan / Cetak PO' : 'Pratinjau PO'),
+          ),
+          body: PdfPreview(
+            build: (_) async => bytes!,
+            pdfFileName: '$number.pdf',
+            allowPrinting: official,
+            allowSharing: official,
+            canChangePageFormat: false,
+            canChangeOrientation: false,
+          ),
+        ),
+      ),
+    );
   }
 
   String get _searchLabel => switch (widget.type) {
@@ -2089,6 +2327,34 @@ class _InventoryStatus extends StatelessWidget {
   );
 }
 
+class _PayablePaidBadge extends StatelessWidget {
+  const _PayablePaidBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: const Color(0xFF16824A).withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.check_circle_outline, size: 13, color: Color(0xFF16824A)),
+        SizedBox(width: 4),
+        Text(
+          'Lunas',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF16824A),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 String _location(dynamic raw) {
   final value = raw is Map ? raw : const {};
   final label = [
@@ -2146,7 +2412,8 @@ String _actionLabel(String action) => switch (action) {
   'cancel' => 'Batalkan',
   'delete' => 'Hapus',
   'receive_purchase' => 'Terima Barang',
-  'pay_purchase' => 'Lihat Hutang / Bayar',
+  'pay_purchase' => 'Pembayaran / Riwayat',
+  'preview_po' => 'Dokumen PO',
   'receive_transfer' => 'Terima Mutasi',
   'retry_journal' => 'Ulangi Jurnal',
   'retry_cancel_journal' => 'Ulangi Jurnal Batal',
@@ -2162,6 +2429,7 @@ IconData _actionIcon(String action) => switch (action) {
   'delete' => Icons.delete_outline,
   'receive_purchase' => Icons.inventory_2_outlined,
   'pay_purchase' => Icons.payments_outlined,
+  'preview_po' => Icons.picture_as_pdf_outlined,
   'receive_transfer' => Icons.download_done,
   'retry_journal' => Icons.refresh,
   'retry_cancel_journal' => Icons.restart_alt,
