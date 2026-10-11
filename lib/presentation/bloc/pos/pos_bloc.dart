@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'pos_event.dart';
 import 'pos_state.dart';
@@ -6,6 +7,30 @@ import '../../../domain/repositories/pos_repository.dart';
 import '../../../domain/models/hold_order.dart';
 import '../../../domain/models/pos_order.dart';
 import '../../../domain/models/pos_product.dart';
+import '../../../core/network/offline_network_failure.dart';
+import '../../../core/utils/logger.dart';
+
+String _dashboardLoadError(Object error) {
+  if (error is OperationException) {
+    final serverErrors = error.linkException is ServerException
+        ? (error.linkException as ServerException).parsedResponse?.errors
+        : null;
+    final graphQLError = error.graphqlErrors.firstOrNull ?? serverErrors?.firstOrNull;
+    if (graphQLError == null) {
+      return 'Dashboard gagal dimuat. Periksa layanan server, lalu coba lagi.';
+    }
+    final code = graphQLError.extensions?['code']?.toString();
+    if (code == 'UNAUTHORIZED') {
+      return 'Sesi telah berakhir. Silakan login kembali.';
+    }
+    if (code == 'FORBIDDEN') {
+      return graphQLError.message.toLowerCase().contains('shift')
+          ? 'Buka shift kasir untuk melihat dashboard toko ini.'
+          : 'Akun ini belum memiliki izin melihat dashboard POS.';
+    }
+  }
+  return 'Dashboard gagal dimuat. Periksa layanan server, lalu coba lagi.';
+}
 
 String _defaultOrderType(Map<String, dynamic> config) {
   var value = config['default_order_type']?.toString() ?? 'take_away';
@@ -24,6 +49,7 @@ String _defaultOrderType(Map<String, dynamic> config) {
 
 class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository posRepository;
+  int _requestedDashboardDays = 7;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
@@ -48,6 +74,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<SubmitPayment>(_onSubmitPayment);
     on<ToggleGridView>(_onToggleGridView);
     on<LoadDashboardData>(_onLoadDashboardData);
+    on<LoadDashboardSnapshot>(_onLoadDashboardSnapshot);
     on<RefreshPricingPreview>(_onRefreshPricingPreview);
     on<UpdateOrderType>(_onUpdateOrderType);
     on<SelectOrderTable>(_onSelectOrderTable);
@@ -214,23 +241,26 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   Future<void> _onLoadPosData(LoadPosData event, Emitter<PosState> emit) async {
     emit(state.copyWith(status: PosStatus.loading));
     try {
-      final customers = await posRepository.getCustomers();
-      final runtimeConfig = await posRepository.getRuntimeConfig();
-      final stores = await posRepository.getStores();
-      final ordersPage = await posRepository.getOrdersPage();
+      final (
+        customers,
+        runtimeConfig,
+        stores,
+        ordersPage,
+        fetchedShift,
+      ) = await (
+        posRepository.getCustomers(),
+        posRepository.getRuntimeConfig(),
+        posRepository.getStores(),
+        posRepository.getOrdersPage(),
+        posRepository.getActiveShift(),
+      ).wait;
       final orders = ordersPage.items;
-
-      Map<String, dynamic>? activeShift;
-      if (stores.isNotEmpty) {
-        // Satu kasir hanya boleh memiliki satu shift terbuka lintas toko.
-        // Jangan membatasi pencarian ke toko pertama karena shift outlet lain
-        // akan tersembunyi sementara backend tetap menolak pembukaan baru.
-        activeShift = await posRepository.getActiveShift();
-      }
+      // Satu kasir hanya boleh memiliki satu shift terbuka lintas toko.
+      final activeShift = stores.isNotEmpty ? fetchedShift : null;
       final activeStore = activeShift != null
           ? stores
                 .where(
-                  (store) => store.id == activeShift!['toko_id']?.toString(),
+                  (store) => store.id == activeShift['toko_id']?.toString(),
                 )
                 .firstOrNull
           : stores
@@ -293,7 +323,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       );
 
       // Also load dashboard data
-      add(LoadDashboardData());
+      add(LoadDashboardData(days: _requestedDashboardDays));
     } catch (e) {
       emit(
         state.copyWith(
@@ -699,6 +729,15 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     Emitter<PosState> emit,
   ) async {
     if (state.cart.isEmpty) return;
+    if (state.promoCode.trim().isNotEmpty && !state.promoApplied) {
+      emit(state.copyWith(
+        status: PosStatus.failure,
+        errorMessage: state.pricingPreview?['promo_message']?.toString().isNotEmpty == true
+            ? state.pricingPreview!['promo_message'].toString()
+            : 'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.',
+      ));
+      return;
+    }
     final stateCustomer = state.selectedCustomer;
     final selectedCustomer =
         stateCustomer != null && stateCustomer.id.trim().isNotEmpty
@@ -906,16 +945,57 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     LoadDashboardData event,
     Emitter<PosState> emit,
   ) async {
+    _requestedDashboardDays = event.days;
     // Agregasi server adalah sumber utama agar dashboard tidak bergantung
     // pada jumlah halaman riwayat yang sudah dimuat di perangkat.
     try {
       final dashboardData = await posRepository.getDashboardData(
         days: event.days,
       );
+      if (_requestedDashboardDays != event.days) return;
       emit(state.copyWith(dashboardData: dashboardData));
       return;
-    } catch (_) {
-      // Data lokal hanya menjadi fallback saat perangkat benar-benar offline.
+    } catch (error) {
+      if (_requestedDashboardDays != event.days) return;
+      final offline =
+          error is OfflineReadUnavailable || isOfflineReadFailure(error);
+      if (!offline) {
+        appLogger.w('[POS] Dashboard gagal dimuat', error: error);
+      }
+      final failureMessage = _dashboardLoadError(error);
+      if (state.dashboardData != null &&
+          state.dashboardData?['_dashboard_days'] == event.days &&
+          state.dashboardData?['_offline_unavailable'] != true &&
+          state.dashboardData?['_dashboard_error'] == null) {
+        if (!offline) {
+          emit(
+            state.copyWith(
+              dashboardData: {
+                ...state.dashboardData!,
+                '_refresh_error':
+                    '$failureMessage Data terakhir tetap ditampilkan.',
+              },
+            ),
+          );
+        }
+        return;
+      }
+      if (!offline) {
+        emit(
+          state.copyWith(
+            dashboardData: {
+              '_dashboard_error': failureMessage,
+            },
+          ),
+        );
+        return;
+      }
+      if (state.orders.isEmpty) {
+        emit(
+          state.copyWith(dashboardData: const {'_offline_unavailable': true}),
+        );
+        return;
+      }
     }
     try {
       final now = DateTime.now();
@@ -1026,6 +1106,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       }).toList();
 
       final dashboardData = {
+        '_dashboard_days': event.days,
+        '_offline_snapshot': true,
+        '_offline_estimate': true,
         'stats': {
           'today_revenue': todayRevenue,
           'today_transactions': todayTransactions,
@@ -1043,7 +1126,23 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
       emit(state.copyWith(dashboardData: dashboardData));
     } catch (e) {
-      // Silently fail
+      emit(state.copyWith(dashboardData: const {'_offline_unavailable': true}));
     }
+  }
+
+  Future<void> _onLoadDashboardSnapshot(
+    LoadDashboardSnapshot event,
+    Emitter<PosState> emit,
+  ) async {
+    _requestedDashboardDays = event.days;
+    final snapshot = await posRepository.getDashboardSnapshot(days: event.days);
+    if (_requestedDashboardDays != event.days) return;
+    if (snapshot == null) return;
+    // A slower local read must not overwrite an already-refreshed server view.
+    if (state.dashboardData?['_offline_snapshot'] == false &&
+        state.dashboardData?['_dashboard_days'] == event.days) {
+      return;
+    }
+    emit(state.copyWith(dashboardData: snapshot));
   }
 }

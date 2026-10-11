@@ -12,6 +12,16 @@ void main() {
     'supplier_name': 'Supplier Utama',
     'tanggal_po': '2026-10-10',
     'status': status,
+    'created_by': {'name': 'Admin Pembelian'},
+    'catatan': 'Kirim sebelum akhir minggu',
+    'jadwal_termin': [
+      {
+        'no_termin': 1,
+        'due_date': '2026-10-20',
+        'amount': 15000,
+        'status': 'pending',
+      },
+    ],
     'total_amount': 15000 * itemCount,
     'grand_total': 15000 * itemCount,
     'items': List.generate(
@@ -23,6 +33,7 @@ void main() {
         'unit': 'pcs',
         'harga_beli': 7500,
         'subtotal': 15000,
+        'catatan_item': 'Kemasan utuh',
       },
     ),
   };

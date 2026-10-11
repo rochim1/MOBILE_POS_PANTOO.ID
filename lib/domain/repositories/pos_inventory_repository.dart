@@ -53,7 +53,7 @@ class PosInventoryRepository {
         ),
       );
       if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
+        return Left(_verifiedPrintFailure(result.exception!));
       }
       final raw = result.data?['GetOneInventoryPayable'];
       if (raw is! Map) {
@@ -61,7 +61,7 @@ class PosInventoryRepository {
       }
       return Right(Map<String, dynamic>.from(raw));
     } catch (error) {
-      return Left(AppErrorHandler.handle(error));
+      return Left(_verifiedPrintFailure(error));
     }
   }
 
@@ -77,7 +77,7 @@ class PosInventoryRepository {
         ),
       );
       if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
+        return Left(_verifiedPrintFailure(result.exception!));
       }
       final raw = result.data?['GetOneInventoryPurchase'];
       if (raw is! Map) {
@@ -85,8 +85,19 @@ class PosInventoryRepository {
       }
       return Right(Map<String, dynamic>.from(raw));
     } catch (error) {
-      return Left(AppErrorHandler.handle(error));
+      return Left(_verifiedPrintFailure(error));
     }
+  }
+
+  Failure _verifiedPrintFailure(Object error) {
+    final failure = AppErrorHandler.handle(error);
+    if (failure is NetworkFailure) {
+      return const NetworkFailure(
+        'Dokumen resmi perlu koneksi untuk memverifikasi status terbaru. '
+        'Sambungkan internet lalu coba lagi; data lama tidak dicetak otomatis.',
+      );
+    }
+    return failure;
   }
 
   Future<Either<Failure, List<Map<String, dynamic>>>> getWarehouses({
@@ -642,6 +653,29 @@ class PosInventoryRepository {
       final data = result.data?['PayInventoryPayable'];
       if (data is! Map) {
         return const Left(ServerFailure('Pembayaran hutang gagal disimpan'));
+      }
+      return Right(Map<String, dynamic>.from(data));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> cancelInventoryPayablePayment(
+    Map<String, dynamic> input,
+  ) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PosInventoryQueries.cancelInventoryPayablePayment),
+          variables: {'input': input},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final data = result.data?['CancelInventoryPayablePayment'];
+      if (data is! Map) {
+        return const Left(ServerFailure('Pembatalan pembayaran gagal'));
       }
       return Right(Map<String, dynamic>.from(data));
     } catch (error) {

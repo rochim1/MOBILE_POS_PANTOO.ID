@@ -6,6 +6,7 @@ import 'package:dartz/dartz.dart';
 import '../../core/error/failures.dart';
 import '../../core/error/error_handler.dart';
 import '../../core/network/graphql_client_provider.dart';
+import '../../core/network/offline_network_failure.dart';
 import '../../data/graphql/pos_queries.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -280,6 +281,16 @@ class AuthRepository {
             ServerFailure('Server tidak memberikan refresh token mobile'),
           );
         }
+        final previousUserId = _prefs.getString('user_id') ?? '';
+        final previousInstansiId = _prefs.getString('instansi_id') ?? '';
+        final nextUserId = data['user']?['_id']?.toString() ?? '';
+        final nextInstansiId =
+            data['user']?['instansi_id']?['_id']?.toString() ?? '';
+        if ((previousUserId.isNotEmpty || previousInstansiId.isNotEmpty) &&
+            (previousUserId != nextUserId ||
+                previousInstansiId != nextInstansiId)) {
+          await _clearReadCachesForAccountChange();
+        }
         await _secureStorage.write(key: 'auth_token', value: token);
         await _secureStorage.write(key: 'refresh_token', value: refreshToken);
         final persistedToken = await _secureStorage.read(key: 'auth_token');
@@ -375,6 +386,33 @@ class AuthRepository {
     }
   }
 
+  Future<void> _clearReadCachesForAccountChange() async {
+    if (supportsOfflineDatabase) {
+      final db = await PosLocalDatabase.instance.database;
+      await db.transaction((txn) async {
+        for (final table in [
+          'products',
+          'customers',
+          'stores',
+          'employees',
+          'held_orders',
+          'read_snapshots',
+        ]) {
+          await txn.delete(table);
+        }
+      });
+    }
+    await _prefs.remove('pos_runtime_config');
+    await _prefs.remove('pos_favorite_product_ids');
+    for (final key
+        in _prefs
+            .getKeys()
+            .where((key) => key.startsWith('pos_dashboard_snapshot_v1:'))
+            .toList()) {
+      await _prefs.remove(key);
+    }
+  }
+
   Future<void> logout() async {
     final previousInstansiId = _prefs.getString('instansi_id') ?? '';
     final previousUserId =
@@ -403,6 +441,7 @@ class AuthRepository {
     await _prefs.remove('user_id');
     await _prefs.remove('instansi_id');
     await _prefs.remove('pos_runtime_config');
+    await _prefs.remove('pos_favorite_product_ids');
     await _prefs.remove('needs_workspace_setup');
     // Dashboard snapshots contain turnover data. They are scoped per account
     // while the session exists and deliberately removed at logout as well.
@@ -424,6 +463,7 @@ class AuthRepository {
         await txn.delete('stores');
         await txn.delete('employees');
         await txn.delete('held_orders');
+        await txn.delete('read_snapshots');
         if (previousInstansiId.isNotEmpty) {
           await txn.delete(
             'offline_transactions',
@@ -461,13 +501,26 @@ class AuthRepository {
         (_prefs.getString('instansi_id')?.isEmpty ?? true)) {
       return true;
     }
+    if (supportsOfflineDatabase) {
+      try {
+        if ((await Connectivity().checkConnectivity()).contains(
+          ConnectivityResult.none,
+        )) {
+          return true;
+        }
+      } catch (_) {
+        // Connectivity can be unavailable; the API request remains decisive.
+      }
+    }
     try {
-      final result = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosQueries.getPOSRuntimeConfig),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
+      final result = await _clientProvider.client
+          .query(
+            QueryOptions(
+              document: gql(PosQueries.getPOSRuntimeConfig),
+              fetchPolicy: FetchPolicy.networkOnly,
+            ),
+          )
+          .timeout(const Duration(seconds: 10));
       if (!result.hasException && result.data?['GetPOSRuntimeConfig'] != null) {
         final effectiveInstansiId = result
             .data?['GetPOSRuntimeConfig']?['instansi_id']
@@ -481,13 +534,21 @@ class AuthRepository {
         );
         return true;
       }
-      if (result.hasException &&
-          AppErrorHandler.handle(result.exception!) is! AuthFailure) {
-        return true;
+      if (result.hasException) {
+        final exception = result.exception!;
+        if (supportsOfflineDatabase && isOfflineReadFailure(exception)) {
+          return true;
+        }
+        final failure = AppErrorHandler.handle(exception);
+        if (failure is! AuthFailure) throw failure;
+      } else {
+        throw const ServerFailure(
+          'Konfigurasi sesi tidak tersedia. Coba lagi saat layanan pulih.',
+        );
       }
-    } catch (_) {
-      // Keep the locally authenticated session when the server is offline.
-      return true;
+    } catch (error) {
+      if (supportsOfflineDatabase && isOfflineReadFailure(error)) return true;
+      rethrow;
     }
     _clientProvider.setAccessToken(null);
     await _secureStorage.delete(key: 'auth_token');

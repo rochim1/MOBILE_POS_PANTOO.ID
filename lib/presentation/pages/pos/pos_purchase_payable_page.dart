@@ -1,15 +1,19 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../injections.dart';
+import '../../../core/receipt/pos_receipt_print_service.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'utils/pos_purchase_payment_proof_document.dart';
+import 'utils/pos_pdf_preview_bytes.dart';
+import 'utils/pos_business_print_branding.dart';
 
 class PosPurchasePayablePage extends StatefulWidget {
   final Map<String, dynamic> purchase;
@@ -40,6 +44,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
   bool _saving = false;
   bool _paymentDataStale = false;
   String? _proofLoadingId;
+  String? _cancelLoadingId;
   bool _bankAccountsAvailable = true;
   String? _bankLoadError;
   String _method = 'transfer';
@@ -294,7 +299,10 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
     }
   }
 
-  Future<bool> _openPaymentProof(String paymentId) async {
+  Future<bool> _openPaymentProof(
+    String paymentId, {
+    bool directPrint = false,
+  }) async {
     if (paymentId.isEmpty || _proofLoadingId != null) return false;
     final payableId = _payable?['_id']?.toString() ?? '';
     if (payableId.isEmpty) {
@@ -316,8 +324,9 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         throw const _PaymentProofException('Pembayaran tidak ditemukan');
       }
       final payment = Map<String, dynamic>.from(matches.first);
-      final buyerResult = await sl<PosReceiptRepository>()
-          .getReceiptPrintData();
+      final buyerResult = await sl<PosReceiptRepository>().getReceiptPrintData(
+        forceRefresh: true,
+      );
       if (!mounted) return false;
       final company = buyerResult.fold<Map<String, String>>(
         (failure) => throw _PaymentProofException(
@@ -331,21 +340,48 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           'Nama instansi belum tersedia untuk bukti pembayaran',
         );
       }
+      final active = PosPurchasePaymentProofDocument.canDistribute(payment);
+      if (directPrint) {
+        if (!active) {
+          throw const _PaymentProofException(
+            'Bukti pembayaran yang dibatalkan tidak dapat dicetak.',
+          );
+        }
+      }
+      final logo = await PosBusinessPrintBranding.loadCompanyLogo(
+        company['logo'] ?? '',
+      );
+      if (!mounted) return false;
       final Uint8List bytes = await PosPurchasePaymentProofDocument.build(
         payable: payable,
         payment: payment,
         company: company,
+        logoBytes: logo,
       );
       if (!mounted) return false;
-      final active = PosPurchasePaymentProofDocument.canDistribute(payment);
+      if (directPrint) {
+        final printed = await PosReceiptPrintService(sl()).printDocumentPdf(
+          bytes: bytes,
+          name: 'Bukti-Pembayaran-$paymentId.pdf',
+        );
+        if (!printed) {
+          throw const _PaymentProofException(
+            'Pencetakan dibatalkan atau gagal.',
+          );
+        }
+        return true;
+      }
+      final previewBytes = PosPdfPreviewBytes(bytes);
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
             appBar: AppBar(title: const Text('Bukti Pembayaran')),
             body: PdfPreview(
-              build: (_) async => bytes,
+              build: (_) async => previewBytes.freshBytes(),
               pdfFileName: 'Bukti-Pembayaran-$paymentId.pdf',
-              allowPrinting: active,
+              // The preview's system-print action ignores the terminal's
+              // Bluetooth printer. Printing goes through the explicit action.
+              allowPrinting: false,
               allowSharing: active,
               canChangePageFormat: false,
               canChangeOrientation: false,
@@ -359,14 +395,111 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         AppToast.error(context, error.message);
       }
       return false;
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        AppToast.error(context, 'Gagal membuka bukti pembayaran. Coba lagi.');
+        AppToast.error(
+          context,
+          error is StateError
+              ? error.message
+              : 'Gagal membuka atau mencetak bukti pembayaran. Periksa printer dan coba lagi.',
+        );
       }
       return false;
     } finally {
       if (mounted) setState(() => _proofLoadingId = null);
     }
+  }
+
+  Future<void> _cancelPayment(Map payment) async {
+    if (!widget.canRecordPayment || _cancelLoadingId != null) return;
+    final paymentId = payment['_id']?.toString() ?? '';
+    final payableId = _payable?['_id']?.toString() ?? '';
+    if (paymentId.isEmpty || payableId.isEmpty) {
+      AppToast.error(context, 'Data pembayaran tidak lengkap');
+      return;
+    }
+
+    final isRetry = payment['status'] == 'cancellation_pending';
+    final reasonController = TextEditingController(
+      text: payment['cancellation_reason']?.toString() ?? '',
+    );
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isRetry ? 'Lanjutkan pembatalan' : 'Batalkan pembayaran?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isRetry
+                  ? 'Pembatalan sebelumnya belum selesai. Coba lagi untuk menyelesaikan jurnal pembalik.'
+                  : 'Pembayaran ${_currency(payment['amount'])} akan dibalik di jurnal dan dihitung kembali sebagai hutang.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              readOnly: isRetry,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Alasan pembatalan *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Kembali'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () =>
+                Navigator.pop(dialogContext, reasonController.text.trim()),
+            icon: Icon(isRetry ? Icons.refresh : Icons.cancel_outlined),
+            label: Text(isRetry ? 'Coba lagi' : 'Batalkan'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (!mounted || reason == null) return;
+    if (reason.trim().isEmpty) {
+      AppToast.error(context, 'Alasan pembatalan wajib diisi');
+      return;
+    }
+
+    setState(() => _cancelLoadingId = paymentId);
+    final result = await _repository.cancelInventoryPayablePayment({
+      'payable_id': payableId,
+      'payment_id': paymentId,
+      'reason': reason.trim(),
+    });
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        setState(() => _cancelLoadingId = null);
+        AppToast.error(context, failure.message);
+        // A failed reversal can leave the payment pending; refresh so the
+        // history offers a safe retry instead of appearing unchanged.
+        unawaited(_load());
+      },
+      (value) {
+        setState(() {
+          _payable = value;
+          _paymentDataStale = false;
+          _cancelLoadingId = null;
+          _terminNumber = null;
+          _amountController.text = _amountText(
+            (value['outstanding_amount'] as num? ?? 0).toDouble(),
+          );
+        });
+        AppToast.success(context, 'Pembayaran dibatalkan dan jurnal dibalik');
+        unawaited(_load());
+      },
+    );
   }
 
   @override
@@ -711,22 +844,59 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         isThreeLine: hasBankAccount || cancellationDetails.isNotEmpty,
         trailing: paymentId.isEmpty
             ? null
-            : IconButton(
-                tooltip: status == 'active'
-                    ? 'Lihat / bagikan bukti pembayaran'
-                    : status == 'cancelled'
-                    ? 'Lihat bukti pembayaran yang dibatalkan'
-                    : 'Lihat bukti pembayaran yang menunggu pembatalan',
-                onPressed: _proofLoadingId != null
-                    ? null
-                    : () => _openPaymentProof(paymentId),
-                icon: _proofLoadingId == paymentId
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.picture_as_pdf_outlined),
+            : _cancelLoadingId == paymentId
+            ? const SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            : _proofLoadingId == paymentId
+            ? const SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            : PopupMenuButton<String>(
+                tooltip: 'Opsi pembayaran',
+                enabled:
+                    _proofLoadingId == null &&
+                    _cancelLoadingId == null &&
+                    !_saving,
+                onSelected: (action) {
+                  if (action == 'cancel' || action == 'retry_cancel') {
+                    unawaited(_cancelPayment(payment));
+                  } else {
+                    unawaited(
+                      _openPaymentProof(
+                        paymentId,
+                        directPrint: action == 'print',
+                      ),
+                    );
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'preview',
+                    child: Text('Pratinjau / Bagikan'),
+                  ),
+                  if (status == 'active')
+                    const PopupMenuItem(
+                      value: 'print',
+                      child: Text('Cetak A4 (dialog perangkat)'),
+                    ),
+                  if (status == 'active' && widget.canRecordPayment)
+                    const PopupMenuItem(
+                      value: 'cancel',
+                      child: Text('Batalkan pembayaran'),
+                    ),
+                  if (status == 'cancellation_pending' &&
+                      widget.canRecordPayment)
+                    const PopupMenuItem(
+                      value: 'retry_cancel',
+                      child: Text('Lanjutkan pembatalan'),
+                    ),
+                ],
+                icon: const Icon(Icons.more_vert),
               ),
       ),
     );

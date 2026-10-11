@@ -31,9 +31,11 @@ class PosReceiptRepository {
     return result.map((data) => data.template);
   }
 
-  Future<Either<Failure, PosReceiptPrintData>> getReceiptPrintData() async {
+  Future<Either<Failure, PosReceiptPrintData>> getReceiptPrintData({
+    bool forceRefresh = false,
+  }) async {
     final cached = _cachedPrintData;
-    if (cached != null) return Right(cached);
+    if (cached != null && !forceRefresh) return Right(cached);
 
     final inFlight = _inFlightPrintData;
     if (inFlight != null) return inFlight;

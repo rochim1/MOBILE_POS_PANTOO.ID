@@ -117,7 +117,7 @@ void main() {
     test('opname mobile mengikuti snapshot dan konversi satuan web', () {
       final source = File(
         'lib/presentation/pages/pos/pos_inventory_editor_page.dart',
-      ).readAsStringSync();
+      ).readAsStringSync().replaceAll('\r\n', '\n');
       expect(source, contains('_opnameLocationInput'));
       expect(source, contains("if (_editing)\n          'items'"));
       expect(source, contains("'unit_breakdown'"));

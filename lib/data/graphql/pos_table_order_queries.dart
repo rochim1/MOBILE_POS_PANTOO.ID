@@ -27,7 +27,7 @@ class PosTableOrderQueries {
       ) {
         items {
           _id order_no pelanggan_id pelanggan_nama pelanggan_telepon customer_profile_requested status status_pembayaran
-          subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
+          subtotal diskon_amount promo_code promo_discount_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
           reservation_status reservation_start_at reservation_end_at reservation_guest_count reservation_deposit_amount reservation_deposit_paid
           status_history { status at actor_id actor_name note }
           table_id table { _id name }
@@ -57,6 +57,8 @@ class PosTableOrderQueries {
         status_pembayaran
         subtotal
         diskon_amount
+        promo_code
+        promo_discount_amount
         pajak_amount
         grand_total
         catatan kitchen_note handover_note internal_note
@@ -113,6 +115,14 @@ class PosTableOrderQueries {
       UpdatePOSOrderItems(_id: $orderId, items: $items) {
         _id subtotal diskon_amount pajak_amount grand_total
         items { _id produk_id nama kode qty unit harga_satuan subtotal catatan }
+      }
+    }
+  ''';
+
+  static const String removeOrderPromo = r'''
+    mutation RemovePOSOrderPromo($orderId: ID!) {
+      RemovePOSOrderPromo(_id: $orderId) {
+        _id promo_code promo_discount_amount diskon_amount pajak_amount grand_total
       }
     }
   ''';

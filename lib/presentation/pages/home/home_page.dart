@@ -15,8 +15,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
+  final int offlineUnresolved;
 
-  const HomePage({super.key, this.onNavigate});
+  const HomePage({super.key, this.onNavigate, this.offlineUnresolved = 0});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -65,6 +66,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadWidgetPreferences();
     if (context.read<AppLockCubit>().state.status == AppLockStatus.unlocked) {
+      context.read<PosBloc>().add(LoadDashboardSnapshot(days: _selectedDays));
       context.read<PosBloc>().add(LoadDashboardData(days: _selectedDays));
     }
   }
@@ -192,6 +194,9 @@ class _HomePageState extends State<HomePage> {
             (data?['top_products'] as List?)?.cast<Map<String, dynamic>>() ??
             [];
         final usingOfflineSnapshot = data?['_offline_snapshot'] == true;
+        final dashboardUnavailable =
+            data?['_offline_unavailable'] == true ||
+            data?['_dashboard_error'] != null;
         final offlineCachedAt =
             data?['_offline_cached_at']?.toString().trim() ?? '';
 
@@ -240,7 +245,36 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 20),
 
                         if (usingOfflineSnapshot) ...[
-                          _buildOfflineSnapshotNotice(offlineCachedAt),
+                          data?['_offline_estimate'] == true
+                              ? _buildDashboardStatusNotice(
+                                  'Mode offline · Angka ini hanya perkiraan dari riwayat yang tersimpan di perangkat.',
+                                )
+                              : _buildOfflineSnapshotNotice(offlineCachedAt),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (dashboardUnavailable) ...[
+                          _buildDashboardStatusNotice(
+                            data?['_dashboard_error']?.toString() ??
+                                'Dashboard offline belum tersedia. Hubungkan internet sekali untuk menyiapkan data pada perangkat ini.',
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        if (data?['_refresh_error'] != null) ...[
+                          _buildDashboardStatusNotice(
+                            data!['_refresh_error'].toString(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (widget.offlineUnresolved > 0) ...[
+                          InkWell(
+                            onTap: () => widget.onNavigate?.call(15),
+                            borderRadius: BorderRadius.circular(10),
+                            child: _buildDashboardStatusNotice(
+                              '${widget.offlineUnresolved} transaksi lokal belum selesai disinkronkan. Ketuk untuk melihat antrean dan konflik.',
+                            ),
+                          ),
                           const SizedBox(height: 16),
                         ],
 
@@ -264,7 +298,7 @@ class _HomePageState extends State<HomePage> {
                           _buildLowStockAlert(state.products, isTablet),
 
                         // Section 1: Compact Stat Cards
-                        if (_widgetVisible('summary'))
+                        if (_widgetVisible('summary') && !dashboardUnavailable)
                           _buildStatCardsSection(
                             isTablet: isTablet,
                             todayRevenue: todayRevenue,
@@ -278,17 +312,19 @@ class _HomePageState extends State<HomePage> {
                                 (data == null &&
                                     state.status == PosStatus.loading),
                           ),
-                        if (_widgetVisible('summary'))
+                        if (_widgetVisible('summary') && !dashboardUnavailable)
                           const SizedBox(height: 20),
 
                         // Section 2: Sales Chart
-                        if (_widgetVisible('sales')) ...[
+                        if (_widgetVisible('sales') &&
+                            !dashboardUnavailable) ...[
                           _buildSalesChart(dailySales, isTablet),
                           const SizedBox(height: 20),
                         ],
 
                         // Section 3: Payment Breakdown + Top Products
-                        if (isTablet &&
+                        if (!dashboardUnavailable &&
+                            isTablet &&
                             (_widgetVisible('payments') ||
                                 _widgetVisible('products')))
                           Row(
@@ -314,22 +350,35 @@ class _HomePageState extends State<HomePage> {
                             ],
                           )
                         else ...[
-                          if (_widgetVisible('payments')) ...[
+                          if (_widgetVisible('payments') &&
+                              !dashboardUnavailable) ...[
                             _buildPaymentBreakdown(paymentBreakdown, isTablet),
                             const SizedBox(height: 20),
                           ],
-                          if (_widgetVisible('products'))
+                          if (_widgetVisible('products') &&
+                              !dashboardUnavailable)
                             _buildTopProducts(topProducts, isTablet),
                         ],
-                        if (_widgetVisible('payments') ||
-                            _widgetVisible('products'))
+                        if (!dashboardUnavailable &&
+                            (_widgetVisible('payments') ||
+                                _widgetVisible('products')))
                           const SizedBox(height: 20),
 
                         // Recent Orders
                         if (_widgetVisible('orders')) ...[
-                          _buildRecentOrders(state.orders, isTablet),
+                          if (usingOfflineSnapshot && state.orders.isEmpty)
+                            _buildDashboardStatusNotice(
+                              'Riwayat pesanan belum tersimpan untuk mode offline.',
+                            )
+                          else
+                            _buildRecentOrders(state.orders, isTablet),
                           const SizedBox(height: 20),
                         ],
+
+                        if (state.activeShift?['_offline_snapshot'] == true)
+                          _buildDashboardStatusNotice(
+                            'Status shift berasal dari data terakhir yang tersimpan. Transaksi offline tetap menunggu verifikasi server saat sinkronisasi.',
+                          ),
 
                         // Section 4: Active Shift
                         if (_widgetVisible('shift') &&
@@ -355,7 +404,7 @@ class _HomePageState extends State<HomePage> {
               '${savedAt.hour.toString().padLeft(2, '0')}:${savedAt.minute.toString().padLeft(2, '0')}';
     return Semantics(
       liveRegion: true,
-      label: 'Mode offline. $label. Data bukan pembaruan langsung.',
+      label: '$label. Data bukan pembaruan langsung.',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -367,14 +416,14 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           children: [
             const Icon(
-              Icons.cloud_off_outlined,
+              Icons.history_outlined,
               size: 19,
               color: AppColors.warning,
             ),
             const SizedBox(width: 9),
             Expanded(
               child: Text(
-                'Mode offline · $label',
+                'Data tersimpan · $label · Belum real-time',
                 style: const TextStyle(
                   color: AppColors.body,
                   fontSize: 12,
@@ -387,6 +436,28 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  Widget _buildDashboardStatusNotice(String message) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.warningBackground,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.warning.withValues(alpha: .35)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.info_outline, size: 19, color: AppColors.warning),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(fontSize: 12, color: AppColors.body),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildDashboardHeader(bool isTablet) {
     final greeting = BlocBuilder<AuthCubit, AuthState>(
@@ -426,6 +497,7 @@ class _HomePageState extends State<HomePage> {
           _selectedDays = days;
           _loadingPeriod = true;
         });
+        context.read<PosBloc>().add(LoadDashboardSnapshot(days: days));
         context.read<PosBloc>().add(LoadDashboardData(days: days));
       },
       itemBuilder: (context) => const [

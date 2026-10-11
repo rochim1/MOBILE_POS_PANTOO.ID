@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -16,7 +17,9 @@ class PosPurchaseOrderDocument {
   static Future<Uint8List> build({
     required Map<String, dynamic> purchase,
     required Map<String, String> company,
+    Uint8List? logoBytes,
   }) async {
+    await initializeDateFormatting('id_ID');
     final document = pw.Document();
     final official = isApproved(purchase);
     final rows = (purchase['items'] as List? ?? const [])
@@ -32,6 +35,18 @@ class PosPurchaseOrderDocument {
       company['kabupaten'],
       company['provinsi'],
     ].where((part) => part?.trim().isNotEmpty == true).join(', ');
+    final buyerContact = [
+      company['telpon_number'],
+      company['email'],
+      company['website'],
+    ].where((part) => part?.trim().isNotEmpty == true).join(' | ');
+    final creator = purchase['created_by'];
+    final creatorName = creator is Map
+        ? _firstFilled([
+            creator['name']?.toString(),
+            creator['username']?.toString(),
+          ], '-')
+        : '-';
     final subtotal = _amount(purchase['total_amount']);
     final discount = purchase['diskon_type'] == 'persen'
         ? subtotal * _amount(purchase['diskon_persen']) / 100
@@ -62,16 +77,41 @@ class PosPurchaseOrderDocument {
                   ),
                 ),
               ),
-            pw.SizedBox(height: 12),
-            pw.Text(
-              'PURCHASE ORDER',
-              style: pw.TextStyle(
-                fontSize: 20,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.teal800,
-              ),
+            pw.SizedBox(height: 10),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                if (logoBytes != null && logoBytes.isNotEmpty) ...[
+                  pw.Image(pw.MemoryImage(logoBytes), width: 52, height: 52),
+                  pw.SizedBox(width: 12),
+                ],
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        buyerName,
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      if (buyerAddress.isNotEmpty)
+                        pw.Text(
+                          buyerAddress,
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                      if (buyerContact.isNotEmpty)
+                        pw.Text(
+                          buyerContact,
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            pw.Divider(color: PdfColors.teal800),
+            pw.Divider(color: PdfColors.grey400),
           ],
         ),
         footer: (context) => pw.Align(
@@ -86,58 +126,62 @@ class PosPurchaseOrderDocument {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Expanded(
-                child: _block('Dari', [
-                  buyerName,
-                  if (buyerAddress.isNotEmpty) buyerAddress,
-                  if ((company['telpon_number'] ?? '').isNotEmpty)
-                    company['telpon_number']!,
-                  if ((company['email'] ?? '').isNotEmpty) company['email']!,
+                child: _block('Purchase Order', [
+                  'Dokumen pesanan pembelian inventory',
+                  'No PO: ${_string(purchase['no_po'])}',
+                  'Tanggal PO: ${_date(purchase['tanggal_po'])}',
                 ]),
               ),
               pw.SizedBox(width: 20),
               pw.Expanded(
-                child: _block('Kepada', [
+                child: _block('Supplier / Pengiriman', [
                   _string(purchase['supplier_name']),
                   if (_string(purchase['alamat_pengiriman']).isNotEmpty)
-                    'Alamat kirim: ${_string(purchase['alamat_pengiriman'])}',
+                    _string(purchase['alamat_pengiriman']),
                 ]),
               ),
             ],
           ),
-          pw.SizedBox(height: 18),
+          pw.SizedBox(height: 12),
           pw.Wrap(
-            spacing: 20,
+            spacing: 12,
             runSpacing: 5,
             children: [
-              _field('Nomor PO', _string(purchase['no_po'])),
-              _field('Tanggal PO', _date(purchase['tanggal_po'])),
               _field('Pengiriman', _date(purchase['tanggal_pengiriman'])),
               _field('Jatuh tempo', _date(purchase['due_date'])),
               _field('Status', _string(purchase['status']).toUpperCase()),
+              _field('Dibuat oleh', creatorName),
+              _field(
+                'Diperbarui',
+                _dateTime(purchase['updatedAt'] ?? purchase['createdAt']),
+              ),
             ],
           ),
+          if (_string(purchase['catatan']).isNotEmpty) ...[
+            pw.SizedBox(height: 8),
+            _block('Catatan PO', [_string(purchase['catatan'])]),
+          ],
           pw.SizedBox(height: 18),
           pw.TableHelper.fromTextArray(
             headers: const [
               'No.',
-              'Kode / Barang',
-              'Jumlah',
-              'Satuan',
+              'Kode',
+              'Item',
+              'Qty',
               'Harga',
               'Subtotal',
+              'Keterangan',
             ],
             data: [
               for (var index = 0; index < rows.length; index++)
                 [
                   '${index + 1}',
-                  [
-                    _string(rows[index]['kode_inventaris']),
-                    _string(rows[index]['nama_inventaris']),
-                  ].where((value) => value.isNotEmpty).join('\n'),
-                  _quantity(rows[index]['qty_ordered']),
-                  _string(rows[index]['unit']),
+                  _string(rows[index]['kode_inventaris']),
+                  _string(rows[index]['nama_inventaris']),
+                  '${_quantity(rows[index]['qty_ordered'])} ${_string(rows[index]['unit'])}',
                   _money(rows[index]['harga_beli']),
                   _money(rows[index]['subtotal']),
+                  _string(rows[index]['catatan_item']),
                 ],
             ],
             headerStyle: pw.TextStyle(
@@ -150,11 +194,12 @@ class PosPurchaseOrderDocument {
             border: pw.TableBorder.all(color: PdfColors.grey300, width: .5),
             columnWidths: {
               0: const pw.FixedColumnWidth(25),
-              1: const pw.FlexColumnWidth(3),
-              2: const pw.FixedColumnWidth(43),
-              3: const pw.FixedColumnWidth(48),
-              4: const pw.FixedColumnWidth(72),
-              5: const pw.FixedColumnWidth(75),
+              1: const pw.FixedColumnWidth(68),
+              2: const pw.FlexColumnWidth(2.5),
+              3: const pw.FixedColumnWidth(55),
+              4: const pw.FixedColumnWidth(70),
+              5: const pw.FixedColumnWidth(73),
+              6: const pw.FlexColumnWidth(2),
             },
           ),
           pw.SizedBox(height: 16),
@@ -198,10 +243,38 @@ class PosPurchaseOrderDocument {
               _string(purchase['syarat_pembayaran']),
             ]),
           ],
-          if (_string(purchase['catatan']).isNotEmpty) ...[
-            pw.SizedBox(height: 12),
-            _block('Catatan', [_string(purchase['catatan'])]),
+          if ((purchase['jadwal_termin'] as List? ?? const []).isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            _block('Jadwal Termin Pembayaran', const []),
+            pw.TableHelper.fromTextArray(
+              headers: const ['Termin', 'Jatuh tempo', 'Jumlah', 'Status'],
+              data: [
+                for (final raw
+                    in (purchase['jadwal_termin'] as List).whereType<Map>())
+                  [
+                    _string(raw['no_termin']),
+                    _date(raw['due_date']),
+                    _money(raw['amount']),
+                    _string(raw['status']),
+                  ],
+              ],
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey200,
+              ),
+              headerStyle: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 8),
+              cellPadding: const pw.EdgeInsets.all(6),
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: .5),
+            ),
           ],
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Dokumen ini dicetak dari sistem pada ${_dateTime(DateTime.now())}.',
+            style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+          ),
         ],
       ),
     );
@@ -277,6 +350,16 @@ class PosPurchaseOrderDocument {
     final raw = _string(value);
     if (raw.isEmpty) return '-';
     final parsed = DateTime.tryParse(raw);
-    return parsed == null ? raw : DateFormat('dd/MM/yyyy').format(parsed);
+    return parsed == null
+        ? raw
+        : DateFormat('dd MMM yyyy', 'id_ID').format(parsed);
+  }
+
+  static String _dateTime(Object? value) {
+    final raw = _string(value);
+    final parsed = DateTime.tryParse(raw);
+    return parsed == null
+        ? (raw.isEmpty ? '-' : raw)
+        : DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(parsed.toLocal());
   }
 }

@@ -62,9 +62,12 @@ class PosInventoryQueries {
     query GetOneInventoryPurchaseForPrint($id: ID!) {
       GetOneInventoryPurchase(_id: $id) {
         _id no_po supplier_name tanggal_po tanggal_pengiriman alamat_pengiriman
-        syarat_pembayaran due_date status catatan total_amount grand_total
+        syarat_pembayaran payment_term_type term_days due_date status catatan total_amount grand_total
         diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount
         biaya_pengiriman biaya_tambahan { jenis_biaya deskripsi nominal }
+        jadwal_termin { no_termin amount due_date status paid_date paid_amount }
+        created_by { _id name username }
+        createdAt updatedAt
         items {
           kode_inventaris nama_inventaris qty_ordered unit harga_beli
           diskon_item diskon_item_type subtotal catatan_item
@@ -309,6 +312,25 @@ class PosInventoryQueries {
           _id amount payment_date payment_method bank_account_name
           reference_number notes no_termin recorded_at status
           cancellation_reason cancelled_at
+        }
+      }
+    }
+  ''';
+
+  static const cancelInventoryPayablePayment = r'''
+    mutation CancelInventoryPayablePayment($input: CancelInventoryPayablePaymentInput!) {
+      CancelInventoryPayablePayment(input: $input) {
+        _id purchase_id no_po supplier_name bill_date due_date due_date_basis
+        payment_term_type term_days total_amount paid_amount outstanding_amount
+        status notes jadwal_termin {
+          no_termin amount due_date status paid_date paid_amount
+        }
+        payment_history {
+          _id amount payment_date payment_method bank_account_name
+          reference_number notes no_termin recorded_at status
+          cancellation_reason cancelled_at reversal_journal_id
+          recorded_by { _id name username }
+          cancelled_by { _id name username }
         }
       }
     }

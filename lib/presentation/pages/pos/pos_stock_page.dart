@@ -1451,6 +1451,7 @@ class _PosStockViewState extends State<_PosStockView> {
         builder: (context, setDialogState) => PosKeyboardStableFormDialog(
           width: 540,
           height: 620,
+          contentPadding: EdgeInsets.zero,
           insetPadding: EdgeInsets.symmetric(
             horizontal: MediaQuery.sizeOf(context).width < 600 ? 12 : 40,
             vertical: 24,

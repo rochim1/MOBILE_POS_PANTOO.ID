@@ -611,9 +611,10 @@ class _PromoFormContentState extends State<_PromoFormContent> {
   late final TextEditingController _valueCtrl;
   late final TextEditingController _maxDiscountCtrl;
   late final TextEditingController _usageLimitCtrl;
+  late final TextEditingController _usagePerCustomerCtrl;
   late final TextEditingController _minPurchaseCtrl;
 
-  String _discountType = 'promo';
+  String _discountType = 'DIRECT';
   String _valueType = 'percentage';
   DateTime? _startDate;
   DateTime? _endDate;
@@ -641,6 +642,9 @@ class _PromoFormContentState extends State<_PromoFormContent> {
     );
     _usageLimitCtrl = TextEditingController(
       text: p != null && p.usageLimit > 0 ? p.usageLimit.toString() : '',
+    );
+    _usagePerCustomerCtrl = TextEditingController(
+      text: (p?.usagePerUser ?? 1).toString(),
     );
     _minPurchaseCtrl = TextEditingController(
       text: p != null && p.minPurchaseAmount > 0
@@ -672,6 +676,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
     _valueCtrl.dispose();
     _maxDiscountCtrl.dispose();
     _usageLimitCtrl.dispose();
+    _usagePerCustomerCtrl.dispose();
     _minPurchaseCtrl.dispose();
     super.dispose();
   }
@@ -707,7 +712,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
     if (!_formKey.currentState!.validate()) return;
 
     final input = <String, dynamic>{
-      'code': _codeCtrl.text.trim(),
+      if (!isEdit) 'code': _codeCtrl.text.trim().toUpperCase(),
       'name': _nameCtrl.text.trim(),
       'description': _descCtrl.text.trim(),
       'discount_type': _discountType,
@@ -715,6 +720,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
       'discount_value': _valueType == 'fixed'
           ? parseRupiah(_valueCtrl.text)
           : (double.tryParse(_valueCtrl.text) ?? 0),
+      'usage_per_user': int.tryParse(_usagePerCustomerCtrl.text) ?? 1,
     };
 
     if (_maxDiscountCtrl.text.isNotEmpty) {
@@ -730,7 +736,15 @@ class _PromoFormContentState extends State<_PromoFormContent> {
       input['start_date'] = _startDate!.toIso8601String();
     }
     if (_endDate != null) {
-      input['end_date'] = _endDate!.toIso8601String();
+      input['end_date'] = DateTime(
+        _endDate!.year,
+        _endDate!.month,
+        _endDate!.day,
+        23,
+        59,
+        59,
+        999,
+      ).toIso8601String();
     }
 
     if (isEdit) {
@@ -777,12 +791,14 @@ class _PromoFormContentState extends State<_PromoFormContent> {
           // Code
           TextFormField(
             controller: _codeCtrl,
+            readOnly: isEdit,
             decoration: _inputDecoration(
               'Kode Promo',
               Icons.confirmation_number_outlined,
             ),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Kode wajib diisi' : null,
+            validator: (v) => RegExp(r'^[A-Za-z0-9]{3,20}$').hasMatch(v?.trim() ?? '')
+                ? null
+                : 'Kode harus 3–20 huruf atau angka tanpa spasi',
             textCapitalization: TextCapitalization.characters,
           ),
           const SizedBox(height: 14),
@@ -810,21 +826,8 @@ class _PromoFormContentState extends State<_PromoFormContent> {
           ),
           const SizedBox(height: 14),
 
-          // Discount type
-          DropdownButtonFormField<String>(
-            initialValue: _discountType,
-            decoration: _inputDecoration(
-              'Tipe Diskon',
-              Icons.category_outlined,
-            ),
-            items: const [
-              DropdownMenuItem(value: 'promo', child: Text('Promo')),
-              DropdownMenuItem(value: 'voucher', child: Text('Voucher')),
-              DropdownMenuItem(value: 'coupon', child: Text('Kupon')),
-            ],
-            onChanged: (v) => setState(() => _discountType = v ?? 'promo'),
-          ),
-          const SizedBox(height: 14),
+          // Promo, voucher, dan kupon memakai kode diskon langsung yang sama.
+          // Tipe REFERRAL hanya dipertahankan ketika mengedit data referral.
 
           // Value type
           DropdownButtonFormField<String>(
@@ -893,6 +896,21 @@ class _PromoFormContentState extends State<_PromoFormContent> {
               Icons.repeat_outlined,
             ),
             keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _usagePerCustomerCtrl,
+            decoration: _inputDecoration(
+              'Batas per pelanggan (pilih pelanggan saat memakai promo)',
+              Icons.person_outline,
+            ),
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              final limit = int.tryParse(value ?? '');
+              return limit == null || limit < 1 || limit > 100
+                  ? 'Isi angka 1–100'
+                  : null;
+            },
           ),
           const SizedBox(height: 14),
 

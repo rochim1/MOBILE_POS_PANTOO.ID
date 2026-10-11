@@ -948,7 +948,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   if (mounted) setState(() => _selectedBluetoothName = '');
                 },
                 icon: const Icon(Icons.link_off, size: 16),
-                label: const Text('Gunakan printer sistem'),
+                label: const Text('Lepas printer Bluetooth'),
               ),
             ),
           const Divider(height: 12),
@@ -1086,7 +1086,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         ],
         const SizedBox(height: 8),
         const Text(
-          'Pilihan printer disimpan hanya pada perangkat ini. Printer Bluetooth thermal dicetak langsung dalam format ESC/POS; printer sistem menggunakan dialog cetak.',
+          'Printer Bluetooth kasir disimpan pada perangkat ini untuk struk dan label thermal. PO dan bukti pembayaran A4 memilih printer melalui dialog cetak perangkat saat dicetak.',
           style: TextStyle(fontSize: 12, color: Colors.black54),
         ),
       ],

@@ -65,6 +65,7 @@ class PosKeyboardStableFormDialog extends StatelessWidget {
     required this.height,
     this.shape,
     this.insetPadding,
+    this.contentPadding = const EdgeInsets.all(16),
   });
 
   final Widget title;
@@ -74,6 +75,7 @@ class PosKeyboardStableFormDialog extends StatelessWidget {
   final double height;
   final ShapeBorder? shape;
   final EdgeInsets? insetPadding;
+  final EdgeInsetsGeometry contentPadding;
 
   @override
   Widget build(BuildContext context) => PosKeyboardStableDialog(
@@ -92,7 +94,9 @@ class PosKeyboardStableFormDialog extends StatelessWidget {
           ),
         ),
         const Divider(height: 1),
-        Expanded(child: content),
+        Expanded(
+          child: Padding(padding: contentPadding, child: content),
+        ),
         const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),

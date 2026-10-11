@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -38,10 +39,7 @@ class PosReceiptPrintService {
       preferences.getString(_renderModeKey)?.trim() == 'pdf' ? 'pdf' : 'fast';
 
   Future<void> setRenderMode(String mode) async {
-    await preferences.setString(
-      _renderModeKey,
-      mode == 'pdf' ? 'pdf' : 'fast',
-    );
+    await preferences.setString(_renderModeKey, mode == 'pdf' ? 'pdf' : 'fast');
   }
 
   bool get hasConfiguredPrinter =>
@@ -111,6 +109,8 @@ class PosReceiptPrintService {
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
         selectedBluetoothAddress.isNotEmpty) {
+      ui.Codec? codec;
+      ui.FrameInfo? frame;
       try {
         final raster = await Printing.raster(
           bytes,
@@ -118,8 +118,8 @@ class PosReceiptPrintService {
           dpi: 203,
         ).first.timeout(const Duration(seconds: 20));
         final png = await raster.toPng();
-        final codec = await ui.instantiateImageCodec(png);
-        final frame = await codec.getNextFrame();
+        codec = await ui.instantiateImageCodec(png);
+        frame = await codec.getNextFrame();
         final paperSize = format.width > 190 ? PaperSize.mm80 : PaperSize.mm58;
         final success = await FlutterBluetoothPrinter.printImageSingle(
           address: selectedBluetoothAddress,
@@ -130,15 +130,22 @@ class PosReceiptPrintService {
           keepConnected: true,
           addFeeds: 3,
         ).timeout(const Duration(seconds: 45));
-        await FlutterBluetoothPrinter.disconnect(selectedBluetoothAddress);
-        frame.image.dispose();
-        codec.dispose();
         if (success) return true;
         throw StateError('Printer Bluetooth menolak data struk');
-      } catch (_) {
-        // Do not silently print to a different device. If Bluetooth dipilih,
-        // surface the error to the caller instead of opening a PDF dialog.
-        rethrow;
+      } catch (error) {
+        // A timeout/error can occur after bytes reached the printer. Never
+        // retry or switch devices automatically for this document.
+        throw StateError(
+          'Status cetak Bluetooth tidak pasti. Periksa kertas printer sebelum mengulang. $error',
+        );
+      } finally {
+        try {
+          await FlutterBluetoothPrinter.disconnect(
+            selectedBluetoothAddress,
+          ).timeout(const Duration(seconds: 2));
+        } catch (_) {}
+        frame?.image.dispose();
+        codec?.dispose();
       }
     }
     if (!kIsWeb && useConfiguredPrinter && selectedPrinterUrl.isNotEmpty) {
@@ -155,9 +162,15 @@ class PosReceiptPrintService {
             onLayout: (_) async => bytes,
           );
         }
-      } catch (_) {
-        // Driver/printer yang tersimpan dapat hilang. Dialog sistem adalah
-        // fallback aman agar kasir tetap bisa menyelesaikan pencetakan.
+        throw StateError(
+          'Printer terminal tersimpan tidak tersedia. Pilih ulang printer di Pengaturan Printer.',
+        );
+      } catch (error) {
+        // Never switch to a different printer without the operator choosing
+        // it. A driver error may occur after a job has already been queued.
+        throw StateError(
+          'Status cetak tidak pasti pada printer terminal. Periksa hasil cetak sebelum mengulang. $error',
+        );
       }
     }
 
@@ -167,6 +180,18 @@ class PosReceiptPrintService {
       onLayout: (_) async => bytes,
     );
   }
+
+  /// A4 purchase documents use Android's system print dialog. The operator
+  /// chooses the actual A4 printer there; it is separate from the POS thermal
+  /// printer and must never fall back to it automatically.
+  Future<bool> printDocumentPdf({
+    required Uint8List bytes,
+    required String name,
+  }) => Printing.layoutPdf(
+    name: name,
+    format: PdfPageFormat.a4,
+    onLayout: (_) async => bytes,
+  );
 
   /// Fast path for small Bluetooth thermal printers. Sending plain ESC/POS
   /// text avoids the expensive PDF -> raster image conversion and is much
@@ -232,57 +257,59 @@ class PosReceiptPrintService {
     data.addAll(const [0x1B, 0x61, 0x00]);
     data.addAll(List<int>.filled(addFeeds + 1, 0x0A));
     data.addAll(const [0x1B, 0x64, 0x03]); // feed before disconnect
-    Object? lastError;
-    for (var attempt = 0; attempt < 2; attempt++) {
-      try {
-        if (attempt > 0) {
-          await FlutterBluetoothPrinter.disconnect(selectedBluetoothAddress);
-          await Future<void>.delayed(const Duration(milliseconds: 350));
-        }
-        final success = await FlutterBluetoothPrinter.printBytes(
-          address: selectedBluetoothAddress,
-          data: Uint8List.fromList(data),
-          // Keep the native connection until the write has completed, then
-          // close it ourselves. This avoids the second-print close race.
-          keepConnected: true,
-          maxBufferSize: 512,
-          delayTime: 60,
-        ).timeout(const Duration(seconds: 12));
-        await FlutterBluetoothPrinter.disconnect(selectedBluetoothAddress);
-        if (success) return true;
-        lastError = StateError('Printer Bluetooth menolak data struk');
-      } catch (error) {
-        lastError = error;
-        try {
-          await FlutterBluetoothPrinter.disconnect(selectedBluetoothAddress);
-        } catch (_) {}
+    // A timeout does not prove that the printer received nothing. Retrying the
+    // same bytes automatically can produce a second PO/payment receipt.
+    try {
+      final success = await FlutterBluetoothPrinter.printBytes(
+        address: selectedBluetoothAddress,
+        data: Uint8List.fromList(data),
+        // Keep the native connection until the write has completed, then
+        // close it ourselves. This avoids the second-print close race.
+        keepConnected: true,
+        maxBufferSize: 512,
+        delayTime: 60,
+      ).timeout(const Duration(seconds: 12));
+      if (!success) {
+        throw StateError(
+          'Status cetak tidak pasti. Periksa kertas printer sebelum mencetak ulang.',
+        );
       }
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      return true;
+    } on TimeoutException {
+      throw StateError(
+        'Status cetak tidak pasti. Printer tidak merespons tepat waktu; periksa hasil cetak sebelum mengulang.',
+      );
+    } catch (error) {
+      if (error is StateError) rethrow;
+      throw StateError(
+        'Status cetak tidak pasti. Periksa hasil cetak sebelum mengulang. $error',
+      );
+    } finally {
+      try {
+        await FlutterBluetoothPrinter.disconnect(
+          selectedBluetoothAddress,
+        ).timeout(const Duration(seconds: 2));
+      } catch (_) {}
     }
-    throw lastError ?? StateError('Printer Bluetooth tidak merespons');
   }
 
   List<String> _wrapLine(String value, int width) {
     if (width < 8 || value.length <= width) return [value];
-    final words = value.split(RegExp(r'\s+'));
     final result = <String>[];
-    var current = '';
-    for (final word in words) {
-      if (word.isEmpty) continue;
-      if (current.isNotEmpty && current.length + word.length + 1 > width) {
-        result.add(current);
-        current = '';
+    var offset = 0;
+    while (offset < value.length) {
+      final end = offset + width < value.length ? offset + width : value.length;
+      if (end == value.length) {
+        result.add(value.substring(offset));
+        break;
       }
-      if (current.isEmpty && word.length > width) {
-        for (var i = 0; i < word.length; i += width) {
-          final end = i + width < word.length ? i + width : word.length;
-          result.add(word.substring(i, end));
-        }
-      } else {
-        current = current.isEmpty ? word : '$current $word';
-      }
+      // Preserve spaces used for columns and indentation. Wrapping at a
+      // whitespace boundary must never normalize or discard them.
+      final breakAt = value.lastIndexOf(' ', end);
+      final split = breakAt > offset ? breakAt + 1 : end;
+      result.add(value.substring(offset, split));
+      offset = split;
     }
-    if (current.isNotEmpty) result.add(current);
     return result.isEmpty ? [''] : result;
   }
 }

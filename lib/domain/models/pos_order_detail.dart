@@ -102,6 +102,7 @@ class PosOrderDetail extends Equatable {
   final double? totalAmount;
   final double? subtotal;
   final double? discountAmount;
+  final String? promoCode;
   final double? taxAmount;
   final String? note;
   final String? kitchenNote;
@@ -133,6 +134,7 @@ class PosOrderDetail extends Equatable {
     this.totalAmount,
     this.subtotal,
     this.discountAmount,
+    this.promoCode,
     this.taxAmount,
     this.note,
     this.kitchenNote,
@@ -177,6 +179,7 @@ class PosOrderDetail extends Equatable {
       discountAmount: rawDiscount is num
           ? rawDiscount.toDouble()
           : double.tryParse(_text(rawDiscount) ?? ''),
+      promoCode: _text(json['promo_code']),
       taxAmount: rawTax is num
           ? rawTax.toDouble()
           : double.tryParse(_text(rawTax) ?? ''),
@@ -228,6 +231,7 @@ class PosOrderDetail extends Equatable {
     totalAmount,
     subtotal,
     discountAmount,
+    promoCode,
     taxAmount,
     note,
     kitchenNote,

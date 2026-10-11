@@ -14,6 +14,7 @@ import '../../data/graphql/pos_queries.dart';
 import '../../data/graphql/pos_return_queries.dart';
 import '../../data/datasources/local/pos_local_database.dart';
 import '../../data/datasources/local/pos_offline_pin_store.dart';
+import '../../data/datasources/local/pos_offline_read_store.dart';
 import '../models/pos_product.dart';
 import '../models/pos_offline_stock.dart';
 import '../models/pos_customer.dart';
@@ -28,6 +29,8 @@ class PosRepository {
   final GraphQLClientProvider _clientProvider;
   final SharedPreferences _prefs;
   String _operatorSessionToken = '';
+  bool _syncingFavorites = false;
+  static const _offlineReadStore = PosOfflineReadStore();
 
   PosRepository(this._clientProvider, this._prefs);
 
@@ -35,22 +38,46 @@ class PosRepository {
     _operatorSessionToken = token.trim();
   }
 
+  String? get _favoritePreferenceKey {
+    final tenant = _prefs.getString('instansi_id')?.trim() ?? '';
+    final user = _prefs.getString('user_id')?.trim() ?? '';
+    if (tenant.isEmpty || user.isEmpty) return null;
+    return 'pos_favorite_product_ids:$tenant:$user';
+  }
+
+  Set<String> _localFavoriteProductIds(String key) =>
+      (_prefs.getStringList(key) ?? const <String>[]).toSet();
+
   Future<Set<String>> getFavoriteProductIds() async {
-    final local = (_prefs.getStringList('pos_favorite_product_ids') ?? const [])
-        .toSet();
+    // The old unscoped key cannot be attributed safely to an account.
+    await _prefs.remove('pos_favorite_product_ids');
+    final key = _favoritePreferenceKey;
+    if (key == null) return {};
+    final local = _localFavoriteProductIds(key);
+    if (supportsOfflineDatabase && await _hasNoNetwork()) return local;
+    if (_prefs.getBool('$key:pending') == true) {
+      await syncPendingFavoriteProductIds();
+      if (_prefs.getBool('$key:pending') == true) {
+        return _localFavoriteProductIds(key);
+      }
+    }
     try {
-      final result = await _clientProvider.client.query(
+      final result = await _queryOfflineReadable(
         QueryOptions(
           document: gql(PosQueries.getMyPOSFavoriteProductIds),
           fetchPolicy: FetchPolicy.networkOnly,
         ),
+        timeout: const Duration(seconds: 5),
       );
       if (result.hasException) return local;
       final ids =
           (result.data?['GetMyPOSFavoriteProductIds'] as List? ?? const [])
               .map((id) => id.toString())
               .toSet();
-      await _prefs.setStringList('pos_favorite_product_ids', ids.toList());
+      if (_prefs.getBool('$key:pending') == true) {
+        return _localFavoriteProductIds(key);
+      }
+      await _prefs.setStringList(key, ids.toList()..sort());
       return ids;
     } catch (_) {
       return local;
@@ -58,20 +85,45 @@ class PosRepository {
   }
 
   Future<void> saveFavoriteProductIds(Set<String> ids) async {
-    await _prefs.setStringList('pos_favorite_product_ids', ids.toList());
+    final key = _favoritePreferenceKey;
+    if (key == null) return;
+    await _prefs.setStringList(key, ids.toList()..sort());
+    await _prefs.setBool('$key:pending', true);
+    await syncPendingFavoriteProductIds();
+  }
+
+  Future<void> syncPendingFavoriteProductIds() async {
+    final key = _favoritePreferenceKey;
+    if (key == null ||
+        _syncingFavorites ||
+        _prefs.getBool('$key:pending') != true ||
+        (supportsOfflineDatabase && await _hasNoNetwork())) {
+      return;
+    }
+    _syncingFavorites = true;
+    final ids = _localFavoriteProductIds(key).toList()..sort();
     try {
-      final result = await _clientProvider.client.mutate(
-        MutationOptions(
-          document: gql(PosQueries.saveMyPOSFavoriteProductIds),
-          variables: {'productIds': ids.toList()},
-        ),
-      );
+      final result = await _clientProvider.client
+          .mutate(
+            MutationOptions(
+              document: gql(PosQueries.saveMyPOSFavoriteProductIds),
+              variables: {'productIds': ids.toList()},
+            ),
+          )
+          .timeout(const Duration(seconds: 8));
       if (result.hasException) throw result.exception!;
+      if (_favoritePreferenceKey == key &&
+          _localFavoriteProductIds(key).difference(ids.toSet()).isEmpty &&
+          _localFavoriteProductIds(key).length == ids.length) {
+        await _prefs.setBool('$key:pending', false);
+      }
     } catch (error) {
       appLogger.e(
-        'Favorit tersimpan lokal tetapi belum tersinkron',
+        'Favorit tersimpan lokal dan menunggu sinkronisasi',
         error: error,
       );
+    } finally {
+      _syncingFavorites = false;
     }
   }
 
@@ -197,19 +249,19 @@ class PosRepository {
         await _prefs.remove('pos_runtime_config');
       }
     }
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      return cachedConfig ?? fallback;
+    }
     try {
-      final result = await _clientProvider.client.query(
+      final result = await _queryOfflineReadable(
         QueryOptions(
           document: gql(PosQueries.getPOSRuntimeConfig),
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
-      if (result.hasException || result.data?['GetPOSRuntimeConfig'] == null) {
-        appLogger.e(
-          'Runtime permission POS gagal dimuat; memakai navigasi operasional',
-          error: result.exception,
-        );
-        return cachedConfig ?? fallback;
+      if (result.hasException) throw result.exception!;
+      if (result.data?['GetPOSRuntimeConfig'] == null) {
+        throw const ServerFailure('Konfigurasi POS tidak tersedia');
       }
       final config = Map<String, dynamic>.from(
         result.data!['GetPOSRuntimeConfig'],
@@ -229,33 +281,100 @@ class PosRepository {
         error: error,
         stackTrace: stackTrace,
       );
-      return cachedConfig ?? fallback;
+      if (isOfflineReadFailure(error)) return cachedConfig ?? fallback;
+      rethrow;
     }
   }
 
   Future<Map<String, dynamic>> getDashboardData({int days = 7}) async {
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      final snapshot = await getDashboardSnapshot(days: days);
+      if (snapshot != null) return snapshot;
+      throw const OfflineReadUnavailable();
+    }
     try {
-      final result = await _clientProvider.client.query(
+      final result = await _queryOfflineReadable(
         QueryOptions(
           document: gql(PosQueries.getPOSDashboardData),
           variables: {'days': days},
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
-      if (result.hasException) throw result.exception!;
       final data = result.data?['GetPOSDashboardData'];
-      if (data is! Map) {
+      if (data is! Map || data['stats'] is! Map) {
+        if (result.hasException) throw result.exception!;
         throw const ServerFailure('Data dashboard POS tidak tersedia');
       }
       final dashboard = Map<String, dynamic>.from(data)
-        ..['_offline_snapshot'] = false;
-      await _saveDashboardSnapshot(days, dashboard);
+        ..['_offline_snapshot'] = false
+        ..['_dashboard_days'] = days
+        ..['_refresh_error'] = result.hasException
+            ? 'Sebagian data dashboard belum dapat dimuat. Tarik untuk mencoba lagi.'
+            : null;
+      if (!result.hasException) await _saveDashboardSnapshot(days, dashboard);
       return dashboard;
     } catch (error) {
-      final snapshot = _readDashboardSnapshot(days);
-      if (snapshot != null) return snapshot;
+      if (isOfflineReadFailure(error)) {
+        final snapshot = await getDashboardSnapshot(days: days);
+        if (snapshot != null) return snapshot;
+      }
       rethrow;
     }
+  }
+
+  Future<bool> _hasNoNetwork() async {
+    try {
+      return (await Connectivity().checkConnectivity()).contains(
+        ConnectivityResult.none,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<QueryResult> _queryOfflineReadable(
+    QueryOptions options, {
+    Duration timeout = const Duration(seconds: 10),
+  }) => _clientProvider.client.query(options).timeout(timeout);
+
+  Future<Map<String, dynamic>?> getDashboardSnapshot({int days = 7}) async {
+    if (supportsOfflineDatabase) {
+      try {
+        final saved = await _offlineReadStore.read(_dashboardSnapshotKey(days));
+        if (saved != null) {
+          return Map<String, dynamic>.from(saved.data)
+            ..['_offline_snapshot'] = true
+            ..['_dashboard_days'] = days
+            ..['_offline_cached_at'] = saved.cachedAt.toIso8601String();
+        }
+      } catch (error, stackTrace) {
+        appLogger.w(
+          '[POS] Snapshot dashboard lokal gagal dibaca',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+    final legacy = _readLegacyDashboardSnapshot(days);
+    if (legacy != null && supportsOfflineDatabase) {
+      try {
+        final snapshot = Map<String, dynamic>.from(legacy)
+          ..remove('_offline_snapshot')
+          ..remove('_offline_cached_at');
+        await _offlineReadStore.save(
+          _dashboardSnapshotKey(days),
+          snapshot,
+          cachedAt: DateTime.tryParse(
+            legacy['_offline_cached_at']?.toString() ?? '',
+          ),
+        );
+        await _prefs.remove(_dashboardSnapshotKey(days));
+      } catch (_) {
+        // Legacy snapshot stays available if migration to encrypted DB fails.
+      }
+    }
+    if (legacy != null) legacy['_dashboard_days'] = days;
+    return legacy;
   }
 
   String _dashboardSnapshotKey(int days) {
@@ -276,13 +395,18 @@ class PosRepository {
     try {
       final snapshot = Map<String, dynamic>.from(dashboard)
         ..remove('_offline_snapshot');
-      await _prefs.setString(
-        _dashboardSnapshotKey(days),
-        jsonEncode({
-          'cached_at': DateTime.now().toUtc().toIso8601String(),
-          'data': snapshot,
-        }),
-      );
+      if (supportsOfflineDatabase) {
+        await _offlineReadStore.save(_dashboardSnapshotKey(days), snapshot);
+        await _prefs.remove(_dashboardSnapshotKey(days));
+      } else {
+        await _prefs.setString(
+          _dashboardSnapshotKey(days),
+          jsonEncode({
+            'cached_at': DateTime.now().toUtc().toIso8601String(),
+            'data': snapshot,
+          }),
+        );
+      }
     } catch (error, stackTrace) {
       // Dashboard cache is optional and must not make a successful online
       // dashboard load fail (for example when platform storage is full).
@@ -294,7 +418,7 @@ class PosRepository {
     }
   }
 
-  Map<String, dynamic>? _readDashboardSnapshot(int days) {
+  Map<String, dynamic>? _readLegacyDashboardSnapshot(int days) {
     try {
       final raw = _prefs.getString(_dashboardSnapshotKey(days));
       if (raw == null || raw.isEmpty) return null;
@@ -665,6 +789,9 @@ class PosRepository {
   }
 
   Future<List<PosProduct>> getProducts({String? branchId}) async {
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      return _getLocalProducts(branchId);
+    }
     try {
       final QueryOptions options = QueryOptions(
         document: gql(
@@ -681,10 +808,11 @@ class PosRepository {
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
-      final QueryResult result = await _clientProvider.client.query(options);
+      final QueryResult result = await _queryOfflineReadable(options);
 
-      if (result.hasException || result.data == null) {
-        return _getLocalProducts();
+      if (result.hasException) throw result.exception!;
+      if (result.data == null) {
+        throw const ServerFailure('Katalog POS tidak tersedia');
       }
 
       final items = branchId != null && branchId.isNotEmpty
@@ -769,10 +897,13 @@ class PosRepository {
           )
           .toList();
 
-      _saveProductsToLocal(products);
+      await _saveProductsToLocal(products, branchId: branchId);
       return products;
     } catch (e) {
-      return _getLocalProducts();
+      if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
+        return _getLocalProducts(branchId);
+      }
+      rethrow;
     }
   }
 
@@ -900,10 +1031,38 @@ class PosRepository {
     }
   }
 
-  Future<List<PosProduct>> _getLocalProducts() async {
+  String _productSnapshotKey(String? branchId) =>
+      'pos_product_catalog_v1:${_prefs.getString('instansi_id') ?? ''}:'
+      '${_prefs.getString('user_id') ?? ''}:${branchId ?? ''}';
+
+  static const _activeProductCacheKey = 'pos_active_product_catalog_v1';
+
+  Future<List<PosProduct>> _getLocalProducts(String? branchId) async {
     try {
+      if (branchId == null || branchId.isEmpty) {
+        final saved = await _offlineReadStore.read(_productSnapshotKey(null));
+        return (saved?.data['products'] as List? ?? const [])
+            .whereType<Map>()
+            .map((raw) => PosProduct.fromJson(Map<String, dynamic>.from(raw)))
+            .toList();
+      }
       final db = await PosLocalDatabase.instance.database;
-      final result = await db.query('products');
+      final targetKey = _productSnapshotKey(branchId);
+      final active = await _offlineReadStore.read(_activeProductCacheKey);
+      final result = active?.data['catalog_key'] == targetKey
+          ? await db.query('products')
+          : <Map<String, Object?>>[];
+      if (result.isEmpty) {
+        final saved = await _offlineReadStore.read(targetKey);
+        final products = (saved?.data['products'] as List? ?? const [])
+            .whereType<Map>()
+            .map((raw) => PosProduct.fromJson(Map<String, dynamic>.from(raw)))
+            .toList();
+        if (saved != null) {
+          await _saveProductsToLocal(products, branchId: branchId);
+        }
+        return products;
+      }
       return result
           .map(
             (e) => (e['product_json']?.toString().isNotEmpty == true)
@@ -953,32 +1112,76 @@ class PosRepository {
     }
   }
 
-  Future<void> _saveProductsToLocal(List<PosProduct> products) async {
+  Future<void> _saveProductsToLocal(
+    List<PosProduct> products, {
+    String? branchId,
+  }) async {
+    // Flutter web is used for testing, but has no offline SQLite factory.
+    // Keep the server catalogue usable without attempting a native cache write.
+    if (!supportsOfflineDatabase) return;
     try {
-      final db = await PosLocalDatabase.instance.database;
-      final batch = db.batch();
-      batch.delete('products'); // Clear old data
-      for (var product in products) {
-        batch.insert('products', {
-          'product_json': jsonEncode(product.toJson()),
-          'id': product.id,
-          'code': product.code,
-          'name': product.name,
-          'category': product.category,
-          'product_type': product.productType,
-          'promo_eligible': product.promoEligible ? 1 : 0,
-          'tracks_stock': product.tracksStock ? 1 : 0,
-          'price': product.price,
-          'stock': product.stock,
-          'sku': product.sku,
-          'barcode': product.barcode,
-          'image_url': product.imageUrl,
-          'base_unit': product.saleUnit,
-          'unit_conversions': jsonEncode(product.unitConversions),
+      if (branchId == null || branchId.isEmpty) {
+        // Inventory's global list must never replace the cashier's active
+        // branch stock table while the device is offline.
+        await _offlineReadStore.save(_productSnapshotKey(null), {
+          'products': products.map((product) => product.toJson()).toList(),
         });
+        return;
       }
-      await batch.commit(noResult: true);
-    } catch (_) {}
+      final db = await PosLocalDatabase.instance.database;
+      await db.transaction((txn) async {
+        if (await _offlineReadStore.hasUnresolvedTransactionsForBranch(
+          tenantId: _prefs.getString('instansi_id') ?? '',
+          branchId: branchId,
+          executor: txn,
+        )) {
+          // The server may not have seen every queued sale yet. Replacing the
+          // local table here would restore already-consumed offline stock.
+          return;
+        }
+        final batch = txn.batch();
+        batch.delete('products');
+        for (var product in products) {
+          batch.insert('products', {
+            'product_json': jsonEncode(product.toJson()),
+            'id': product.id,
+            'code': product.code,
+            'name': product.name,
+            'category': product.category,
+            'product_type': product.productType,
+            'promo_eligible': product.promoEligible ? 1 : 0,
+            'tracks_stock': product.tracksStock ? 1 : 0,
+            'price': product.price,
+            'stock': product.stock,
+            'sku': product.sku,
+            'barcode': product.barcode,
+            'image_url': product.imageUrl,
+            'base_unit': product.saleUnit,
+            'unit_conversions': jsonEncode(product.unitConversions),
+          });
+        }
+        final cachedAt = DateTime.now().toUtc().toIso8601String();
+        batch.insert('read_snapshots', {
+          'scope_key': _productSnapshotKey(branchId),
+          'payload': jsonEncode({
+            'products': products.map((product) => product.toJson()).toList(),
+          }),
+          'cached_at': cachedAt,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert('read_snapshots', {
+          'scope_key': _activeProductCacheKey,
+          'payload': jsonEncode({'catalog_key': _productSnapshotKey(branchId)}),
+          'cached_at': cachedAt,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        await batch.commit(noResult: true);
+      });
+    } catch (error, stackTrace) {
+      appLogger.w(
+        '[POS] Cache katalog lokal gagal disimpan',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<List<PosCustomer>> getCustomers() async {
@@ -993,6 +1196,9 @@ class PosRepository {
   }) async {
     final safePage = page < 1 ? 1 : page;
     final safeLimit = limit.clamp(1, 100).toInt();
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      return _getLocalCustomerPage(safePage, safeLimit, search);
+    }
     try {
       final QueryOptions options = QueryOptions(
         document: gql(PosQueries.getAllPOSPelanggan),
@@ -1006,27 +1212,11 @@ class PosRepository {
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
-      final QueryResult result = await _clientProvider.client.query(options);
+      final QueryResult result = await _queryOfflineReadable(options);
 
-      if (result.hasException || result.data == null) {
-        final local = await _getLocalCustomers();
-        final filtered = search.trim().isEmpty
-            ? local
-            : local.where((customer) {
-                final query = search.trim().toLowerCase();
-                return customer.name.toLowerCase().contains(query) ||
-                    customer.phone.toLowerCase().contains(query);
-              }).toList();
-        final start = ((safePage - 1) * safeLimit)
-            .clamp(0, filtered.length)
-            .toInt();
-        final end = (start + safeLimit).clamp(start, filtered.length).toInt();
-        return PosCustomerPageResult(
-          items: filtered.sublist(start, end),
-          totalCount: filtered.length,
-          page: safePage,
-          limit: safeLimit,
-        );
+      if (result.hasException) throw result.exception!;
+      if (result.data == null) {
+        throw const ServerFailure('Pelanggan POS tidak tersedia');
       }
 
       final items =
@@ -1052,7 +1242,7 @@ class PosRepository {
           .toList();
 
       if (search.trim().isEmpty) {
-        _saveCustomersToLocal(customers, replace: safePage == 1);
+        await _saveCustomersToLocal(customers, replace: safePage == 1);
       }
       final info = result.data?['getAllCrmContacts']?['info_page'] as List?;
       final totalCount = info?.isNotEmpty == true
@@ -1065,14 +1255,37 @@ class PosRepository {
         limit: safeLimit,
       );
     } catch (e) {
-      final local = await _getLocalCustomers();
-      return PosCustomerPageResult(
-        items: local.take(safeLimit).toList(),
-        totalCount: local.length,
-        page: safePage,
-        limit: safeLimit,
-      );
+      if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
+        return _getLocalCustomerPage(safePage, safeLimit, search);
+      }
+      rethrow;
     }
+  }
+
+  Future<PosCustomerPageResult> _getLocalCustomerPage(
+    int page,
+    int limit,
+    String search,
+  ) async {
+    final local = await _getLocalCustomers();
+    final query = search.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? local
+        : local
+              .where(
+                (customer) =>
+                    customer.name.toLowerCase().contains(query) ||
+                    customer.phone.toLowerCase().contains(query),
+              )
+              .toList();
+    final start = ((page - 1) * limit).clamp(0, filtered.length).toInt();
+    final end = (start + limit).clamp(start, filtered.length).toInt();
+    return PosCustomerPageResult(
+      items: filtered.sublist(start, end),
+      totalCount: filtered.length,
+      page: page,
+      limit: limit,
+    );
   }
 
   Future<Either<Failure, Map<String, dynamic>>> createCustomer(
@@ -1195,16 +1408,20 @@ class PosRepository {
   }
 
   Future<List<PosStore>> getStores() async {
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      return _getLocalStores();
+    }
     try {
       final QueryOptions options = QueryOptions(
         document: gql(PosQueries.getAllPOSToko),
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
-      final QueryResult result = await _clientProvider.client.query(options);
+      final QueryResult result = await _queryOfflineReadable(options);
 
-      if (result.hasException || result.data == null) {
-        return _getLocalStores();
+      if (result.hasException) throw result.exception!;
+      if (result.data == null) {
+        throw const ServerFailure('Daftar toko POS tidak tersedia');
       }
 
       final items =
@@ -1225,10 +1442,13 @@ class PosRepository {
           )
           .toList();
 
-      _saveStoresToLocal(stores);
+      await _saveStoresToLocal(stores);
       return stores;
     } catch (e) {
-      return _getLocalStores();
+      if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
+        return _getLocalStores();
+      }
+      rethrow;
     }
   }
 
@@ -1367,8 +1587,12 @@ class PosRepository {
     int page = 0,
     int limit = 50,
   }) async {
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      return await _readCachedOrdersPage(page, limit) ??
+          (items: <PosOrder>[], hasMore: false);
+    }
     try {
-      final transactionResult = await _clientProvider.client.query(
+      final transactionResult = await _queryOfflineReadable(
         QueryOptions(
           document: gql(PosQueries.getPOSPenjualan),
           variables: {
@@ -1387,7 +1611,7 @@ class PosRepository {
               as int? ??
           transactions.length;
 
-      final invoiceResult = await _clientProvider.client.query(
+      final invoiceResult = await _queryOfflineReadable(
         QueryOptions(
           document: gql(PosQueries.getPendingPOSOrders),
           variables: {
@@ -1416,6 +1640,23 @@ class PosRepository {
         ),
       ];
       orders.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      if (supportsOfflineDatabase) {
+        try {
+          await _offlineReadStore.save(_ordersSnapshotKey(page, limit), {
+            'transactions': transactions,
+            'invoices': invoices,
+            'has_more':
+                (page + 1) * limit < transactionCount ||
+                (page + 1) * limit < invoiceCount,
+          });
+        } catch (error, stackTrace) {
+          appLogger.w(
+            '[POS] Riwayat offline gagal disimpan',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      }
       return (
         items: orders,
         hasMore:
@@ -1424,13 +1665,56 @@ class PosRepository {
       );
     } catch (e) {
       appLogger.e('Gagal memuat riwayat transaksi', error: e);
+      if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
+        return await _readCachedOrdersPage(page, limit) ??
+            (items: <PosOrder>[], hasMore: false);
+      }
       rethrow;
+    }
+  }
+
+  String _ordersSnapshotKey(int page, int limit) =>
+      'pos_orders_snapshot_v1:${_prefs.getString('instansi_id') ?? ''}:'
+      '${_prefs.getString('user_id') ?? ''}:$page:$limit';
+
+  Future<({List<PosOrder> items, bool hasMore})?> _readCachedOrdersPage(
+    int page,
+    int limit,
+  ) async {
+    try {
+      final saved = await _offlineReadStore.read(
+        _ordersSnapshotKey(page, limit),
+      );
+      if (saved == null) return null;
+      final data = saved.data;
+      final invoices = (data['invoices'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (row) =>
+                PosOrder.fromPendingOrderJson(Map<String, dynamic>.from(row)),
+          );
+      final transactions = (data['transactions'] as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => PosOrder.fromJson(Map<String, dynamic>.from(row)));
+      final orders = [...invoices, ...transactions]
+        ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      return (items: orders, hasMore: data['has_more'] == true);
+    } catch (error, stackTrace) {
+      appLogger.w(
+        '[POS] Riwayat offline gagal dibaca',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return null;
     }
   }
 
   Future<List<PosOrder>> getOrders() async => (await getOrdersPage()).items;
 
   Future<Map<String, dynamic>?> getActiveShift([String? tokoId]) async {
+    if (supportsOfflineDatabase && await _hasNoNetwork()) {
+      return _readCachedActiveShift(tokoId);
+    }
     try {
       final QueryOptions options = QueryOptions(
         document: gql(PosQueries.getMyActiveKasirShift),
@@ -1443,14 +1727,81 @@ class PosRepository {
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
-      final QueryResult result = await _clientProvider.client.query(options);
+      final QueryResult result = await _queryOfflineReadable(options);
 
       if (result.hasException) throw result.exception!;
-      if (result.data == null) return null;
-      return result.data?['GetMyActiveKasirShift'];
+      final raw = result.data?['GetMyActiveKasirShift'];
+      final shift = raw is Map ? Map<String, dynamic>.from(raw) : null;
+      if (supportsOfflineDatabase &&
+          operatorIdFromToken(_operatorSessionToken).isNotEmpty) {
+        try {
+          if (shift == null) {
+            await _offlineReadStore.remove(_shiftSnapshotKey);
+          } else {
+            await _offlineReadStore.save(_shiftSnapshotKey, shift);
+          }
+        } catch (error, stackTrace) {
+          appLogger.w(
+            '[POS] Snapshot shift gagal diperbarui',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+      return shift;
     } catch (e) {
       appLogger.e('Gagal memuat shift kasir aktif', error: e);
+      if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
+        return _readCachedActiveShift(tokoId);
+      }
       rethrow;
+    }
+  }
+
+  String get _shiftSnapshotKey =>
+      'pos_shift_snapshot_v1:${_prefs.getString('instansi_id') ?? ''}:'
+      '${_prefs.getString('user_id') ?? ''}:'
+      '${operatorIdFromToken(_operatorSessionToken)}';
+
+  Future<void> _invalidateShiftSnapshot() async {
+    if (!supportsOfflineDatabase ||
+        operatorIdFromToken(_operatorSessionToken).isEmpty) {
+      return;
+    }
+    try {
+      await _offlineReadStore.remove(_shiftSnapshotKey);
+    } catch (error, stackTrace) {
+      appLogger.w(
+        '[POS] Snapshot shift lama gagal dihapus',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> _readCachedActiveShift(String? tokoId) async {
+    if (operatorIdFromToken(_operatorSessionToken).isEmpty) return null;
+    try {
+      final saved = await _offlineReadStore.read(_shiftSnapshotKey);
+      if (saved == null || !isOfflineShiftSnapshotUsable(saved.cachedAt)) {
+        return null;
+      }
+      final shift = saved.data;
+      if (tokoId != null &&
+          tokoId.trim().isNotEmpty &&
+          shift['toko_id']?.toString() != tokoId) {
+        return null;
+      }
+      return shift
+        ..['_offline_snapshot'] = true
+        ..['_offline_cached_at'] = saved.cachedAt.toIso8601String();
+    } catch (error, stackTrace) {
+      appLogger.w(
+        '[POS] Snapshot shift gagal dibaca',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return null;
     }
   }
 
@@ -1514,9 +1865,11 @@ class PosRepository {
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      return result.data?['OpenPOSKasirShift'] != null
-          ? const Right(true)
-          : const Left(ServerFailure('Gagal membuka shift'));
+      if (result.data?['OpenPOSKasirShift'] != null) {
+        await _invalidateShiftSnapshot();
+        return const Right(true);
+      }
+      return const Left(ServerFailure('Gagal membuka shift'));
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
     }
@@ -1559,6 +1912,7 @@ class PosRepository {
       );
       final QueryResult result = await _clientProvider.client.mutate(options);
       if (result.data != null && result.data!['ClosePOSKasirShift'] != null) {
+        await _invalidateShiftSnapshot();
         return const Right(true);
       }
       if (result.hasException) {
@@ -1762,6 +2116,13 @@ class PosRepository {
     if (supportsOfflineDatabase) {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
+        if ((promoCode ?? '').trim().isNotEmpty) {
+          return const Left(
+            NetworkFailure(
+              'Kode promo memerlukan validasi server. Sambungkan internet atau hapus promo sebelum membayar.',
+            ),
+          );
+        }
         if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
           return const Left(
             NetworkFailure(
@@ -1776,12 +2137,13 @@ class PosRepository {
             ),
           );
         }
-        await _saveTransactionToOfflineQueue(
+        final queueFailure = await _queueOfflineTransactionOrFailure(
           payload,
           tokoId: tokoId,
           shiftId: shiftId,
           clientSnapshot: clientSnapshot,
         );
+        if (queueFailure != null) return Left(queueFailure);
         return Right(
           _pendingOfflineResult(
             payload: payload,
@@ -1831,6 +2193,13 @@ class PosRepository {
       }
 
       if (result.hasException && _isRetryableNetworkFailure(result.exception)) {
+        if ((promoCode ?? '').trim().isNotEmpty) {
+          return const Left(
+            NetworkFailure(
+              'Kode promo belum dapat diverifikasi. Transaksi tidak disimpan offline; sambungkan internet atau hapus promo.',
+            ),
+          );
+        }
         if (!supportsOfflineDatabase) {
           return Left(AppErrorHandler.handle(result.exception!));
         }
@@ -1841,12 +2210,13 @@ class PosRepository {
             ),
           );
         }
-        await _saveTransactionToOfflineQueue(
+        final queueFailure = await _queueOfflineTransactionOrFailure(
           payload,
           tokoId: tokoId,
           shiftId: shiftId,
           clientSnapshot: clientSnapshot,
         );
+        if (queueFailure != null) return Left(queueFailure);
         return Right(
           PosTransactionResult(
             id: payload['client_transaction_id'].toString(),
@@ -1880,6 +2250,13 @@ class PosRepository {
 
       return const Left(ServerFailure('Format respon tidak valid dari server'));
     } on LinkException {
+      if ((promoCode ?? '').trim().isNotEmpty) {
+        return const Left(
+          NetworkFailure(
+            'Kode promo belum dapat diverifikasi. Transaksi tidak disimpan offline; sambungkan internet atau hapus promo.',
+          ),
+        );
+      }
       if (!supportsOfflineDatabase) {
         return const Left(
           NetworkFailure(
@@ -1894,12 +2271,13 @@ class PosRepository {
           ),
         );
       }
-      await _saveTransactionToOfflineQueue(
+      final queueFailure = await _queueOfflineTransactionOrFailure(
         payload,
         tokoId: tokoId,
         shiftId: shiftId,
         clientSnapshot: clientSnapshot,
       );
+      if (queueFailure != null) return Left(queueFailure);
       return Right(
         PosTransactionResult(
           id: payload['client_transaction_id'].toString(),
@@ -1942,6 +2320,9 @@ class PosRepository {
     String? customerName,
     String? note,
     double discountPercent = 0,
+    String promoCode = '',
+    String discountPolicy = 'stack',
+    double manualDiscount = 0,
     double taxPercent = 0,
     String salesChannel = 'retail',
     String customerSegment = 'regular',
@@ -1980,6 +2361,9 @@ class PosRepository {
           'reservation_deposit_amount': reservationDepositAmount,
         'catatan': note ?? '',
         'diskon_persen': discountPercent,
+        'promo_code': promoCode.trim().toUpperCase(),
+        'discount_policy': discountPolicy,
+        'manual_discount': manualDiscount,
         'pajak_persen': taxPercent,
         'source': 'kasir',
         if (serviceOrder != null) 'service_order': serviceOrder,
@@ -1997,6 +2381,16 @@ class PosRepository {
             .toList(),
       };
       final QueryResult result;
+      if (promoCode.trim().isNotEmpty && supportsOfflineDatabase) {
+        final connectivity = await Connectivity().checkConnectivity();
+        if (connectivity.contains(ConnectivityResult.none)) {
+          return const Left(
+            NetworkFailure(
+              'Kode promo harus diverifikasi online sebelum invoice dibuat.',
+            ),
+          );
+        }
+      }
       try {
         result = await _clientProvider.client.mutate(
           MutationOptions(
@@ -2005,6 +2399,13 @@ class PosRepository {
           ),
         );
       } on LinkException catch (error) {
+        if (promoCode.trim().isNotEmpty) {
+          return const Left(
+            NetworkFailure(
+              'Kode promo belum dapat diverifikasi. Invoice tidak disimpan offline.',
+            ),
+          );
+        }
         if (!supportsOfflineDatabase ||
             !isRetryableOfflineNetworkFailure(
               OperationException(linkException: error),
@@ -2020,6 +2421,14 @@ class PosRepository {
         return Right({'offline_queued': true, 'client_request_id': requestId});
       }
       if (result.hasException) {
+        if (promoCode.trim().isNotEmpty &&
+            isRetryableOfflineNetworkFailure(result.exception)) {
+          return const Left(
+            NetworkFailure(
+              'Kode promo belum dapat diverifikasi. Invoice tidak disimpan offline.',
+            ),
+          );
+        }
         if (supportsOfflineDatabase &&
             isRetryableOfflineNetworkFailure(result.exception)) {
           await _saveOrderToOfflineQueue(
@@ -2234,6 +2643,34 @@ class PosRepository {
     }
   }
 
+  Future<Failure?> _queueOfflineTransactionOrFailure(
+    Map<String, dynamic> payload, {
+    required String tokoId,
+    required String shiftId,
+    required Map<String, dynamic> clientSnapshot,
+  }) async {
+    try {
+      await _saveTransactionToOfflineQueue(
+        payload,
+        tokoId: tokoId,
+        shiftId: shiftId,
+        clientSnapshot: clientSnapshot,
+      );
+      return null;
+    } on StateError catch (error) {
+      return ServerFailure(error.message.toString());
+    } catch (error, stackTrace) {
+      appLogger.e(
+        '[POS] Gagal menyimpan transaksi offline',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return const ServerFailure(
+        'Transaksi belum tersimpan di perangkat. Periksa ruang penyimpanan, lalu coba lagi.',
+      );
+    }
+  }
+
   Future<void> _saveTransactionToOfflineQueue(
     Map<String, dynamic> payload, {
     required String tokoId,
@@ -2251,6 +2688,39 @@ class PosRepository {
     }
     final db = await PosLocalDatabase.instance.database;
     await db.transaction((txn) async {
+      final stores = await txn.query(
+        'stores',
+        columns: ['branchId'],
+        where: 'id = ?',
+        whereArgs: [tokoId],
+        limit: 1,
+      );
+      final branchId = stores.isEmpty
+          ? ''
+          : stores.first['branchId']?.toString() ?? '';
+      if (branchId.isEmpty) {
+        throw StateError(
+          'Lokasi stok toko belum tersimpan. Sambungkan internet untuk menyiapkan katalog offline.',
+        );
+      }
+      final activeCatalog = await txn.query(
+        'read_snapshots',
+        columns: ['payload'],
+        where: 'scope_key = ?',
+        whereArgs: [_activeProductCacheKey],
+        limit: 1,
+      );
+      final activeKey = activeCatalog.isEmpty
+          ? ''
+          : (jsonDecode(activeCatalog.first['payload'] as String)
+                        as Map)['catalog_key']
+                    ?.toString() ??
+                '';
+      if (activeKey != _productSnapshotKey(branchId)) {
+        throw StateError(
+          'Katalog offline tidak cocok dengan lokasi stok toko. Sambungkan internet dan muat ulang katalog.',
+        );
+      }
       final cachedRows = await txn.query('products');
       final catalog = <String, PosProduct>{
         for (final row in cachedRows)
@@ -2300,6 +2770,7 @@ class PosRepository {
         'client_transaction_id': clientTransactionId,
         'client_snapshot': jsonEncode({
           ...clientSnapshot,
+          'stock_branch_id': branchId,
           if (operatorUserId.isNotEmpty) 'operator_user_id': operatorUserId,
         }),
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
@@ -2342,6 +2813,26 @@ class PosRepository {
           whereArgs: [product.id],
         );
       }
+      final updatedRows = await txn.query('products');
+      await txn.insert('read_snapshots', {
+        'scope_key': _productSnapshotKey(branchId),
+        'payload': jsonEncode({
+          'products': updatedRows
+              .where(
+                (row) => row['product_json']?.toString().isNotEmpty == true,
+              )
+              .map(
+                (row) => {
+                  ...Map<String, dynamic>.from(
+                    jsonDecode(row['product_json'] as String) as Map,
+                  ),
+                  'stock': row['stock'],
+                },
+              )
+              .toList(),
+        }),
+        'cached_at': DateTime.now().toUtc().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 

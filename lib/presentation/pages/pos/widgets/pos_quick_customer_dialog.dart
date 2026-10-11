@@ -7,15 +7,28 @@ import '../../../../injections.dart';
 import '../../../widgets/app_toast.dart';
 import '../../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../../widgets/pos_keyboard_stable_sheet.dart';
+import '../utils/pos_customer_form_validation.dart';
 
 Future<PosCustomer?> showPosQuickCustomerDialog(
   BuildContext context, {
   String initialName = '',
   String initialPhone = '',
   bool requirePhone = false,
+  bool selectAfterSave = true,
 }) async {
   final repository = sl<PosRepository>();
-  final runtimeConfig = await repository.getRuntimeConfig();
+  Map<String, dynamic> runtimeConfig;
+  try {
+    runtimeConfig = await repository.getRuntimeConfig();
+  } catch (_) {
+    if (context.mounted) {
+      AppToast.error(
+        context,
+        'Pengaturan pelanggan belum dapat dimuat. Coba lagi saat koneksi tersedia.',
+      );
+    }
+    return null;
+  }
   if (!context.mounted) return null;
   final priceLevelOptions =
       <dynamic>[
@@ -48,9 +61,11 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
     final dialogWidth = mobile
         ? screenSize.width - 32
         : (screenSize.width - 80).clamp(280.0, 760.0);
-    final fieldWidth = dialogWidth >= 620
-        ? (dialogWidth - 12) / 2
-        : dialogWidth;
+    final horizontalContentPadding = mobile ? 0.0 : 20.0;
+    final usableWidth = dialogWidth - horizontalContentPadding * 2;
+    final fieldWidth = usableWidth >= 620
+        ? (usableWidth - 12) / 2
+        : usableWidth;
     Widget field(String label, Widget child, {bool required = false}) =>
         SizedBox(
           width: fieldWidth,
@@ -101,11 +116,15 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
             constraints: BoxConstraints(maxHeight: screenSize.height * 0.72),
             child: Form(
               key: formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                padding: EdgeInsets.fromLTRB(
+                  horizontalContentPadding,
+                  16,
+                  horizontalContentPadding,
+                  MediaQuery.viewInsetsOf(context).bottom + 20,
                 ),
                 child: Wrap(
                   spacing: 12,
@@ -121,9 +140,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                           hintText: 'Contoh: Budi Santoso',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (value) => (value ?? '').trim().isEmpty
-                            ? 'Nama pelanggan wajib diisi'
-                            : null,
+                        validator: validatePosCustomerName,
                       ),
                       required: true,
                     ),
@@ -136,10 +153,10 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                           hintText: 'Contoh: 081234567890',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
-                        validator: (value) =>
-                            requirePhone && (value ?? '').trim().isEmpty
-                            ? 'Nomor telepon wajib diisi untuk permintaan pelanggan ini'
-                            : null,
+                        validator: (value) => validatePosCustomerPhone(
+                          value,
+                          required: requirePhone,
+                        ),
                       ),
                       required: requirePhone,
                     ),
@@ -152,15 +169,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                           hintText: 'nama@email.com (opsional)',
                           prefixIcon: Icon(Icons.email_outlined),
                         ),
-                        validator: (value) {
-                          final email = (value ?? '').trim();
-                          if (email.isEmpty) return null;
-                          return RegExp(
-                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                              ).hasMatch(email)
-                              ? null
-                              : 'Format email tidak valid';
-                        },
+                        validator: validatePosCustomerEmail,
                       ),
                     ),
                     field(
@@ -256,6 +265,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                     field(
                       'Tier member',
                       DropdownButtonFormField<String>(
+                        key: ValueKey('tier:$membershipStatus:$membershipTier'),
                         initialValue: membershipTier,
                         decoration: InputDecoration(
                           helperText: membershipStatus == 'member'
@@ -328,7 +338,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
             onPressed: saving
                 ? null
                 : () async {
-                    if (!formKey.currentState!.validate()) return;
+                    if (formKey.currentState?.validate() != true) return;
                     setDialogState(() => saving = true);
                     final name = nameController.text.trim();
                     final phone = phoneController.text.trim();
@@ -399,13 +409,20 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                     ),
                   )
                 : const Icon(Icons.person_add_alt_1),
-            label: Text(saving ? 'Menyimpan...' : 'Simpan & Pilih'),
+            label: Text(
+              saving
+                  ? 'Menyimpan...'
+                  : selectAfterSave
+                  ? 'Simpan & Pilih'
+                  : 'Simpan Pelanggan',
+            ),
           ),
         ];
         if (!mobile) {
           return PosKeyboardStableFormDialog(
             width: dialogWidth,
             height: screenSize.height * .88,
+            contentPadding: EdgeInsets.zero,
             title: title,
             content: content,
             actions: actions,

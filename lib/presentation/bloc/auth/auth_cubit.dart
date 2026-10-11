@@ -22,8 +22,14 @@ class AuthCubit extends Cubit<AuthState> {
       } else {
         emit(const AuthState.unauthenticated());
       }
+    } on Failure catch (failure) {
+      if (!isClosed) emit(AuthState.failure(failure.message));
     } catch (_) {
-      if (!isClosed) emit(const AuthState.unauthenticated());
+      if (!isClosed) {
+        emit(
+          const AuthState.failure('Sesi belum dapat diverifikasi. Coba lagi.'),
+        );
+      }
     }
   }
 

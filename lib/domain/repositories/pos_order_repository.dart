@@ -230,6 +230,25 @@ class PosOrderRepository {
     }
   }
 
+  Future<Either<Failure, double>> removeOrderPromo(String orderId) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.removeOrderPromo),
+          variables: {'orderId': orderId},
+        ),
+      );
+      if (result.hasException) return Left(AppErrorHandler.handle(result.exception!));
+      final order = result.data?['RemovePOSOrderPromo'];
+      if (order is! Map || order['grand_total'] is! num) {
+        return const Left(ServerFailure('Voucher tidak dapat dilepas dari order'));
+      }
+      return Right((order['grand_total'] as num).toDouble());
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, bool>> updateServiceOrderStatus(
     String orderId,
     String status, {

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../domain/repositories/pos_repository.dart';
 import 'pos_page.dart';
 import 'pos_product_page.dart';
 import 'pos_order_page.dart';
@@ -130,6 +131,8 @@ class _PosShellPageState extends State<PosShellPage>
     if (widget.prepareDashboard) {
       _posDataRequested = true;
       _showUnlockLoading = true;
+      _posBloc.add(const LoadDashboardSnapshot());
+      _posBloc.add(LoadDashboardData());
       _posBloc.add(LoadPosData());
       sl<SyncService>().syncOfflineTransactions();
     }
@@ -138,6 +141,7 @@ class _PosShellPageState extends State<PosShellPage>
       if (mounted) {
         _loadNavbarNotifications();
         _refreshOfflineQueueSummary();
+        unawaited(sl<PosRepository>().syncPendingFavoriteProductIds());
       }
     });
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
@@ -147,6 +151,7 @@ class _PosShellPageState extends State<PosShellPage>
         sl<SyncService>().syncOfflineTransactions().whenComplete(
           _refreshOfflineQueueSummary,
         );
+        unawaited(sl<PosRepository>().syncPendingFavoriteProductIds());
       }
     });
     // Connectivity dapat tetap berstatus Wi-Fi saat API sedang mati. Polling
@@ -157,6 +162,7 @@ class _PosShellPageState extends State<PosShellPage>
       sl<SyncService>().syncOfflineTransactions().whenComplete(
         _refreshOfflineQueueSummary,
       );
+      unawaited(sl<PosRepository>().syncPendingFavoriteProductIds());
     });
   }
 
@@ -357,12 +363,16 @@ class _PosShellPageState extends State<PosShellPage>
     if (_posDataRequested) return;
     _posDataRequested = true;
     setState(() => _showUnlockLoading = true);
+    context.read<PosBloc>().add(const LoadDashboardSnapshot());
+    context.read<PosBloc>().add(LoadDashboardData());
     context.read<PosBloc>().add(LoadPosData());
     sl<SyncService>().syncOfflineTransactions();
   }
 
   void _finishUnlockLoading(PosState state) {
     if (!_showUnlockLoading) return;
+    // A cached dashboard is not enough to reveal the shell: its sidebar and
+    // destinations also depend on the runtime config, stores, and products.
     final dashboardReady =
         state.status == PosStatus.success && state.dashboardData != null;
     if (dashboardReady || state.status == PosStatus.failure) {
@@ -374,6 +384,12 @@ class _PosShellPageState extends State<PosShellPage>
               .toList(growable: false);
           if (activeStores.isEmpty) {
             _selectedIndex = 10;
+          } else if (state.activeShift == null &&
+              (state.dashboardData?['_offline_snapshot'] == true ||
+                  state.dashboardData?['_offline_unavailable'] == true)) {
+            // Opening a new shift needs the server; land on the read-only
+            // dashboard rather than trapping the cashier on the shift form.
+            _selectedIndex = 0;
           } else if (state.activeShift == null &&
               state.runtimeConfig['allow_out_of_shift'] != true) {
             _returnToCashierAfterShiftOpen = true;
@@ -514,6 +530,7 @@ class _PosShellPageState extends State<PosShellPage>
 
   List<Widget> get _pages => [
     HomePage(
+      offlineUnresolved: _offlineUnresolved,
       onNavigate: (index) {
         if (!mounted || index < 0 || index >= _destinations.length) return;
         setState(() => _selectedIndex = index);
@@ -956,7 +973,10 @@ class _PosShellPageState extends State<PosShellPage>
                       elevation: 0,
                       backgroundColor: AppColors.primary,
                       toolbarHeight: isSmallScreen ? 48 : 64,
-                      leadingWidth: isSmallScreen ? 44 : 56,
+                      // Match the collapsed sidebar rail (72 px) so the menu
+                      // icon is centered above its icons and the avatar has
+                      // the same inset from the content edge.
+                      leadingWidth: isMobile ? (isSmallScreen ? 44 : 56) : 72,
                       iconTheme: IconThemeData(
                         color: Colors.white,
                         size: isSmallScreen ? 20 : 24,

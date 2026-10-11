@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:printing/printing.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
+import '../../../core/receipt/pos_receipt_print_service.dart';
 import '../../../domain/models/pos_stock.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
@@ -29,6 +31,8 @@ import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
 import 'utils/pos_purchase_progress.dart';
 import 'utils/pos_purchase_order_document.dart';
+import 'utils/pos_pdf_preview_bytes.dart';
+import 'utils/pos_business_print_branding.dart';
 import 'widgets/pos_setup_tour.dart';
 
 enum _InventorySection {
@@ -1421,11 +1425,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     value: action,
                     child: _ActionMenuItem(
                       _actionIcon(action),
-                      action == 'preview_po'
-                          ? (PosPurchaseOrderDocument.isApproved(item)
-                                ? 'Bagikan / Cetak PO'
-                                : 'Pratinjau PO')
-                          : _actionLabel(action),
+                      _actionLabel(action),
                       destructive: const {
                         'reject',
                         'cancel',
@@ -1894,11 +1894,15 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.picture_as_pdf_outlined),
-          label: Text(
-            PosPurchaseOrderDocument.isApproved(item)
-                ? 'Bagikan / Cetak PO'
-                : 'Pratinjau PO',
-          ),
+          label: const Text('Pratinjau PO'),
+        );
+      }
+      if (action == 'print_po') {
+        return OutlinedButton.icon(
+          style: InventoryActionStyle.outlined(),
+          onPressed: () => onAction(action),
+          icon: const Icon(Icons.print_outlined),
+          label: const Text('Cetak PO A4'),
         );
       }
       if (action == 'edit') {
@@ -1962,6 +1966,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     );
     if (widget.type == PosInventoryDocumentType.purchase) {
       actions.add('preview_po');
+      if (PosPurchaseOrderDocument.isApproved(item)) {
+        actions.add('print_po');
+      }
     }
     if (widget.type == PosInventoryDocumentType.scrap &&
         status == 'completed' &&
@@ -2064,6 +2071,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       await _previewPurchaseOrder(item);
       return;
     }
+    if (action == 'print_po') {
+      await _previewPurchaseOrder(item, directPrint: true);
+      return;
+    }
     if (action == 'receive_purchase') {
       if (widget.onReceivePurchase != null) {
         widget.onReceivePurchase!(item);
@@ -2108,7 +2119,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     await _runAction(item, action);
   }
 
-  Future<void> _previewPurchaseOrder(Map<String, dynamic> item) async {
+  Future<void> _previewPurchaseOrder(
+    Map<String, dynamic> item, {
+    bool directPrint = false,
+  }) async {
     final id = item['_id']?.toString() ?? '';
     if (id.isEmpty) {
       AppToast.error(context, 'ID PO tidak tersedia');
@@ -2131,8 +2145,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         (failure) => throw StateError(failure.message),
         (value) => value,
       );
-      final buyerResult = await sl<PosReceiptRepository>()
-          .getReceiptPrintData();
+      final buyerResult = await sl<PosReceiptRepository>().getReceiptPrintData(
+        forceRefresh: true,
+      );
       if (!mounted) return;
       final company = buyerResult.fold<Map<String, String>>(
         (failure) => throw StateError(
@@ -2144,10 +2159,28 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           (company['nama_instansi'] ?? '').trim().isEmpty) {
         throw StateError('Nama instansi belum tersedia untuk dokumen PO');
       }
+      if (directPrint) {
+        if (!PosPurchaseOrderDocument.isApproved(purchase)) {
+          throw StateError('PO belum disetujui dan belum dapat dicetak resmi.');
+        }
+      }
+      final logo = await PosBusinessPrintBranding.loadCompanyLogo(
+        company['logo'] ?? '',
+      );
+      if (!mounted) return;
       bytes = await PosPurchaseOrderDocument.build(
         purchase: purchase,
         company: company,
+        logoBytes: logo,
       );
+      if (directPrint) {
+        final printed = await PosReceiptPrintService(sl()).printDocumentPdf(
+          bytes: bytes,
+          name: '${purchase['no_po'] ?? 'PO'}.pdf',
+        );
+        if (!printed) throw StateError('Pencetakan PO dibatalkan atau gagal.');
+        return;
+      }
     } catch (error) {
       errorMessage = error is StateError
           ? error.message
@@ -2161,6 +2194,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       return;
     }
     if (purchase == null || bytes == null) return;
+    final previewBytes = PosPdfPreviewBytes(bytes);
     final official = PosPurchaseOrderDocument.isApproved(purchase);
     final number = (purchase['no_po']?.toString() ?? 'PO').replaceAll(
       RegExp(r'[^A-Za-z0-9._-]'),
@@ -2169,13 +2203,27 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
-          appBar: AppBar(
-            title: Text(official ? 'Bagikan / Cetak PO' : 'Pratinjau PO'),
-          ),
+          appBar: AppBar(title: const Text('Pratinjau PO')),
           body: PdfPreview(
-            build: (_) async => bytes!,
+            build: (_) async => previewBytes.freshBytes(),
             pdfFileName: '$number.pdf',
-            allowPrinting: official,
+            actions: kDebugMode
+                ? const [
+                    Tooltip(
+                      message: 'Menampilkan panduan tata letak PDF',
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Text(
+                          'Mode debug PDF',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ]
+                : null,
+            // Printing from PdfPreview bypasses the terminal printer selected
+            // in POS settings. Use the explicit Cetak PO action instead.
+            allowPrinting: false,
             allowSharing: official,
             canChangePageFormat: false,
             canChangeOrientation: false,
@@ -2413,7 +2461,8 @@ String _actionLabel(String action) => switch (action) {
   'delete' => 'Hapus',
   'receive_purchase' => 'Terima Barang',
   'pay_purchase' => 'Pembayaran / Riwayat',
-  'preview_po' => 'Dokumen PO',
+  'preview_po' => 'Pratinjau PO',
+  'print_po' => 'Cetak PO (A4)',
   'receive_transfer' => 'Terima Mutasi',
   'retry_journal' => 'Ulangi Jurnal',
   'retry_cancel_journal' => 'Ulangi Jurnal Batal',
@@ -2430,6 +2479,7 @@ IconData _actionIcon(String action) => switch (action) {
   'receive_purchase' => Icons.inventory_2_outlined,
   'pay_purchase' => Icons.payments_outlined,
   'preview_po' => Icons.picture_as_pdf_outlined,
+  'print_po' => Icons.print_outlined,
   'receive_transfer' => Icons.download_done,
   'retry_journal' => Icons.refresh,
   'retry_cancel_journal' => Icons.restart_alt,

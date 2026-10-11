@@ -22,8 +22,22 @@ void main() {
         code: '8991234567890',
         quantity: 50,
         size: size,
+        companyName: 'Toko Pantoo',
       );
       expect(bytes.length, greaterThan(2000));
+    }
+  });
+
+  test('thermal label PDF builds as a narrow page', () async {
+    for (final paperWidth in [58, 80]) {
+      final bytes = await PosStockBarcodeDocument.buildThermal(
+        name: 'Sabun Cair',
+        code: '8991234567890',
+        quantity: 8,
+        paperWidthMm: paperWidth,
+        companyName: 'Toko Pantoo',
+      );
+      expect(String.fromCharCodes(bytes.take(4)), '%PDF');
     }
   });
 

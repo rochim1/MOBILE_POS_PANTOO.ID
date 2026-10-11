@@ -214,3 +214,12 @@ class LoadDashboardData extends PosEvent {
   @override
   List<Object> get props => [days];
 }
+
+class LoadDashboardSnapshot extends PosEvent {
+  final int days;
+
+  const LoadDashboardSnapshot({this.days = 7});
+
+  @override
+  List<Object> get props => [days];
+}

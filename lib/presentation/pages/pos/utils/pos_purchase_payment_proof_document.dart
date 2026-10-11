@@ -14,6 +14,7 @@ class PosPurchasePaymentProofDocument {
     required Map<String, dynamic> payable,
     required Map<String, dynamic> payment,
     required Map<String, String> company,
+    Uint8List? logoBytes,
   }) async {
     final document = pw.Document();
     final status = payment['status']?.toString() ?? 'active';
@@ -21,6 +22,16 @@ class PosPurchasePaymentProofDocument {
       company['nama_resmi'],
       company['nama_instansi'],
     ], 'Pembeli');
+    final buyerAddress = [
+      company['alamat'],
+      company['kabupaten'],
+      company['provinsi'],
+    ].where((part) => part?.trim().isNotEmpty == true).join(', ');
+    final buyerContact = [
+      company['telpon_number'],
+      company['email'],
+      company['website'],
+    ].where((part) => part?.trim().isNotEmpty == true).join(' | ');
     final recorder = payment['recorded_by'];
     final recorderName = recorder is Map
         ? _firstFilled([
@@ -53,7 +64,41 @@ class PosPurchasePaymentProofDocument {
                   ),
                 ),
               ),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 10),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                if (logoBytes != null && logoBytes.isNotEmpty) ...[
+                  pw.Image(pw.MemoryImage(logoBytes), width: 52, height: 52),
+                  pw.SizedBox(width: 12),
+                ],
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        buyer,
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      if (buyerAddress.isNotEmpty)
+                        pw.Text(
+                          buyerAddress,
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                      if (buyerContact.isNotEmpty)
+                        pw.Text(
+                          buyerContact,
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
             pw.Text(
               'BUKTI PENCATATAN PEMBAYARAN',
               style: pw.TextStyle(

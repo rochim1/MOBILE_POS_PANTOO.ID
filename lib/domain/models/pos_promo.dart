@@ -25,7 +25,7 @@ class PosPromo {
     required this.code,
     required this.name,
     this.description = '',
-    this.discountType = 'promo',
+    this.discountType = 'DIRECT',
     this.valueType = 'percentage',
     this.discountValue = 0,
     this.maxDiscountAmount = 0,
@@ -49,7 +49,7 @@ class PosPromo {
       code: json['code']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
-      discountType: json['discount_type']?.toString() ?? 'promo',
+      discountType: json['discount_type']?.toString() ?? 'DIRECT',
       valueType: json['value_type']?.toString() ?? 'percentage',
       discountValue:
           double.tryParse(json['discount_value']?.toString() ?? '0') ?? 0,

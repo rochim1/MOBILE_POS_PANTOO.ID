@@ -1085,6 +1085,20 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     label: const Text('Ubah Pesanan'),
                   ),
                 ],
+                if ((order.promoCode ?? '').isNotEmpty &&
+                    order.paymentStatus != 'lunas' &&
+                    order.status != 'Batal' &&
+                    order.status != 'Selesai') ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _removeOrderPromo(order);
+                    },
+                    icon: const Icon(Icons.local_offer_outlined),
+                    label: Text('Lepas voucher ${order.promoCode}'),
+                  ),
+                ],
                 if (_nextStatus(order.status) case final next?) ...[
                   const SizedBox(height: 12),
                   FilledButton.icon(
@@ -1721,6 +1735,47 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       AppToast.success(context, 'Pesanan berhasil diperbarui');
       _reload();
     }
+  }
+
+  Future<void> _removeOrderPromo(PosOrderDetail order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lepas voucher dari pesanan?'),
+        content: Text(
+          'Voucher ${order.promoCode} akan dilepas. Total tagihan dihitung ulang oleh server dan perlu ditinjau sebelum pembayaran.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Lepas voucher'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || order.id == null) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    final result = await sl<PosOrderRepository>().removeOrderPromo(order.id!);
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (newTotal) {
+        AppToast.success(
+          context,
+          'Voucher dilepas. Total baru ${_currency(newTotal)}. Tinjau sebelum bayar.',
+        );
+        _reload();
+      },
+    );
   }
 
   String? _nextStatus(String? current) => switch (current) {

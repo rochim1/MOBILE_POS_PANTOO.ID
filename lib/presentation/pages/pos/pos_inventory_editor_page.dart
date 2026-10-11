@@ -541,6 +541,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               builder: (pickerContext, update) => PosKeyboardStableFormDialog(
                 width: 520,
                 height: 540,
+                contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 title: const Text('Pilih barang'),
                 content: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1697,9 +1698,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         'amount': index == count - 1
             ? _purchaseGrandTotal - (amount * (count - 1))
             : amount,
-        'due_date': _dateValue(
-          start.add(Duration(days: (index + 1) * 30)),
-        ),
+        'due_date': _dateValue(start.add(Duration(days: (index + 1) * 30))),
       },
     );
   }

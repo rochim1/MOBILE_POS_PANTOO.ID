@@ -7,6 +7,7 @@ import 'package:mobile_pos_pantoo/injections.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
 import 'widgets/pos_quick_customer_dialog.dart';
+import 'utils/pos_customer_form_validation.dart';
 
 class PosCustomerPage extends StatefulWidget {
   const PosCustomerPage({super.key});
@@ -20,6 +21,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
   final _searchController = TextEditingController();
   List<PosCustomer> _customers = const [];
   bool _loading = true;
+  bool _openingForm = false;
   String _priceLevelFilter = 'all';
 
   @override
@@ -36,12 +38,17 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final customers = await _repository.getCustomers();
-    if (!mounted) return;
-    setState(() {
-      _customers = customers;
-      _loading = false;
-    });
+    try {
+      final customers = await _repository.getCustomers();
+      if (!mounted) return;
+      setState(() => _customers = customers);
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(context, 'Daftar pelanggan gagal dimuat. Coba lagi.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   List<PosCustomer> get _filtered {
@@ -130,8 +137,24 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                 SizedBox(
                   height: compact ? 40 : 48,
                   child: ElevatedButton.icon(
-                    onPressed: _loading ? null : () => _showForm(),
-                    icon: const Icon(Icons.person_add_alt_1),
+                    onPressed: _loading || _openingForm
+                        ? null
+                        : () async {
+                            setState(() => _openingForm = true);
+                            try {
+                              await _showForm();
+                            } finally {
+                              if (mounted) {
+                                setState(() => _openingForm = false);
+                              }
+                            }
+                          },
+                    icon: _openingForm
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.person_add_alt_1),
                     label: const Text('Tambah'),
                   ),
                 ),
@@ -187,13 +210,34 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
 
   Future<void> _showForm([PosCustomer? customer]) async {
     if (customer == null) {
-      final created = await showPosQuickCustomerDialog(context);
+      final created = await showPosQuickCustomerDialog(
+        context,
+        selectAfterSave: false,
+      );
       if (!mounted || created == null) return;
+      setState(() {
+        _searchController.clear();
+        _priceLevelFilter = 'all';
+        _customers = [
+          created,
+          ..._customers.where((item) => item.id != created.id),
+        ];
+      });
       AppToast.success(context, 'Pelanggan berhasil ditambahkan');
-      await _load();
       return;
     }
-    final runtimeConfig = await _repository.getRuntimeConfig();
+    Map<String, dynamic> runtimeConfig;
+    try {
+      runtimeConfig = await _repository.getRuntimeConfig();
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          'Pengaturan pelanggan gagal dimuat. Coba lagi.',
+        );
+      }
+      return;
+    }
     if (!mounted) return;
     final priceLevelOptions = <String>{
       'retail',
@@ -223,6 +267,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
           child: SafeArea(
             child: Form(
               key: key,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
@@ -241,8 +286,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                     TextFormField(
                       controller: name,
                       decoration: const InputDecoration(labelText: 'Nama'),
-                      validator: (v) =>
-                          (v ?? '').trim().isEmpty ? 'Nama wajib diisi' : null,
+                      validator: validatePosCustomerName,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -251,6 +295,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       decoration: const InputDecoration(
                         labelText: 'Nomor telepon',
                       ),
+                      validator: validatePosCustomerPhone,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -259,15 +304,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       decoration: const InputDecoration(
                         labelText: 'Email (opsional)',
                       ),
-                      validator: (value) {
-                        final input = (value ?? '').trim();
-                        if (input.isEmpty) return null;
-                        return RegExp(
-                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                            ).hasMatch(input)
-                            ? null
-                            : 'Format email tidak valid';
-                      },
+                      validator: validatePosCustomerEmail,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -312,6 +349,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      key: ValueKey('tier:$membershipStatus:$membershipTier'),
                       initialValue: membershipTier,
                       decoration: InputDecoration(
                         labelText: 'Tier member',
@@ -393,7 +431,9 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                         onPressed: saving
                             ? null
                             : () async {
-                                if (!key.currentState!.validate()) return;
+                                if (key.currentState?.validate() != true) {
+                                  return;
+                                }
                                 setSheetState(() => saving = true);
                                 final input = {
                                   'name': name.text.trim(),

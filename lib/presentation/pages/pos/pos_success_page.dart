@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:printing/printing.dart';
@@ -27,6 +28,11 @@ class PosSuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final printService = PosReceiptPrintService(sl());
+    final printerNotConfigured =
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        !printService.hasConfiguredPrinter;
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
@@ -38,9 +44,6 @@ class PosSuccessPage extends StatelessWidget {
           subtitle: 'Transaksi telah selesai diproses',
         ),
       ),
-      bottomSheet: autoPrint
-          ? _AutoPrintTrigger(onPrint: () => _printReceipt(context))
-          : null,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -90,6 +93,19 @@ class PosSuccessPage extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        if (autoPrint && !printerNotConfigured)
+                          _AutoPrintTrigger(
+                            onPrint: () => _printReceipt(context),
+                          ),
+                        if (autoPrint && printerNotConfigured)
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+                            child: Text(
+                              'Struk belum dicetak karena printer belum dipilih. Transaksi tetap berhasil; cetak dapat dilakukan nanti.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.warning),
+                            ),
+                          ),
                         const SizedBox(height: 32),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -289,14 +305,16 @@ class PosSuccessPage extends StatelessWidget {
   }
 
   String _formatThermalItem(Map<String, dynamic> item) {
-    final name = (item['nama'] ??
-            item['nama_produk'] ??
-            item['name'] ??
-            item['product_name'] ??
-            'Produk')
-        .toString();
+    final name =
+        (item['nama'] ??
+                item['nama_produk'] ??
+                item['name'] ??
+                item['product_name'] ??
+                'Produk')
+            .toString();
     final qty = item['qty'] ?? item['quantity'] ?? item['jumlah'] ?? 1;
-    final amount = item['total'] ??
+    final amount =
+        item['total'] ??
         item['subtotal'] ??
         item['jumlah_harga'] ??
         item['harga_total'] ??
@@ -520,6 +538,11 @@ class PosSuccessPage extends StatelessWidget {
   Future<void> _printReceipt(BuildContext context) async {
     try {
       final printService = PosReceiptPrintService(sl());
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          !printService.hasConfiguredPrinter) {
+        throw StateError('PRINTER_NOT_CONFIGURED');
+      }
       // Mini Bluetooth printers are text/ESC-POS devices. Use their direct
       // text channel instead of rendering a PDF to a bitmap first. The PDF
       // option remains available when visual fidelity/logo is preferred.
@@ -532,19 +555,11 @@ class PosSuccessPage extends StatelessWidget {
             company: {},
           ),
         );
-        try {
-          await printService
-              .printText(
-                text: _buildThermalReceiptText(printData),
-                charactersPerLine:
-                    printData.template.paperWidth == 80 ? 48 : 32,
-              )
-              .timeout(const Duration(seconds: 10));
-          return;
-        } catch (_) {
-          // Some mini printers expose Bluetooth but reject raw text writes.
-          // Fall through to the image/PDF path so printing still succeeds.
-        }
+        await printService.printText(
+          text: _buildThermalReceiptText(printData),
+          charactersPerLine: printData.template.paperWidth == 80 ? 48 : 32,
+        );
+        return;
       }
       final printData = await _loadReceiptPrintData().timeout(
         const Duration(seconds: 10),
@@ -570,7 +585,10 @@ class PosSuccessPage extends StatelessWidget {
               ? 'Printer terlalu lama merespons. Periksa koneksi lalu coba lagi.'
               : error.toString().contains('PRINTER_NOT_CONFIGURED')
               ? 'Pilih printer Bluetooth di Pengaturan Printer terlebih dahulu.'
-              : 'Printer Bluetooth tidak merespons. Periksa koneksi printer.',
+              : error is StateError &&
+                    error.message.toString().startsWith('Status cetak')
+              ? 'Status cetak belum pasti. Periksa kertas printer sebelum mencoba lagi.'
+              : 'Printer tidak merespons. Periksa koneksi printer.',
         );
       }
     }
@@ -656,37 +674,31 @@ class _AutoPrintTriggerState extends State<_AutoPrintTrigger> {
   }
 
   Future<void> _runPrint() async {
-    await widget.onPrint();
-    if (!mounted) return;
-    setState(() => _printing = false);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (mounted) setState(() {});
+    try {
+      await widget.onPrint();
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_printing) return const SizedBox.shrink();
-    return Material(
-      color: Colors.white,
-      elevation: 8,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
-          child: Row(
-            children: [
-              const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Mencetak struk…',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox.square(
+            dimension: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-        ),
+          const SizedBox(width: 10),
+          Text(
+            'Mencetak struk…',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
       ),
     );
   }

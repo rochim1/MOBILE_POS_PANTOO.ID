@@ -13,7 +13,7 @@ class PosLocalDatabase {
   static Database? _database;
   static Future<Database>? _databaseFuture;
   static const _databaseKeyName = 'pos_database_key_v1';
-  static const _schemaVersion = 20;
+  static const _schemaVersion = 21;
   static const _secureStorage = FlutterSecureStorage();
 
   PosLocalDatabase._init();
@@ -34,7 +34,12 @@ class PosLocalDatabase {
     // Jangan hanya bergantung pada bootstrap. Database juga dapat dipanggil
     // lebih awal oleh sinkronisasi, test, atau setelah hot reload desktop.
     initializePlatformDatabase();
-    final dbPath = await getDatabasesPath();
+    // The encrypted mobile database has its own SQLite factory. Using the
+    // sqflite_common global path API here can fail before its factory is
+    // registered, even though SQLCipher is available on the device.
+    final dbPath = Platform.isAndroid || Platform.isIOS
+        ? await sqlcipher.getDatabasesPath()
+        : await getDatabasesPath();
     final path = join(dbPath, filePath);
 
     if (!Platform.isAndroid && !Platform.isIOS) {
@@ -109,6 +114,7 @@ class PosLocalDatabase {
       'employees',
       'offline_transactions',
       'held_orders',
+      'read_snapshots',
     ];
     final rows = <String, List<Map<String, Object?>>>{};
     try {
@@ -185,6 +191,9 @@ class PosLocalDatabase {
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 21) {
+      await _createReadSnapshotsTable(db);
+    }
     if (oldVersion < 20) {
       await db.execute(
         "ALTER TABLE offline_transactions ADD COLUMN operation_kind TEXT NOT NULL DEFAULT 'sale'",
@@ -445,6 +454,17 @@ CREATE TABLE offline_transactions (
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_offline_transactions_client_id ON offline_transactions(instansi_id, client_transaction_id)',
     );
     await _createHeldOrdersTable(db);
+    await _createReadSnapshotsTable(db);
+  }
+
+  Future<void> _createReadSnapshotsTable(Database db) async {
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS read_snapshots (
+  scope_key TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  cached_at TEXT NOT NULL
+)
+''');
   }
 
   Future<void> _createHeldOrdersTable(Database db) async {
