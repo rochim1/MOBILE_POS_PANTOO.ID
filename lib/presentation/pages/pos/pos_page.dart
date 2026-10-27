@@ -349,6 +349,13 @@ class _PosPageViewState extends State<PosPageView> {
                                       return Column(
                                         children: [
                                           PosFullWidthTabBar(
+                                            height:
+                                                MediaQuery.sizeOf(
+                                                      context,
+                                                    ).width <
+                                                    600
+                                                ? 44
+                                                : 52,
                                             tabs: [
                                               const PosFullWidthTab(
                                                 icon: Icons.storefront_outlined,
@@ -736,7 +743,7 @@ class _PosPageViewState extends State<PosPageView> {
                         children: [
                           Flexible(
                             child: Text(
-                              state.grandTotal.toStringAsFixed(0),
+                              formatRupiahAmount(state.grandTotal),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,

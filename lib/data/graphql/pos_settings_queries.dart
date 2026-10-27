@@ -1,4 +1,16 @@
 class PosSettingsQueries {
+  static const String getProfileCatalog = '''
+    query GetPOSProfileCatalog {
+      GetPOSProfileCatalog {
+        version
+        features { key label description }
+        profiles {
+          value label description icon default_order_type preserve_features features
+          fulfillment_options { value label required_feature }
+        }
+      }
+    }
+  ''';
   static const String getSettings = '''
     query GetInventorySettings {
       GetInventorySettings {

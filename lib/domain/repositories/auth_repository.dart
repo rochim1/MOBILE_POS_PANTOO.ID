@@ -21,6 +21,20 @@ class AuthRepository {
 
   AuthRepository(this._clientProvider, this._prefs, this._secureStorage);
 
+  Future<String> googleClientId() async {
+    final result = await _clientProvider.client.query(
+      QueryOptions(
+        document: gql('query { GetGoogleRegistrationClientId }'),
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+    final id = result.data?['GetGoogleRegistrationClientId'];
+    if (result.hasException || id is! String || id.trim().isEmpty) {
+      throw StateError('Google belum tersedia pada server ini.');
+    }
+    return id.trim();
+  }
+
   Future<Either<Failure, bool>> register({
     required String name,
     required String phone,
@@ -199,6 +213,33 @@ class AuthRepository {
     String password, {
     String? captchaId,
     String? captchaAnswer,
+  }) => _login(
+    username,
+    password,
+    captchaId: captchaId,
+    captchaAnswer: captchaAnswer,
+  );
+
+  Future<Either<Failure, String>> loginWithGoogle(
+    String token, {
+    String? phone,
+    bool consent = false,
+  }) => _login(
+    '',
+    '',
+    googleIdToken: token,
+    googlePhone: phone,
+    googleConsent: consent,
+  );
+
+  Future<Either<Failure, String>> _login(
+    String username,
+    String password, {
+    String? captchaId,
+    String? captchaAnswer,
+    String? googleIdToken,
+    String? googlePhone,
+    bool googleConsent = false,
   }) async {
     try {
       final connectivity = await Connectivity().checkConnectivity();
@@ -214,12 +255,23 @@ class AuthRepository {
       }
       final MutationOptions options = MutationOptions(
         document: gql(PosQueries.login),
+        fetchPolicy: FetchPolicy.noCache,
         variables: {
           'input': {
-            'email_or_username': username,
-            'password': password,
-            if (captchaId != null) 'captcha_id': captchaId,
-            if (captchaAnswer != null) 'captcha_answer': captchaAnswer,
+            if (googleIdToken != null) ...{
+              'provider': 'google',
+              'tokenId': googleIdToken,
+              'primary_product': 'pos',
+              'registration_source': 'mobile_pos',
+              'access_via': 'mobile_pos',
+              if (googlePhone != null) 'telp_number': googlePhone,
+              'legal_consent': googleConsent,
+            } else ...{
+              'email_or_username': username,
+              'password': password,
+              if (captchaId != null) 'captcha_id': captchaId,
+              if (captchaAnswer != null) 'captcha_answer': captchaAnswer,
+            },
           },
         },
       );
@@ -241,11 +293,27 @@ class AuthRepository {
                 ?.errors),
         ];
         for (final error in errors) {
+          if (googleIdToken != null &&
+              error.extensions?['code'] ==
+                  'GOOGLE_REGISTRATION_DETAILS_REQUIRED') {
+            return const Left(GoogleRegistrationRequiredFailure());
+          }
           final captcha = LoginCaptchaFailure.fromExtensions(
             error.extensions,
             message: error.message,
           );
           if (captcha != null) return Left(captcha);
+        }
+        if (googleIdToken != null) {
+          // Do not log transport payloads from identity-token requests.
+          if (errors.isNotEmpty) {
+            return Left(ServerFailure(errors.first.message));
+          }
+          return const Left(
+            ServerFailure(
+              'Login Google belum berhasil. Periksa koneksi dan coba lagi.',
+            ),
+          );
         }
         appLogger.e('[Auth] GraphQL request failed', error: result.exception);
         if (result.exception?.linkException != null) {
@@ -374,9 +442,14 @@ class AuthRepository {
         appLogger.i('[Auth] Login success for: $name');
         return Right(name);
       }
-      appLogger.e('[Auth] No token in response data: ${result.data}');
+      appLogger.e('[Auth] Login response did not contain a session');
       return const Left(ServerFailure('Format respon tidak valid'));
     } catch (e, stackTrace) {
+      if (googleIdToken != null) {
+        return const Left(
+          ServerFailure('Login Google belum berhasil. Silakan coba lagi.'),
+        );
+      }
       appLogger.e(
         '[Auth] Unexpected login error',
         error: e,

@@ -12,6 +12,8 @@ class PosReceiptDocumentData {
   final String dateLabel;
   final String cashierName;
   final String storeName;
+  final String shiftReference;
+  final String transactionReference;
   final String customerName;
   final String paymentMethod;
   final String salesChannel;
@@ -33,6 +35,8 @@ class PosReceiptDocumentData {
     required this.dateLabel,
     this.cashierName = '',
     this.storeName = '',
+    this.shiftReference = '',
+    this.transactionReference = '',
     this.customerName = '',
     required this.paymentMethod,
     this.salesChannel = '',
@@ -129,6 +133,10 @@ class PosReceiptDocumentBuilder {
                 pw.Text('Kasir: ${data.cashierName}'),
               if (template.showToko != false && data.storeName.isNotEmpty)
                 pw.Text('Toko: ${data.storeName}'),
+              if (data.shiftReference.isNotEmpty)
+                pw.Text('Shift: ${data.shiftReference}'),
+              if (data.transactionReference.isNotEmpty)
+                pw.Text('Referensi: ${data.transactionReference}'),
               if (template.showPelanggan != false &&
                   data.customerName.isNotEmpty)
                 pw.Text('Pelanggan: ${data.customerName}'),
@@ -255,6 +263,12 @@ class PosReceiptDocumentBuilder {
     if (template.showToko != false && data.storeName.isNotEmpty) {
       add('Toko: ${data.storeName}');
     }
+    if (data.shiftReference.isNotEmpty) {
+      add('Shift: ${data.shiftReference}');
+    }
+    if (data.transactionReference.isNotEmpty) {
+      add('Referensi: ${data.transactionReference}');
+    }
     if (template.showPelanggan != false && data.customerName.isNotEmpty) {
       add('Pelanggan: ${data.customerName}');
     }
@@ -270,7 +284,8 @@ class PosReceiptDocumentBuilder {
     add('Bayar: ${data.paymentMethod.toUpperCase()}');
     lines.add('------------------------------');
     for (final item in data.items) {
-      final name = item['nama_inventaris']?.toString() ??
+      final name =
+          item['nama_inventaris']?.toString() ??
           item['name']?.toString() ??
           item['nama']?.toString() ??
           '-';
@@ -280,7 +295,9 @@ class PosReceiptDocumentBuilder {
       );
       final lineSubtotal = _number(item['subtotal']);
       add(name);
-      add('$qty x ${currency.format(price)}    ${currency.format(lineSubtotal)}');
+      add(
+        '$qty x ${currency.format(price)}    ${currency.format(lineSubtotal)}',
+      );
     }
     lines.add('------------------------------');
     add('Subtotal    ${currency.format(data.subtotal)}');

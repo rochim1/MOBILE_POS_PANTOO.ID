@@ -11,10 +11,16 @@ class LoadStocks extends PosStockEvent {
   final String? search;
   final String? stockFilter;
   final String? locationId;
-  const LoadStocks({this.search, this.stockFilter, this.locationId});
+  final int page;
+  const LoadStocks({
+    this.search,
+    this.stockFilter,
+    this.locationId,
+    this.page = 1,
+  });
 
   @override
-  List<Object?> get props => [search, stockFilter, locationId];
+  List<Object?> get props => [search, stockFilter, locationId, page];
 }
 
 class LoadStatistics extends PosStockEvent {

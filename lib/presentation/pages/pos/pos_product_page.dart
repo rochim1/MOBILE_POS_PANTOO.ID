@@ -20,6 +20,7 @@ import '../../widgets/pos_full_width_tabs.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'widgets/pos_setup_tour.dart';
+import 'widgets/pos_component_picker.dart';
 
 class PosProductPage extends StatefulWidget {
   final bool isGridView;
@@ -552,7 +553,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           DataCell(Text(entry.value.name)),
                           DataCell(Text(entry.value.category)),
                           DataCell(
-                            Text('Rp ${entry.value.price.toStringAsFixed(0)}'),
+                            Text('Rp ${formatRupiahAmount(entry.value.price)}'),
                           ),
                           if (trackStock)
                             DataCell(Text('${entry.value.stock}')),
@@ -644,7 +645,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Rp ${product.price.toStringAsFixed(0)}',
+                              'Rp ${formatRupiahAmount(product.price)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -723,7 +724,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           ),
                           const Spacer(),
                           Text(
-                            'Rp ${product.price.toStringAsFixed(0)}',
+                            'Rp ${formatRupiahAmount(product.price)}',
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w800,
@@ -954,7 +955,7 @@ class _PosProductPageState extends State<PosProductPage> {
             ),
             const SizedBox(height: 16),
             _DetailRow('SKU', product.code),
-            _DetailRow('Harga', 'Rp ${product.price.toStringAsFixed(0)}'),
+            _DetailRow('Harga', 'Rp ${formatRupiahAmount(product.price)}'),
             if (_tracksStock(context))
               _DetailRow('Stok Tersedia', '${product.stock}'),
             const SizedBox(height: 24),
@@ -1388,22 +1389,26 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     if (mounted) setState(() => _generatingIdentifiers = false);
   }
 
+  void _rememberComponents(List<PosProduct> rows) {
+    final cache = {
+      for (final item in _packageCandidates) item.id: item,
+      for (final item in rows) item.id: item,
+    };
+    if (mounted) setState(() => _packageCandidates = cache.values.toList());
+  }
+
   Future<void> _loadPackageCandidates() async {
-    final result = await widget.repository.getPackageCandidates();
-    if (!mounted) return;
-    result.fold(
-      (_) {},
-      (items) => setState(() {
-        _packageCandidates = items
-            .where(
-              (item) =>
-                  item.id != widget.product?.id &&
-                  item.productType != 'deposit' &&
-                  (item.tracksStock || item.packageComponents.isNotEmpty),
-            )
-            .toList();
-      }),
-    );
+    final ids = _componentQty.keys.toList();
+    for (var offset = 0; offset < ids.length; offset += 20) {
+      final result = await widget.repository.getPackageCandidates(
+        ids: ids.skip(offset).take(20).toList(),
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) => AppToast.error(context, failure.message),
+        (page) => _rememberComponents(page.items),
+      );
+    }
   }
 
   Future<void> _loadUnitOptions() async {
@@ -1512,110 +1517,23 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   }
 
   Future<void> _choosePackageComponents() async {
-    final selected = Set<String>.from(_componentQty.keys);
-    var query = '';
-    Widget pickerContent(
-      BuildContext pickerContext,
-      StateSetter update, {
-      required bool mobile,
-    }) {
-      final keyboardInset = mobile
-          ? MediaQuery.viewInsetsOf(pickerContext).bottom
-          : 0.0;
-      final candidates = _packageCandidates.where((product) {
-        if (query.isEmpty) return true;
-        return '${product.name} ${product.code} ${product.sku} ${product.barcode}'
-            .toLowerCase()
-            .contains(query);
-      }).toList();
-      return Padding(
-        padding: EdgeInsets.only(bottom: keyboardInset),
-        child: Column(
-          children: [
-            if (mobile)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Pilih komponen paket',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Tutup',
-                      onPressed: () => Navigator.pop(pickerContext),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-            TextField(
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Cari bahan atau komponen',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) =>
-                  update(() => query = value.trim().toLowerCase()),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: candidates.isEmpty
-                  ? const Center(child: Text('Komponen stok tidak ditemukan.'))
-                  : ListView.builder(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      itemCount: candidates.length,
-                      itemBuilder: (_, index) {
-                        final product = candidates[index];
-                        return CheckboxListTile(
-                          value: selected.contains(product.id),
-                          title: Text(product.name),
-                          subtitle: Text(
-                            '${product.code} • ${product.saleUnit}',
-                          ),
-                          onChanged: (checked) => update(() {
-                            if (checked == true) {
-                              selected.add(product.id);
-                            } else {
-                              selected.remove(product.id);
-                            }
-                          }),
-                        );
-                      },
-                    ),
-            ),
-            if (mobile)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(pickerContext),
-                      child: const Text('Batal'),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(pickerContext, selected),
-                      child: const Text('Terapkan'),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      );
-    }
-
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
-    final result = isMobile
+    Widget picker() => PosComponentPicker(
+      selected: Set.from(_componentQty.keys),
+      onRecords: _rememberComponents,
+      loader: (search, page) async {
+        final result = await widget.repository.getPackageCandidates(
+          search: search,
+          page: page,
+          excludeId: widget.product?.id,
+        );
+        return result.fold(
+          (failure) => throw Exception(failure.message),
+          (data) => data,
+        );
+      },
+    );
+    final mobile = MediaQuery.sizeOf(context).width < 600;
+    final result = mobile
         ? await showModalBottomSheet<Set<String>>(
             context: context,
             isScrollControlled: true,
@@ -1623,33 +1541,20 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             showDragHandle: true,
             builder: (_) => PosKeyboardStableSheet(
               heightFactor: .92,
-              child: StatefulBuilder(
-                builder: (pickerContext, update) => Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: pickerContent(pickerContext, update, mobile: true),
-                ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: picker(),
               ),
             ),
           )
         : await showDialog<Set<String>>(
             context: context,
-            builder: (dialogContext) => StatefulBuilder(
-              builder: (pickerContext, update) => PosKeyboardStableFormDialog(
-                width: 520,
-                height: 570,
-                title: const Text('Pilih komponen paket'),
-                content: pickerContent(pickerContext, update, mobile: false),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Batal'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(dialogContext, selected),
-                    child: const Text('Terapkan'),
-                  ),
-                ],
-              ),
+            builder: (_) => PosKeyboardStableFormDialog(
+              width: 520,
+              height: 570,
+              title: const Text('Pilih komponen paket'),
+              content: picker(),
+              actions: const [],
             ),
           );
     if (result == null || !mounted) return;

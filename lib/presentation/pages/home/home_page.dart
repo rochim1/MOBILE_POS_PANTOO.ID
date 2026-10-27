@@ -95,6 +95,7 @@ class _HomePageState extends State<HomePage> {
     'restoran' => {'summary', 'sales', 'payments', 'orders', 'shift'},
     'laundry' ||
     'bengkel' ||
+    'salon' ||
     'jasa' => {'summary', 'sales', 'payments', 'orders', 'shift'},
     _ => _widgetLabels.keys.toSet(),
   };
@@ -877,7 +878,7 @@ class _HomePageState extends State<HomePage> {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 50,
+                            reservedSize: 92,
                             getTitlesWidget: (value, meta) {
                               return Text(
                                 _formatCompact(value),
@@ -1240,23 +1241,9 @@ class _HomePageState extends State<HomePage> {
 
   // ─── Helpers ───────────────────────────────────────────────────────────
 
-  String _formatCurrency(double value) {
-    if (value >= 1000000) {
-      return 'Rp ${(value / 1000000).toStringAsFixed(1)}jt';
-    } else if (value >= 1000) {
-      return 'Rp ${(value / 1000).toStringAsFixed(0)}rb';
-    }
-    return 'Rp ${value.toStringAsFixed(0)}';
-  }
+  String _formatCurrency(double value) => 'Rp ${formatRupiahAmount(value)}';
 
-  String _formatCompact(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}jt';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}rb';
-    }
-    return value.toStringAsFixed(0);
-  }
+  String _formatCompact(double value) => formatRupiahAmount(value);
 
   double _getMaxRevenue(List<Map<String, dynamic>> dailySales) {
     if (dailySales.isEmpty) return 100;

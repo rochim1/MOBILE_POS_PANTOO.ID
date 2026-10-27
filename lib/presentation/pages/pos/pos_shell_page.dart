@@ -29,9 +29,10 @@ import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_setup_tour.dart';
-import 'widgets/pos_drawer.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
+import 'utils/pos_mobile_navigation_policy.dart';
 import '../home/home_page.dart';
+import '../login/login_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
@@ -63,6 +64,8 @@ class PosShellPage extends StatefulWidget {
 class _PosShellPageState extends State<PosShellPage>
     with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  // Asal halaman sekunder untuk tombol kembali di mobile.
+  int _secondaryOriginIndex = 4;
   int _tableOrdersRefresh = 0;
   // 0 = expanded, 1 = icons only, 2 = completely hidden.
   int _sidebarMode = 1;
@@ -383,6 +386,7 @@ class _PosShellPageState extends State<PosShellPage>
               .where((store) => store.status.toLowerCase() == 'active')
               .toList(growable: false);
           if (activeStores.isEmpty) {
+            _secondaryOriginIndex = 0;
             _selectedIndex = 10;
           } else if (state.activeShift == null &&
               (state.dashboardData?['_offline_snapshot'] == true ||
@@ -393,6 +397,7 @@ class _PosShellPageState extends State<PosShellPage>
           } else if (state.activeShift == null &&
               state.runtimeConfig['allow_out_of_shift'] != true) {
             _returnToCashierAfterShiftOpen = true;
+            _secondaryOriginIndex = 0;
             _selectedIndex = 11;
           } else {
             _selectedIndex = 1;
@@ -533,13 +538,17 @@ class _PosShellPageState extends State<PosShellPage>
       offlineUnresolved: _offlineUnresolved,
       onNavigate: (index) {
         if (!mounted || index < 0 || index >= _destinations.length) return;
-        setState(() => _selectedIndex = index);
+        setState(() {
+          if (index >= 5) _secondaryOriginIndex = 0;
+          _selectedIndex = index;
+        });
       },
     ),
     PosPage(
       tourTargets: _cashierTourTargets,
       onOpenTableOrders: () => setState(() {
         _tableOrdersRefresh++;
+        _secondaryOriginIndex = 1;
         _selectedIndex = 5;
       }),
     ),
@@ -550,12 +559,7 @@ class _PosShellPageState extends State<PosShellPage>
       tourController: _productTourController,
     ),
     PosOrderPage(isGridView: _historyGridView),
-    PosMoreMenuPage(
-      onNavigate: (index) {
-        if (!mounted || index < 0 || index >= _destinations.length) return;
-        setState(() => _selectedIndex = index);
-      },
-    ),
+    PosMoreMenuPage(onNavigate: _openMoreDestination, onLogout: _confirmLogout),
     PosOrderTableHubPage(
       key: ValueKey('table-orders-$_tableOrdersRefresh'),
       isGridView: _useOrderTableGridView,
@@ -627,6 +631,129 @@ class _PosShellPageState extends State<PosShellPage>
     const PosKitchenDisplayPage(),
   ];
 
+  void _openMoreDestination(int index) {
+    if (!mounted || index < 0 || index >= _destinations.length) return;
+    final visible = PosMoreMenuPage.visibleSections(
+      _posBloc.state.runtimeConfig,
+    ).values.any((items) => items.contains(index));
+    if (!visible) return;
+    setState(() {
+      _secondaryOriginIndex = 4;
+      _selectedIndex = index;
+    });
+  }
+
+  void _backWithinMobileShell() {
+    final destination = mobilePosBackDestination(
+      _selectedIndex,
+      _secondaryOriginIndex,
+    );
+    if (destination == null) return;
+    setState(() => _selectedIndex = destination);
+  }
+
+  Future<int?> _unresolvedQueueForLogout() async {
+    try {
+      final summary = await sl<SyncService>().getQueueSummary().timeout(
+        const Duration(seconds: 3),
+      );
+      return (summary['unresolved'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      // Pemeriksaan gagal: jangan mengklaim tidak ada transaksi tertunda.
+      return null;
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    final queueCheck = _unresolvedQueueForLogout();
+    var loggingOut = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => FutureBuilder<int?>(
+          future: queueCheck,
+          builder: (dialogContext, snapshot) {
+            final checking = snapshot.connectionState != ConnectionState.done;
+            final unresolved = snapshot.data;
+            return AlertDialog(
+              title: const Text('Konfirmasi Keluar'),
+              content: checking
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 12),
+                        Flexible(child: Text('Memeriksa antrean offline...')),
+                      ],
+                    )
+                  : Text(
+                      unresolved == null
+                          ? 'Antrean transaksi offline tidak dapat diperiksa. Data yang tersimpan di perangkat akan disinkronkan setelah akun ini login kembali. Yakin ingin keluar?'
+                          : unresolved > 0
+                          ? '$unresolved transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi sinkronisasi tertunda sampai akun instansi ini login kembali.'
+                          : 'Apakah Anda yakin ingin keluar dari aplikasi?',
+                    ),
+              actions: [
+                TextButton(
+                  onPressed: loggingOut
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text('Batal'),
+                ),
+                FilledButton(
+                  onPressed: checking || loggingOut
+                      ? null
+                      : () async {
+                          setDialogState(() => loggingOut = true);
+                          try {
+                            await context.read<AuthCubit>().logout();
+                          } catch (_) {
+                            if (!dialogContext.mounted) return;
+                            setDialogState(() => loggingOut = false);
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Gagal keluar dengan aman. Coba lagi.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          if (!mounted) return;
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                  ),
+                  child: loggingOut
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Keluar'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   void _openSetupGuide(BuildContext blocContext) {
     blocContext.read<PosBloc>().add(LoadPosData());
     setState(() => _showSetupGuide = true);
@@ -635,6 +762,11 @@ class _PosShellPageState extends State<PosShellPage>
   void _navigateSetupTarget(int index, [String? section]) {
     if (index < 0 || index >= _destinations.length) return;
     setState(() {
+      if (index >= 5) {
+        _secondaryOriginIndex = _selectedIndex >= 5
+            ? _secondaryOriginIndex
+            : _selectedIndex;
+      }
       if (index == 7 && section != null) {
         _inventoryInitialSection = section;
       }
@@ -863,7 +995,14 @@ class _PosShellPageState extends State<PosShellPage>
     if (!canOpenPosKeyboardDestination(_posBloc.state.runtimeConfig, index)) {
       return;
     }
-    setState(() => _selectedIndex = index);
+    setState(() {
+      if (index >= 5) {
+        _secondaryOriginIndex = _selectedIndex >= 5
+            ? _secondaryOriginIndex
+            : _selectedIndex;
+      }
+      _selectedIndex = index;
+    });
   }
 
   void _showKeyboardHelp() {
@@ -934,672 +1073,687 @@ class _PosShellPageState extends State<PosShellPage>
     final isMobile = width < 900;
     final isSmallScreen = width < 600;
 
-    return BlocProvider.value(
-      value: _posBloc,
-      child: Builder(
-        builder: (_) {
-          return BlocListener<AppLockCubit, AppLockState>(
-            listenWhen: (previous, current) =>
-                previous.status != current.status,
-            listener: (context, state) {
-              if (state.status == AppLockStatus.unlocked) {
-                final setupCompleted =
-                    PosOnboardingPage.isOperationalSetupCompleted(
-                      sl<SharedPreferences>(),
-                    );
-                if (!setupCompleted) {
-                  setState(() {
-                    _setupCompleted = false;
-                    _showSetupGuide = true;
-                  });
+    return PopScope(
+      canPop:
+          !isMobile ||
+          mobilePosBackDestination(_selectedIndex, _secondaryOriginIndex) ==
+              null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && isMobile) _backWithinMobileShell();
+      },
+      child: BlocProvider.value(
+        value: _posBloc,
+        child: Builder(
+          builder: (_) {
+            return BlocListener<AppLockCubit, AppLockState>(
+              listenWhen: (previous, current) =>
+                  previous.status != current.status,
+              listener: (context, state) {
+                if (state.status == AppLockStatus.unlocked) {
+                  final setupCompleted =
+                      PosOnboardingPage.isOperationalSetupCompleted(
+                        sl<SharedPreferences>(),
+                      );
+                  if (!setupCompleted) {
+                    setState(() {
+                      _setupCompleted = false;
+                      _showSetupGuide = true;
+                    });
+                  }
+                  _loadPOSAfterUnlock(context);
+                  _loadNavbarNotifications();
+                } else {
+                  _posDataRequested = false;
+                  if (_showUnlockLoading) {
+                    setState(() => _showUnlockLoading = false);
+                  }
                 }
-                _loadPOSAfterUnlock(context);
-                _loadNavbarNotifications();
-              } else {
-                _posDataRequested = false;
-                if (_showUnlockLoading) {
-                  setState(() => _showUnlockLoading = false);
-                }
-              }
-            },
-            child: BlocListener<PosBloc, PosState>(
-              listener: (context, state) => _finishUnlockLoading(state),
-              child: Stack(
-                children: [
-                  Scaffold(
-                    resizeToAvoidBottomInset: false,
-                    backgroundColor: const Color(0xFFF7F8FA),
-                    appBar: AppBar(
-                      elevation: 0,
-                      backgroundColor: AppColors.primary,
-                      toolbarHeight: isSmallScreen ? 48 : 64,
-                      // Match the collapsed sidebar rail (72 px) so the menu
-                      // icon is centered above its icons and the avatar has
-                      // the same inset from the content edge.
-                      leadingWidth: isMobile ? (isSmallScreen ? 44 : 56) : 72,
-                      iconTheme: IconThemeData(
-                        color: Colors.white,
-                        size: isSmallScreen ? 20 : 24,
-                      ),
-                      actionsIconTheme: IconThemeData(
-                        color: Colors.white,
-                        size: isSmallScreen ? 20 : 24,
-                      ),
-                      titleSpacing: 0,
-                      leading: isMobile
-                          ? Builder(
-                              builder: (context) => IconButton(
-                                tooltip: 'Buka menu',
-                                style: isSmallScreen
-                                    ? IconButton.styleFrom(
-                                        fixedSize: const Size.square(40),
-                                        padding: EdgeInsets.zero,
-                                      )
-                                    : null,
-                                icon: const Icon(
-                                  Icons.menu,
-                                  color: Colors.white,
+              },
+              child: BlocListener<PosBloc, PosState>(
+                listener: (context, state) => _finishUnlockLoading(state),
+                child: Stack(
+                  children: [
+                    Scaffold(
+                      resizeToAvoidBottomInset: false,
+                      backgroundColor: const Color(0xFFF7F8FA),
+                      appBar: AppBar(
+                        elevation: 0,
+                        backgroundColor: AppColors.primary,
+                        toolbarHeight: isSmallScreen ? 48 : 64,
+                        // Di mobile navigasi sekunder berada di tab Lainnya.
+                        // Tombol sidebar hanya dipertahankan pada layar lebar.
+                        leadingWidth: isMobile
+                            ? (_selectedIndex >= 5 ? 44 : 0)
+                            : 72,
+                        automaticallyImplyLeading: false,
+                        iconTheme: IconThemeData(
+                          color: Colors.white,
+                          size: isSmallScreen ? 20 : 24,
+                        ),
+                        actionsIconTheme: IconThemeData(
+                          color: Colors.white,
+                          size: isSmallScreen ? 20 : 24,
+                        ),
+                        titleSpacing: 0,
+                        leading: isMobile
+                            ? (_selectedIndex >= 5
+                                  ? IconButton(
+                                      tooltip: 'Kembali',
+                                      icon: const Icon(Icons.arrow_back),
+                                      onPressed: _backWithinMobileShell,
+                                    )
+                                  : null)
+                            : IconButton(
+                                tooltip: switch (_sidebarMode) {
+                                  0 => 'Ringkas sidebar',
+                                  1 => 'Sembunyikan sidebar',
+                                  _ => 'Tampilkan sidebar',
+                                },
+                                icon: Icon(switch (_sidebarMode) {
+                                  0 => Icons.menu_open,
+                                  1 => Icons.menu,
+                                  _ => Icons.keyboard_double_arrow_right,
+                                }, color: Colors.white),
+                                onPressed: () {
+                                  setState(
+                                    () => _sidebarMode = (_sidebarMode + 1) % 3,
+                                  );
+                                },
+                              ),
+                        title: BlocBuilder<AppLockCubit, AppLockState>(
+                          builder: (context, lockState) {
+                            return BlocBuilder<PosBloc, PosState>(
+                              builder: (context, state) {
+                                final activeStoreId = state
+                                    .activeShift?['toko_id']
+                                    ?.toString();
+                                final matchingStores = state.stores.where(
+                                  (store) => store.id == activeStoreId,
+                                );
+                                final storeName =
+                                    state.activeShift?['toko']?['nama_toko']
+                                        ?.toString() ??
+                                    (matchingStores.isNotEmpty
+                                        ? matchingStores.first.name
+                                        : (state.stores.length == 1
+                                              ? state.stores.first.name
+                                              : 'Belum ada toko aktif'));
+
+                                final activeEmployeeName =
+                                    lockState.activeEmployeeName;
+                                final activeEmployee = lockState.employees
+                                    .where(
+                                      (employee) =>
+                                          employee['_id']?.toString() ==
+                                          lockState.activeEmployeeId,
+                                    )
+                                    .firstOrNull;
+                                final username =
+                                    activeEmployeeName ??
+                                    context.watch<AuthCubit>().state.username ??
+                                    'Pengguna';
+
+                                return Row(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        left: isMobile ? 14 : 0,
+                                      ),
+                                      child: PosEmployeeAvatar(
+                                        employee: activeEmployee,
+                                        radius: isSmallScreen ? 15 : 20,
+                                        fallbackColor: AppColors.warningBorder,
+                                      ),
+                                    ),
+                                    SizedBox(width: isMobile ? 4 : 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            isMobile
+                                                ? storeName.toString()
+                                                : _selectedIndex == 5 &&
+                                                      (_posBloc
+                                                                  .state
+                                                                  .runtimeConfig['features']
+                                                              as Map?)?['use_tables'] !=
+                                                          true
+                                                ? 'Pesanan Aktif'
+                                                : _destinations[_selectedIndex]
+                                                      .label,
+                                            style:
+                                                const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ).copyWith(
+                                                  fontSize: isSmallScreen
+                                                      ? 14
+                                                      : 18,
+                                                ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxWidth: isSmallScreen
+                                                    ? 132
+                                                    : 320,
+                                              ),
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: isSmallScreen
+                                                      ? 5
+                                                      : 6,
+                                                  vertical: isSmallScreen
+                                                      ? 1
+                                                      : 3,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      width: 6,
+                                                      height: 6,
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                            color: AppColors
+                                                                .success,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Flexible(
+                                                      child: Text(
+                                                        isMobile
+                                                            ? username
+                                                            : '$storeName • $username',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          color: Colors.black87,
+                                                          fontSize:
+                                                              isSmallScreen
+                                                              ? 9
+                                                              : 11,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        actions: [
+                          if (width >= 1200)
+                            IconButton(
+                              tooltip: 'Shortcut keyboard (F1)',
+                              icon: const Icon(
+                                Icons.keyboard_alt_outlined,
+                                color: Colors.white,
+                              ),
+                              onPressed: _showKeyboardHelp,
+                            ),
+                          if (!isSmallScreen)
+                            ValueListenableBuilder<PosCustomerDisplayState>(
+                              valueListenable:
+                                  sl<PosCustomerDisplayService>().state,
+                              builder: (context, displayState, _) => IconButton(
+                                tooltip:
+                                    displayState.connection ==
+                                        PosCustomerDisplayConnection.connected
+                                    ? 'Layar pelanggan terhubung'
+                                    : 'Hubungkan layar pelanggan',
+                                icon: Badge(
+                                  isLabelVisible:
+                                      displayState.connection ==
+                                      PosCustomerDisplayConnection.connected,
+                                  smallSize: 8,
+                                  backgroundColor: AppColors.success,
+                                  child: const Icon(
+                                    Icons.connected_tv_outlined,
+                                    color: Colors.white,
+                                  ),
                                 ),
                                 onPressed: () =>
-                                    Scaffold.of(context).openDrawer(),
+                                    showPosCustomerDisplayPairing(context),
                               ),
+                            ),
+                          if (!isSmallScreen)
+                            Builder(
+                              builder: (posBlocContext) => IconButton(
+                                tooltip: 'Checklist kesiapan POS',
+                                icon: Icon(
+                                  _showSetupGuide
+                                      ? Icons.checklist_rounded
+                                      : Icons.fact_check_outlined,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () {
+                                  if (_showSetupGuide) {
+                                    setState(() => _showSetupGuide = false);
+                                  } else {
+                                    _openSetupGuide(posBlocContext);
+                                  }
+                                },
+                              ),
+                            ),
+                          SizedBox(
+                            width: isSmallScreen ? 40 : 48,
+                            child: _notificationButton(compact: isSmallScreen),
+                          ),
+                          if (!isSmallScreen)
+                            IconButton(
+                              tooltip: 'Kunci POS',
+                              icon: const Icon(
+                                Icons.lock_outline,
+                                color: Colors.white,
+                              ),
+                              onPressed: () =>
+                                  context.read<AppLockCubit>().lock(),
                             )
-                          : IconButton(
-                              tooltip: switch (_sidebarMode) {
-                                0 => 'Ringkas sidebar',
-                                1 => 'Sembunyikan sidebar',
-                                _ => 'Tampilkan sidebar',
-                              },
-                              icon: Icon(switch (_sidebarMode) {
-                                0 => Icons.menu_open,
-                                1 => Icons.menu,
-                                _ => Icons.keyboard_double_arrow_right,
-                              }, color: Colors.white),
-                              onPressed: () {
-                                setState(
-                                  () => _sidebarMode = (_sidebarMode + 1) % 3,
+                          else
+                            Builder(
+                              builder: (menuContext) => SizedBox(
+                                width: 40,
+                                child: PopupMenuButton<String>(
+                                  tooltip: 'Aksi lainnya',
+                                  padding: EdgeInsets.zero,
+                                  iconSize: 20,
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: Colors.white,
+                                  ),
+                                  onSelected: (value) {
+                                    if (value == 'setup') {
+                                      if (_showSetupGuide) {
+                                        setState(() => _showSetupGuide = false);
+                                      } else {
+                                        _openSetupGuide(menuContext);
+                                      }
+                                    } else if (value == 'lock') {
+                                      menuContext.read<AppLockCubit>().lock();
+                                    } else if (value == 'customer_display') {
+                                      showPosCustomerDisplayPairing(
+                                        menuContext,
+                                      );
+                                    } else if (value == 'keyboard_help') {
+                                      _showKeyboardHelp();
+                                    }
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'keyboard_help',
+                                      child: ListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        leading: Icon(
+                                          Icons.keyboard_alt_outlined,
+                                        ),
+                                        title: Text('Shortcut keyboard'),
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'setup',
+                                      child: ListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        leading: Icon(
+                                          Icons.fact_check_outlined,
+                                        ),
+                                        title: Text('Checklist kesiapan'),
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'customer_display',
+                                      child: ListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        leading: Icon(
+                                          Icons.connected_tv_outlined,
+                                        ),
+                                        title: Text('Layar pelanggan'),
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'lock',
+                                      child: ListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        leading: Icon(Icons.lock_outline),
+                                        title: Text('Kunci POS'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (_selectedIndex == 1) ...[
+                            BlocBuilder<PosBloc, PosState>(
+                              builder: (context, state) {
+                                return IconButton(
+                                  style: isSmallScreen
+                                      ? IconButton.styleFrom(
+                                          fixedSize: const Size.square(40),
+                                          padding: EdgeInsets.zero,
+                                        )
+                                      : null,
+                                  icon: Icon(
+                                    state.isGridView
+                                        ? Icons.list
+                                        : Icons.grid_view,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    context.read<PosBloc>().add(
+                                      ToggleGridView(),
+                                    );
+                                  },
                                 );
                               },
                             ),
-                      title: BlocBuilder<AppLockCubit, AppLockState>(
-                        builder: (context, lockState) {
-                          return BlocBuilder<PosBloc, PosState>(
-                            builder: (context, state) {
-                              final activeStoreId = state
-                                  .activeShift?['toko_id']
-                                  ?.toString();
-                              final matchingStores = state.stores.where(
-                                (store) => store.id == activeStoreId,
-                              );
-                              final storeName =
-                                  state.activeShift?['toko']?['nama_toko']
-                                      ?.toString() ??
-                                  (matchingStores.isNotEmpty
-                                      ? matchingStores.first.name
-                                      : (state.stores.length == 1
-                                            ? state.stores.first.name
-                                            : 'Belum ada toko aktif'));
-
-                              final activeEmployeeName =
-                                  lockState.activeEmployeeName;
-                              final activeEmployee = lockState.employees
-                                  .where(
-                                    (employee) =>
-                                        employee['_id']?.toString() ==
-                                        lockState.activeEmployeeId,
-                                  )
-                                  .firstOrNull;
-                              final username =
-                                  activeEmployeeName ??
-                                  context.watch<AuthCubit>().state.username ??
-                                  'Pengguna';
-
-                              return Row(
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: isMobile ? 8 : 0,
-                                    ),
-                                    child: PosEmployeeAvatar(
-                                      employee: activeEmployee,
-                                      radius: isSmallScreen ? 15 : 20,
-                                      fallbackColor: AppColors.warningBorder,
+                            if (!isSmallScreen)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10.0,
+                                  horizontal: 8.0,
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedIndex =
+                                          3; // Index for Transaksi (PosOrderPage)
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors
+                                        .teal
+                                        .shade600, // A darker green for the button
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
                                   ),
-                                  SizedBox(width: isMobile ? 4 : 12),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Daftar Order'),
+                                      SizedBox(width: 4),
+                                      Icon(Icons.chevron_right, size: 16),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                          if (_selectedIndex == 2)
+                            IconButton(
+                              style: isSmallScreen
+                                  ? IconButton.styleFrom(
+                                      fixedSize: const Size.square(40),
+                                      padding: EdgeInsets.zero,
+                                    )
+                                  : null,
+                              tooltip: _productGridView
+                                  ? 'Tampilkan sebagai tabel'
+                                  : 'Tampilkan sebagai grid',
+                              icon: Icon(
+                                _productGridView
+                                    ? Icons.table_rows
+                                    : Icons.grid_view,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                setState(
+                                  () => _productGridView = !_productGridView,
+                                );
+                              },
+                            ),
+                          if (_selectedIndex == 7)
+                            IconButton(
+                              style: isSmallScreen
+                                  ? IconButton.styleFrom(
+                                      fixedSize: const Size.square(40),
+                                      padding: EdgeInsets.zero,
+                                    )
+                                  : null,
+                              tooltip: _stockGridView
+                                  ? 'Tampilkan sebagai tabel'
+                                  : 'Tampilkan sebagai grid',
+                              icon: Icon(
+                                _stockGridView
+                                    ? Icons.table_rows
+                                    : Icons.grid_view,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                setState(
+                                  () => _stockGridView = !_stockGridView,
+                                );
+                              },
+                            ),
+                          if (_selectedIndex == 3)
+                            IconButton(
+                              style: isSmallScreen
+                                  ? IconButton.styleFrom(
+                                      fixedSize: const Size.square(40),
+                                      padding: EdgeInsets.zero,
+                                    )
+                                  : null,
+                              tooltip: _historyGridView
+                                  ? 'Tampilkan sebagai tabel'
+                                  : 'Tampilkan sebagai kartu',
+                              icon: Icon(
+                                _historyGridView
+                                    ? Icons.table_rows
+                                    : Icons.view_agenda,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                setState(
+                                  () => _historyGridView = !_historyGridView,
+                                );
+                              },
+                            ),
+                          if (_selectedIndex == 5 || _selectedIndex == 6)
+                            IconButton(
+                              style: isSmallScreen
+                                  ? IconButton.styleFrom(
+                                      fixedSize: const Size.square(40),
+                                      padding: EdgeInsets.zero,
+                                    )
+                                  : null,
+                              tooltip: _useOrderTableGridView
+                                  ? 'Tampilkan sebagai list'
+                                  : 'Tampilkan sebagai grid',
+                              icon: Icon(
+                                _useOrderTableGridView
+                                    ? Icons.view_list_rounded
+                                    : Icons.grid_view_rounded,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                setState(
+                                  () => _orderTableGridView =
+                                      !_useOrderTableGridView,
+                                );
+                              },
+                            ),
+                          SizedBox(width: isSmallScreen ? 2 : 8),
+                        ],
+                      ),
+                      body: SafeArea(
+                        child: isMobile
+                            ? Theme(
+                                data: Theme.of(context).copyWith(
+                                  visualDensity: const VisualDensity(
+                                    horizontal: -2,
+                                    vertical: -2,
+                                  ),
+                                ),
+                                child: _withKeyboardNavigation(
+                                  _buildShellBody(isMobile),
+                                ),
+                              )
+                            : _withKeyboardNavigation(
+                                _buildShellBody(isMobile),
+                              ),
+                      ),
+                      floatingActionButton:
+                          isMobile &&
+                              MediaQuery.of(context).viewInsets.bottom == 0
+                          ? FloatingActionButton.small(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: const CircleBorder(),
+                              elevation: 2,
+                              tooltip: 'Buka kasir',
+                              onPressed: () {
+                                setState(() {
+                                  _selectedIndex = 1;
+                                });
+                              },
+                              child: const Icon(Icons.point_of_sale, size: 20),
+                            )
+                          : null,
+                      floatingActionButtonLocation:
+                          FloatingActionButtonLocation.centerDocked,
+                      bottomNavigationBar: isMobile
+                          ? BottomAppBar(
+                              shape: const CircularNotchedRectangle(),
+                              notchMargin: 4.0,
+                              color: Colors.white,
+                              padding: EdgeInsets.zero,
+                              height: 50,
+                              child: Row(
+                                children: <Widget>[
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                    child: Row(
                                       children: [
-                                        Text(
-                                          isMobile
-                                              ? storeName.toString()
-                                              : _destinations[_selectedIndex]
-                                                    .label,
-                                          style:
-                                              const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ).copyWith(
-                                                fontSize: isSmallScreen
-                                                    ? 14
-                                                    : 18,
-                                              ),
-                                          overflow: TextOverflow.ellipsis,
+                                        Expanded(
+                                          child: _buildBottomNavItem(
+                                            icon: Icons.home_outlined,
+                                            selectedIcon: Icons.home,
+                                            label: 'Beranda',
+                                            index: 0,
+                                          ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: ConstrainedBox(
-                                            constraints: BoxConstraints(
-                                              maxWidth: isSmallScreen
-                                                  ? 132
-                                                  : 320,
-                                            ),
-                                            child: Container(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: isSmallScreen
-                                                    ? 5
-                                                    : 6,
-                                                vertical: isSmallScreen ? 1 : 3,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Container(
-                                                    width: 6,
-                                                    height: 6,
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                          color:
-                                                              AppColors.success,
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Flexible(
-                                                    child: Text(
-                                                      isMobile
-                                                          ? username
-                                                          : '$storeName • $username',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        color: Colors.black87,
-                                                        fontSize: isSmallScreen
-                                                            ? 9
-                                                            : 11,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                                        Expanded(
+                                          child: _buildBottomNavItem(
+                                            icon: Icons.inventory_2_outlined,
+                                            selectedIcon: Icons.inventory_2,
+                                            label: 'Katalog',
+                                            index: 2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 56),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildBottomNavItem(
+                                            icon: Icons.receipt_long_outlined,
+                                            selectedIcon: Icons.receipt_long,
+                                            label: 'Transaksi',
+                                            index: 3,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: _buildBottomNavItem(
+                                            icon: Icons.menu_outlined,
+                                            selectedIcon: Icons.menu,
+                                            label: 'Lainnya',
+                                            index: 4,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
                                 ],
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      actions: [
-                        if (width >= 1200)
-                          IconButton(
-                            tooltip: 'Shortcut keyboard (F1)',
-                            icon: const Icon(
-                              Icons.keyboard_alt_outlined,
-                              color: Colors.white,
-                            ),
-                            onPressed: _showKeyboardHelp,
-                          ),
-                        if (!isSmallScreen)
-                          ValueListenableBuilder<PosCustomerDisplayState>(
-                            valueListenable:
-                                sl<PosCustomerDisplayService>().state,
-                            builder: (context, displayState, _) => IconButton(
-                              tooltip:
-                                  displayState.connection ==
-                                      PosCustomerDisplayConnection.connected
-                                  ? 'Layar pelanggan terhubung'
-                                  : 'Hubungkan layar pelanggan',
-                              icon: Badge(
-                                isLabelVisible:
-                                    displayState.connection ==
-                                    PosCustomerDisplayConnection.connected,
-                                smallSize: 8,
-                                backgroundColor: AppColors.success,
-                                child: const Icon(
-                                  Icons.connected_tv_outlined,
-                                  color: Colors.white,
-                                ),
                               ),
-                              onPressed: () =>
-                                  showPosCustomerDisplayPairing(context),
-                            ),
-                          ),
-                        if (!isSmallScreen)
-                          Builder(
-                            builder: (posBlocContext) => IconButton(
-                              tooltip: 'Checklist kesiapan POS',
-                              icon: Icon(
-                                _showSetupGuide
-                                    ? Icons.checklist_rounded
-                                    : Icons.fact_check_outlined,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                if (_showSetupGuide) {
-                                  setState(() => _showSetupGuide = false);
-                                } else {
-                                  _openSetupGuide(posBlocContext);
-                                }
-                              },
-                            ),
-                          ),
-                        SizedBox(
-                          width: isSmallScreen ? 40 : 48,
-                          child: _notificationButton(compact: isSmallScreen),
-                        ),
-                        if (!isSmallScreen)
-                          IconButton(
-                            tooltip: 'Kunci POS',
-                            icon: const Icon(
-                              Icons.lock_outline,
-                              color: Colors.white,
-                            ),
-                            onPressed: () =>
-                                context.read<AppLockCubit>().lock(),
-                          )
-                        else
-                          Builder(
-                            builder: (menuContext) => SizedBox(
-                              width: 40,
-                              child: PopupMenuButton<String>(
-                                tooltip: 'Aksi lainnya',
-                                padding: EdgeInsets.zero,
-                                iconSize: 20,
-                                icon: const Icon(
-                                  Icons.more_vert,
-                                  color: Colors.white,
-                                ),
-                                onSelected: (value) {
-                                  if (value == 'setup') {
-                                    if (_showSetupGuide) {
-                                      setState(() => _showSetupGuide = false);
-                                    } else {
-                                      _openSetupGuide(menuContext);
-                                    }
-                                  } else if (value == 'lock') {
-                                    menuContext.read<AppLockCubit>().lock();
-                                  } else if (value == 'customer_display') {
-                                    showPosCustomerDisplayPairing(menuContext);
-                                  } else if (value == 'keyboard_help') {
-                                    _showKeyboardHelp();
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'keyboard_help',
-                                    child: ListTile(
-                                      dense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Icon(
-                                        Icons.keyboard_alt_outlined,
+                            )
+                          : null,
+                    ),
+                    if (_showUnlockLoading)
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: Colors.white,
+                          child: SafeArea(
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 112,
+                                    height: 112,
+                                    child: ClipRect(
+                                      child: Image.asset(
+                                        'assets/images/pantoo_loading.gif',
+                                        fit: BoxFit.contain,
+                                        gaplessPlayback: true,
                                       ),
-                                      title: Text('Shortcut keyboard'),
                                     ),
                                   ),
-                                  PopupMenuItem(
-                                    value: 'setup',
-                                    child: ListTile(
-                                      dense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Icon(Icons.fact_check_outlined),
-                                      title: Text('Checklist kesiapan'),
+                                  const SizedBox(height: 14),
+                                  const Text(
+                                    'Mempersiapkan dashboard...',
+                                    textScaler: TextScaler.noScaling,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                      decoration: TextDecoration.none,
                                     ),
                                   ),
-                                  PopupMenuItem(
-                                    value: 'customer_display',
-                                    child: ListTile(
-                                      dense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Icon(
-                                        Icons.connected_tv_outlined,
-                                      ),
-                                      title: Text('Layar pelanggan'),
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'lock',
-                                    child: ListTile(
-                                      dense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Icon(Icons.lock_outline),
-                                      title: Text('Kunci POS'),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Mohon tunggu sebentar',
+                                    textScaler: TextScaler.noScaling,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                      color: Colors.black54,
+                                      decoration: TextDecoration.none,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                        if (_selectedIndex == 1) ...[
-                          BlocBuilder<PosBloc, PosState>(
-                            builder: (context, state) {
-                              return IconButton(
-                                style: isSmallScreen
-                                    ? IconButton.styleFrom(
-                                        fixedSize: const Size.square(40),
-                                        padding: EdgeInsets.zero,
-                                      )
-                                    : null,
-                                icon: Icon(
-                                  state.isGridView
-                                      ? Icons.list
-                                      : Icons.grid_view,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () {
-                                  context.read<PosBloc>().add(ToggleGridView());
-                                },
-                              );
-                            },
-                          ),
-                          if (!isSmallScreen)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 10.0,
-                                horizontal: 8.0,
-                              ),
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedIndex =
-                                        3; // Index for Transaksi (PosOrderPage)
-                                  });
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors
-                                      .teal
-                                      .shade600, // A darker green for the button
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('Daftar Order'),
-                                    SizedBox(width: 4),
-                                    Icon(Icons.chevron_right, size: 16),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                        if (_selectedIndex == 2)
-                          IconButton(
-                            style: isSmallScreen
-                                ? IconButton.styleFrom(
-                                    fixedSize: const Size.square(40),
-                                    padding: EdgeInsets.zero,
-                                  )
-                                : null,
-                            tooltip: _productGridView
-                                ? 'Tampilkan sebagai tabel'
-                                : 'Tampilkan sebagai grid',
-                            icon: Icon(
-                              _productGridView
-                                  ? Icons.table_rows
-                                  : Icons.grid_view,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(
-                                () => _productGridView = !_productGridView,
-                              );
-                            },
-                          ),
-                        if (_selectedIndex == 7)
-                          IconButton(
-                            style: isSmallScreen
-                                ? IconButton.styleFrom(
-                                    fixedSize: const Size.square(40),
-                                    padding: EdgeInsets.zero,
-                                  )
-                                : null,
-                            tooltip: _stockGridView
-                                ? 'Tampilkan sebagai tabel'
-                                : 'Tampilkan sebagai grid',
-                            icon: Icon(
-                              _stockGridView
-                                  ? Icons.table_rows
-                                  : Icons.grid_view,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(() => _stockGridView = !_stockGridView);
-                            },
-                          ),
-                        if (_selectedIndex == 3)
-                          IconButton(
-                            style: isSmallScreen
-                                ? IconButton.styleFrom(
-                                    fixedSize: const Size.square(40),
-                                    padding: EdgeInsets.zero,
-                                  )
-                                : null,
-                            tooltip: _historyGridView
-                                ? 'Tampilkan sebagai tabel'
-                                : 'Tampilkan sebagai kartu',
-                            icon: Icon(
-                              _historyGridView
-                                  ? Icons.table_rows
-                                  : Icons.view_agenda,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(
-                                () => _historyGridView = !_historyGridView,
-                              );
-                            },
-                          ),
-                        if (_selectedIndex == 5 || _selectedIndex == 6)
-                          IconButton(
-                            style: isSmallScreen
-                                ? IconButton.styleFrom(
-                                    fixedSize: const Size.square(40),
-                                    padding: EdgeInsets.zero,
-                                  )
-                                : null,
-                            tooltip: _useOrderTableGridView
-                                ? 'Tampilkan sebagai list'
-                                : 'Tampilkan sebagai grid',
-                            icon: Icon(
-                              _useOrderTableGridView
-                                  ? Icons.view_list_rounded
-                                  : Icons.grid_view_rounded,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(
-                                () => _orderTableGridView =
-                                    !_useOrderTableGridView,
-                              );
-                            },
-                          ),
-                        SizedBox(width: isSmallScreen ? 2 : 8),
-                      ],
-                    ),
-                    drawer: isMobile
-                        ? PosDrawer(
-                            selectedIndex: _selectedIndex,
-                            onIndexChanged: (index) {
-                              setState(() => _selectedIndex = index);
-                            },
-                          )
-                        : null,
-                    body: SafeArea(
-                      child: isMobile
-                          ? Theme(
-                              data: Theme.of(context).copyWith(
-                                visualDensity: const VisualDensity(
-                                  horizontal: -2,
-                                  vertical: -2,
-                                ),
-                              ),
-                              child: _withKeyboardNavigation(
-                                _buildShellBody(isMobile),
-                              ),
-                            )
-                          : _withKeyboardNavigation(_buildShellBody(isMobile)),
-                    ),
-                    floatingActionButton:
-                        isMobile &&
-                            MediaQuery.of(context).viewInsets.bottom == 0
-                        ? FloatingActionButton.small(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            shape: const CircleBorder(),
-                            elevation: 4,
-                            onPressed: () {
-                              setState(() {
-                                _selectedIndex = 1;
-                              });
-                            },
-                            child: const Icon(Icons.point_of_sale, size: 22),
-                          )
-                        : null,
-                    floatingActionButtonLocation:
-                        FloatingActionButtonLocation.centerDocked,
-                    bottomNavigationBar: isMobile
-                        ? BottomAppBar(
-                            shape: const CircularNotchedRectangle(),
-                            notchMargin: 6.0,
-                            color: Colors.white,
-                            padding: EdgeInsets.zero,
-                            height: 52,
-                            child: Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildBottomNavItem(
-                                          icon: Icons.home_outlined,
-                                          selectedIcon: Icons.home,
-                                          label: 'Beranda',
-                                          index: 0,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: _buildBottomNavItem(
-                                          icon: Icons.inventory_2_outlined,
-                                          selectedIcon: Icons.inventory_2,
-                                          label: 'Katalog',
-                                          index: 2,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 56),
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildBottomNavItem(
-                                          icon: Icons.receipt_long_outlined,
-                                          selectedIcon: Icons.receipt_long,
-                                          label: 'Transaksi',
-                                          index: 3,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: _buildBottomNavItem(
-                                          icon: Icons.menu_outlined,
-                                          selectedIcon: Icons.menu,
-                                          label: 'Lainnya',
-                                          index: 4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : null,
-                  ),
-                  if (_showUnlockLoading)
-                    Positioned.fill(
-                      child: ColoredBox(
-                        color: Colors.white,
-                        child: SafeArea(
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 112,
-                                  height: 112,
-                                  child: ClipRect(
-                                    child: Image.asset(
-                                      'assets/images/pantoo_loading.gif',
-                                      fit: BoxFit.contain,
-                                      gaplessPlayback: true,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                const Text(
-                                  'Mempersiapkan dashboard...',
-                                  textScaler: TextScaler.noScaling,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                    decoration: TextDecoration.none,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Mohon tunggu sebentar',
-                                  textScaler: TextScaler.noScaling,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.black54,
-                                    decoration: TextDecoration.none,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -1717,7 +1871,7 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('use_cashier')) _sidebarItem(1),
       // Order dan manajemen meja sudah dilebur dalam satu workspace. Tampilkan
       // satu menu bila pengguna memiliki salah satu hak akses terkait.
-      if (useTables && (viewTables || manageTables)) _sidebarItem(5),
+      if (viewTables || (useTables && manageTables)) _sidebarItem(5),
       if (useKitchenFlow && viewTables) _sidebarItem(18),
       _sidebarSection('MANAJEMEN'),
       if (can('view_products')) _sidebarItem(2),
@@ -1736,12 +1890,15 @@ class _PosShellPageState extends State<PosShellPage>
       _sidebarItem(15),
       _sidebarSection('BANTUAN'),
       if (_railExpanded)
-        ListTile(
-          dense: true,
-          leading: const Icon(Icons.keyboard_alt_outlined),
-          title: const Text('Shortcut keyboard'),
-          subtitle: const Text('F1 untuk melihat panduan'),
-          onTap: _showKeyboardHelp,
+        Material(
+          color: Colors.transparent,
+          child: ListTile(
+            dense: true,
+            leading: const Icon(Icons.keyboard_alt_outlined),
+            title: const Text('Shortcut keyboard'),
+            subtitle: const Text('F1 untuk melihat panduan'),
+            onTap: _showKeyboardHelp,
+          ),
         )
       else
         Tooltip(
@@ -1756,6 +1913,12 @@ class _PosShellPageState extends State<PosShellPage>
 
   Widget _sidebarItem(int index) {
     final destination = _destinations[index];
+    final label =
+        index == 5 &&
+            (_posBloc.state.runtimeConfig['features'] as Map?)?['use_tables'] !=
+                true
+        ? 'Pesanan Aktif'
+        : destination.label;
     final selected = _selectedIndex == index;
     final item = InkWell(
       onTap: () => setState(() => _selectedIndex = index),
@@ -1779,7 +1942,7 @@ class _PosShellPageState extends State<PosShellPage>
                   const SizedBox(width: 13),
                   Expanded(
                     child: Text(
-                      destination.label,
+                      label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1815,9 +1978,7 @@ class _PosShellPageState extends State<PosShellPage>
             : Center(child: _sidebarIcon(destination, selected, index)),
       ),
     );
-    return _railExpanded
-        ? item
-        : Tooltip(message: destination.label, child: item);
+    return _railExpanded ? item : Tooltip(message: label, child: item);
   }
 
   Widget _sidebarIcon(
@@ -1858,7 +2019,7 @@ class _PosShellPageState extends State<PosShellPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(isSelected ? selectedIcon : icon, color: color, size: 20),
+          Icon(isSelected ? selectedIcon : icon, color: color, size: 19),
           const SizedBox(height: 2),
           Text(
             label,

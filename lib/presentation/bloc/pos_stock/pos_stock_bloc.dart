@@ -5,6 +5,7 @@ import '../../../domain/repositories/pos_stock_repository.dart';
 
 class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
   final PosStockRepository repository;
+  int _requestVersion = 0;
 
   PosStockBloc({required this.repository}) : super(const PosStockState()) {
     on<LoadStocks>(_onLoadStocks);
@@ -58,11 +59,13 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
     LoadStocks event,
     Emitter<PosStockState> emit,
   ) async {
+    final version = ++_requestVersion;
     var locations = state.locations;
     if (locations.isEmpty) {
       final locationResult = await repository.getStockLocations();
       locations = locationResult.fold((_) => const [], (items) => items);
     }
+    if (version != _requestVersion || emit.isDone) return;
     var locationId = event.locationId ?? state.selectedLocationId;
     emit(
       state.copyWith(
@@ -70,14 +73,18 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
         currentFilter: event.stockFilter ?? state.currentFilter,
         locations: locations,
         selectedLocationId: locationId,
+        search: event.search ?? '',
       ),
     );
 
-    final result = await repository.getStocks(
+    final result = await repository.getStockPage(
       search: event.search,
       stockFilter: event.stockFilter ?? state.currentFilter,
       locationId: locationId,
+      page: event.page,
     );
+
+    if (version != _requestVersion || emit.isDone) return;
 
     result.fold(
       (failure) => emit(
@@ -86,10 +93,16 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
           errorMessage: failure.message,
         ),
       ),
-      (stocks) {
-        emit(state.copyWith(status: PosStockStatus.success, stocks: stocks));
-        // Statistics are scoped to the selected warehouse/location too.
-        add(const LoadStatistics());
+      (result) {
+        emit(
+          state.copyWith(
+            status: PosStockStatus.success,
+            stocks: result.items,
+            statistics: result.statistics,
+            page: event.page,
+            total: result.total,
+          ),
+        );
       },
     );
   }
@@ -98,11 +111,7 @@ class PosStockBloc extends Bloc<PosStockEvent, PosStockState> {
     LoadStatistics event,
     Emitter<PosStockState> emit,
   ) async {
-    final result = await repository.getStatistics(
-      locationId: state.selectedLocationId,
-    );
-    result.fold((failure) {
-      // Silently fail — statistics are supplementary
-    }, (statistics) => emit(state.copyWith(statistics: statistics)));
+    // A stock-page response includes the full filtered summary; no second
+    // download of the entire stock catalog is needed.
   }
 }

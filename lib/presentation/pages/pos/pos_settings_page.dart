@@ -1,3 +1,4 @@
+import '../../../../domain/models/pos_remote_profile_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
@@ -56,6 +57,7 @@ class _PosSettingsView extends StatefulWidget {
 }
 
 class _PosSettingsViewState extends State<_PosSettingsView> {
+  PosRemoteProfileCatalog _profileCatalog = PosRemoteProfileCatalog.bundled();
   final _pajakController = TextEditingController();
   final _minTransaksiTunaiController = TextEditingController();
   final _invoicePrefixController = TextEditingController();
@@ -86,16 +88,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   bool _posLockEnabled = true;
   bool _posLockOnBackground = true;
 
-  static const _featureLabels = <String, String>{
-    'use_tables': 'Meja / Ruangan',
-    'use_kitchen_flow': 'Alur dapur',
-    'use_service_order': 'Service order',
-    'use_appointments': 'Reservasi',
-    'use_technicians': 'Teknisi / staf',
-    'use_vehicle_data': 'Data kendaraan',
-    'use_delivery': 'Pengantaran',
-    'require_customer': 'Pelanggan wajib',
-    'track_stock': 'Tracking stok',
+  Map<String, String> get _featureLabels => {
+    for (final option in _profileCatalog.featureOptions)
+      option['key']!: option['label']!,
   };
 
   bool _isInitialized = false;
@@ -117,15 +112,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   }
 
   List<String> get _fulfillmentOptions {
-    final restaurant = _businessProfile == 'restoran';
-    return [
-      if (_enabledFeatures['use_tables'] == true) 'dine_in',
-      if (restaurant) 'free_table',
-      'take_away',
-      if (_enabledFeatures['use_delivery'] == true) 'delivery',
-      if (restaurant) 'quick_service',
-      if (_enabledFeatures['use_appointments'] == true) 'reservation',
-    ];
+    return _profileCatalog.orderTypes(_businessProfile, _enabledFeatures);
   }
 
   static const _sections = <PosCategoryItem<_SettingsSection>>[
@@ -360,59 +347,18 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   }
 
   void _applyBusinessProfile(String profile) {
-    const base = <String, bool>{
-      'use_tables': false,
-      'use_kitchen_flow': false,
-      'use_service_order': false,
-      'use_appointments': false,
-      'use_technicians': false,
-      'use_vehicle_data': false,
-      'use_delivery': false,
-      'require_customer': false,
-      'track_stock': true,
-    };
-    final features = switch (profile) {
-      'restoran' => {
-        ...base,
-        'use_tables': true,
-        'use_kitchen_flow': true,
-        'use_delivery': true,
-      },
-      'bengkel' => {
-        ...base,
-        'use_service_order': true,
-        'use_appointments': true,
-        'use_technicians': true,
-        'use_vehicle_data': true,
-        'require_customer': true,
-      },
-      'jasa' => {
-        ...base,
-        'use_service_order': true,
-        'use_appointments': true,
-        'use_technicians': true,
-        'require_customer': true,
-        // Usaha jasa tetap dapat menjual material/consumable. Item jasa
-        // sendiri non-stok melalui pos_product_type=service.
-        'track_stock': true,
-      },
-      'laundry' => {
-        ...base,
-        'use_service_order': true,
-        'use_delivery': true,
-        'require_customer': true,
-      },
-      'custom' => {...base, ..._enabledFeatures},
-      _ => {...base},
-    };
+    final features = _profileCatalog.featuresFor(
+      profile,
+      current: _enabledFeatures,
+    );
     setState(() {
       _businessProfile = profile;
       _enabledFeatures = features;
-      if (profile == 'restoran') {
-        _fulfillmentType = 'dine_in';
-      } else if (profile != 'custom') {
-        _fulfillmentType = 'take_away';
-      }
+      _fulfillmentType = _profileCatalog.defaultOrderType(
+        profile,
+        _enabledFeatures,
+        current: _fulfillmentType,
+      );
       if (!_fulfillmentOptions.contains(_fulfillmentType)) {
         _fulfillmentType = 'take_away';
       }
@@ -460,6 +406,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   }
 
   void _initFields(PosSettingsState state) {
+    _profileCatalog = state.profileCatalog ?? _profileCatalog;
     if (_isInitialized || state.settings == null) return;
 
     final s = state.settings!;
@@ -776,19 +723,16 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             child: _buildDropdown(
               label: 'Profil Bisnis POS',
               value: _businessProfile,
-              items: const [
-                'retail',
-                'restoran',
-                'bengkel',
-                'jasa',
-                'laundry',
-                'custom',
-              ],
+              items: _profileCatalog.ids(current: _businessProfile),
               onChanged: (val) {
                 if (val != null) _applyBusinessProfile(val);
               },
             ),
           ),
+          if (_profileCatalog.source != 'backend')
+            const Text(
+              'Katalog tersimpan digunakan. Hubungkan kembali untuk memuat profil terbaru.',
+            ),
           const Text(
             'Fitur operasional',
             style: TextStyle(fontWeight: FontWeight.w700),
@@ -1229,7 +1173,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       'block': 'Blokir Sepenuhnya',
       'allow_with_permission': 'Izinkan dengan Otorisasi',
     };
-    return labels[value] ??
+    return _profileCatalog.profile(value)?.label ??
+        labels[value] ??
         value
             .split('_')
             .where((word) => word.isNotEmpty)

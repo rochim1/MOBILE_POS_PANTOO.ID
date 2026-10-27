@@ -1064,7 +1064,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     _buildReceiptItem(
                       name,
                       '$qty $unit',
-                      'Rp ${double.tryParse((item['subtotal'] ?? 0).toString())?.toStringAsFixed(0) ?? '0'}',
+                      'Rp ${formatRupiahAmount(num.tryParse((item['subtotal'] ?? 0).toString()) ?? 0)}',
                     ),
                     if (components.isNotEmpty)
                       Container(
@@ -1091,7 +1091,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                                 '• ${component['nama_inventaris'] ?? '-'}: '
                                 '${component['qty_consumed_base'] ?? 0} '
                                 '${component['unit'] ?? 'unit'} · HPP Rp '
-                                '${double.tryParse((component['harga_pokok_total'] ?? 0).toString())?.toStringAsFixed(0) ?? '0'}',
+                                '${formatRupiahAmount(num.tryParse((component['harga_pokok_total'] ?? 0).toString()) ?? 0)}',
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -1115,7 +1115,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  'Rp ${order.total.toStringAsFixed(0)}',
+                  'Rp ${formatRupiahAmount(order.total)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,

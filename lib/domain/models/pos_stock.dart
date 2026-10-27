@@ -144,6 +144,13 @@ class PosStock extends Equatable {
   ];
 }
 
+class PosStockPageResult {
+  final List<PosStock> items;
+  final int total;
+  final PosStockStatistics statistics;
+  const PosStockPageResult(this.items, this.total, this.statistics);
+}
+
 class PosStockStatistics extends Equatable {
   final int totalInventaris;
   final double totalNilaiInventaris;

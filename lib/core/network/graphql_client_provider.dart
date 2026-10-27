@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:chucker_flutter/chucker_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -13,6 +12,7 @@ import '../utils/logger.dart';
 
 class GraphQLClientProvider {
   static const productionEndpoint = 'https://graphql.pantoo.id/';
+  static const developmentEndpoint = 'http://localhost:8080/graphql';
 
   final SharedPreferences sharedPreferences;
   final void Function()? onUnauthorized;
@@ -63,9 +63,9 @@ class GraphQLClientProvider {
       // and image payloads can exhaust the quota and break an otherwise
       // successful GraphQL request. Keep the inspector for native debug builds
       // only.
-      httpClient: kDebugMode && !kIsWeb
-          ? ChuckerHttpClient(http.Client())
-          : http.Client(),
+      // Authentication bodies contain Google and refresh tokens.
+      // Never persist them in the debug inspector.
+      httpClient: http.Client(),
       defaultHeaders: {
         'X-API-Key': dotenv.env['MOBILE_API_KEY'] ?? '',
         // POS is an internal-user client, but it must remain distinguishable
@@ -290,7 +290,8 @@ class GraphQLClientProvider {
   }
 
   String? get _developmentOverride =>
-      kDebugMode && environment != FlavorEnvironment.production
+      environment == FlavorEnvironment.development ||
+          (kDebugMode && environment == FlavorEnvironment.staging)
       ? sharedPreferences.getString('custom_endpoint')
       : null;
 
@@ -302,6 +303,9 @@ class GraphQLClientProvider {
       return customEndpoint.trim();
     }
     if (envUrl != null && envUrl.trim().isNotEmpty) return envUrl.trim();
+    if (environment == FlavorEnvironment.development) {
+      return developmentEndpoint;
+    }
     return 'http://10.0.2.2:4000/graphql';
   }
 }

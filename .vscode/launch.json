@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Pantoo POS Dev Web Google (7357)",
+      "type": "dart",
+      "request": "launch",
+      "deviceId": "chrome",
+      "program": "lib/main_development.dart",
+      "toolArgs": ["--web-hostname", "localhost", "--web-port", "7357"]
+    }
+  ]
+}

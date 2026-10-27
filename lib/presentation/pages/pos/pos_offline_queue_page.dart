@@ -400,7 +400,10 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               ),
               const SizedBox(height: 8),
               Text('Waktu: ${transaction['timestamp'] ?? '-'}'),
-              if (total != null) Text('Total: Rp $total'),
+              if (total != null)
+                Text(
+                  'Total: Rp ${formatRupiahAmount(num.tryParse(total.toString()) ?? 0)}',
+                ),
               Text('Percobaan sinkron: ${transaction['attempts'] ?? 0}'),
               if (status != 'synced' &&
                   status != 'syncing' &&

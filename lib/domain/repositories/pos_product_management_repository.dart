@@ -11,6 +11,12 @@ import '../../core/network/graphql_client_provider.dart';
 import '../../data/graphql/pos_queries.dart';
 import '../models/pos_product.dart';
 
+class PosComponentPage {
+  final List<PosProduct> items;
+  final int total;
+  const PosComponentPage(this.items, this.total);
+}
+
 class PosProductManagementRepository {
   final GraphQLClientProvider _clientProvider;
 
@@ -282,8 +288,11 @@ class PosProductManagementRepository {
     }
   }
 
-  Future<Either<Failure, List<PosProduct>>> getPackageCandidates({
+  Future<Either<Failure, PosComponentPage>> getPackageCandidates({
     String search = '',
+    int page = 1,
+    List<String>? ids,
+    String? excludeId,
   }) async {
     try {
       final result = await _clientProvider.client.query(
@@ -292,11 +301,12 @@ class PosProductManagementRepository {
           variables: {
             'filter': {
               'status': 'active',
+              'package_component_only': true,
+              if (ids != null) 'ids': ids,
+              if (excludeId?.isNotEmpty == true) 'exclude_id': excludeId,
               if (search.trim().isNotEmpty) 'search': search.trim(),
             },
-            // Backend membatasi maksimal 1000. Pencarian tetap diteruskan ke
-            // server sehingga tenant besar tidak bergantung pada 200 item awal.
-            'pagination': const {'page': 0, 'limit': 1000},
+            'pagination': {'page': page - 1, 'limit': 20},
           },
           fetchPolicy: FetchPolicy.networkOnly,
         ),
@@ -306,30 +316,30 @@ class PosProductManagementRepository {
       }
       final rows =
           result.data?['GetAllInventarisUmum']?['items'] as List? ?? const [];
-      const allowedCategories = {
-        'barang_dagangan',
-        'bahan_baku',
-        'habis_pakai',
-        'mro',
-      };
       return Right(
-        rows
-            .whereType<Map>()
-            .where((row) => allowedCategories.contains(row['kategori']))
-            .map(
-              (row) => PosProduct.fromJson({
-                ...Map<String, dynamic>.from(row),
-                'id': row['_id']?.toString() ?? '',
-                'code': row['kode_inventaris']?.toString() ?? '',
-                'name': row['nama_inventaris']?.toString() ?? '',
-                'category': row['merchandise_category_name']?.toString() ?? '',
-                'price': row['harga_jual'] ?? 0,
-                'stock': row['stok'] ?? 0,
-                'foto': _absoluteMediaUrl(row['foto']),
-              }),
-            )
-            .where((item) => item.productType == 'product' && item.tracksStock)
-            .toList(),
+        PosComponentPage(
+          rows
+              .whereType<Map>()
+              .map(
+                (row) => PosProduct.fromJson({
+                  ...Map<String, dynamic>.from(row),
+                  'id': row['_id']?.toString() ?? '',
+                  'code': row['kode_inventaris']?.toString() ?? '',
+                  'name': row['nama_inventaris']?.toString() ?? '',
+                  'category':
+                      row['merchandise_category_name']?.toString() ?? '',
+                  'price': row['harga_jual'] ?? 0,
+                  'stock': row['stok'] ?? 0,
+                  'foto': _absoluteMediaUrl(row['foto']),
+                }),
+              )
+              .toList(),
+          ((result.data?['GetAllInventarisUmum']?['info_page'] as List?)
+                          ?.firstOrNull?['count']
+                      as num?)
+                  ?.toInt() ??
+              0,
+        ),
       );
     } catch (e) {
       return Left(AppErrorHandler.handle(e));

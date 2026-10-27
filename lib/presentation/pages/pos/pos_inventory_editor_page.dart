@@ -33,6 +33,7 @@ class PosInventoryEditorPage extends StatefulWidget {
 }
 
 class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
+  late final String _purchaseClientRequestId;
   final _repository = sl<PosInventoryRepository>();
   final _notes = TextEditingController();
   final _reasonDetail = TextEditingController();
@@ -49,11 +50,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   String _rackName = '';
   late DateTime _purchaseDate;
   DateTime? _deliveryDate;
+  DateTime? _estimatedArrivalDate;
   DateTime? _dueDate;
   String _deliveryAddress = '';
   String _deliveryAddressMode = 'manual';
   String _deliveryWarehouseId = '';
+  String _supplierContact = '';
+  String _paymentTermNote = '';
+  String _dueDateBasis = 'invoice_date';
   String _paymentTerms = 'tunai';
+  String _paymentMethod = 'bank_transfer';
   String _creditType = 'net30';
   String _priority = 'normal';
   String _discountType = 'persen';
@@ -65,6 +71,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   double _discountPercent = 0;
   double _discountFixed = 0;
   double _ppnPercent = 0;
+  double _downPaymentAmount = 0;
   bool _supplierIsPkp = false;
   String _scrapReason = 'rusak';
   String _incidentType = 'disposal';
@@ -84,6 +91,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   @override
   void initState() {
     super.initState();
+    _purchaseClientRequestId =
+        widget.existing?['client_request_id']?.toString() ??
+        'mobile-po-${DateTime.now().microsecondsSinceEpoch}';
     _notes.text = widget.existing?['catatan']?.toString() ?? '';
     _reasonDetail.text = widget.existing?['alasan_detail']?.toString() ?? '';
     _supplierId = widget.existing?['supplier_id']?.toString() ?? '';
@@ -105,12 +115,28 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _deliveryDate = DateTime.tryParse(
       widget.existing?['tanggal_pengiriman']?.toString() ?? '',
     );
+    _estimatedArrivalDate = DateTime.tryParse(
+      widget.existing?['estimated_arrival_date']?.toString() ?? '',
+    );
     _dueDate = DateTime.tryParse(
       widget.existing?['due_date']?.toString() ?? '',
     );
     _deliveryAddress = widget.existing?['alamat_pengiriman']?.toString() ?? '';
+    _supplierContact = widget.existing?['supplier_contact']?.toString() ?? '';
+    _paymentTermNote = widget.existing?['payment_term_note']?.toString() ?? '';
+    _dueDateBasis =
+        widget.existing?['due_date_basis']?.toString() ?? 'invoice_date';
+    _downPaymentAmount =
+        (widget.existing?['down_payment_amount'] as num?)?.toDouble() ?? 0;
     final legacyPaymentMethod =
         widget.existing?['metode_pembayaran']?.toString().toLowerCase() ?? '';
+    _paymentMethod =
+        widget.existing?['payment_method']?.toString() ??
+        switch (legacyPaymentMethod) {
+          'tunai' => 'cash',
+          'giro' => 'giro',
+          _ => 'bank_transfer',
+        };
     final legacyCreditTerms = <String>{
       'net30',
       'net45',
@@ -970,6 +996,21 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       return;
     }
     if (widget.type == PosInventoryDocumentType.purchase &&
+        _deliveryDate != null &&
+        _estimatedArrivalDate != null &&
+        _estimatedArrivalDate!.isBefore(_deliveryDate!)) {
+      AppToast.error(
+        context,
+        'Estimasi tanggal tiba tidak boleh sebelum tanggal kirim',
+      );
+      return;
+    }
+    if (widget.type == PosInventoryDocumentType.purchase &&
+        (_downPaymentAmount < 0 || _downPaymentAmount > _purchaseGrandTotal)) {
+      AppToast.error(context, 'Uang muka tidak boleh melebihi total PO');
+      return;
+    }
+    if (widget.type == PosInventoryDocumentType.purchase &&
         !_hasValidPurchaseDestination) {
       AppToast.error(
         context,
@@ -1153,22 +1194,30 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     final destination = _warehouse(_destinationId);
     final input = switch (widget.type) {
       PosInventoryDocumentType.purchase => {
+        'client_request_id': _purchaseClientRequestId,
         'supplier_id': _supplierId,
         'tanggal_po': _dateValue(_purchaseDate),
         'tanggal_pengiriman': _deliveryDate == null
             ? ''
             : _dateValue(_deliveryDate!),
+        'estimated_arrival_date': _estimatedArrivalDate == null
+            ? ''
+            : _dateValue(_estimatedArrivalDate!),
         'alamat_pengiriman': _deliveryAddress.trim(),
+        'supplier_contact': _supplierContact.trim(),
+        'payment_method': _paymentMethod,
         'syarat_pembayaran': _paymentTerms,
         'tipe_kredit': _paymentTerms == 'kredit' ? _creditType : '',
         'payment_term_type': _paymentTerms == 'kredit'
             ? (_creditType == 'termin' ? 'termin' : 'net')
-            : 'immediate',
+            : (_paymentTerms == 'saat_penerimaan' ? 'on_receipt' : 'immediate'),
         'term_days': _paymentTerms == 'kredit' ? _termDays : 0,
         'due_date': _dueDate == null ? '' : _dateValue(_dueDate!),
         'due_date_basis': _paymentTerms == 'saat_penerimaan'
             ? 'receiving_date'
-            : 'invoice_date',
+            : (_paymentTerms == 'tunai' ? 'po_date' : _dueDateBasis),
+        'payment_term_note': _paymentTermNote.trim(),
+        'down_payment_amount': _downPaymentAmount,
         'jumlah_termin': _creditType == 'termin' ? _installmentCount : 1,
         if (_creditType == 'termin')
           'jadwal_termin': _generatedInstallmentSchedule,
@@ -1845,7 +1894,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       const SizedBox(height: 8),
                       TextFormField(
                         key: ValueKey('purchase-price-${entry.key}'),
-                        initialValue: _numberText(item['input_price']),
+                        initialValue: formatRupiahAmount(
+                          (item['input_price'] as num?) ?? 0,
+                        ),
+                        inputFormatters: const [
+                          RupiahInputFormatter(decimalDigits: 2),
+                        ],
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
@@ -1853,8 +1907,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                           labelText: 'Harga beli per satuan',
                         ),
                         onChanged: (value) => setState(
-                          () => item['input_price'] =
-                              double.tryParse(value.replaceAll(',', '.')) ?? 0,
+                          () => item['input_price'] = parseRupiahAmount(value),
                         ),
                       ),
                       Align(
@@ -1906,11 +1959,22 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               Expanded(
                                 child: TextFormField(
                                   key: ValueKey(
-                                    'purchase-discount-${entry.key}',
+                                    'purchase-discount-${entry.key}-$discountType',
                                   ),
-                                  initialValue: _numberText(
-                                    item['diskon_item'],
-                                  ),
+                                  initialValue:
+                                      item['diskon_item_type'] == 'fixed'
+                                      ? formatRupiahAmount(
+                                          (item['diskon_item'] as num?) ?? 0,
+                                        )
+                                      : _numberText(item['diskon_item']),
+                                  inputFormatters:
+                                      item['diskon_item_type'] == 'fixed'
+                                      ? const [
+                                          RupiahInputFormatter(
+                                            decimalDigits: 2,
+                                          ),
+                                        ]
+                                      : null,
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
                                         decimal: true,
@@ -1922,10 +1986,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                   ),
                                   onChanged: (value) => setState(
                                     () => item['diskon_item'] =
-                                        double.tryParse(
-                                          value.replaceAll(',', '.'),
-                                        ) ??
-                                        0,
+                                        (item['diskon_item_type'] == 'fixed'
+                                        ? parseRupiahAmount(value)
+                                        : (double.tryParse(
+                                                value.replaceAll(',', '.'),
+                                              ) ??
+                                              0)),
                                   ),
                                 ),
                               ),
@@ -2360,6 +2426,25 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 ),
               ],
               const SizedBox(height: 12),
+              responsive([
+                _purchaseDateField(
+                  label: 'Estimasi tanggal tiba',
+                  value: _estimatedArrivalDate,
+                  optional: true,
+                  onChanged: (value) =>
+                      setState(() => _estimatedArrivalDate = value),
+                ),
+                TextFormField(
+                  initialValue: _supplierContact,
+                  decoration: const InputDecoration(
+                    labelText: 'Kontak tujuan supplier',
+                    hintText: 'Email atau nomor WhatsApp',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => _supplierContact = value,
+                ),
+              ]),
+              const SizedBox(height: 12),
               const Text(
                 'Alamat pengiriman',
                 style: TextStyle(fontWeight: FontWeight.w600),
@@ -2383,7 +2468,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               if (_showPurchaseAdvanced) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Syarat pembayaran dan prioritas',
+                  'Kesepakatan pembayaran dan prioritas',
                   style: Theme.of(
                     context,
                   ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -2391,15 +2476,38 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 const SizedBox(height: 10),
                 responsive([
                   DropdownButtonFormField<String>(
+                    initialValue: _paymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'Metode pembayaran',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'bank_transfer',
+                        child: Text('Transfer bank'),
+                      ),
+                      DropdownMenuItem(value: 'cash', child: Text('Tunai')),
+                      DropdownMenuItem(
+                        value: 'virtual_account',
+                        child: Text('Virtual account'),
+                      ),
+                      DropdownMenuItem(value: 'giro', child: Text('Giro')),
+                      DropdownMenuItem(value: 'other', child: Text('Lainnya')),
+                    ],
+                    onChanged: (value) => setState(
+                      () => _paymentMethod = value ?? 'bank_transfer',
+                    ),
+                  ),
+                  DropdownButtonFormField<String>(
                     initialValue: _paymentTerms,
                     decoration: const InputDecoration(
-                      labelText: 'Syarat pembayaran',
+                      labelText: 'Termin pembayaran',
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: 'tunai',
-                        child: Text('Tunai (jatuh tempo tanggal PO)'),
+                        child: Text('Jatuh tempo segera'),
                       ),
                       DropdownMenuItem(
                         value: 'saat_penerimaan',
@@ -2436,14 +2544,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
-                    'Metode dan akun pembayaran dipilih saat transaksi dicatat di Keuangan. Pembayaran dapat dilakukan bertahap.',
+                    'Informasi ini menjadi acuan Finance. Mengisi PO tidak membentuk hutang atau mencatat pembayaran.',
                     style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ),
                 if (_paymentTerms == 'saat_penerimaan') ...[
                   const SizedBox(height: 8),
                   const Text(
-                    'Dicatat sebagai hutang. Jatuh tempo mengikuti tanggal penerimaan barang.',
+                    'Jatuh tempo mengikuti tanggal penerimaan. Penerimaan hanya mencatat stok dan GRNI; hutang terbentuk setelah invoice diposting Finance.',
                     style: TextStyle(color: Colors.black54, fontSize: 12),
                   ),
                 ],
@@ -2514,6 +2622,63 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     ),
                   ]),
                 ],
+                const SizedBox(height: 12),
+                responsive([
+                  DropdownButtonFormField<String>(
+                    initialValue: _dueDateBasis,
+                    decoration: const InputDecoration(
+                      labelText: 'Dasar jatuh tempo',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'invoice_date',
+                        child: Text('Tanggal invoice supplier'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'receiving_date',
+                        child: Text('Tanggal penerimaan'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'po_date',
+                        child: Text('Tanggal PO'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'fixed_date',
+                        child: Text('Tanggal tetap'),
+                      ),
+                    ],
+                    onChanged: _paymentTerms == 'kredit'
+                        ? (value) => setState(
+                            () => _dueDateBasis = value ?? 'invoice_date',
+                          )
+                        : null,
+                  ),
+                  TextFormField(
+                    initialValue: _downPaymentAmount == 0
+                        ? ''
+                        : _downPaymentAmount.toStringAsFixed(0),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Uang muka yang disepakati',
+                      helperText: 'Rencana saja; pembayaran dilakukan Finance',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) =>
+                        _downPaymentAmount = double.tryParse(value) ?? 0,
+                  ),
+                  TextFormField(
+                    initialValue: _paymentTermNote,
+                    maxLength: 500,
+                    decoration: const InputDecoration(
+                      labelText: 'Catatan termin',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => _paymentTermNote = value,
+                  ),
+                ]),
                 const SizedBox(height: 18),
                 Text(
                   'Diskon, pajak, dan biaya',
@@ -2537,11 +2702,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         setState(() => _discountType = value ?? 'persen'),
                   ),
                   TextFormField(
-                    initialValue: _numberText(
-                      _discountType == 'fixed'
-                          ? _discountFixed
-                          : _discountPercent,
-                    ),
+                    key: ValueKey('purchase-total-discount-$_discountType'),
+                    initialValue: _discountType == 'fixed'
+                        ? formatRupiahAmount(_discountFixed)
+                        : _numberText(_discountPercent),
+                    inputFormatters: _discountType == 'fixed'
+                        ? const [RupiahInputFormatter(decimalDigits: 2)]
+                        : null,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -2552,8 +2719,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: (value) => setState(() {
-                      final parsed =
-                          double.tryParse(value.replaceAll(',', '.')) ?? 0;
+                      final parsed = (_discountType == 'fixed'
+                          ? parseRupiahAmount(value)
+                          : (double.tryParse(value.replaceAll(',', '.')) ?? 0));
                       if (_discountType == 'fixed') {
                         _discountFixed = parsed;
                       } else {
@@ -2647,7 +2815,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     onChanged: (value) => row['deskripsi'] = value,
                   );
                   Widget amountField() => TextFormField(
-                    initialValue: _numberText(row['nominal']),
+                    initialValue: formatRupiahAmount(
+                      (row['nominal'] as num?) ?? 0,
+                    ),
+                    inputFormatters: const [
+                      RupiahInputFormatter(decimalDigits: 2),
+                    ],
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -2656,8 +2829,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (value) => setState(
-                      () => row['nominal'] =
-                          double.tryParse(value.replaceAll(',', '.')) ?? 0,
+                      () => row['nominal'] = parseRupiahAmount(value),
                     ),
                   );
                   Widget removeButton() => IconButton(
@@ -3647,8 +3819,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                 Expanded(
                                                   child: TextFormField(
                                                     initialValue:
-                                                        item['input_price']
-                                                            .toString(),
+                                                        formatRupiahAmount(
+                                                          (item['input_price']
+                                                                  as num?) ??
+                                                              0,
+                                                        ),
+                                                    inputFormatters: const [
+                                                      RupiahInputFormatter(
+                                                        decimalDigits: 2,
+                                                      ),
+                                                    ],
                                                     keyboardType:
                                                         TextInputType.number,
                                                     decoration:
@@ -3661,10 +3841,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                     onChanged: (value) => setState(
                                                       () =>
                                                           item['input_price'] =
-                                                              double.tryParse(
+                                                              parseRupiahAmount(
                                                                 value,
-                                                              ) ??
-                                                              0,
+                                                              ),
                                                     ),
                                                   ),
                                                 ),
@@ -3737,9 +3916,29 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                   ),
                                                 ),
                                                 TextFormField(
-                                                  initialValue: _numberText(
-                                                    item['diskon_item'],
+                                                  key: ValueKey(
+                                                    'item-discount-${entry.key}-${item['diskon_item_type']}',
                                                   ),
+                                                  initialValue:
+                                                      item['diskon_item_type'] ==
+                                                          'fixed'
+                                                      ? formatRupiahAmount(
+                                                          (item['diskon_item']
+                                                                  as num?) ??
+                                                              0,
+                                                        )
+                                                      : _numberText(
+                                                          item['diskon_item'],
+                                                        ),
+                                                  inputFormatters:
+                                                      item['diskon_item_type'] ==
+                                                          'fixed'
+                                                      ? const [
+                                                          RupiahInputFormatter(
+                                                            decimalDigits: 2,
+                                                          ),
+                                                        ]
+                                                      : null,
                                                   keyboardType:
                                                       const TextInputType.numberWithOptions(
                                                         decimal: true,
@@ -3753,13 +3952,19 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                       ),
                                                   onChanged: (value) => setState(
                                                     () => item['diskon_item'] =
-                                                        double.tryParse(
-                                                          value.replaceAll(
-                                                            ',',
-                                                            '.',
-                                                          ),
-                                                        ) ??
-                                                        0,
+                                                        (item['diskon_item_type'] ==
+                                                            'fixed'
+                                                        ? parseRupiahAmount(
+                                                            value,
+                                                          )
+                                                        : (double.tryParse(
+                                                                value
+                                                                    .replaceAll(
+                                                                      ',',
+                                                                      '.',
+                                                                    ),
+                                                              ) ??
+                                                              0)),
                                                   ),
                                                 ),
                                               ];

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -11,7 +12,6 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_barcode_scanner_page.dart';
-import 'pos_purchase_payable_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseReceivingPage extends StatefulWidget {
@@ -19,6 +19,9 @@ class PosPurchaseReceivingPage extends StatefulWidget {
   final bool embedded;
   final bool canViewPayable;
   final bool canRecordPayment;
+  final bool canOverrideReceivingTolerance;
+  final double overReceiptTolerancePercent;
+  final bool canCancelReceiving;
   final VoidCallback? onFinished;
   final ValueChanged<Map<String, dynamic>>? onPayRequested;
   const PosPurchaseReceivingPage({
@@ -27,6 +30,9 @@ class PosPurchaseReceivingPage extends StatefulWidget {
     this.embedded = false,
     this.canViewPayable = false,
     this.canRecordPayment = false,
+    this.canOverrideReceivingTolerance = false,
+    this.overReceiptTolerancePercent = 0,
+    this.canCancelReceiving = false,
     this.onFinished,
     this.onPayRequested,
   });
@@ -41,8 +47,59 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   final _receivingRequestId = const Uuid().v4();
   Map<String, dynamic>? _pendingInput;
   bool _pendingPayloadUnreadable = false;
-  String get _pendingKey =>
-      'inventory.receiving.pending:${widget.purchase['_id']}';
+  String get _pendingKey {
+    final prefs = sl<SharedPreferences>();
+    return 'inventory.receiving.pending:${prefs.getString('instansi_id') ?? 'tenant'}:${prefs.getString('user_id') ?? 'user'}:${widget.purchase['_id']}';
+  }
+
+  String _payloadHash(Map<String, dynamic> payload) =>
+      sha256.convert(utf8.encode(jsonEncode(payload))).toString();
+
+  double _receivableRemaining(Map<String, dynamic> item) {
+    final contractual =
+        (item['remaining'] as num?)?.toDouble() ??
+        PosPurchaseProgress.remainingInOrderedUnit(item);
+    if (!widget.canOverrideReceivingTolerance ||
+        widget.overReceiptTolerancePercent <= 0) {
+      return contractual;
+    }
+    final ordered = (item['qty_ordered'] as num?)?.toDouble() ?? 0;
+    final received = (item['qty_received'] as num?)?.toDouble() ?? 0;
+    return (ordered * (1 + widget.overReceiptTolerancePercent / 100) - received)
+        .clamp(0, double.infinity)
+        .toDouble();
+  }
+
+  Future<void> _persistPending(
+    Map<String, dynamic> payload, {
+    required String status,
+    String error = '',
+  }) async {
+    final prefs = sl<SharedPreferences>();
+    final tenantId = prefs.getString('instansi_id')?.trim() ?? '';
+    final userId = prefs.getString('user_id')?.trim() ?? '';
+    if (tenantId.isEmpty || userId.isEmpty) {
+      throw StateError('Identitas instansi atau pengguna tidak tersedia');
+    }
+    final saved = await prefs.setString(
+      _pendingKey,
+      jsonEncode({
+        'version': 1,
+        'operation_kind': 'purchase_receiving_draft',
+        'status': status,
+        'instansi_id': tenantId,
+        'user_id': userId,
+        'purchase_id': widget.purchase['_id'],
+        'client_request_id': payload['client_request_id'],
+        'payload_hash': _payloadHash(payload),
+        'saved_at': DateTime.now().toUtc().toIso8601String(),
+        if (error.isNotEmpty) 'last_error': error,
+        'payload': payload,
+      }),
+    );
+    if (!saved) throw StateError('Penyimpanan request ditolak perangkat');
+  }
+
   final _deliveryNote = TextEditingController();
   final _notes = TextEditingController();
   PosInventoryLookups? _lookups;
@@ -69,8 +126,21 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     final saved = sl<SharedPreferences>().getString(_pendingKey);
     if (saved != null) {
       try {
-        final payload = Map<String, dynamic>.from(jsonDecode(saved) as Map);
-        if (payload['purchase_id']?.toString() ==
+        final envelope = Map<String, dynamic>.from(jsonDecode(saved) as Map);
+        final payload = envelope['payload'] is Map
+            ? Map<String, dynamic>.from(envelope['payload'] as Map)
+            : <String, dynamic>{};
+        final prefs = sl<SharedPreferences>();
+        if (envelope['version'] == 1 &&
+            envelope['operation_kind'] == 'purchase_receiving_draft' &&
+            const {
+              'pending_confirmation',
+              'retry_required',
+            }.contains(envelope['status']) &&
+            envelope['instansi_id'] == prefs.getString('instansi_id') &&
+            envelope['user_id'] == prefs.getString('user_id') &&
+            envelope['payload_hash'] == _payloadHash(payload) &&
+            payload['purchase_id']?.toString() ==
                 widget.purchase['_id']?.toString() &&
             (payload['client_request_id']?.toString() ?? '').isNotEmpty) {
           _pendingInput = payload;
@@ -254,7 +324,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       text: (selectedItem['receive_qty'] ?? 0).toString(),
     );
     final formKey = GlobalKey<FormState>();
-    final remaining = (selectedItem['remaining'] as num).toDouble();
+    final remaining = _receivableRemaining(selectedItem);
     final quantity = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -342,7 +412,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
           ],
         ),
       );
-      if (retry == true && mounted) await _sendReceiving(_pendingInput!);
+      if (retry == true && mounted) await _retryPendingReceiving();
       return;
     }
     final warehouse = _lookups?.warehouses
@@ -355,12 +425,12 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       final qty = (item?['receive_qty'] as num? ?? 0).toDouble();
       return !qty.isFinite ||
           qty < 0 ||
-          qty - (item?['remaining'] as num).toDouble() > 0.000001;
+          qty - _receivableRemaining(item!) > 0.000001;
     }, orElse: () => null);
     if (invalid != null) {
       AppToast.error(
         context,
-        'Jumlah ${invalid['nama_inventaris']} maksimal ${invalid['remaining']} ${invalid['unit'] ?? ''}',
+        'Jumlah ${invalid['nama_inventaris']} maksimal ${_receivableRemaining(invalid)} ${invalid['unit'] ?? ''}',
       );
       return;
     }
@@ -476,11 +546,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       }).toList(),
     };
     try {
-      final saved = await sl<SharedPreferences>().setString(
-        _pendingKey,
-        jsonEncode(input),
-      );
-      if (!saved) throw StateError('Penyimpanan request ditolak perangkat');
+      await _persistPending(input, status: 'pending_confirmation');
       _pendingInput = input;
     } catch (error) {
       if (mounted) {
@@ -494,14 +560,108 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     await _sendReceiving(input);
   }
 
+  Future<void> _retryPendingReceiving() async {
+    final input = _pendingInput;
+    if (input == null) return;
+    setState(() => _loading = true);
+    final historyResult = await _repository.getPurchaseReceivings(
+      widget.purchase['_id']?.toString() ?? '',
+    );
+    if (!mounted) return;
+    var historyFailed = false;
+    final history = historyResult.fold<List<Map<String, dynamic>>>((failure) {
+      historyFailed = true;
+      AppToast.error(
+        context,
+        'Riwayat GRN belum dapat diperbarui: ${failure.message}',
+      );
+      return const [];
+    }, (rows) => rows);
+    if (historyFailed) {
+      setState(() => _loading = false);
+      return;
+    }
+    if (history.any(
+      (row) =>
+          row['client_request_id']?.toString() ==
+          input['client_request_id']?.toString(),
+    )) {
+      await sl<SharedPreferences>().remove(_pendingKey);
+      if (!mounted) return;
+      _pendingInput = null;
+      setState(() {
+        _history = history;
+        _loading = false;
+      });
+      AppToast.success(
+        context,
+        'Penerimaan sebelumnya sudah tercatat; request tidak dikirim ulang.',
+      );
+      return;
+    }
+    final purchaseResult = await _repository.getPurchaseForPrint(
+      widget.purchase['_id']?.toString() ?? '',
+    );
+    if (!mounted) return;
+    final current = purchaseResult.fold<Map<String, dynamic>?>((failure) {
+      AppToast.error(context, 'PO belum dapat diperbarui: ${failure.message}');
+      return null;
+    }, (value) => value);
+    if (current == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    if (!const {
+      'approved',
+      'partially_received',
+      'completed',
+    }.contains(current['status'])) {
+      setState(() => _loading = false);
+      AppToast.error(
+        context,
+        'PO sudah tidak dapat menerima barang. Periksa status terbaru sebelum membuat request baru.',
+      );
+      return;
+    }
+    final currentItems = {
+      for (final raw
+          in (current['items'] as List? ?? const []).whereType<Map>())
+        raw['_id']?.toString() ?? '': Map<String, dynamic>.from(raw),
+    };
+    final stale = (input['items'] as List? ?? const []).whereType<Map>().any((
+      row,
+    ) {
+      final currentRow =
+          currentItems[row['purchase_item_id']?.toString() ?? ''];
+      final requested = (row['qty_received'] as num?)?.toDouble() ?? 0;
+      return currentRow == null ||
+          requested - _receivableRemaining(currentRow) > 0.000001;
+    });
+    if (stale) {
+      setState(() {
+        _history = history;
+        _loading = false;
+      });
+      AppToast.error(
+        context,
+        'Sisa PO berubah sejak request disimpan. Request lama tidak dikirim; periksa riwayat lalu buat penerimaan baru.',
+      );
+      return;
+    }
+    setState(() => _history = history);
+    await _sendReceiving(input);
+  }
+
   Future<void> _sendReceiving(Map<String, dynamic> input) async {
     setState(() => _loading = true);
     final result = await _repository.receivePurchase(input);
     if (!mounted) return;
     var succeeded = false;
     dynamic receipt;
+    String failureMessage = '';
     result.fold(
       (failure) {
+        failureMessage = failure.message;
         AppToast.error(context, failure.message);
         setState(() => _loading = false);
       },
@@ -510,7 +670,19 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
         receipt = value;
       },
     );
-    if (!succeeded) return;
+    if (!succeeded) {
+      try {
+        await _persistPending(
+          input,
+          status: 'retry_required',
+          error: failureMessage,
+        );
+      } catch (_) {
+        // Draft awal sudah tersimpan. Jangan menghapusnya bila pembaruan
+        // metadata retry gagal ditulis perangkat.
+      }
+      return;
+    }
     await sl<SharedPreferences>().remove(_pendingKey);
     _pendingInput = null;
     if (!mounted) return;
@@ -522,50 +694,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     } else {
       AppToast.success(context, 'Penerimaan pembelian berhasil dicatat');
     }
-    // A PO creates its payable at approval. A receipt is only a due-date
-    // trigger for "saat penerimaan" terms; it is not a prerequisite to pay
-    // immediate or credit terms, including after a partial receipt.
-    if (!widget.canViewPayable) {
-      _finish();
-      return;
-    }
-    final openPayable = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Penerimaan selesai'),
-        content: const Text(
-          'Anda dapat melihat sisa hutang PO ini dan mencatat pembayaran sekarang atau nanti.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Nanti'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.payments_outlined),
-            label: const Text('Lihat hutang'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (openPayable == true) {
-      if (widget.embedded && widget.onPayRequested != null) {
-        widget.onPayRequested!(widget.purchase);
-        _finish();
-        return;
-      }
-      await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => PosPurchasePayablePage(
-            purchase: widget.purchase,
-            canRecordPayment: widget.canRecordPayment,
-          ),
-        ),
-      );
-    }
-    if (!mounted) return;
+    // Receiving posts stock and GRNI only. Supplier invoices and payments are
+    // verified separately by Finance; never imply that a receipt creates AP.
     _finish();
   }
 
@@ -756,7 +886,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                           value: 'retry_cancel_journal',
                           child: Text('Ulangi Jurnal Pembatalan'),
                         ),
-                      if (!cancelled)
+                      if (!cancelled && widget.canCancelReceiving)
                         const PopupMenuItem(
                           value: 'cancel',
                           child: Text('Batalkan Penerimaan'),
@@ -1021,7 +1151,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                             ? null
                             : () => setState(() {
                                 for (final item in _items) {
-                                  item['receive_qty'] = item['remaining'];
+                                  item['receive_qty'] = _receivableRemaining(
+                                    item,
+                                  );
                                 }
                               }),
                         icon: const Icon(Icons.done_all, size: 18),
@@ -1047,6 +1179,15 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               'Sudah diterima ${item['qty_received'] ?? 0} · '
                               'Sisa ${item['remaining']} ${item['unit'] ?? ''}',
                             ),
+                            if (_receivableRemaining(item) >
+                                (item['remaining'] as num).toDouble())
+                              Text(
+                                'Batas dengan toleransi ${widget.overReceiptTolerancePercent.toStringAsFixed(2)}%: ${_receivableRemaining(item)} ${item['unit'] ?? ''}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.warning,
+                                ),
+                              ),
                             if ((item['conversion_factor'] as num? ?? 1) != 1)
                               Text(
                                 'Konversi: 1 ${item['unit'] ?? ''} = ${item['conversion_factor']} ${item['base_unit'] ?? ''}',
@@ -1078,8 +1219,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                 final qty = double.tryParse(
                                   raw!.replaceAll(',', '.'),
                                 );
-                                final remaining = (item['remaining'] as num)
-                                    .toDouble();
+                                final remaining = _receivableRemaining(item);
                                 return qty == null ||
                                         !qty.isFinite ||
                                         qty < 0 ||

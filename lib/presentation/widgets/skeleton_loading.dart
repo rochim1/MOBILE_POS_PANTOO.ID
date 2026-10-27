@@ -36,38 +36,41 @@ class PosOrderBoardSkeleton extends StatelessWidget {
           ? 840.0
           : constraints.maxWidth;
       return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(12),
-        child: SizedBox(
-          width: boardWidth,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(
-              columns,
-              (_) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F4F6),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE1E5E9)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SkeletonBox(height: 38, borderRadius: 8),
-                        const SizedBox(height: 10),
-                        ...List.generate(
-                          cardsPerColumn,
-                          (_) => const Padding(
-                            padding: EdgeInsets.only(bottom: 10),
-                            child: PosOrderTicketSkeleton(),
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: boardWidth,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: List.generate(
+                columns,
+                (_) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F4F6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE1E5E9)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SkeletonBox(height: 38, borderRadius: 8),
+                          const SizedBox(height: 10),
+                          ...List.generate(
+                            cardsPerColumn,
+                            (_) => const Padding(
+                              padding: EdgeInsets.only(bottom: 10),
+                              child: PosOrderTicketSkeleton(),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

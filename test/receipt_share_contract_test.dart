@@ -37,4 +37,37 @@ void main() {
     expect(renderer, contains("_totalRow('Promo'"));
     expect(renderer, contains("_totalRow('Pajak'"));
   });
+
+  test('struk final memuat shift dan referensi transaksi idempoten', () {
+    final renderer = File(
+      'lib/core/receipt/pos_receipt_document_builder.dart',
+    ).readAsStringSync();
+    final query = File('lib/data/graphql/pos_queries.dart').readAsStringSync();
+
+    expect(renderer, contains("pw.Text('Shift: \${data.shiftReference}')"));
+    expect(
+      renderer,
+      contains("pw.Text('Referensi: \${data.transactionReference}')"),
+    );
+    expect(renderer, contains("add('Shift: \${data.shiftReference}')"));
+    expect(
+      renderer,
+      contains("add('Referensi: \${data.transactionReference}')"),
+    );
+    expect(query, contains('client_transaction_id'));
+    expect(query, contains('kasir_shift_id'));
+    expect(query, contains('kasir_name'));
+  });
+
+  test('penjualan tempo memakai aksi invoice kredit yang eksplisit', () {
+    final repository = File(
+      'lib/domain/repositories/pos_repository.dart',
+    ).readAsStringSync();
+    final query = File('lib/data/graphql/pos_queries.dart').readAsStringSync();
+
+    expect(query, contains('mutation IssuePOSCreditInvoice'));
+    expect(repository, contains("paymentMethod == 'tempo'"));
+    expect(repository, contains('PosQueries.issuePOSCreditInvoice'));
+    expect(repository, contains("'IssuePOSCreditInvoice'"));
+  });
 }

@@ -259,6 +259,8 @@ class PosSuccessPage extends StatelessWidget {
       'Struk ${transaction.invoice}\n'
       '${transaction.storeName.isEmpty ? '' : '${transaction.storeName}\n'}'
       '${transaction.cashierName.isEmpty ? '' : 'Kasir: ${transaction.cashierName}\n'}'
+      '${transaction.shiftReference.isEmpty ? '' : 'Shift: ${transaction.shiftReference}\n'}'
+      '${transaction.transactionReference.isEmpty ? '' : 'Referensi: ${transaction.transactionReference}\n'}'
       '${transaction.customerName.isEmpty ? '' : 'Pelanggan: ${transaction.customerName}\n'}'
       '${transaction.date.isEmpty ? '' : '${transaction.date}\n'}'
       '\n'
@@ -283,6 +285,8 @@ class PosSuccessPage extends StatelessWidget {
             : DateFormat('dd/MM/yyyy HH:mm').format(parsedDate),
         cashierName: transaction.cashierName,
         storeName: transaction.storeName,
+        shiftReference: transaction.shiftReference,
+        transactionReference: transaction.transactionReference,
         customerName: transaction.customerName,
         paymentMethod: transaction.paymentMethod,
         salesChannel: transaction.salesChannel,
@@ -504,6 +508,8 @@ class PosSuccessPage extends StatelessWidget {
             : DateFormat('dd/MM/yyyy HH:mm').format(parsedDate),
         cashierName: transaction.cashierName,
         storeName: transaction.storeName,
+        shiftReference: transaction.shiftReference,
+        transactionReference: transaction.transactionReference,
         customerName: transaction.customerName,
         paymentMethod: transaction.paymentMethod,
         salesChannel: transaction.salesChannel,

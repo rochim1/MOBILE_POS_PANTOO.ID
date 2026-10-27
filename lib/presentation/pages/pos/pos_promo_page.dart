@@ -796,7 +796,8 @@ class _PromoFormContentState extends State<_PromoFormContent> {
               'Kode Promo',
               Icons.confirmation_number_outlined,
             ),
-            validator: (v) => RegExp(r'^[A-Za-z0-9]{3,20}$').hasMatch(v?.trim() ?? '')
+            validator: (v) =>
+                RegExp(r'^[A-Za-z0-9]{3,20}$').hasMatch(v?.trim() ?? '')
                 ? null
                 : 'Kode harus 3–20 huruf atau angka tanpa spasi',
             textCapitalization: TextCapitalization.characters,
@@ -843,7 +844,15 @@ class _PromoFormContentState extends State<_PromoFormContent> {
                 child: Text('Nominal Tetap (Rp)'),
               ),
             ],
-            onChanged: (v) => setState(() => _valueType = v ?? 'percentage'),
+            onChanged: (v) => setState(() {
+              final amount = _valueType == 'fixed'
+                  ? parseRupiah(_valueCtrl.text)
+                  : (double.tryParse(_valueCtrl.text) ?? 0);
+              _valueType = v ?? 'percentage';
+              _valueCtrl.text = _valueType == 'fixed'
+                  ? formatRupiahInput(amount)
+                  : (amount <= 100 ? amount.toString() : '');
+            }),
           ),
           const SizedBox(height: 14),
 

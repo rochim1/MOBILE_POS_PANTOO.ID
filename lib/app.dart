@@ -121,11 +121,13 @@ class App extends StatelessWidget {
         theme: AppTheme.light(),
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
-            // Keep the loading view visible while the saved session and POS
-            // lock are being prepared by the auth listener above.
-            if (state.isCheckingSession ||
-                state.isAuthenticating ||
-                state.isAuthenticated) {
+            // Keep the branded startup view until the saved session and POS
+            // lock have finished loading. Login submissions stay on LoginPage
+            // so their progress remains on the button.
+            if (state.isCheckingSession || state.isAuthenticated) {
+              return const _StartupSplash();
+            }
+            if (state.isAuthenticating) {
               return const LoginPage();
             }
             final hasSeenIntro =
@@ -137,6 +139,37 @@ class App extends StatelessWidget {
 
             return const LoginPage();
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _StartupSplash extends StatelessWidget {
+  const _StartupSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image(
+              image: AssetImage('assets/images/pantoo_pos_icon.png'),
+              width: 152,
+              height: 152,
+            ),
+            SizedBox(height: 20),
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            SizedBox(height: 12),
+            Text('Menyiapkan Pantoo POS…'),
+          ],
         ),
       ),
     );

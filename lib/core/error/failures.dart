@@ -28,6 +28,11 @@ class AuthFailure extends Failure {
   ]);
 }
 
+class GoogleRegistrationRequiredFailure extends Failure {
+  const GoogleRegistrationRequiredFailure()
+    : super('Lengkapi nomor telepon dan persetujuan untuk membuat akun.');
+}
+
 class LoginCaptchaFailure extends Failure {
   final String captchaId;
   final String image;

@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dartz/dartz.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../../core/error/error_handler.dart';
 import '../../core/error/failures.dart';
@@ -40,6 +45,257 @@ class PosInventoryLookups {
 class PosInventoryRepository {
   final GraphQLClientProvider _provider;
   PosInventoryRepository(this._provider);
+  Future<Either<Failure, PosInventoryDocumentPage>>
+  getEligibleAdvancePurchases({String search = '', int page = 1}) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.eligibleAdvancePurchases),
+          variables: {
+            'search': search,
+            'pagination': {'page': page, 'limit': 20},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final data = result.data?['GetEligibleAdvancePurchasePage'];
+      return Right(
+        PosInventoryDocumentPage(
+          (data?['items'] as List? ?? [])
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .toList(),
+          (data?['totalCount'] as num?)?.toInt() ?? 0,
+        ),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> getPurchaseAdvanceWorkspace({
+    String search = '',
+    int page = 1,
+  }) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.purchaseAdvanceWorkspace),
+          variables: {
+            'search': search,
+            'pagination': {'page': page, 'limit': 20},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(Map<String, dynamic>.from(result.data ?? const {}));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> requestPurchaseAdvance(
+    Map<String, dynamic> input,
+  ) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PosInventoryQueries.requestPurchaseAdvance),
+          variables: {'input': input},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final raw = result.data?['RequestPurchaseAdvance'];
+      return raw is Map
+          ? Right(Map<String, dynamic>.from(raw))
+          : const Left(ServerFailure('Permintaan DP gagal disimpan'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, String>> uploadVendorInvoiceEvidence(
+    Uint8List bytes,
+    String filename, {
+    String folderName = 'vendor-invoice-submissions',
+    String prefix = 'invoice',
+    String label = 'Foto invoice',
+  }) async {
+    try {
+      if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+        return Left(ServerFailure('$label wajib diisi dan maksimal 10 MB'));
+      }
+      final extension = filename.split('.').last.toLowerCase();
+      final subtype = switch (extension) {
+        'jpg' || 'jpeg' => 'jpeg',
+        'png' => 'png',
+        'webp' => 'webp',
+        _ => '',
+      };
+      if (subtype.isEmpty) {
+        return const Left(
+          ServerFailure('Format foto invoice harus JPG, PNG, atau WebP'),
+        );
+      }
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(_provider.endpointUrl),
+      );
+      request.headers.addAll(await _provider.authenticatedRequestHeaders());
+      request.fields['operations'] = jsonEncode({
+        'query': PosInventoryQueries.uploadVendorInvoiceEvidence,
+        'variables': {'file': null, 'folderName': folderName, 'prefix': prefix},
+      });
+      request.fields['map'] = jsonEncode({
+        '0': ['variables.file'],
+      });
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          '0',
+          bytes,
+          filename: filename,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+      final response = await http.Response.fromStream(await request.send());
+      final payload = jsonDecode(response.body);
+      if (payload is! Map) {
+        return const Left(ServerFailure('Respons upload bukti tidak valid'));
+      }
+      final errors = payload['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        return Left(
+          ServerFailure(
+            (errors.first as Map?)?['message']?.toString() ??
+                'Upload bukti gagal',
+          ),
+        );
+      }
+      final rawUrl =
+          (payload['data'] as Map?)?['UploadQuestionImage']?['media_url']
+              ?.toString() ??
+          '';
+      if (rawUrl.isEmpty) {
+        return const Left(
+          ServerFailure('Server tidak mengembalikan URL bukti'),
+        );
+      }
+      return Right(rawUrl);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, String>> uploadDirectPurchaseReceipt(
+    Uint8List bytes,
+    String filename,
+  ) => uploadVendorInvoiceEvidence(
+    bytes,
+    filename,
+    folderName: 'direct-purchase-receipts',
+    prefix: 'receipt',
+    label: 'Bukti nota',
+  );
+
+  Future<Either<Failure, String>> uploadPurchaseAdvanceProforma(
+    Uint8List bytes,
+    String filename,
+  ) async {
+    try {
+      if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+        return const Left(ServerFailure('Lampiran proforma maksimal 10 MB'));
+      }
+      final extension = filename.split('.').last.toLowerCase();
+      final subtype = switch (extension) {
+        'jpg' || 'jpeg' => 'jpeg',
+        'png' => 'png',
+        'webp' => 'webp',
+        _ => '',
+      };
+      if (subtype.isEmpty) {
+        return const Left(
+          ServerFailure('Format proforma harus JPG, PNG, atau WebP'),
+        );
+      }
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(_provider.endpointUrl),
+      );
+      request.headers.addAll(await _provider.authenticatedRequestHeaders());
+      request.fields['operations'] = jsonEncode({
+        'query': PosInventoryQueries.uploadVendorInvoiceEvidence,
+        'variables': {
+          'file': null,
+          'folderName': 'purchase-advance-proforma',
+          'prefix': 'proforma',
+        },
+      });
+      request.fields['map'] = jsonEncode({
+        '0': ['variables.file'],
+      });
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          '0',
+          bytes,
+          filename: filename,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+      final response = await http.Response.fromStream(await request.send());
+      final payload = jsonDecode(response.body);
+      if (payload is! Map) {
+        return const Left(ServerFailure('Respons upload proforma tidak valid'));
+      }
+      final errors = payload['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        return Left(
+          ServerFailure(
+            (errors.first as Map?)?['message']?.toString() ??
+                'Upload proforma gagal',
+          ),
+        );
+      }
+      final url =
+          (payload['data'] as Map?)?['UploadQuestionImage']?['media_url']
+              ?.toString() ??
+          '';
+      return url.isEmpty
+          ? const Left(ServerFailure('Server tidak mengembalikan URL proforma'))
+          : Right(url);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> submitVendorInvoiceEvidence(
+    Map<String, dynamic> input,
+  ) async {
+    try {
+      final result = await _provider.client.mutate(
+        MutationOptions(
+          document: gql(PosInventoryQueries.submitVendorInvoiceEvidence),
+          variables: {'input': input},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final raw = result.data?['SubmitVendorInvoiceEvidence'];
+      return raw is Map
+          ? Right(Map<String, dynamic>.from(raw))
+          : const Left(ServerFailure('Submission invoice gagal disimpan'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
 
   Future<Either<Failure, Map<String, dynamic>>> getPayableForPaymentProof(
     String payableId,
@@ -180,6 +436,7 @@ class PosInventoryRepository {
     String inventoryId = '',
     bool receivableOnly = false,
     bool openQuantityOnly = false,
+    String workflowView = '',
     String locationId = '',
     String dateFrom = '',
     String dateTo = '',
@@ -201,6 +458,9 @@ class PosInventoryRepository {
           'receivable_only': true,
         if (type == PosInventoryDocumentType.purchase && openQuantityOnly)
           'open_quantity_only': true,
+        if (type == PosInventoryDocumentType.purchase &&
+            workflowView.isNotEmpty)
+          'workflow_view': workflowView,
         if (type == PosInventoryDocumentType.opname && locationId.isNotEmpty)
           'lokasi_cabang_id': locationId,
         if (type == PosInventoryDocumentType.opname && dateFrom.isNotEmpty)
@@ -585,6 +845,52 @@ class PosInventoryRepository {
     'input': input,
   }, 'AddInventoryReceiving');
 
+  Future<Either<Failure, dynamic>> markPurchaseSent(
+    Map<String, dynamic> input,
+  ) => _mutate(PosInventoryQueries.markPurchaseSent, {
+    'input': input,
+  }, 'MarkInventoryPurchaseSentToSupplier');
+
+  Future<Either<Failure, dynamic>> acknowledgePurchase(
+    Map<String, dynamic> input,
+  ) => _mutate(
+    PosInventoryQueries.acknowledgePurchase,
+    {'input': input},
+    'RecordSupplierPurchaseAcknowledgement',
+  );
+
+  Future<Either<Failure, dynamic>> closePurchaseWithVariance(
+    Map<String, dynamic> input,
+  ) => _mutate(
+    PosInventoryQueries.closePurchaseWithVariance,
+    {'input': input},
+    'CloseInventoryPurchaseWithVariance',
+  );
+
+  Future<Either<Failure, Map<String, dynamic>>>
+  getDirectPurchaseWorkspace() async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.directPurchases),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      return Right(Map<String, dynamic>.from(result.data ?? const {}));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, dynamic>> createDirectPurchase(
+    Map<String, dynamic> input,
+  ) => _mutate(PosInventoryQueries.createDirectPurchase, {
+    'input': input,
+  }, 'CreateDirectPurchase');
+
   Future<Either<Failure, Map<String, dynamic>?>> getPayableForPurchase(
     String purchaseId,
   ) async {
@@ -610,6 +916,30 @@ class PosInventoryRepository {
         if (item['purchase_id']?.toString() == purchaseId) return Right(item);
       }
       return const Right(null);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> getVendorBillsForPurchase(
+    String purchaseId,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.vendorBillsForPurchase),
+          variables: {'purchaseId': purchaseId, 'page': 1, 'limit': 100},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows =
+          result.data?['GetVendorBills']?['items'] as List? ?? const [];
+      return Right(
+        rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
+      );
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
     }
@@ -762,31 +1092,6 @@ class PosInventoryRepository {
               .toList(),
           (root?['totalCount'] as num?)?.toInt() ?? 0,
         ),
-      );
-    } catch (error) {
-      return Left(AppErrorHandler.handle(error));
-    }
-  }
-
-  Future<Either<Failure, Set<String>>> getPendingPurchaseApprovalIds() async {
-    try {
-      final result = await _provider.client.query(
-        QueryOptions(
-          document: gql(PosInventoryQueries.pendingPurchaseApprovals),
-          variables: {
-            'pagination': {'page': 0, 'limit': 500},
-          },
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-      if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
-      }
-      return Right(
-        (result.data?['GetMyPendingApprovals'] as List? ?? const [])
-            .map((row) => (row as Map)['request_id']?.toString() ?? '')
-            .where((id) => id.isNotEmpty)
-            .toSet(),
       );
     } catch (error) {
       return Left(AppErrorHandler.handle(error));

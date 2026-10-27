@@ -7,6 +7,13 @@ import '../../core/network/graphql_client_provider.dart';
 import '../../data/graphql/pos_table_order_queries.dart';
 import '../models/pos_order_detail.dart';
 
+class PosActiveOrderPage {
+  final List<PosOrderDetail> items;
+  final int total;
+  final Map<String, int> statusCounts;
+  const PosActiveOrderPage(this.items, this.total, this.statusCounts);
+}
+
 class PosOrderRepository {
   final GraphQLClientProvider _clientProvider;
 
@@ -14,10 +21,12 @@ class PosOrderRepository {
 
   Future<(int, int)?> getSlaThresholds() async {
     try {
-      final result = await _clientProvider.client.query(QueryOptions(
-        document: gql(PosTableOrderQueries.getSlaThresholds),
-        fetchPolicy: FetchPolicy.networkOnly,
-      ));
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosTableOrderQueries.getSlaThresholds),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
       if (result.hasException) return null;
       final data = result.data?['GetPOSRuntimeConfig'] as Map?;
       if (data == null) return null;
@@ -30,23 +39,35 @@ class PosOrderRepository {
     }
   }
 
-  Future<Either<Failure, List<PosOrderDetail>>> getActiveOrders({
+  Future<Either<Failure, PosActiveOrderPage>> getActiveOrders({
     required String storeId,
     String search = '',
     String status = '',
+    String fulfillment = '',
+    String dateFrom = '',
+    String dateTo = '',
+    String sort = 'oldest',
+    int page = 0,
   }) async {
     try {
       final filter = <String, dynamic>{
         'toko_id': storeId,
         if (search.trim().isNotEmpty) 'search': search.trim(),
         'status': status.isEmpty ? '__active__' : status,
+        'active_only': true,
+        if (fulfillment.isNotEmpty) 'fulfillment': fulfillment,
+        if (dateFrom.isNotEmpty) 'tanggal_mulai': dateFrom,
+        if (dateTo.isNotEmpty) 'tanggal_akhir': dateTo,
       };
       final result = await _clientProvider.client.query(
         QueryOptions(
           document: gql(PosTableOrderQueries.getActiveOrders),
           variables: {
             'filter': filter,
-            'pagination': {'page': 0, 'limit': 100},
+            'pagination': {'page': page < 0 ? 0 : page, 'limit': 30},
+            'sorting': sort == 'highest_total'
+                ? {'grand_total': 'desc'}
+                : {'createdAt': sort == 'newest' ? 'desc' : 'asc'},
           },
           fetchPolicy: FetchPolicy.networkOnly,
         ),
@@ -54,22 +75,78 @@ class PosOrderRepository {
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      final rows =
-          result.data?['GetAllPOSOrder']?['items'] as List? ?? const [];
-      return Right(
-        rows
-            .whereType<Map>()
-            .map(
-              (row) => PosOrderDetail.fromJson(Map<String, dynamic>.from(row)),
-            )
-            .toList(),
-      );
+      final data = result.data?['GetAllPOSOrder'];
+      final rows = data?['items'] as List? ?? const [];
+      final orders = rows
+          .whereType<Map>()
+          .map((row) => PosOrderDetail.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
+      final pageInfo = data?['info_page'] as List?;
+      final firstPageInfo = pageInfo?.firstOrNull;
+      final total = firstPageInfo is Map
+          ? firstPageInfo['count'] as num?
+          : null;
+      final counts = <String, int>{
+        for (final row
+            in (data?['status_counts'] as List? ?? const []).whereType<Map>())
+          row['status'].toString(): (row['count'] as num?)?.toInt() ?? 0,
+      };
+      return Right(PosActiveOrderPage(orders, total?.toInt() ?? 0, counts));
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
     }
   }
 
   /// Loads the authoritative kitchen queue. Unlike the general active-order
+  Future<Either<Failure, PosActiveOrderPage>> getKitchenPage({
+    required String storeId,
+    String stationId = '',
+    String status = '',
+    int page = 0,
+  }) async {
+    if (storeId.trim().isEmpty) {
+      return const Left(ServerFailure('Pilih toko untuk memuat antrean dapur'));
+    }
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosTableOrderQueries.getKitchenPage),
+          variables: {
+            'storeId': storeId,
+            'stationId': stationId.isEmpty ? null : stationId,
+            'status': status.isEmpty ? null : status,
+            'pagination': {'page': page + 1, 'limit': 30},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final data = result.data?['GetPOSKitchenTicketPage'];
+      return Right(
+        PosActiveOrderPage(
+          (data?['items'] as List? ?? [])
+              .whereType<Map>()
+              .map(
+                (row) =>
+                    PosOrderDetail.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .toList(),
+          (data?['totalCount'] as num?)?.toInt() ?? 0,
+          {
+            for (final row
+                in (data?['status_counts'] as List? ?? []).whereType<Map>())
+              row['status'].toString(): (row['count'] as num?)?.toInt() ?? 0,
+          },
+        ),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  /// Compatibility method for old consumers. New boards use getKitchenPage.
   /// list, this server query filters on each item production state, so a
   /// partially prepared order is never hidden by its aggregate order status.
   Future<Either<Failure, List<PosOrderDetail>>> getKitchenTickets({
@@ -238,10 +315,14 @@ class PosOrderRepository {
           variables: {'orderId': orderId},
         ),
       );
-      if (result.hasException) return Left(AppErrorHandler.handle(result.exception!));
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
       final order = result.data?['RemovePOSOrderPromo'];
       if (order is! Map || order['grand_total'] is! num) {
-        return const Left(ServerFailure('Voucher tidak dapat dilepas dari order'));
+        return const Left(
+          ServerFailure('Voucher tidak dapat dilepas dari order'),
+        );
       }
       return Right((order['grand_total'] as num).toDouble());
     } catch (error) {

@@ -1,4 +1,65 @@
 class PosInventoryQueries {
+  static const purchaseAdvanceWorkspace = r'''
+    query GetPOSPurchaseAdvanceWorkspace($search:String,$pagination:pagination) {
+      GetPurchaseAdvancePage(search:$search,pagination:$pagination) { totalCount items {
+        _id purchase_id no_po supplier_name amount status purpose proforma_url proforma_hash requested_at
+        approved_at approval_reason rejection_reason paid_amount allocated_amount
+        refunded_amount transferred_amount written_off_amount balance
+      } }
+    }
+  ''';
+  static const eligibleAdvancePurchases=r'''
+    query($search:String,$pagination:pagination){GetEligibleAdvancePurchasePage(search:$search,pagination:$pagination){totalCount items{_id no_po supplier_name status accounting_flow grand_total down_payment_amount down_payment_percent advance_available_amount}}}
+  ''';
+
+  static const requestPurchaseAdvance = r'''
+    mutation RequestPOSPurchaseAdvance($input: RequestPurchaseAdvanceInput!) {
+      RequestPurchaseAdvance(input: $input) {
+        _id purchase_id no_po supplier_name amount status purpose proforma_url proforma_hash requested_at balance
+      }
+    }
+  ''';
+
+  static const markPurchaseSent = r'''
+    mutation MarkPOSPurchaseSent($input: MarkInventoryPurchaseSentInput!) {
+      MarkInventoryPurchaseSentToSupplier(input: $input) {
+        _id status supplier_status supplier_contact sent_channel sent_at sent_by
+      }
+    }
+  ''';
+
+  static const acknowledgePurchase = r'''
+    mutation AcknowledgePOSPurchase($input: SupplierPurchaseAcknowledgementInput!) {
+      RecordSupplierPurchaseAcknowledgement(input: $input) {
+        _id status supplier_status supplier_ack_status supplier_ack_note supplier_ack_at supplier_ack_by
+      }
+    }
+  ''';
+
+  static const closePurchaseWithVariance = r'''
+    mutation ClosePOSPurchaseWithVariance($input: CloseInventoryPurchaseWithVarianceInput!) {
+      CloseInventoryPurchaseWithVariance(input: $input) {
+        _id status receiving_status closed_with_variance close_variance_reason closed_at closed_by remaining_qty_at_close
+      }
+    }
+  ''';
+
+  static const uploadVendorInvoiceEvidence = r'''
+    mutation UploadVendorInvoiceEvidence($file: Upload!, $folderName: String!, $prefix: String) {
+      UploadQuestionImage(file: $file, folder_name: $folderName, prefix: $prefix) {
+        success media_url mime_type
+      }
+    }
+  ''';
+
+  static const submitVendorInvoiceEvidence = r'''
+    mutation SubmitVendorInvoiceEvidence($input: VendorInvoiceSubmissionInput!) {
+      SubmitVendorInvoiceEvidence(input: $input) {
+        _id request_id status evidence_url submitted_at
+      }
+    }
+  ''';
+
   static const warehouses = r'''
     query GetPOSWarehouses($search: String) {
       getAllCabangs(
@@ -38,11 +99,12 @@ class PosInventoryQueries {
       GetAllInventoryPurchases(filter: $filter, pagination: $pagination) {
         totalCount
         items {
-          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman alamat_pengiriman
-          metode_pembayaran syarat_pembayaran tipe_kredit payment_term_type term_days due_date due_date_basis
+          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman supplier_contact
+          metode_pembayaran payment_method syarat_pembayaran tipe_kredit payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent
           jumlah_termin jadwal_termin { no_termin amount due_date status paid_date paid_amount }
-          prioritas status payable_status payable_outstanding_amount catatan alasan_penolakan total_amount
-          approval_history_id
+          prioritas status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close payable_status payable_outstanding_amount catatan alasan_penolakan total_amount
+          approval_history_id my_pending_approval createdAt created_by { _id name }
+          sent_by supplier_ack_by closed_by
           diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount ppn_source supplier_is_pkp
           biaya_pengiriman biaya_tambahan { _id jenis_biaya deskripsi nominal }
           total_biaya_tambahan biaya_mode biaya_alokasi grand_total
@@ -61,15 +123,16 @@ class PosInventoryQueries {
   static const purchaseDetail = r'''
     query GetOneInventoryPurchaseForPrint($id: ID!) {
       GetOneInventoryPurchase(_id: $id) {
-        _id no_po supplier_name tanggal_po tanggal_pengiriman alamat_pengiriman
-        syarat_pembayaran payment_term_type term_days due_date status catatan total_amount grand_total
+        _id no_po supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman
+        metode_pembayaran payment_method syarat_pembayaran payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close catatan total_amount grand_total
         diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount
         biaya_pengiriman biaya_tambahan { jenis_biaya deskripsi nominal }
         jadwal_termin { no_termin amount due_date status paid_date paid_amount }
         created_by { _id name username }
         createdAt updatedAt
         items {
-          kode_inventaris nama_inventaris qty_ordered unit harga_beli
+          _id inventaris_id kode_inventaris nama_inventaris qty_ordered qty_ordered_base
+          qty_received qty_received_base unit base_unit conversion_factor harga_beli
           diskon_item diskon_item_type subtotal catatan_item
         }
       }
@@ -82,7 +145,7 @@ class PosInventoryQueries {
         total page limit
         data {
           _id no_opname tanggal_opname status catatan alasan_penolakan
-          approval_required_level approval_current_level approval_history_id
+          approval_required_level approval_current_level approval_history_id my_pending_approval
           approval_logs { action level note by at }
           lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama }
           items {
@@ -100,7 +163,7 @@ class PosInventoryQueries {
     query GetAllInventoryTransfers($filter: InventoryTransferFilter, $page: Int, $limit: Int) {
       GetAllInventoryTransfers(filter: $filter, page: $page, limit: $limit) {
         total page limit
-        data { _id no_transfer tanggal_transfer status catatan total_biaya journal_status journal_error cancel_journal_status cancel_journal_error biaya_transfer { jenis_biaya deskripsi nominal akun_beban akun_beban_nama } biaya_mode biaya_alokasi dari { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } ke { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } items { _id inventaris_id kode_inventaris nama_inventaris qty received_qty unit } }
+        data { _id no_transfer tanggal_transfer status catatan approval_history_id my_pending_approval total_biaya journal_status journal_error cancel_journal_status cancel_journal_error biaya_transfer { jenis_biaya deskripsi nominal akun_beban akun_beban_nama } biaya_mode biaya_alokasi dari { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } ke { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } items { _id inventaris_id kode_inventaris nama_inventaris qty received_qty unit } }
       }
     }
   ''';
@@ -244,7 +307,7 @@ class PosInventoryQueries {
   ''';
 
   static const createPurchase =
-      r'''mutation AddInventoryPurchase($input: InventoryPurchaseInput!) { AddInventoryPurchase(input: $input) { _id no_po status } }''';
+      r'''mutation AddInventoryPurchase($input: InventoryPurchaseInput!) { AddInventoryPurchase(input: $input) { _id no_po status client_request_id } }''';
   static const updatePurchase =
       r'''mutation UpdateInventoryPurchase($id: ID!, $input: InventoryPurchaseInput!) { UpdateInventoryPurchase(_id: $id, input: $input) { _id no_po status } }''';
   static const submitPurchase =
@@ -257,6 +320,20 @@ class PosInventoryQueries {
       r'''mutation DeleteInventoryPurchase($id: ID!, $reason: String) { DeleteInventoryPurchase(_id: $id, delete_reason: $reason) { _id status } }''';
   static const receivePurchase =
       r'''mutation AddInventoryReceiving($input: InventoryReceivingInput!) { AddInventoryReceiving(input: $input) { _id no_grn purchase_id status journal_status journal_error } }''';
+
+  static const directPurchases = r'''
+    query GetDirectPurchasesForPOS {
+      GetDirectPurchasePolicy { enabled amount_limit receipt_required_from allowed_categories }
+      GetDirectPurchases { _id number supplier_name date status total_amount receipt_url receipt_hash note request_id createdAt }
+      GetDirectPurchaseOptions { banks { _id name account_number_last4 coa_code } accounts { code name type } }
+    }
+  ''';
+
+  static const createDirectPurchase = r'''
+    mutation CreateDirectPurchaseForPOS($input: CreateDirectPurchaseInput!) {
+      CreateDirectPurchase(input: $input) { _id number supplier_name date status total_amount receipt_url receipt_hash note request_id }
+    }
+  ''';
 
   static const payableForPurchase = r'''
     query GetInventoryPayablesForPurchase($filter: InventoryPayableFilter, $pagination: pagination) {
@@ -273,6 +350,19 @@ class PosInventoryQueries {
             recorded_by { _id name username }
             cancelled_by { _id name username }
           }
+        }
+      }
+    }
+  ''';
+
+  static const vendorBillsForPurchase = r'''
+    query GetVendorBillsForPurchase($purchaseId: ID!, $page: Int, $limit: Int) {
+      GetVendorBills(purchase_id: $purchaseId, page: $page, limit: $limit) {
+        totalCount
+        items {
+          _id supplier_invoice_number invoice_date due_date status total_amount
+          items { matching_status }
+          payable { _id status paid_amount outstanding_amount due_date }
         }
       }
     }
@@ -341,7 +431,7 @@ class PosInventoryQueries {
       GetAllInventoryReceivings(purchase_id: $purchaseId, pagination: $pagination) {
         totalCount
         items {
-          _id no_grn tanggal_terima no_surat_jalan status catatan foto_bukti journal_status journal_error cancel_journal_status cancel_journal_error
+          _id no_grn client_request_id tanggal_terima no_surat_jalan status catatan foto_bukti journal_status journal_error cancel_journal_status cancel_journal_error
           cancel_reason cancelled_at createdAt
           created_by { _id name username }
           cancelled_by { _id name username }

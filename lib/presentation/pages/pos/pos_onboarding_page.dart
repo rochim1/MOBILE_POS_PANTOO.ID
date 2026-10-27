@@ -1,4 +1,6 @@
 import 'dart:convert';
+import '../../../../domain/models/pos_remote_profile_catalog.dart';
+import '../../../../domain/repositories/pos_repository.dart';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -205,6 +207,7 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
 }
 
 class _PosOnboardingPageState extends State<PosOnboardingPage> {
+  PosRemoteProfileCatalog _profileCatalog = PosRemoteProfileCatalog.bundled();
   final PageController _controller = PageController();
   int _index = 0;
   bool _saving = false;
@@ -215,17 +218,15 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   late String _priceLevel;
   late String _fulfillment;
   bool _autoPrint = false;
+  bool _loadingSettings = true;
+  String? _loadError;
+  double _taxPercent = 0;
+  final TextEditingController _taxController = TextEditingController();
   late List<String> _channels;
   late List<String> _priceLevels;
 
-  List<String> get _fulfillmentOptions => [
-    if (_features['use_tables'] == true) 'dine_in',
-    if (_profile == 'restoran') 'free_table',
-    'take_away',
-    if (_features['use_delivery'] == true) 'delivery',
-    if (_profile == 'restoran') 'quick_service',
-    if (_features['use_appointments'] == true) 'reservation',
-  ];
+  List<String> get _fulfillmentOptions =>
+      _profileCatalog.orderTypes(_profile, _features);
 
   bool get _canManage {
     final value = _config['permissions'];
@@ -298,15 +299,71 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   Future<void> _loadCurrentSettings() async {
-    final result = await sl<PosSettingsRepository>().getSettings();
-    if (!mounted) return;
-    result.fold((_) {}, (settings) {
-      if (settings.onboardingCompleted == true) {
-        _openPos();
-        return;
-      }
-      setState(() => _autoPrint = settings.autoPrintReceipt ?? false);
+    setState(() {
+      _loadingSettings = true;
+      _loadError = null;
     });
+    try {
+      final catalogFuture = sl<PosSettingsRepository>().getProfileCatalog();
+      final runtime = await sl<PosRepository>().getRuntimeConfig();
+      final result = await sl<PosSettingsRepository>().getSettings();
+      final catalog = await catalogFuture;
+      if (!mounted) return;
+      result.fold(
+        (failure) => setState(() {
+          _loadingSettings = false;
+          _loadError = failure.message;
+        }),
+        (settings) => setState(() {
+          _config = runtime;
+          _profileCatalog = catalog;
+          _profile = settings.businessProfile ?? 'retail';
+          _features = {
+            ..._profileCatalog.featuresFor(_profile),
+            ...settings.enabledFeatures,
+          };
+          _channels = <String>{
+            'retail',
+            ...settings.salesChannelOptions,
+          }.toList();
+          _priceLevels = <String>{
+            'retail',
+            ...settings.priceLevelOptions,
+          }.toList();
+          _channel = _channels.contains(settings.defaultChannelPenjualan)
+              ? settings.defaultChannelPenjualan!
+              : 'retail';
+          _priceLevel = _priceLevels.contains(settings.defaultPriceLevel)
+              ? settings.defaultPriceLevel!
+              : 'retail';
+          _fulfillment = settings.defaultTipePesanan ?? 'take_away';
+          if (_fulfillment == 'online_delivery') _fulfillment = 'delivery';
+          if (!_fulfillmentOptions.contains(_fulfillment)) {
+            _fulfillment = 'take_away';
+          }
+          _autoPrint = settings.autoPrintReceipt ?? false;
+          _taxPercent = settings.pajakPersen ?? 0;
+          _taxController.text = _taxPercent.toString();
+          _loadingSettings = false;
+        }),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingSettings = false;
+        _loadError = 'Konfigurasi POS belum dapat dimuat. Coba lagi.';
+      });
+    }
+  }
+
+  List<String> get _healthIssues {
+    final health = _config['configuration_health'];
+    return [
+      if (health is Map && health['issues'] is List)
+        ...(health['issues'] as List).map((issue) => issue.toString()),
+      if (_inventoryRequiresStockTracking && _features['track_stock'] != true)
+        'Tracking stok POS wajib aktif untuk profil Inventory ini.',
+    ];
   }
 
   String _label(String value) {
@@ -324,7 +381,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       'quick_service': 'Layanan Cepat',
       'reservation': 'Reservasi',
     };
-    return values[value] ??
+    return _profileCatalog.profile(value)?.label ??
+        values[value] ??
         value
             .split('_')
             .map(
@@ -336,53 +394,19 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   void _applyProfile(String value) {
-    final base = <String, bool>{
-      'use_tables': false,
-      'use_kitchen_flow': false,
-      'use_service_order': false,
-      'use_appointments': false,
-      'use_technicians': false,
-      'use_vehicle_data': false,
-      'use_delivery': false,
-      'require_customer': false,
-      'track_stock': true,
-    };
-    final presets = {
-      'retail': base,
-      'restoran': {
-        ...base,
-        'use_tables': true,
-        'use_kitchen_flow': true,
-        'use_delivery': true,
-      },
-      'bengkel': {
-        ...base,
-        'use_service_order': true,
-        'use_appointments': true,
-        'use_technicians': true,
-        'use_vehicle_data': true,
-        'require_customer': true,
-      },
-      'jasa': {
-        ...base,
-        'use_service_order': true,
-        'use_appointments': true,
-        'use_technicians': true,
-        'require_customer': true,
-        'track_stock': false,
-      },
-      'laundry': {
-        ...base,
-        'use_service_order': true,
-        'use_delivery': true,
-        'require_customer': true,
-      },
-    };
+    final preset = _profileCatalog.featuresFor(value, current: _features);
     setState(() {
       _profile = value;
-      if (value != 'custom') _features = {...presets[value] ?? base};
+      _features = preset;
       if (_inventoryRequiresStockTracking) _features['track_stock'] = true;
-      _fulfillment = value == 'restoran' ? 'dine_in' : 'take_away';
+      _fulfillment = _profileCatalog.defaultOrderType(
+        value,
+        _features,
+        current: _fulfillment,
+      );
+      if (!_fulfillmentOptions.contains(_fulfillment)) {
+        _fulfillment = 'take_away';
+      }
     });
   }
 
@@ -400,6 +424,14 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   Future<void> _save() async {
+    if (_loadingSettings ||
+        _loadError != null ||
+        !_taxPercent.isFinite ||
+        _taxPercent < 0 ||
+        _taxPercent > 100 ||
+        _healthIssues.isNotEmpty) {
+      return;
+    }
     if (!_canManage) return _openPos();
     setState(() => _saving = true);
     final result = await sl<PosSettingsRepository>().updateSettings({
@@ -411,6 +443,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       'default_price_level': _priceLevel,
       'default_tipe_pesanan': _fulfillment,
       'auto_print_receipt': _autoPrint,
+      'pajak_persen': _taxPercent,
     });
     if (!mounted) return;
     await result.fold(
@@ -431,6 +464,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
           'default_sales_channel': _channel,
           'default_price_level': _priceLevel,
           'default_order_type': _fulfillment,
+          'tax_percent': _taxPercent,
+          'auto_print_receipt': _autoPrint,
         };
         await sl<SharedPreferences>().setString(
           'pos_runtime_config',
@@ -502,6 +537,18 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               !(key == 'track_stock' && _inventoryRequiresStockTracking)
           ? (value) => setState(() {
               _features[key] = value;
+              if (key == 'use_service_order' && !value) {
+                _features['use_appointments'] = false;
+                _features['use_technicians'] = false;
+                _features['use_vehicle_data'] = false;
+              } else if (value &&
+                  [
+                    'use_appointments',
+                    'use_technicians',
+                    'use_vehicle_data',
+                  ].contains(key)) {
+                _features['use_service_order'] = true;
+              }
               if (!_fulfillmentOptions.contains(_fulfillment)) {
                 _fulfillment = 'take_away';
               }
@@ -514,20 +561,32 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
 
   @override
   void dispose() {
+    _taxController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const profiles = [
-      'retail',
-      'restoran',
-      'bengkel',
-      'jasa',
-      'laundry',
-      'custom',
-    ];
+    final profiles = _profileCatalog.ids(current: _profile);
+    if (_loadingSettings || _loadError != null) {
+      return Scaffold(
+        body: Center(
+          child: _loadingSettings
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_loadError!),
+                    TextButton(
+                      onPressed: _loadCurrentSettings,
+                      child: const Text('Coba lagi'),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: Container(
@@ -577,6 +636,13 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         description:
                             'Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.',
                         children: [
+                          if (_profileCatalog.source != 'backend')
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                'Katalog tersimpan digunakan. Hubungkan kembali untuk memuat profil terbaru.',
+                              ),
+                            ),
                           const Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
@@ -615,32 +681,15 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         description:
                             'Aktifkan hanya fitur yang digunakan usaha Anda.',
                         children: [
-                          _switch(
-                            'use_delivery',
-                            'Pesan antar',
-                            'Melayani pengiriman dari outlet',
-                          ),
-                          _switch(
-                            'use_tables',
-                            'Meja',
-                            'Manajemen meja dan dine-in',
-                          ),
-                          _switch(
-                            'use_appointments',
-                            'Reservasi',
-                            'Pesanan berdasarkan jadwal',
-                          ),
-                          _switch(
-                            'require_customer',
-                            'Wajib pelanggan',
-                            'Transaksi harus memilih pelanggan',
-                          ),
-                          _switch(
-                            'track_stock',
-                            'Tracking stok',
-                            _inventoryRequiresStockTracking
-                                ? 'Wajib aktif untuk profil Inventory saat ini'
-                                : 'Kurangi stok saat transaksi selesai',
+                          ..._profileCatalog.featureOptions.map(
+                            (option) => _switch(
+                              option['key']!,
+                              option['label']!,
+                              option['key'] == 'track_stock' &&
+                                      _inventoryRequiresStockTracking
+                                  ? 'Wajib aktif untuk profil Inventory saat ini'
+                                  : option['description']!,
+                            ),
                           ),
                         ],
                       ),
@@ -669,15 +718,45 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                             _priceLevels,
                             (value) => setState(() => _priceLevel = value),
                           ),
+                          TextFormField(
+                            controller: _taxController,
+                            decoration: const InputDecoration(
+                              labelText: 'Pajak transaksi (%)',
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            enabled: _canManage,
+                            onChanged: (value) => setState(
+                              () => _taxPercent =
+                                  double.tryParse(value.replaceAll(',', '.')) ??
+                                  -1,
+                            ),
+                          ),
+                          if (_taxPercent < 0 || _taxPercent > 100)
+                            const Text('Pajak harus antara 0 dan 100 persen'),
                         ],
                       ),
                       _Slide(
-                        stepLabel: 'Langkah 4 dari 4 · Konfirmasi',
+                        stepLabel: 'Langkah 4 dari 4 · Validasi Inventory',
                         icon: Icons.check_circle_outline_rounded,
-                        title: 'Konfirmasi dan mulai',
+                        title: 'Pastikan POS dan Inventory sejalan',
                         description:
                             'Pengaturan disimpan ke database dan digunakan bersama POS Admin serta Inventory.',
                         children: [
+                          _Summary(
+                            'Profil Inventory',
+                            _label(
+                              _config['inventory_profile']?.toString() ??
+                                  'simple',
+                            ),
+                          ),
+                          _Summary(
+                            'Validasi Inventory',
+                            _healthIssues.isEmpty
+                                ? 'Konfigurasi operasional sesuai'
+                                : _healthIssues.join('\n'),
+                          ),
                           _Summary('Profil usaha', _label(_profile)),
                           _Summary('Channel', _label(_channel)),
                           _Summary('Tipe pemenuhan', _label(_fulfillment)),
@@ -746,7 +825,14 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         ),
                         const Spacer(),
                         FilledButton.icon(
-                          onPressed: _saving ? null : _next,
+                          onPressed:
+                              _saving ||
+                                  !_taxPercent.isFinite ||
+                                  _taxPercent < 0 ||
+                                  _taxPercent > 100 ||
+                                  (_index == 3 && _healthIssues.isNotEmpty)
+                              ? null
+                              : _next,
                           icon: _saving
                               ? const SizedBox(
                                   width: 14,

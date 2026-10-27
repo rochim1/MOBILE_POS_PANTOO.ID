@@ -26,8 +26,11 @@ import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/repositories/pos_order_repository.dart';
 import '../../../../core/network/graphql_client_provider.dart';
 import 'utils/pos_order_age.dart';
+import 'utils/pos_order_transition_policy.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'pos_payment_page.dart';
+import 'widgets/pos_active_order_mobile_filters.dart';
+import 'widgets/pos_active_order_status_tabs.dart';
 
 class PosTableOrderPage extends StatelessWidget {
   final ValueChanged<PosOrderDetail>? onEditOrder;
@@ -40,7 +43,6 @@ class PosTableOrderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = context.read<PosBloc>().state.runtimeConfig;
-    final useTables = (config['features'] as Map?)?['use_tables'] == true;
     final canView = (config['permissions'] as Map?)?['view_tables'] == true;
     final posState = context.read<PosBloc>().state;
     final allowOutOfShift = config['allow_out_of_shift'] == true;
@@ -53,15 +55,13 @@ class PosTableOrderPage extends StatelessWidget {
                       ?.id ??
                   ''
             : '');
-    if (!useTables || !canView || storeId.isEmpty) {
+    if (!canView || storeId.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            !useTables
-                ? 'Fitur meja tidak aktif untuk profil POS ini.'
-                : !canView
-                ? 'Anda tidak memiliki izin melihat table order.'
+            !canView
+                ? 'Anda tidak memiliki izin melihat pesanan aktif.'
                 : allowOutOfShift
                 ? 'Toko aktif belum tersedia untuk menampilkan meja.'
                 : 'Buka shift kasir untuk menampilkan meja toko aktif.',
@@ -73,9 +73,6 @@ class PosTableOrderPage extends StatelessWidget {
     }
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (_) => sl<PosTableBloc>()..add(LoadTables(storeId: storeId)),
-        ),
         BlocProvider(
           create: (_) =>
               sl<PosOrderManagementBloc>()
@@ -120,23 +117,67 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   bool _realtimeConnected = false;
   int _warningMinutes = 15;
   int _criticalMinutes = 25;
+  bool _usesKitchenFlow = false;
   DateTime _now = DateTime.now();
   String _status = '';
   String _fulfillment = '';
-  String _sort = 'newest';
+  String _sort = 'oldest';
+  String _period = 'all';
   ({String orderId, String target, bool acknowledged})? _pendingMove;
+
+  static const _fulfillmentItems = <DropdownMenuItem<String>>[
+    DropdownMenuItem(value: '', child: Text('Semua tipe')),
+    DropdownMenuItem(value: 'dine_in', child: Text('Meja')),
+    DropdownMenuItem(value: 'free_table', child: Text('Tanpa meja')),
+    DropdownMenuItem(value: 'take_away', child: Text('Bawa pulang')),
+    DropdownMenuItem(value: 'delivery', child: Text('Pesan antar')),
+    DropdownMenuItem(value: 'quick_service', child: Text('Layanan cepat')),
+    DropdownMenuItem(value: 'reservation', child: Text('Reservasi')),
+  ];
+  static const _statusItems = <DropdownMenuItem<String>>[
+    DropdownMenuItem(value: '', child: Text('Semua aktif')),
+    DropdownMenuItem(value: 'Baru', child: Text('Baru')),
+    DropdownMenuItem(value: 'Diproses', child: Text('Diproses')),
+    DropdownMenuItem(value: 'Siap', child: Text('Siap')),
+    DropdownMenuItem(value: 'Disajikan', child: Text('Diserahkan')),
+  ];
+  static const _sortItems = <DropdownMenuItem<String>>[
+    DropdownMenuItem(
+      value: 'newest',
+      child: Text('Pesanan terbaru', overflow: TextOverflow.ellipsis),
+    ),
+    DropdownMenuItem(
+      value: 'oldest',
+      child: Text('Pesanan terlama', overflow: TextOverflow.ellipsis),
+    ),
+    DropdownMenuItem(
+      value: 'longest',
+      child: Text('Durasi terlama', overflow: TextOverflow.ellipsis),
+    ),
+    DropdownMenuItem(
+      value: 'highest_total',
+      child: Text('Total terbesar', overflow: TextOverflow.ellipsis),
+    ),
+  ];
+  static const _periodItems = <DropdownMenuItem<String>>[
+    DropdownMenuItem(value: 'all', child: Text('Semua tanggal')),
+    DropdownMenuItem(value: 'today', child: Text('Hari ini')),
+    DropdownMenuItem(value: 'week', child: Text('7 hari terakhir')),
+  ];
 
   @override
   void initState() {
     super.initState();
     final runtime = context.read<PosBloc>().state.runtimeConfig;
+    _usesKitchenFlow =
+        (runtime['features'] as Map?)?['use_kitchen_flow'] == true;
     _warningMinutes = (runtime['sla_warning_minutes'] as num?)?.toInt() ?? 15;
     _criticalMinutes = (runtime['sla_critical_minutes'] as num?)?.toInt() ?? 25;
     _durationTicker = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
     _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted && !_realtimeConnected) _reload();
+      if (mounted && !_realtimeConnected) _reloadCurrentPage();
     });
     _loadSlaSettings();
     _slaTimer = Timer.periodic(const Duration(minutes: 5), (_) {
@@ -223,7 +264,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       final storeId = data['toko_id']?.toString() ?? '';
       if (storeId.isNotEmpty && storeId != widget.storeId) return;
       _eventDebounce?.cancel();
-      _eventDebounce = Timer(const Duration(milliseconds: 250), _reload);
+      _eventDebounce = Timer(
+        const Duration(milliseconds: 250),
+        _reloadCurrentPage,
+      );
     } catch (_) {}
   }
 
@@ -236,14 +280,46 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     _reconnectTimer = Timer(const Duration(seconds: 5), _connectRealtime);
   }
 
-  void _reload() {
+  void _reloadCurrentPage() {
+    _reload(page: context.read<PosOrderManagementBloc>().state.page);
+  }
+
+  void _reload({int page = 0}) {
     context.read<PosOrderManagementBloc>().add(
       LoadActiveOrders(
         storeId: widget.storeId,
         search: _searchController.text,
         status: _status,
+        fulfillment: _fulfillment,
+        dateFrom: _period == 'all'
+            ? ''
+            : DateFormat('yyyy-MM-dd').format(
+                _period == 'today'
+                    ? _now
+                    : _now.subtract(const Duration(days: 6)),
+              ),
+        dateTo: _period == 'all' ? '' : DateFormat('yyyy-MM-dd').format(_now),
+        sort: _sort,
+        page: page,
       ),
     );
+  }
+
+  Future<void> _refreshOrders() async {
+    final bloc = context.read<PosOrderManagementBloc>();
+    final completed = bloc.stream.firstWhere(
+      (state) =>
+          state.status == PosOrderManagementStatus.loaded ||
+          state.status == PosOrderManagementStatus.failure,
+    );
+    _reloadCurrentPage();
+    try {
+      await completed.timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      // The swipe indicator must never trap the operator during an outage.
+    } on StateError {
+      // The page was disposed while refresh was in progress.
+    }
   }
 
   void _search(String _) {
@@ -295,41 +371,110 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               builder: (context, state) {
                 if (state.status == PosOrderManagementStatus.loading &&
                     state.orders.isEmpty) {
-                  return const PosOrderBoardSkeleton();
+                  return MediaQuery.sizeOf(context).width < 1120
+                      ? ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: 3,
+                          itemBuilder: (_, index) => const Padding(
+                            padding: EdgeInsets.only(bottom: 10),
+                            child: PosOrderTicketSkeleton(),
+                          ),
+                        )
+                      : const PosOrderBoardSkeleton();
                 }
                 if (state.orders.isEmpty && _pendingMove == null) {
                   return RefreshIndicator(
-                    onRefresh: () async => _reload(),
+                    onRefresh: _refreshOrders,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 100),
-                        PosEmptyState(
+                      children: [
+                        const SizedBox(height: 100),
+                        const PosEmptyState(
                           icon: Icons.receipt_long_outlined,
                           title: 'Tidak ada pesanan aktif',
                           message:
-                              'Pesanan yang selesai atau lunas tersedia di Riwayat Transaksi.',
+                              'Pesanan yang selesai tersedia di Riwayat Transaksi.',
                         ),
+                        if (_searchController.text.isNotEmpty ||
+                            _fulfillment.isNotEmpty ||
+                            _status.isNotEmpty ||
+                            _period != 'all')
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _fulfillment = '';
+                                  _status = '';
+                                  _period = 'all';
+                                });
+                                _reload();
+                              },
+                              child: const Text('Atur ulang filter'),
+                            ),
+                          ),
                       ],
                     ),
                   );
                 }
-                final orders = _sortedOrders(
-                  state.orders
-                      .where(
-                        (order) =>
-                            _fulfillment.isEmpty ||
-                            order.orderType == _fulfillment,
-                      )
-                      .toList(),
-                );
+                final orders = state.orders;
                 return RefreshIndicator(
-                  onRefresh: () async => _reload(),
-                  child: widget.isGridView
-                      ? _orderKanban(orders)
-                      : _orderTable(orders),
+                  onRefresh: _refreshOrders,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) =>
+                        constraints.maxWidth < 1120
+                        ? _mobileOrderQueue(orders, state.statusCounts)
+                        : widget.isGridView
+                        ? _orderKanban(
+                            orders
+                                .where(
+                                  (order) =>
+                                      _status.isEmpty ||
+                                      order.status == _status,
+                                )
+                                .toList(),
+                          )
+                        : _orderTable(
+                            orders
+                                .where(
+                                  (order) =>
+                                      _status.isEmpty ||
+                                      order.status == _status,
+                                )
+                                .toList(),
+                          ),
+                  ),
                 );
               },
+            ),
+          ),
+          BlocBuilder<PosOrderManagementBloc, PosOrderManagementState>(
+            builder: (context, state) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'Halaman sebelumnya',
+                    onPressed:
+                        state.page <= 0 ||
+                            state.status == PosOrderManagementStatus.loading
+                        ? null
+                        : () => _reload(page: state.page - 1),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Text('Halaman ${state.page + 1} · ${state.total} pesanan'),
+                  IconButton(
+                    tooltip: 'Halaman berikutnya',
+                    onPressed:
+                        (state.page + 1) * 30 >= state.total ||
+                            state.status == PosOrderManagementStatus.loading
+                        ? null
+                        : () => _reload(page: state.page + 1),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -344,8 +489,37 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         padding: const EdgeInsets.all(12),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 600;
-            final controlHeight = compact ? 40.0 : 48.0;
+            if (constraints.maxWidth < 900) {
+              final activeLabels = <String>[
+                if (_fulfillment.isNotEmpty)
+                  switch (_fulfillment) {
+                    'dine_in' => 'Meja',
+                    'free_table' => 'Tanpa meja',
+                    'take_away' => 'Bawa pulang',
+                    'delivery' => 'Pesan antar',
+                    'quick_service' => 'Layanan cepat',
+                    'reservation' => 'Reservasi',
+                    _ => _fulfillment,
+                  },
+                if (_status.isNotEmpty) _orderStatusLabel(_status),
+                if (_period == 'today') 'Hari ini',
+                if (_period == 'week') '7 hari terakhir',
+                if (_sort != 'oldest')
+                  switch (_sort) {
+                    'oldest' => 'Pesanan terlama',
+                    'longest' => 'Durasi terlama',
+                    'highest_total' => 'Total terbesar',
+                    _ => _sort,
+                  },
+              ];
+              return PosActiveOrderMobileFilters(
+                searchController: _searchController,
+                onSearchChanged: _search,
+                onOpenFilters: _showMobileFilters,
+                activeLabels: activeLabels,
+              );
+            }
+            const controlHeight = 48.0;
             final search = SizedBox(
               height: controlHeight,
               child: TextField(
@@ -375,32 +549,11 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       labelText: 'Tipe Pemenuhan',
                       border: OutlineInputBorder(),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: '', child: Text('Semua tipe')),
-                      DropdownMenuItem(value: 'dine_in', child: Text('Meja')),
-                      DropdownMenuItem(
-                        value: 'free_table',
-                        child: Text('Tanpa meja'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'take_away',
-                        child: Text('Bawa pulang'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'delivery',
-                        child: Text('Pesan antar'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'quick_service',
-                        child: Text('Layanan cepat'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'reservation',
-                        child: Text('Reservasi'),
-                      ),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _fulfillment = value ?? ''),
+                    items: _fulfillmentItems,
+                    onChanged: (value) {
+                      setState(() => _fulfillment = value ?? '');
+                      _reload();
+                    },
                   ),
                 ),
                 SizedBox(
@@ -414,15 +567,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       labelText: 'Status',
                       border: OutlineInputBorder(),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: '', child: Text('Semua aktif')),
-                      DropdownMenuItem(value: 'Baru', child: Text('Baru')),
-                      DropdownMenuItem(
-                        value: 'Diproses',
-                        child: Text('Diproses'),
-                      ),
-                      DropdownMenuItem(value: 'Siap', child: Text('Siap')),
-                    ],
+                    items: _statusItems,
                     onChanged: (value) {
                       setState(() => _status = value ?? '');
                       _reload();
@@ -440,51 +585,15 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       labelText: 'Urutkan',
                       border: OutlineInputBorder(),
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'newest',
-                        child: Text(
-                          'Pesanan terbaru',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'oldest',
-                        child: Text(
-                          'Pesanan terlama',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'longest',
-                        child: Text(
-                          'Durasi terlama',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'highest_total',
-                        child: Text(
-                          'Total terbesar',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _sort = value ?? 'newest'),
+                    items: _sortItems,
+                    onChanged: (value) {
+                      setState(() => _sort = value ?? 'newest');
+                      _reload();
+                    },
                   ),
                 ),
               ],
             );
-            if (constraints.maxWidth < 650) {
-              return Column(
-                children: [
-                  search,
-                  const SizedBox(height: 10),
-                  Align(alignment: Alignment.centerRight, child: controls),
-                ],
-              );
-            }
             return Row(
               children: [
                 Expanded(child: search),
@@ -495,6 +604,216 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
           },
         ),
       ),
+    );
+  }
+
+  Future<void> _showMobileFilters() async {
+    var fulfillment = _fulfillment;
+    var status = _status;
+    var sort = _sort;
+    var period = _period;
+    final selected =
+        await showModalBottomSheet<
+          ({String fulfillment, String status, String sort, String period})
+        >(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          showDragHandle: true,
+          builder: (sheetContext) => StatefulBuilder(
+            builder: (sheetContext, setSheetState) => ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Filter pesanan aktif',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('fulfillment-$fulfillment'),
+                      initialValue: fulfillment,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipe pemenuhan',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _fulfillmentItems,
+                      onChanged: (value) =>
+                          setSheetState(() => fulfillment = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('status-$status'),
+                      initialValue: status,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Status',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _statusItems,
+                      onChanged: (value) =>
+                          setSheetState(() => status = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('period-$period'),
+                      initialValue: period,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Tanggal pesanan',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _periodItems,
+                      onChanged: (value) =>
+                          setSheetState(() => period = value ?? 'all'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('sort-$sort'),
+                      initialValue: sort,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Urutkan',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _sortItems,
+                      onChanged: (value) =>
+                          setSheetState(() => sort = value ?? 'newest'),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => setSheetState(() {
+                            fulfillment = '';
+                            status = '';
+                            sort = 'oldest';
+                            period = 'all';
+                          }),
+                          child: const Text('Atur ulang'),
+                        ),
+                        const Spacer(),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(sheetContext, (
+                            fulfillment: fulfillment,
+                            status: status,
+                            sort: sort,
+                            period: period,
+                          )),
+                          child: const Text('Terapkan'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _fulfillment = selected.fulfillment;
+      _status = selected.status;
+      _sort = selected.sort;
+      _period = selected.period;
+    });
+    _reload();
+  }
+
+  Widget _mobileOrderQueue(
+    List<PosOrderDetail> orders,
+    Map<String, int> serverCounts,
+  ) {
+    const statuses = ['Baru', 'Diproses', 'Siap', 'Disajikan'];
+    final counts = <String, int>{
+      '': serverCounts.values.fold(0, (sum, count) => sum + count),
+    };
+    for (final status in statuses) {
+      counts[status] = serverCounts[status] ?? 0;
+    }
+    final visible = _status.isEmpty
+        ? orders
+        : orders.where((order) => order.status == _status).toList();
+    final pending = _pendingMove;
+    final showPending =
+        pending != null &&
+        (_status.isEmpty || _status == pending.target) &&
+        !visible.any(
+          (order) =>
+              order.id == pending.orderId && order.status == pending.target,
+        );
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount:
+          1 +
+          visible.length +
+          (showPending ? 1 : 0) +
+          (visible.isEmpty && !showPending ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return PosActiveOrderStatusTabs(
+            selectedStatus: _status,
+            counts: counts,
+            onSelected: (status) {
+              setState(() => _status = status);
+              _reload();
+            },
+          );
+        }
+        if (showPending && index == 1) {
+          return const Padding(
+            key: ValueKey('pending-order-card-mobile'),
+            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: PosOrderTicketSkeleton(),
+          );
+        }
+        if (visible.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const PosEmptyState(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Tidak ada pesanan pada filter ini',
+                  message: 'Coba status lain atau atur ulang filter.',
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _status = '';
+                      _fulfillment = '';
+                      _period = 'all';
+                    });
+                    _reload();
+                  },
+                  child: const Text('Atur ulang filter'),
+                ),
+              ],
+            ),
+          );
+        }
+        final orderIndex = index - 1 - (showPending ? 1 : 0);
+        return Padding(
+          key: ValueKey('active-order-${visible[orderIndex].id}'),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: _activeOrderCard(
+            visible[orderIndex],
+            orderIndex,
+            showActions: true,
+          ),
+        );
+      },
     );
   }
 
@@ -555,7 +874,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                               ),
                             ),
                             child: Text(
-                              '${_orderStatusLabel(status)} · ${columnOrders.length}',
+                              '${_orderStatusLabel(status)} · ${columnOrders.length}/${context.read<PosOrderManagementBloc>().state.statusCounts[status] ?? 0}',
                               style: TextStyle(
                                 color: _orderStatusColor(status),
                                 fontWeight: FontWeight.w800,
@@ -658,28 +977,27 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   bool _canMoveTo(PosOrderDetail order, String target) =>
-      _pendingMove == null &&
-      {
-            'Baru': 'Diproses',
-            'Diproses': 'Siap',
-            'Siap': 'Disajikan',
-          }[order.status] ==
-          target;
+      _pendingMove == null && nextPosOrderStatus(order.status) == target;
 
   void _moveOrder(PosOrderDetail order, String status) {
     if (_pendingMove != null || !_canMoveTo(order, status)) return;
+    if (shouldPayBeforeOrderTransition(order, status)) {
+      _openPayment(order);
+      return;
+    }
     final orderId = order.id;
     if (orderId == null || orderId.isEmpty) {
       AppToast.error(context, 'ID pesanan tidak tersedia');
       return;
     }
-    setState(
-      () => _pendingMove = (
-        orderId: orderId,
-        target: status,
-        acknowledged: false,
-      ),
-    );
+    setState(() {
+      _pendingMove = (orderId: orderId, target: status, acknowledged: false);
+      if (MediaQuery.sizeOf(context).width < 1120 &&
+          _status.isNotEmpty &&
+          status != 'Selesai') {
+        _status = status;
+      }
+    });
     context.read<PosOrderManagementBloc>().add(
       UpdateOrderStatus(
         orderId: orderId,
@@ -694,8 +1012,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
 
   String _orderStatusLabel(String status) => switch (status) {
     'Baru' => 'Pesanan Baru',
-    'Diproses' => 'Sedang Dibuat',
-    'Siap' => 'Siap Disajikan',
+    'Diproses' => _usesKitchenFlow ? 'Sedang Dibuat' : 'Sedang Diproses',
+    'Siap' => _usesKitchenFlow ? 'Siap Disajikan' : 'Siap Diserahkan',
     'Disajikan' => 'Sudah Diserahkan',
     _ => status,
   };
@@ -707,7 +1025,11 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     _ => AppColors.info,
   };
 
-  Widget _activeOrderCard(PosOrderDetail order, int index) {
+  Widget _activeOrderCard(
+    PosOrderDetail order,
+    int index, {
+    bool showActions = false,
+  }) {
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -785,6 +1107,61 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   ),
                 ],
               ),
+              if (showActions) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Icon(
+                      order.paymentStatus == 'lunas'
+                          ? Icons.check_circle_outline
+                          : Icons.payments_outlined,
+                      size: 15,
+                      color: order.paymentStatus == 'lunas'
+                          ? AppColors.success
+                          : AppColors.warning,
+                    ),
+                    Text(
+                      order.paymentStatus == 'lunas' ? 'Lunas' : 'Belum lunas',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (order.note?.isNotEmpty == true ||
+                        order.kitchenNote?.isNotEmpty == true ||
+                        order.handoverNote?.isNotEmpty == true)
+                      const Tooltip(
+                        message: 'Ada catatan pesanan',
+                        child: Icon(Icons.sticky_note_2_outlined, size: 16),
+                      ),
+                  ],
+                ),
+                if (nextPosOrderStatus(order.status) case final next?) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _pendingMove == null
+                          ? () => _moveOrder(order, next)
+                          : null,
+                      icon: Icon(
+                        shouldPayBeforeOrderTransition(order, next)
+                            ? Icons.payments_outlined
+                            : Icons.arrow_forward,
+                        size: 18,
+                      ),
+                      label: Text(
+                        shouldPayBeforeOrderTransition(order, next)
+                            ? order.webOrderPayBeforeProcessing &&
+                                      next != 'Selesai'
+                                  ? 'Bayar dahulu'
+                                  : 'Bayar pesanan'
+                            : _nextStatusLabel(next),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ],
           ),
         ),
@@ -852,21 +1229,25 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     );
   }
 
-  Widget _statusBadge(String? status) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: AppColors.primaryLight,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      status ?? 'Aktif',
-      style: const TextStyle(
-        color: AppColors.primary,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
+  Widget _statusBadge(String? status) {
+    final color = _orderStatusColor(status ?? '');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        border: Border.all(color: color.withValues(alpha: .4)),
+        borderRadius: BorderRadius.circular(8),
       ),
-    ),
-  );
+      child: Text(
+        status ?? 'Aktif',
+        style: const TextStyle(
+          color: AppColors.heading,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
 
   Widget _ageChip(PosOrderDetail order) {
     final age = PosOrderAge.forOrder(
@@ -1099,37 +1480,27 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     label: Text('Lepas voucher ${order.promoCode}'),
                   ),
                 ],
-                if (_nextStatus(order.status) case final next?) ...[
+                if (nextPosOrderStatus(order.status) case final next?) ...[
                   const SizedBox(height: 12),
                   FilledButton.icon(
-                    onPressed:
-                        next == 'completed' && order.paymentStatus != 'lunas'
+                    onPressed: _pendingMove == null
                         ? () {
                             Navigator.pop(sheetContext);
-                            _openPayment(order);
+                            _moveOrder(order, next);
                           }
-                        : () {
-                            Navigator.pop(sheetContext);
-                            context.read<PosOrderManagementBloc>().add(
-                              UpdateOrderStatus(
-                                orderId: order.id ?? '',
-                                newStatus: next,
-                                tableId: order.tableId ?? '',
-                                storeId: widget.storeId,
-                                search: _searchController.text,
-                                statusFilter: _status,
-                              ),
-                            );
-                          },
+                        : null,
                     icon: Icon(
-                      next == 'completed' && order.paymentStatus != 'lunas'
+                      shouldPayBeforeOrderTransition(order, next)
                           ? Icons.payments_outlined
                           : Icons.arrow_forward,
                     ),
                     label: Text(
-                      next == 'completed' && order.paymentStatus != 'lunas'
-                          ? 'Bayar pesanan'
-                          : next == 'completed' && order.orderType == 'dine_in'
+                      shouldPayBeforeOrderTransition(order, next)
+                          ? order.webOrderPayBeforeProcessing &&
+                                    next != 'Selesai'
+                                ? 'Bayar dahulu'
+                                : 'Bayar pesanan'
+                          : next == 'Selesai' && order.orderType == 'dine_in'
                           ? 'Tutup pesanan & kosongkan meja'
                           : _nextStatusLabel(next),
                     ),
@@ -1330,13 +1701,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     if (!mounted) return;
     result.fold((failure) => AppToast.error(context, failure.message), (_) {
       AppToast.success(context, 'Status layanan diperbarui');
-      context.read<PosOrderManagementBloc>().add(
-        LoadActiveOrders(
-          storeId: widget.storeId,
-          search: _searchController.text,
-          status: _status,
-        ),
-      );
+      _reload();
     });
   }
 
@@ -1371,13 +1736,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     if (!mounted) return;
     result.fold((failure) => AppToast.error(context, failure.message), (_) {
       AppToast.success(context, 'Status reservasi diperbarui');
-      context.read<PosOrderManagementBloc>().add(
-        LoadActiveOrders(
-          storeId: widget.storeId,
-          search: _searchController.text,
-          status: _status,
-        ),
-      );
+      _reload();
     });
   }
 
@@ -1495,13 +1854,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     if (!mounted) return;
     result.fold((failure) => AppToast.error(context, failure.message), (_) {
       AppToast.success(context, 'Jadwal reservasi diperbarui');
-      context.read<PosOrderManagementBloc>().add(
-        LoadActiveOrders(
-          storeId: widget.storeId,
-          search: _searchController.text,
-          status: _status,
-        ),
-      );
+      _reload();
     });
   }
 
@@ -1518,13 +1871,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     if (!mounted) return;
     result.fold((failure) => AppToast.error(context, failure.message), (_) {
       AppToast.success(context, 'Status item layanan diperbarui');
-      context.read<PosOrderManagementBloc>().add(
-        LoadActiveOrders(
-          storeId: widget.storeId,
-          search: _searchController.text,
-          status: _status,
-        ),
-      );
+      _reload();
     });
   }
 
@@ -1766,25 +2113,16 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     final result = await sl<PosOrderRepository>().removeOrderPromo(order.id!);
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
-    result.fold(
-      (failure) => AppToast.error(context, failure.message),
-      (newTotal) {
-        AppToast.success(
-          context,
-          'Voucher dilepas. Total baru ${_currency(newTotal)}. Tinjau sebelum bayar.',
-        );
-        _reload();
-      },
-    );
+    result.fold((failure) => AppToast.error(context, failure.message), (
+      newTotal,
+    ) {
+      AppToast.success(
+        context,
+        'Voucher dilepas. Total baru ${_currency(newTotal)}. Tinjau sebelum bayar.',
+      );
+      _reload();
+    });
   }
-
-  String? _nextStatus(String? current) => switch (current) {
-    'Baru' => 'Diproses',
-    'Diproses' => 'Siap',
-    'Siap' => 'Disajikan',
-    'Disajikan' => 'Selesai',
-    _ => null,
-  };
 
   String _nextStatusLabel(String status) => switch (status) {
     'Diproses' => 'Mulai proses',
@@ -1868,37 +2206,6 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         ? milliseconds * 1000
         : milliseconds;
     return DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
-  }
-
-  List<PosOrderDetail> _sortedOrders(List<PosOrderDetail> source) {
-    final orders = List<PosOrderDetail>.of(source);
-    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
-    final unknownLast = DateTime(9999);
-    switch (_sort) {
-      case 'oldest':
-        orders.sort(
-          (a, b) => (_parseTimestamp(a.createdAt) ?? unknownLast).compareTo(
-            _parseTimestamp(b.createdAt) ?? unknownLast,
-          ),
-        );
-      case 'longest':
-        orders.sort(
-          (a, b) => (_parseTimestamp(a.createdAt) ?? unknownLast).compareTo(
-            _parseTimestamp(b.createdAt) ?? unknownLast,
-          ),
-        );
-      case 'highest_total':
-        orders.sort(
-          (a, b) => (b.totalAmount ?? 0).compareTo(a.totalAmount ?? 0),
-        );
-      default:
-        orders.sort(
-          (a, b) => (_parseTimestamp(b.createdAt) ?? epoch).compareTo(
-            _parseTimestamp(a.createdAt) ?? epoch,
-          ),
-        );
-    }
-    return orders;
   }
 
   String _orderDate(String? raw) {

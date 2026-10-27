@@ -20,25 +20,51 @@ class LoadActiveOrders extends PosOrderManagementEvent {
   final String storeId;
   final String search;
   final String status;
+  final String fulfillment;
+  final String dateFrom;
+  final String dateTo;
+  final String sort;
+  final int page;
 
   const LoadActiveOrders({
     required this.storeId,
     this.search = '',
     this.status = '',
+    this.fulfillment = '',
+    this.dateFrom = '',
+    this.dateTo = '',
+    this.sort = 'oldest',
+    this.page = 0,
   });
 
   @override
-  List<Object?> get props => [storeId, search, status];
+  List<Object?> get props => [
+    storeId,
+    search,
+    status,
+    fulfillment,
+    dateFrom,
+    dateTo,
+    sort,
+    page,
+  ];
 }
 
 class LoadKitchenTickets extends PosOrderManagementEvent {
   final String storeId;
   final String stationId;
+  final int page;
+  final String status;
 
-  const LoadKitchenTickets({required this.storeId, this.stationId = ''});
+  const LoadKitchenTickets({
+    required this.storeId,
+    this.stationId = '',
+    this.page = 0,
+    this.status = '',
+  });
 
   @override
-  List<Object?> get props => [storeId, stationId];
+  List<Object?> get props => [storeId, stationId, page, status];
 }
 
 class UpdateItemStatus extends PosOrderManagementEvent {

@@ -18,7 +18,9 @@ class PosSettingsBloc extends Bloc<PosSettingsEvent, PosSettingsState> {
   ) async {
     emit(state.copyWith(status: PosSettingsStatus.loading));
 
+    final catalogFuture = repository.getProfileCatalog();
     final result = await repository.getSettings();
+    final catalog = await catalogFuture;
 
     result.fold(
       (failure) => emit(
@@ -28,7 +30,11 @@ class PosSettingsBloc extends Bloc<PosSettingsEvent, PosSettingsState> {
         ),
       ),
       (settings) => emit(
-        state.copyWith(status: PosSettingsStatus.loaded, settings: settings),
+        state.copyWith(
+          status: PosSettingsStatus.loaded,
+          settings: settings,
+          profileCatalog: catalog,
+        ),
       ),
     );
   }

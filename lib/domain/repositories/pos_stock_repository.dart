@@ -11,6 +11,59 @@ class PosStockRepository {
 
   PosStockRepository(this._clientProvider);
 
+  Future<Either<Failure, PosStockPageResult>> getStockPage({
+    String? search,
+    String? stockFilter,
+    String? locationId,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosStockQueries.stockPage),
+          variables: {
+            'cabangId': locationId?.trim().isNotEmpty == true
+                ? locationId!.trim()
+                : null,
+            'search': search?.trim(),
+            'stockFilter': stockFilter,
+            'pagination': {
+              'page': page < 1 ? 1 : page,
+              'limit': limit.clamp(1, 100).toInt(),
+            },
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['GetPOSStockPage'] as Map? ?? const {};
+      final items = (root['items'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (row) => PosStock.fromJson({
+              ...Map<String, dynamic>.from(row),
+              'stok': row['qty'],
+              'status': 'active',
+            }),
+          )
+          .toList();
+      return Right(
+        PosStockPageResult(
+          items,
+          (root['totalCount'] as num?)?.toInt() ?? 0,
+          PosStockStatistics.fromJson(
+            Map<String, dynamic>.from(root['statistics'] as Map? ?? const {}),
+          ),
+        ),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, String>> getDefaultStockLocationId() =>
       _getStockLocationId();
 

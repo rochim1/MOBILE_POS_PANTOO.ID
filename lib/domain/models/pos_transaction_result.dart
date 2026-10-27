@@ -16,6 +16,8 @@ class PosTransactionResult {
   final String date;
   final String cashierName;
   final String storeName;
+  final String shiftReference;
+  final String transactionReference;
   final String salesChannel;
   final String customerSegment;
   final String orderType;
@@ -42,6 +44,8 @@ class PosTransactionResult {
     this.date = '',
     this.cashierName = '',
     this.storeName = '',
+    this.shiftReference = '',
+    this.transactionReference = '',
     this.salesChannel = '',
     this.customerSegment = '',
     this.orderType = '',
@@ -80,7 +84,14 @@ class PosTransactionResult {
     customerEmail: customerEmail,
     date: (json['tanggal'] ?? json['createdAt'] ?? '').toString(),
     cashierName: cashierName,
-    storeName: storeName,
+    storeName: storeName.isNotEmpty
+        ? storeName
+        : json['toko_nama']?.toString() ?? '',
+    shiftReference: json['kasir_shift_id']?.toString() ?? '',
+    transactionReference:
+        json['client_transaction_id']?.toString() ??
+        json['_id']?.toString() ??
+        '',
     salesChannel: salesChannel,
     customerSegment: customerSegment,
     orderType: orderType.isNotEmpty

@@ -18,8 +18,8 @@ bool canOpenPosKeyboardDestination(
     2 => can('view_products'),
     3 => can('view_transactions'),
     5 =>
-      features['use_tables'] == true &&
-          (can('view_tables') || can('manage_tables')),
+      can('view_tables') ||
+          (features['use_tables'] == true && can('manage_tables')),
     7 =>
       (features['track_stock'] != false &&
               (can('view_stock') || can('adjust_stock'))) ||

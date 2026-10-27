@@ -11,6 +11,7 @@ import '../../../domain/repositories/auth_repository.dart';
 import '../../bloc/auth/register_cubit.dart';
 import '../../bloc/auth/register_state.dart';
 import '../../widgets/login/legal_links.dart';
+import '../../widgets/login/google_account_button.dart';
 
 class RegisterPage extends StatelessWidget {
   const RegisterPage({super.key});
@@ -44,6 +45,7 @@ class _RegisterViewState extends State<_RegisterView> {
   bool _hidePassword = true;
   bool _hideConfirmation = true;
   bool _acceptedLegal = false;
+  bool _googleBusy = false;
 
   @override
   void dispose() {
@@ -83,6 +85,7 @@ class _RegisterViewState extends State<_RegisterView> {
   }
 
   Future<void> _submit() async {
+    if (_googleBusy || context.read<RegisterCubit>().state.isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -281,6 +284,11 @@ class _RegisterViewState extends State<_RegisterView> {
                                           ),
                                     ),
                                     const SizedBox(height: 24),
+                                    GoogleAccountButton(
+                                      enabled: !state.isSubmitting,
+                                      onBusyChanged: (value) =>
+                                          setState(() => _googleBusy = value),
+                                    ),
                                     TextFormField(
                                       controller: _name,
                                       decoration: _decoration(
@@ -467,6 +475,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                       child: FilledButton(
                                         onPressed:
                                             state.isSubmitting ||
+                                                _googleBusy ||
                                                 !_acceptedLegal
                                             ? null
                                             : _submit,

@@ -280,7 +280,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     if (!sections.any((item) => item.section == _selected)) {
       _selected = sections.first.section;
     }
-    final content = _content(permissions);
+    final content = _content(permissions, inventoryPolicy);
     final categoryItems = sections
         .map(
           (item) => PosCategoryItem<_InventorySection>(
@@ -328,7 +328,10 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     );
   }
 
-  Widget _content(Map<String, dynamic> permissions) => switch (_selected) {
+  Widget _content(
+    Map<String, dynamic> permissions,
+    Map<String, dynamic> inventoryPolicy,
+  ) => switch (_selected) {
     _InventorySection.warehouse => PosWarehousePage(
       canCreate: permissions['create_warehouses'] == true,
       canUpdate: permissions['update_warehouses'] == true,
@@ -354,6 +357,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     ),
     _InventorySection.purchase => PosPurchaseWorkspace(
       permissions: permissions,
+      inventoryPolicy: inventoryPolicy,
       purchaseListBuilder: (onReceive, onPay) => _InventoryDocumentPage(
         key: const ValueKey(PosInventoryDocumentType.purchase),
         type: PosInventoryDocumentType.purchase,
@@ -453,7 +457,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   bool _loading = true;
   String? _runningActionId;
   String? _runningActionLabel;
-  Set<String> _pendingPurchaseApprovalIds = const {};
+
   static const _limit = 20;
 
   @override
@@ -461,7 +465,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     super.initState();
     _load();
     if (widget.type == PosInventoryDocumentType.purchase) {
-      _loadPendingPurchaseApprovals();
+      // The server returns approval eligibility with each visible document.
     }
     if (widget.type == PosInventoryDocumentType.opname) _loadWarehouses();
   }
@@ -479,7 +483,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final result = await _repository.getDocuments(
       type: widget.type,
       search: _search.text,
-      status: _status,
+      status: _status.startsWith('workflow:') ? '' : _status,
+      workflowView: _status.startsWith('workflow:')
+          ? _status.substring('workflow:'.length)
+          : '',
       locationId: _locationId,
       dateFrom: _dateFilter(_dateFrom),
       dateTo: _dateFilter(_dateTo),
@@ -502,15 +509,6 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final result = await _repository.getWarehouses();
     if (!mounted) return;
     result.fold((_) {}, (items) => setState(() => _warehouses = items));
-  }
-
-  Future<void> _loadPendingPurchaseApprovals() async {
-    final result = await _repository.getPendingPurchaseApprovalIds();
-    if (!mounted) return;
-    result.fold(
-      (_) => setState(() => _pendingPurchaseApprovalIds = const {}),
-      (ids) => setState(() => _pendingPurchaseApprovalIds = ids),
-    );
   }
 
   String _dateFilter(DateTime? value) =>
@@ -858,7 +856,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       });
       if (succeeded) {
         if (widget.type == PosInventoryDocumentType.purchase) {
-          await _loadPendingPurchaseApprovals();
+          // No separate capped approval-ID download.
         }
         await _load(page: 1);
       }
@@ -882,6 +880,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   String _actionWarning(Map<String, dynamic> item, String action) {
     final status = item['status']?.toString() ?? '';
+    final purchaseSummary = widget.type == PosInventoryDocumentType.purchase
+        ? 'Supplier: ${item['supplier_name'] ?? '-'}\n'
+              'Cabang: ${item['branch_name'] ?? item['lokasi_cabang_nama'] ?? '-'}\n'
+              'Total: ${_money(item['grand_total'] ?? item['total_amount'])}\n\n'
+        : '';
     if (action == 'delete') {
       return widget.type == PosInventoryDocumentType.purchase
           ? 'Dokumen akan dihapus dan tidak dapat dipulihkan. Tuliskan alasan untuk jejak audit.'
@@ -896,10 +899,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       return 'Aksi ini mengubah saldo stok dan dapat membuat jurnal otomatis. Pastikan rincian barang sudah benar.';
     }
     if (action == 'approve') {
-      return 'Dokumen akan disetujui untuk melanjutkan proses inventori.';
+      return '${purchaseSummary}Dokumen akan disetujui untuk melanjutkan proses inventori.';
     }
     if (action == 'reject') {
-      return 'Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.';
+      return '${purchaseSummary}Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.';
+    }
+    if (action == 'submit' &&
+        widget.type == PosInventoryDocumentType.purchase) {
+      return '${purchaseSummary}PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.';
     }
     return 'Pastikan rincian dokumen sudah benar sebelum melanjutkan.';
   }
@@ -1391,6 +1398,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: Colors.black45),
                 ),
+                if (widget.type == PosInventoryDocumentType.purchase) ...[
+                  const SizedBox(height: 6),
+                  _PurchaseWorkflowBadges(item: item),
+                ],
                 if (widget.type == PosInventoryDocumentType.transfer &&
                     rawStatus == 'in_transit' &&
                     transferReceived > 0)
@@ -1627,6 +1638,41 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     Text(_date(_dateValue(item))),
                   ],
                 ),
+                if (widget.type == PosInventoryDocumentType.purchase) ...[
+                  const SizedBox(height: 10),
+                  _PurchaseWorkflowBadges(item: item),
+                  const SizedBox(height: 14),
+                  _PurchaseTimeline(item: item),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F7F6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Kesepakatan pembayaran',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Metode: ${item['payment_method'] ?? '-'} · '
+                          'Termin: ${item['payment_term_type'] ?? '-'}'
+                          '${(item['term_days'] as num? ?? 0) > 0 ? ' · ${item['term_days']} hari' : ''}',
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Referensi untuk Finance; tidak membentuk utang atau pembayaran.',
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -1934,7 +1980,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.payments_outlined),
-          label: const Text('Bayar / Lihat Hutang'),
+          label: const Text('Lihat Tagihan Supplier'),
         );
       }
       return OutlinedButton.icon(
@@ -1950,8 +1996,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final status = item['status']?.toString() ?? '';
     final approvalHistoryId = item['approval_history_id']?.toString() ?? '';
     final canApproveDocument =
-        approvalHistoryId.isEmpty ||
-        _pendingPurchaseApprovalIds.contains(item['_id']?.toString());
+        approvalHistoryId.isEmpty || item['my_pending_approval'] == true;
     final actions = PosInventoryActionPolicy.available(
       type: widget.type,
       status: status,
@@ -1968,6 +2013,25 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       actions.add('preview_po');
       if (PosPurchaseOrderDocument.isApproved(item)) {
         actions.add('print_po');
+      }
+      final supplierStatus = item['supplier_status']?.toString() ?? 'not_sent';
+      if (widget.permissions['send_inventory_purchases'] == true &&
+          const {'approved', 'partially_received'}.contains(status) &&
+          supplierStatus != 'acknowledged') {
+        actions.add('send_purchase');
+      }
+      if (widget.permissions['acknowledge_inventory_purchases'] == true &&
+          supplierStatus == 'sent') {
+        actions.add('acknowledge_purchase');
+      }
+      if (widget.permissions['close_inventory_purchases'] == true &&
+          const {
+            'approved',
+            'partially_received',
+            'completed',
+          }.contains(status) &&
+          PosPurchaseProgress.hasRemaining(item)) {
+        actions.add('close_purchase');
       }
     }
     if (widget.type == PosInventoryDocumentType.scrap &&
@@ -2017,6 +2081,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     Map<String, dynamic> item,
     String action,
   ) async {
+    if (const {
+      'send_purchase',
+      'acknowledge_purchase',
+      'close_purchase',
+    }.contains(action)) {
+      await _runPurchaseSupplierAction(item, action);
+      return;
+    }
     if (action == 'retry_journal' &&
         widget.type == PosInventoryDocumentType.scrap) {
       if (_runningActionId != null) return;
@@ -2086,8 +2158,6 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           builder: (_) => PosPurchaseReceivingPage(
             purchase: item,
             canViewPayable: widget.permissions['view_payables'] == true,
-            canRecordPayment:
-                widget.permissions['record_payable_payment'] == true,
           ),
         ),
       );
@@ -2102,11 +2172,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => PosPurchasePayablePage(
-            purchase: item,
-            canRecordPayment:
-                widget.permissions['record_payable_payment'] == true,
-          ),
+          builder: (_) => PosPurchasePayablePage(purchase: item),
         ),
       );
       if (changed == true) await _load(page: 1);
@@ -2117,6 +2183,170 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       return;
     }
     await _runAction(item, action);
+  }
+
+  Future<void> _runPurchaseSupplierAction(
+    Map<String, dynamic> item,
+    String action,
+  ) async {
+    final note = TextEditingController(
+      text: action == 'send_purchase'
+          ? item['supplier_contact']?.toString() ?? ''
+          : '',
+    );
+    var channel = item['sent_channel']?.toString() ?? 'whatsapp';
+    var acknowledgement = 'accepted';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(_actionLabel(action)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (action == 'send_purchase') ...[
+                DropdownButtonFormField<String>(
+                  initialValue: channel,
+                  decoration: const InputDecoration(
+                    labelText: 'Channel pengiriman',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'whatsapp',
+                      child: Text('WhatsApp'),
+                    ),
+                    DropdownMenuItem(value: 'email', child: Text('Email')),
+                    DropdownMenuItem(value: 'print', child: Text('Cetak')),
+                    DropdownMenuItem(value: 'portal', child: Text('Portal')),
+                    DropdownMenuItem(value: 'other', child: Text('Lainnya')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => channel = value ?? 'whatsapp'),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (action == 'acknowledge_purchase') ...[
+                DropdownButtonFormField<String>(
+                  initialValue: acknowledgement,
+                  decoration: const InputDecoration(
+                    labelText: 'Respons supplier',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'accepted',
+                      child: Text('Diterima supplier'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'revision_requested',
+                      child: Text('Meminta revisi'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rejected',
+                      child: Text('Ditolak supplier'),
+                    ),
+                  ],
+                  onChanged: (value) => setDialogState(
+                    () => acknowledgement = value ?? 'accepted',
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: note,
+                maxLength: action == 'send_purchase' ? 250 : 1000,
+                minLines: action == 'send_purchase' ? 1 : 3,
+                maxLines: action == 'send_purchase' ? 2 : 5,
+                decoration: InputDecoration(
+                  labelText: switch (action) {
+                    'send_purchase' => 'Kontak supplier tujuan',
+                    'acknowledge_purchase' => 'Catatan respons supplier',
+                    _ => 'Alasan penutupan dan sisa barang',
+                  },
+                  hintText: action == 'close_purchase'
+                      ? 'Jelaskan alasan sisa barang tidak akan diterima'
+                      : null,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                action == 'send_purchase'
+                    ? 'Sistem menyimpan snapshot PO yang dikirim. Pengiriman melalui aplikasi eksternal tetap dilakukan dari channel tersebut.'
+                    : action == 'close_purchase'
+                    ? 'PO tidak dapat menerima barang lagi setelah ditutup.'
+                    : 'Catatan ini menjadi jejak acknowledgement supplier.',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) {
+      note.dispose();
+      return;
+    }
+    final value = note.text.trim();
+    note.dispose();
+    if (confirmed != true) return;
+    if ((action == 'close_purchase' && value.length < 8) || value.isEmpty) {
+      AppToast.error(
+        context,
+        action == 'close_purchase'
+            ? 'Alasan penutupan minimal 8 karakter.'
+            : 'Kontak atau catatan wajib diisi.',
+      );
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _runningActionId = item['_id']?.toString();
+      _runningActionLabel = '${_actionLabel(action)} ${_number(item)}...';
+    });
+    final input = switch (action) {
+      'send_purchase' => {
+        'purchase_id': item['_id'],
+        'channel': channel,
+        'supplier_contact': value,
+      },
+      'acknowledge_purchase' => {
+        'purchase_id': item['_id'],
+        'status': acknowledgement,
+        'note': value,
+      },
+      _ => {'purchase_id': item['_id'], 'reason': value},
+    };
+    final result = switch (action) {
+      'send_purchase' => _repository.markPurchaseSent(input),
+      'acknowledge_purchase' => _repository.acknowledgePurchase(input),
+      _ => _repository.closePurchaseWithVariance(input),
+    };
+    final resolved = await result;
+    if (!mounted) return;
+    resolved.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (_) => AppToast.success(context, 'Status PO berhasil diperbarui.'),
+    );
+    await _load(page: 1);
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _runningActionId = null;
+        _runningActionLabel = null;
+      });
+    }
   }
 
   Future<void> _previewPurchaseOrder(
@@ -2254,6 +2484,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   List<(String, String)> get _statuses => switch (widget.type) {
     PosInventoryDocumentType.purchase => const [
       ('', 'Semua'),
+      ('workflow:needs_action', 'Perlu tindakan saya'),
+      ('workflow:waiting_supplier', 'Menunggu supplier'),
+      ('workflow:ready_to_receive', 'Siap diterima'),
       ('draft', 'Draft'),
       ('pending', 'Menunggu persetujuan'),
       ('approved', 'Disetujui'),
@@ -2375,6 +2608,133 @@ class _InventoryStatus extends StatelessWidget {
   );
 }
 
+class _PurchaseWorkflowBadges extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const _PurchaseWorkflowBadges({required this.item});
+
+  String get _approval {
+    final status = item['status']?.toString() ?? '';
+    return switch (status) {
+      'draft' => 'Draft',
+      'pending' => 'Menunggu',
+      'rejected' => 'Ditolak',
+      _ => 'Disetujui',
+    };
+  }
+
+  String get _supplier => switch (item['supplier_status']?.toString() ?? '') {
+    'sent' => 'Menunggu respons',
+    'acknowledged' => 'Dikonfirmasi',
+    'revision_requested' => 'Minta revisi',
+    _ => 'Belum dikirim',
+  };
+
+  String get _receiving {
+    final receiving = item['receiving_status']?.toString() ?? '';
+    final status = item['status']?.toString() ?? '';
+    return switch (receiving.isNotEmpty ? receiving : status) {
+      'partially_received' => 'Sebagian',
+      'fully_received' || 'completed' => 'Lengkap',
+      'closed' => 'Ditutup',
+      _ => 'Belum diterima',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 5,
+    runSpacing: 5,
+    children: [
+      _WorkflowLabel(label: 'Approval', value: _approval),
+      _WorkflowLabel(label: 'Supplier', value: _supplier),
+      _WorkflowLabel(label: 'Penerimaan', value: _receiving),
+    ],
+  );
+}
+
+class _WorkflowLabel extends StatelessWidget {
+  final String label;
+  final String value;
+  const _WorkflowLabel({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      border: Border.all(color: const Color(0xFFD7DBDF)),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Text(
+      '$label: $value',
+      style: const TextStyle(fontSize: 10.5, color: Color(0xFF4E5965)),
+    ),
+  );
+}
+
+class _PurchaseTimeline extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const _PurchaseTimeline({required this.item});
+
+  String _actor(dynamic value) {
+    if (value is Map) {
+      final name = value['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) return name;
+      value = value['_id'];
+    }
+    final id = value?.toString() ?? '';
+    return id.isEmpty
+        ? ''
+        : 'user …${id.substring(id.length > 6 ? id.length - 6 : 0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final events = <(String, dynamic, dynamic)>[
+      ('Dibuat', item['createdAt'], item['created_by']),
+      ('Dikirim ke supplier', item['sent_at'], item['sent_by']),
+      (
+        'Respons supplier dicatat',
+        item['supplier_ack_at'],
+        item['supplier_ack_by'],
+      ),
+      ('Ditutup dengan selisih', item['closed_at'], item['closed_by']),
+    ].where((event) => (event.$2?.toString() ?? '').isNotEmpty).toList();
+    if (events.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Timeline PO',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        ...events.map((event) {
+          final actor = _actor(event.$3);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Icon(Icons.circle, size: 7, color: Color(0xFF6A747D)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${event.$1} · ${_date(event.$2)}${actor.isEmpty ? '' : ' · $actor'}',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
 class _PayablePaidBadge extends StatelessWidget {
   const _PayablePaidBadge();
 
@@ -2460,12 +2820,15 @@ String _actionLabel(String action) => switch (action) {
   'cancel' => 'Batalkan',
   'delete' => 'Hapus',
   'receive_purchase' => 'Terima Barang',
-  'pay_purchase' => 'Pembayaran / Riwayat',
+  'pay_purchase' => 'Tagihan Supplier',
   'preview_po' => 'Pratinjau PO',
   'print_po' => 'Cetak PO (A4)',
   'receive_transfer' => 'Terima Mutasi',
   'retry_journal' => 'Ulangi Jurnal',
   'retry_cancel_journal' => 'Ulangi Jurnal Batal',
+  'send_purchase' => 'Kirim ke Supplier',
+  'acknowledge_purchase' => 'Catat Respons Supplier',
+  'close_purchase' => 'Tutup dengan Selisih',
   _ => action,
 };
 IconData _actionIcon(String action) => switch (action) {
@@ -2483,6 +2846,9 @@ IconData _actionIcon(String action) => switch (action) {
   'receive_transfer' => Icons.download_done,
   'retry_journal' => Icons.refresh,
   'retry_cancel_journal' => Icons.restart_alt,
+  'send_purchase' => Icons.send_outlined,
+  'acknowledge_purchase' => Icons.handshake_outlined,
+  'close_purchase' => Icons.rule_folder_outlined,
   _ => Icons.more_horiz,
 };
 

@@ -10,10 +10,13 @@ import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_purchase_receiving_page.dart';
 import 'pos_purchase_payable_page.dart';
+import 'pos_direct_purchase_page.dart';
+import 'pos_purchase_advance_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
 class PosPurchaseWorkspace extends StatefulWidget {
   final Map<String, dynamic> permissions;
+  final Map<String, dynamic> inventoryPolicy;
   final Widget Function(
     ValueChanged<Map<String, dynamic>> onReceive,
     ValueChanged<Map<String, dynamic>> onPay,
@@ -23,6 +26,7 @@ class PosPurchaseWorkspace extends StatefulWidget {
   const PosPurchaseWorkspace({
     super.key,
     required this.permissions,
+    required this.inventoryPolicy,
     required this.purchaseListBuilder,
   });
 
@@ -44,7 +48,17 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
         purchase: receiving,
         embedded: true,
         canViewPayable: widget.permissions['view_payables'] == true,
-        canRecordPayment: widget.permissions['record_payable_payment'] == true,
+        canOverrideReceivingTolerance:
+            widget.permissions['override_receiving_tolerance'] == true &&
+            widget.inventoryPolicy['allow_over_receipt'] == true,
+        overReceiptTolerancePercent:
+            (widget.inventoryPolicy['over_receipt_tolerance_percent'] as num?)
+                ?.toDouble() ??
+            0,
+        canCancelReceiving:
+            widget.permissions['cancel_inventory_receiving'] == true,
+        // Workspace PO/POS hanya menampilkan status tagihan. Eksekusi kas/bank
+        // dilakukan di Finance Web agar kasir tidak mencampur PO dan pembayaran.
         onPayRequested: (purchase) => setState(() {
           _activeReceiving = null;
           _activePayable = purchase;
@@ -59,7 +73,6 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
     if (payable != null) {
       return PosPurchasePayablePage(
         purchase: payable,
-        canRecordPayment: widget.permissions['record_payable_payment'] == true,
         embedded: true,
         onFinished: () => setState(() {
           _activePayable = null;
@@ -78,6 +91,14 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
             PosFullWidthTab(
               icon: Icons.inventory_outlined,
               label: 'Penerimaan',
+            ),
+            PosFullWidthTab(
+              icon: Icons.receipt_long_outlined,
+              label: 'Pembelian Langsung',
+            ),
+            PosFullWidthTab(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Permintaan DP',
             ),
           ],
           selectedIndex: _tab,
@@ -109,6 +130,15 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
                   _activePayable = null;
                   _activeReceiving = purchase;
                 }),
+              ),
+              PosDirectPurchasePage(
+                canCreate:
+                    widget.permissions['create_direct_purchases'] == true ||
+                    widget.permissions['post_direct_purchases'] == true,
+              ),
+              PosPurchaseAdvancePage(
+                canRequest:
+                    widget.permissions['request_purchase_advance'] == true,
               ),
             ],
           ),

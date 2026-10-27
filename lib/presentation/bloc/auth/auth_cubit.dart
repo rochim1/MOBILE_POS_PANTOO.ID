@@ -5,6 +5,7 @@ import '../../../core/error/failures.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository authRepository;
+  bool _googleInFlight = false;
 
   AuthCubit({required this.authRepository})
     : super(const AuthState.checkingSession());
@@ -38,6 +39,7 @@ class AuthCubit extends Cubit<AuthState> {
     String password, {
     String? captchaAnswer,
   }) async {
+    if (_googleInFlight) return;
     if (username.isEmpty || password.isEmpty) {
       emit(const AuthState.failure('Username dan password wajib diisi'));
       return;
@@ -63,6 +65,30 @@ class AuthCubit extends Cubit<AuthState> {
       ),
       (name) => emit(AuthState.authenticated(username: name)),
     );
+  }
+
+  Future<Failure?> loginGoogle(
+    String token, {
+    String? phone,
+    bool consent = false,
+  }) async {
+    if (_googleInFlight ||
+        state.isCheckingSession ||
+        state.isAuthenticating ||
+        state.isAuthenticated) {
+      return null;
+    }
+    // Keep the current intro/register route mounted for the consent sheet.
+    // The Google button owns progress until the server accepts this identity.
+    _googleInFlight = true;
+    final result = await authRepository
+        .loginWithGoogle(token, phone: phone, consent: consent)
+        .whenComplete(() => _googleInFlight = false);
+    if (isClosed) return null;
+    return result.fold((failure) => failure, (name) {
+      emit(AuthState.authenticated(username: name));
+      return null;
+    });
   }
 
   void clearCaptcha() {

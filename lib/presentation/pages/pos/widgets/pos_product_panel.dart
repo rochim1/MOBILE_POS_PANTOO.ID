@@ -12,11 +12,11 @@ import '../../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../../../domain/models/pos_product.dart';
 import '../../../../domain/models/pos_customer.dart';
 import '../../../../domain/models/pos_table.dart';
-import '../../../../domain/repositories/pos_repository.dart';
 import '../../../../domain/repositories/pos_table_repository.dart';
 import '../../../../injections.dart';
 import '../pos_barcode_scanner_page.dart';
 import 'pos_quick_customer_dialog.dart';
+import 'pos_catalog_category_picker.dart';
 
 class PosProductPanel extends StatefulWidget {
   final bool isMobile;
@@ -46,6 +46,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
   Timer? _searchDebounce;
   int _searchVersion = 0;
   bool _remoteSearching = false;
+  bool _catalogLoaded = false;
+  bool _catalogOffline = false;
+  int _catalogPage = 1;
+  int _catalogTotal = 0;
+  String _catalogScope = '';
+  String _catalogError = '';
   final FocusNode _ownedSearchFocusNode = FocusNode();
   FocusNode get _searchFocusNode =>
       widget.searchFocusNode ?? _ownedSearchFocusNode;
@@ -61,8 +67,18 @@ class _PosProductPanelState extends State<PosProductPanel> {
   Widget build(BuildContext context) {
     return BlocBuilder<PosBloc, PosState>(
       builder: (context, state) {
+        final branch = _catalogBranch(state);
+        final scope =
+            '$branch|${widget.selectedCategory}|${state.favoriteProductIds.hashCode}|${state.products.hashCode}';
+        if (branch != null && scope != _catalogScope) {
+          _catalogScope = scope;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _loadCatalog(page: 1);
+          });
+        }
         final merged = <String, PosProduct>{
-          for (final product in state.products) product.id: product,
+          if (!_catalogLoaded)
+            for (final product in state.products) product.id: product,
           for (final product in _remoteProducts) product.id: product,
         }.values;
         final filteredProducts =
@@ -107,7 +123,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
               SliverToBoxAdapter(
                 child: SizedBox(height: widget.isMobile ? 8 : 16),
               ),
-              if (!state.isGridView) ...[
+              if (!state.isGridView && !widget.isMobile) ...[
                 SliverToBoxAdapter(
                   child: Container(
                     color: Colors.white,
@@ -198,9 +214,74 @@ class _PosProductPanelState extends State<PosProductPanel> {
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        _buildProductListItem(context, filteredProducts[index]),
+                    (context, index) => widget.isMobile
+                        ? _buildMobileProductListItem(
+                            context,
+                            filteredProducts[index],
+                            state,
+                          )
+                        : _buildProductListItem(
+                            context,
+                            filteredProducts[index],
+                          ),
                     childCount: filteredProducts.length,
+                  ),
+                ),
+              if (widget.isMobile && filteredProducts.isNotEmpty)
+                const SliverToBoxAdapter(child: SizedBox(height: 52)),
+              if (_catalogLoaded || _catalogError.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        if (_catalogOffline)
+                          const Text(
+                            'Offline · hanya katalog tersimpan, belum tentu lengkap',
+                            textAlign: TextAlign.center,
+                          ),
+                        if (_catalogError.isNotEmpty)
+                          Text(
+                            _catalogError,
+                            style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
+                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              tooltip: 'Produk sebelumnya',
+                              onPressed: _catalogPage <= 1 || _remoteSearching
+                                  ? null
+                                  : () => _loadCatalog(page: _catalogPage - 1),
+                              icon: const Icon(Icons.chevron_left),
+                            ),
+                            Flexible(
+                              child: Text(
+                                'Halaman $_catalogPage · $_catalogTotal produk',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Produk berikutnya',
+                              onPressed:
+                                  _catalogPage * 30 >= _catalogTotal ||
+                                      _remoteSearching
+                                  ? null
+                                  : () => _loadCatalog(page: _catalogPage + 1),
+                              icon: const Icon(Icons.chevron_right),
+                            ),
+                            if (_catalogError.isNotEmpty)
+                              IconButton(
+                                tooltip: 'Muat ulang katalog',
+                                onPressed: () =>
+                                    _loadCatalog(page: _catalogPage),
+                                icon: const Icon(Icons.refresh),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -212,37 +293,85 @@ class _PosProductPanelState extends State<PosProductPanel> {
 
   void _onSearchChanged(String value, PosState state) {
     _searchDebounce?.cancel();
-    final query = value.trim();
     final version = ++_searchVersion;
     setState(() {
       _searchQuery = value;
-      if (query.length < 2) {
-        _remoteProducts = const [];
-        _remoteSearching = false;
-      }
     });
-    if (query.length < 2) return;
-
-    final exactIdentifier = RegExp(r'^[A-Za-z0-9._-]{6,}$').hasMatch(query);
+    final exactIdentifier = RegExp(
+      r'^[A-Za-z0-9._-]{6,}$',
+    ).hasMatch(value.trim());
     _searchDebounce = Timer(
       Duration(milliseconds: exactIdentifier ? 80 : 300),
-      () async {
+      () {
         if (!mounted || version != _searchVersion) return;
-        setState(() => _remoteSearching = true);
-        final storeId = state.activeShift?['toko_id']?.toString();
-        final stores = state.stores.where((store) => store.id == storeId);
-        final branchId = stores.isNotEmpty ? stores.first.branchId : null;
-        final results = await sl<PosRepository>().searchProductsRemote(
-          search: query,
-          branchId: branchId,
-        );
-        if (!mounted || version != _searchVersion) return;
-        setState(() {
-          _remoteProducts = results;
-          _remoteSearching = false;
-        });
+        _loadCatalog(page: 1);
       },
     );
+  }
+
+  String? _catalogBranch(PosState state) {
+    final storeId = state.activeShift?['toko_id']?.toString();
+    return (state.stores.where((store) => store.id == storeId).firstOrNull ??
+            state.stores
+                .where(
+                  (store) =>
+                      store.status == 'active' && store.branchId.isNotEmpty,
+                )
+                .firstOrNull)
+        ?.branchId;
+  }
+
+  Future<void> _loadCatalog({required int page}) async {
+    final bloc = context.read<PosBloc>(),
+        branch = _catalogBranch(context.read<PosBloc>().state);
+    if (branch == null || branch.isEmpty) return;
+    final version = ++_searchVersion;
+    setState(() {
+      _remoteSearching = true;
+      _catalogError = '';
+    });
+    try {
+      final result = await bloc.posRepository.getCatalogPage(
+        branchId: branch,
+        search: _searchQuery,
+        category: widget.selectedCategory,
+        favorites: bloc.state.favoriteProductIds,
+        page: page,
+      );
+      if (!mounted || version != _searchVersion) return;
+      setState(() {
+        _remoteProducts = result.items;
+        _catalogTotal = result.total;
+        _catalogPage = page;
+        _catalogOffline = result.offline;
+        _catalogLoaded = true;
+      });
+    } catch (_) {
+      if (mounted && version == _searchVersion) {
+        setState(() => _catalogError = 'Katalog gagal dimuat. Coba lagi.');
+      }
+    } finally {
+      if (mounted && version == _searchVersion) {
+        setState(() => _remoteSearching = false);
+      }
+    }
+  }
+
+  Future<void> _pickCatalogCategory() async {
+    final bloc = context.read<PosBloc>(),
+        branch = _catalogBranch(context.read<PosBloc>().state);
+    if (branch == null) return;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (_) => PosCatalogCategoryPicker(
+        load: (search, page) => bloc.posRepository.getCatalogCategories(
+          branchId: branch,
+          search: search,
+          page: page,
+        ),
+      ),
+    );
+    if (mounted && selected != null) widget.onCategorySelected(selected);
   }
 
   int _searchRank(PosProduct product, String rawQuery) {
@@ -283,7 +412,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
             child: KeyedSubtree(
               key: widget.searchTourKey,
               child: SizedBox(
-                height: widget.isMobile ? 36 : 48,
+                height: widget.isMobile ? 40 : 48,
                 child: TextField(
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
@@ -301,12 +430,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       size: widget.isMobile ? 18 : 24,
                     ),
                     prefixIconConstraints: BoxConstraints(
-                      minWidth: widget.isMobile ? 32 : 48,
-                      minHeight: widget.isMobile ? 36 : 48,
+                      minWidth: widget.isMobile ? 40 : 48,
+                      minHeight: widget.isMobile ? 40 : 48,
                     ),
                     suffixIconConstraints: BoxConstraints(
-                      minWidth: widget.isMobile ? 32 : 48,
-                      minHeight: widget.isMobile ? 36 : 48,
+                      minWidth: widget.isMobile ? 40 : 48,
+                      minHeight: widget.isMobile ? 40 : 48,
                     ),
                     suffixIcon: _remoteSearching
                         ? Padding(
@@ -323,8 +452,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             onPressed: () => _scanBarcode(context, state),
                             padding: EdgeInsets.zero,
                             constraints: BoxConstraints.tightFor(
-                              width: widget.isMobile ? 32 : 48,
-                              height: widget.isMobile ? 36 : 48,
+                              width: widget.isMobile ? 40 : 48,
+                              height: widget.isMobile ? 40 : 48,
                             ),
                             icon: Icon(
                               Icons.qr_code_scanner,
@@ -352,18 +481,13 @@ class _PosProductPanelState extends State<PosProductPanel> {
           ),
           if (widget.isMobile) ...[
             const SizedBox(width: 5),
-            PopupMenuButton<String>(
+            IconButton(
               tooltip: 'Pilih kategori',
-              initialValue: widget.selectedCategory,
-              onSelected: widget.onCategorySelected,
-              itemBuilder: (_) => widget.categories
-                  .map(
-                    (category) =>
-                        PopupMenuItem(value: category, child: Text(category)),
-                  )
-                  .toList(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              onPressed: _pickCatalogCategory,
+              icon: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
@@ -380,7 +504,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
               tooltip: 'Pilih pelanggan',
               onPressed: () => _selectCustomer(context),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 state.selectedCustomer == null
@@ -394,6 +518,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
             _buildOrderMenu(context, state, selectedOrderType, compact: true),
           ],
           if (!widget.isMobile) ...[
+            IconButton(
+              tooltip: 'Cari semua kategori',
+              onPressed: _pickCatalogCategory,
+              icon: const Icon(Icons.tune),
+            ),
             const SizedBox(width: 16),
             Expanded(
               flex: 2,
@@ -524,7 +653,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
         ];
       },
       child: Container(
-        height: compact ? 36 : 48,
+        height: compact ? 40 : 48,
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14),
         decoration: BoxDecoration(
           color: compact ? AppColors.primarySoft : Colors.white,
@@ -712,18 +841,29 @@ class _PosProductPanelState extends State<PosProductPanel> {
     );
   }
 
+  void _addProductToCart(BuildContext context, PosProduct product) {
+    final bloc = context.read<PosBloc>();
+    final state = bloc.state;
+    if (_isUnavailable(product, state)) {
+      AppToast.warning(context, 'Stok ${product.name} habis');
+      return;
+    }
+    final trackStock =
+        (state.runtimeConfig['features'] as Map?)?['track_stock'] != false;
+    if (trackStock &&
+        product.tracksStock &&
+        (state.cart[product] ?? 0) + 1 > product.stock) {
+      AppToast.warning(context, 'Stok ${product.name} tidak mencukupi');
+      return;
+    }
+    bloc.add(AddToCart(product));
+    AppToast.info(context, '${product.name} ditambahkan ke keranjang');
+  }
+
   Widget _buildProductListItem(BuildContext context, PosProduct product) {
     return InkWell(
       focusColor: AppColors.primary.withValues(alpha: 0.24),
-      onTap: () {
-        final state = context.read<PosBloc>().state;
-        if (_isUnavailable(product, state)) {
-          AppToast.warning(context, 'Stok ${product.name} habis');
-          return;
-        }
-        context.read<PosBloc>().add(AddToCart(product));
-        AppToast.info(context, '${product.name} ditambahkan ke keranjang');
-      },
+      onTap: () => _addProductToCart(context, product),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
@@ -771,7 +911,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
             Expanded(
               flex: 2,
               child: Text(
-                'Rp ${product.price.toStringAsFixed(0)}',
+                'Rp ${formatRupiahAmount(product.price)}',
                 style: const TextStyle(color: Colors.black87),
                 textAlign: TextAlign.right,
               ),
@@ -782,18 +922,167 @@ class _PosProductPanelState extends State<PosProductPanel> {
     );
   }
 
+  Widget _buildMobileProductListItem(
+    BuildContext context,
+    PosProduct product,
+    PosState state,
+  ) {
+    final unavailable = _isUnavailable(product, state);
+    final tracksStock =
+        product.tracksStock &&
+        (state.runtimeConfig['features'] as Map?)?['track_stock'] != false;
+    final stockLabel = !tracksStock
+        ? 'Stok tidak dilacak'
+        : unavailable
+        ? 'Habis'
+        : '${_formatStock(product.stock)} tersedia';
+
+    return Material(
+      color: Colors.white,
+      child: InkWell(
+        onTap: () => _addProductToCart(context, product),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 76),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: unavailable
+                            ? AppColors.textSecondary
+                            : AppColors.body,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (product.code.isNotEmpty) ...[
+                          Flexible(
+                            flex: 2,
+                            child: Text(
+                              product.code,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+                        Flexible(
+                          flex: 3,
+                          child: Text(
+                            product.code.isEmpty ? stockLabel : '· $stockLabel',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: unavailable
+                                  ? AppColors.danger
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      'Rp ${formatRupiahInput(product.price)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: unavailable
+                            ? AppColors.textSecondary
+                            : AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: state.favoriteProductIds.contains(product.id)
+                            ? 'Hapus ${product.name} dari favorit'
+                            : 'Tambahkan ${product.name} ke favorit',
+                        onPressed: () => context.read<PosBloc>().add(
+                          ToggleFavoriteProduct(product.id),
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 40,
+                          height: 40,
+                        ),
+                        icon: Icon(
+                          state.favoriteProductIds.contains(product.id)
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: AppColors.warning,
+                          size: 20,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: unavailable
+                            ? '${product.name} tidak tersedia'
+                            : 'Tambah ${product.name} ke keranjang',
+                        onPressed: () => _addProductToCart(context, product),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 40,
+                          height: 40,
+                        ),
+                        icon: Icon(
+                          unavailable
+                              ? Icons.add_circle_outline_rounded
+                              : Icons.add_circle_rounded,
+                          color: unavailable
+                              ? AppColors.textSecondary
+                              : AppColors.primary,
+                          size: 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProductGridItem(BuildContext context, PosProduct product) {
     return InkWell(
       focusColor: AppColors.primary.withValues(alpha: 0.24),
-      onTap: () {
-        final state = context.read<PosBloc>().state;
-        if (_isUnavailable(product, state)) {
-          AppToast.warning(context, 'Stok ${product.name} habis');
-          return;
-        }
-        context.read<PosBloc>().add(AddToCart(product));
-        AppToast.info(context, '${product.name} ditambahkan ke keranjang');
-      },
+      onTap: () => _addProductToCart(context, product),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
@@ -928,7 +1217,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Rp ${product.price.toStringAsFixed(0)}',
+                            'Rp ${formatRupiahAmount(product.price)}',
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppColors.primary,

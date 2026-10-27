@@ -227,10 +227,10 @@ class _PosDrawerState extends State<PosDrawer> {
           _buildShellItem(Icons.dashboard_outlined, 'Dashboard', 0),
         if (can('use_cashier'))
           _buildShellItem(Icons.point_of_sale_outlined, 'Kasir', 1),
-        if (useTables && (viewTables || manageTables))
+        if (viewTables || (useTables && manageTables))
           _buildShellItem(
             Icons.restaurant_menu_outlined,
-            'Pesanan Aktif & Meja',
+            useTables ? 'Pesanan Aktif & Meja' : 'Pesanan Aktif',
             5,
           ),
         if (useKitchenFlow && viewTables)

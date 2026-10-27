@@ -1,4 +1,17 @@
 class PosStockQueries {
+  static const String stockPage = r'''
+    query GetPOSStockPage($cabangId: ID, $search: String, $stockFilter: String, $pagination: pagination) {
+      GetPOSStockPage(cabang_id: $cabangId, search: $search, stock_filter: $stockFilter, pagination: $pagination) {
+        totalCount
+        statistics { total_inventaris total_nilai_inventaris low_stock_count out_of_stock_count }
+        items {
+          _id kode_inventaris nama_inventaris kategori pos_product_type composition_type tracks_stock
+          harga_jual harga_beli stok_minimum stok_maksimum titik_reorder sku barcode unit base_unit qty
+          stock_balance_id location_count requires_batch_adjustment
+        }
+      }
+    }
+  ''';
   static const String getStockLocations = r'''
     query GetPOSStockLocationOptions {
       getAllCabangs(

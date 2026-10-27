@@ -53,11 +53,6 @@ class _ReportViewState extends State<_ReportView> {
     symbol: 'Rp ',
     decimalDigits: 0,
   );
-  final _compactMoney = NumberFormat.compactCurrency(
-    locale: 'id_ID',
-    symbol: 'Rp',
-    decimalDigits: 0,
-  );
   static const _periods = <({String label, int days})>[
     (label: 'Hari Ini', days: 1),
     (label: '7 Hari Terakhir', days: 7),
@@ -435,12 +430,10 @@ class _ReportViewState extends State<_ReportView> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 52,
+                        reservedSize: 92,
                         interval: interval,
                         getTitlesWidget: (v, _) => Text(
-                          _revenueChart
-                              ? _compactMoney.format(v)
-                              : '${v.toInt()}',
+                          _revenueChart ? _money.format(v) : '${v.toInt()}',
                           style: const TextStyle(fontSize: 9),
                         ),
                       ),

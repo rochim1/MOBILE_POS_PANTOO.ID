@@ -1,10 +1,13 @@
+import 'package:mobile_pos_pantoo/core/utils/rupiah_input_formatter.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:crypto/crypto.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../injections.dart';
+import '../../../core/utils/product_image_picker.dart';
 import '../../../core/receipt/pos_receipt_print_service.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
@@ -14,19 +17,23 @@ import '../../widgets/skeleton_loading.dart';
 import 'utils/pos_purchase_payment_proof_document.dart';
 import 'utils/pos_pdf_preview_bytes.dart';
 import 'utils/pos_business_print_branding.dart';
+import 'utils/pos_vendor_invoice_submission_session.dart';
 
 class PosPurchasePayablePage extends StatefulWidget {
   final Map<String, dynamic> purchase;
-  final bool canRecordPayment;
+  // Purchasing Mobile is deliberately read-only. There is no constructor
+  // parameter that can re-enable supplier payment from a PO route.
+  final bool canRecordPayment = false;
   final bool embedded;
   final VoidCallback? onFinished;
+  final Future<PickedProductImage?> Function()? pickInvoiceImage;
 
   const PosPurchasePayablePage({
     super.key,
     required this.purchase,
-    this.canRecordPayment = false,
     this.embedded = false,
     this.onFinished,
+    this.pickInvoiceImage,
   });
 
   @override
@@ -39,18 +46,164 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
   final _referenceController = TextEditingController();
   final _notesController = TextEditingController();
   Map<String, dynamic>? _payable;
-  List<Map<String, dynamic>> _banks = const [];
+  List<Map<String, dynamic>> _vendorBills = const [];
+  String? _vendorBillLoadError;
+  final List<Map<String, dynamic>> _banks = const [];
   bool _loading = true;
   bool _saving = false;
+  bool _submittingEvidence = false;
+  late final PosVendorInvoiceSubmissionSession _invoiceSubmission;
   bool _paymentDataStale = false;
   String? _proofLoadingId;
   String? _cancelLoadingId;
-  bool _bankAccountsAvailable = true;
+  final bool _bankAccountsAvailable = true;
   String? _bankLoadError;
   String _method = 'transfer';
   String _bankId = '';
   String _paymentDate = DateTime.now().toIso8601String().split('T').first;
   int? _terminNumber;
+
+  Future<void> _submitInvoiceEvidence() async {
+    if (_submittingEvidence) return;
+    setState(() => _submittingEvidence = true);
+    try {
+      final picked = await (widget.pickInvoiceImage ?? pickProductImage)();
+      if (picked == null || !mounted) return;
+      final number = TextEditingController();
+      final note = TextEditingController();
+      final invoiceDate = TextEditingController(
+        text: DateTime.now().toIso8601String().split('T').first,
+      );
+      try {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Kirim bukti invoice ke Finance'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Bukti ini hanya menjadi submission. Mobile tidak membuat utang atau Vendor Bill.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: number,
+                    decoration: const InputDecoration(
+                      labelText: 'Nomor invoice (opsional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: invoiceDate,
+                    decoration: const InputDecoration(
+                      labelText: 'Tanggal invoice (YYYY-MM-DD)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: note,
+                    maxLength: 1000,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Catatan untuk Finance',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (!PosVendorInvoiceSubmissionSession.validInvoiceDate(
+                    invoiceDate.text.trim(),
+                  )) {
+                    AppToast.error(
+                      dialogContext,
+                      'Tanggal invoice harus tanggal kalender valid (YYYY-MM-DD)',
+                    );
+                    return;
+                  }
+                  if (number.text.trim().length > 120) {
+                    AppToast.error(
+                      dialogContext,
+                      'Nomor invoice maksimal 120 karakter',
+                    );
+                    return;
+                  }
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text('Kirim'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) {
+          return;
+        }
+        final fileHash = sha256.convert(picked.bytes).toString();
+        var url = _invoiceSubmission.uploadedUrl(fileHash);
+        if (url == null) {
+          final upload = await _repository.uploadVendorInvoiceEvidence(
+            picked.bytes,
+            picked.name,
+          );
+          if (!mounted) return;
+          upload.fold(
+            (failure) => AppToast.error(context, failure.message),
+            (value) => url = value,
+          );
+          if (url == null) return;
+          _invoiceSubmission.rememberUpload(fileHash, url!);
+        }
+        final result = await _repository.submitVendorInvoiceEvidence({
+          'purchase_id': widget.purchase['_id'],
+          'request_id': _invoiceSubmission.requestId(
+            fileHash: fileHash,
+            invoiceNumber: number.text,
+            invoiceDate: invoiceDate.text,
+            note: note.text,
+          ),
+          'supplier_invoice_number': number.text.trim().isEmpty
+              ? null
+              : number.text.trim(),
+          'invoice_date': invoiceDate.text.trim().isEmpty
+              ? null
+              : invoiceDate.text.trim(),
+          'evidence_url': url,
+          'evidence_hash': fileHash,
+          'note': note.text.trim().isEmpty ? null : note.text.trim(),
+        });
+        if (!mounted) return;
+        result.fold((failure) => AppToast.error(context, failure.message), (_) {
+          AppToast.success(
+            context,
+            'Bukti terkirim. Finance akan memverifikasi sebelum membuat Vendor Bill.',
+          );
+        });
+      } finally {
+        number.dispose();
+        invoiceDate.dispose();
+        note.dispose();
+      }
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          'Bukti belum terkirim. Periksa koneksi lalu coba lagi.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submittingEvidence = false);
+    }
+  }
 
   bool get _isTermin => _payable?['payment_term_type'] == 'termin';
 
@@ -68,16 +221,14 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           .clamp(0, double.infinity)
           .toDouble();
 
-  String _amountText(double amount) {
-    if ((amount - amount.roundToDouble()).abs() < 0.000001) {
-      return amount.toStringAsFixed(0);
-    }
-    return amount.toStringAsFixed(2);
-  }
+  String _amountText(double amount) => formatRupiahAmount(amount);
 
   @override
   void initState() {
     super.initState();
+    _invoiceSubmission = PosVendorInvoiceSubmissionSession(
+      widget.purchase['_id'].toString(),
+    );
     _load();
   }
 
@@ -93,11 +244,11 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
     final purchaseId = widget.purchase['_id']?.toString() ?? '';
     final results = await Future.wait([
       _repository.getPayableForPurchase(purchaseId),
-      _repository.getActiveBankAccounts(),
+      _repository.getVendorBillsForPurchase(purchaseId),
     ]);
     if (!mounted) return;
     final payableResult = results[0] as dynamic;
-    final bankResult = results[1] as dynamic;
+    final billResult = results[1] as dynamic;
     payableResult.fold((failure) => AppToast.error(context, failure.message), (
       value,
     ) {
@@ -109,24 +260,14 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         );
       }
     });
-    bankResult.fold(
+    billResult.fold(
       (failure) {
-        _bankAccountsAvailable = false;
-        _bankLoadError = failure.message;
-        if (_method == 'transfer') {
-          _method = 'cash';
-          _bankId = '';
-          AppToast.error(context, failure.message);
-        }
+        _vendorBills = const [];
+        _vendorBillLoadError = failure.message;
       },
       (value) {
-        _banks = value as List<Map<String, dynamic>>;
-        _bankAccountsAvailable = true;
-        _bankLoadError = null;
-        if (_banks.isEmpty && _method == 'transfer') {
-          _method = 'cash';
-          _bankId = '';
-        }
+        _vendorBills = value as List<Map<String, dynamic>>;
+        _vendorBillLoadError = null;
       },
     );
     if (_isTermin && _terms.isNotEmpty) {
@@ -157,7 +298,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
   }
 
   String _currency(dynamic value) =>
-      'Rp ${((value as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
+      'Rp ${formatRupiahAmount((value as num?) ?? 0)}';
 
   Future<void> _pay() async {
     if (_paymentDataStale) {
@@ -168,8 +309,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       return;
     }
     final payable = _payable;
-    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
-    if (payable == null || amount == null || amount <= 0) {
+    final amount = parseRupiahAmount(_amountController.text);
+    if (payable == null || amount <= 0) {
       AppToast.error(context, 'Masukkan jumlah pembayaran yang valid.');
       return;
     }
@@ -507,7 +648,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
     final content = _loading
         ? const _PayableSkeleton()
         : _payable == null
-        ? const Center(child: Text('Tagihan untuk PO ini belum tersedia.'))
+        ? _emptyState()
         : _buildPayable();
     if (!widget.embedded) {
       return Scaffold(
@@ -530,10 +671,10 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
               icon: const Icon(Icons.arrow_back),
             ),
             title: Text(
-              'Bayar ${widget.purchase['no_po'] ?? 'Pembelian'}',
+              'Tagihan ${widget.purchase['no_po'] ?? 'Pembelian'}',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            subtitle: const Text('Pembelian & Penerimaan'),
+            subtitle: const Text('Finance · Tagihan supplier'),
           ),
         ),
         const Divider(height: 1),
@@ -541,6 +682,44 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       ],
     );
   }
+
+  Widget _emptyState() => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.receipt_long_outlined,
+            size: 42,
+            color: Color(0xFF607D7B),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Tagihan untuk PO ini belum tersedia.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Jika invoice fisik sudah diterima, kirim fotonya untuk diverifikasi Finance.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _submittingEvidence ? null : _submitInvoiceEvidence,
+            icon: _submittingEvidence
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add_a_photo_outlined),
+            label: const Text('Kirim foto invoice'),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildPayable() {
     final payable = _payable!;
@@ -559,6 +738,23 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.add_a_photo_outlined),
+            title: const Text('Kirim bukti invoice lain'),
+            subtitle: const Text(
+              'Foto masuk antrean Finance dan tidak langsung membentuk utang.',
+            ),
+            trailing: _submittingEvidence
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.chevron_right),
+            onTap: _submittingEvidence ? null : _submitInvoiceEvidence,
+          ),
+        ),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -602,6 +798,37 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             ),
           ),
         ),
+        const SizedBox(height: 8),
+        Text(
+          'Invoice supplier',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (_vendorBillLoadError != null)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.sync_problem_outlined),
+              title: const Text('Daftar invoice belum dapat dimuat'),
+              subtitle: Text(_vendorBillLoadError!),
+              trailing: IconButton(
+                tooltip: 'Coba lagi',
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+              ),
+            ),
+          )
+        else if (_vendorBills.isEmpty)
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.receipt_long_outlined),
+              title: Text('Belum ada Vendor Bill'),
+              subtitle: Text(
+                'Invoice yang sudah diverifikasi Finance akan tampil di sini.',
+              ),
+            ),
+          )
+        else
+          ..._vendorBills.map(_vendorBillCard),
         if (waitingReceipt)
           const Card(
             color: Color(0xFFFFF4D6),
@@ -621,7 +848,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             child: Padding(
               padding: EdgeInsets.all(14),
               child: Text(
-                'Anda dapat melihat hutang ini, tetapi tidak memiliki akses untuk mencatat pembayaran.',
+                'Tagihan ini bersifat baca-saja di workspace PO. Kelola pembayaran di Finance Web.',
               ),
             ),
           ),
@@ -661,6 +888,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           if (_isTermin) const SizedBox(height: 10),
           TextField(
             controller: _amountController,
+            inputFormatters: const [RupiahInputFormatter(decimalDigits: 2)],
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
               labelText: 'Jumlah pembayaran *',
@@ -794,6 +1022,35 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           for (final payment in history) _paymentHistoryCard(payment),
         ],
       ],
+    );
+  }
+
+  Widget _vendorBillCard(Map<String, dynamic> bill) {
+    final itemStatuses = (bill['items'] as List? ?? const [])
+        .map((item) => (item as Map)['matching_status']?.toString() ?? '')
+        .where((status) => status.isNotEmpty)
+        .toSet();
+    final matchLabel = itemStatuses.isEmpty
+        ? 'Belum dinilai'
+        : itemStatuses.length == 1
+        ? itemStatuses.first
+        : 'Campuran';
+    final payable = bill['payable'] is Map
+        ? Map<String, dynamic>.from(bill['payable'] as Map)
+        : const <String, dynamic>{};
+    return Card(
+      child: ListTile(
+        title: Text(bill['supplier_invoice_number']?.toString() ?? '-'),
+        subtitle: Text(
+          'Matching: $matchLabel · Jatuh tempo: ${bill['due_date'] ?? payable['due_date'] ?? '-'}\n'
+          'Outstanding: ${_currency(payable['outstanding_amount'] ?? bill['total_amount'])}',
+        ),
+        isThreeLine: true,
+        trailing: Text(
+          bill['status']?.toString() ?? '-',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 

@@ -9,8 +9,10 @@ import '../../bloc/auth/auth_state.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/flavor/flavor_config.dart';
+import '../../../core/network/graphql_client_provider.dart';
 import '../../pages/login/register_page.dart';
 import 'legal_links.dart';
+import 'google_account_button.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -26,6 +28,7 @@ class _LoginFormState extends State<LoginForm> {
   final _captchaController = TextEditingController();
   final _captchaFocusNode = FocusNode();
   bool _obscurePassword = true;
+  bool _googleBusy = false;
 
   @override
   void initState() {
@@ -52,7 +55,7 @@ class _LoginFormState extends State<LoginForm> {
         status.isAuthenticated) {
       return;
     }
-    if (_formKey.currentState?.validate() != true) return;
+    if (_googleBusy || _formKey.currentState?.validate() != true) return;
     context.read<AuthCubit>().login(
       _usernameController.text.trim(),
       _passwordController.text,
@@ -75,7 +78,7 @@ class _LoginFormState extends State<LoginForm> {
           content: TextField(
             controller: controller,
             decoration: const InputDecoration(
-              hintText: 'http://10.0.2.2:4000/graphql',
+              hintText: GraphQLClientProvider.developmentEndpoint,
               labelText: 'GraphQL Endpoint',
             ),
           ),
@@ -120,6 +123,7 @@ class _LoginFormState extends State<LoginForm> {
       },
       builder: (context, state) {
         final isLoading =
+            _googleBusy ||
             state.isCheckingSession ||
             state.isAuthenticating ||
             state.isAuthenticated;
@@ -167,6 +171,14 @@ class _LoginFormState extends State<LoginForm> {
               ],
             ),
             const SizedBox(height: 24),
+            GoogleAccountButton(
+              enabled:
+                  !_googleBusy &&
+                  !state.isCheckingSession &&
+                  !state.isAuthenticating &&
+                  !state.isAuthenticated,
+              onBusyChanged: (value) => setState(() => _googleBusy = value),
+            ),
             Form(
               key: _formKey,
               child: Column(

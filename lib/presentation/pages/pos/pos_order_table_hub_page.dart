@@ -26,11 +26,11 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
 
   @override
   Widget build(BuildContext context) {
-    final permissions =
-        (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map?) ??
-        const {};
+    final config = context.read<PosBloc>().state.runtimeConfig;
+    final permissions = (config['permissions'] as Map?) ?? const {};
+    final useTables = (config['features'] as Map?)?['use_tables'] == true;
     final canViewOrders = permissions['view_tables'] == true;
-    final canManageTables = permissions['manage_tables'] == true;
+    final canManageTables = useTables && permissions['manage_tables'] == true;
     final selectedTab = !canViewOrders
         ? 1
         : !canManageTables

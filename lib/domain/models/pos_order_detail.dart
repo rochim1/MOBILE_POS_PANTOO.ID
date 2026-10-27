@@ -60,10 +60,11 @@ class PosOrderItem extends Equatable {
       productionStatus: _text(json['production_status']) ?? 'not_required',
       prepTimeMinutes: (json['prep_time_minutes'] as num?)?.toInt() ?? 0,
       revision: (json['revision'] as num?)?.toInt() ?? 0,
-      productionStatusHistory: (json['production_status_history'] as List? ?? const [])
-          .whereType<Map>()
-          .map((value) => Map<String, dynamic>.from(value))
-          .toList(),
+      productionStatusHistory:
+          (json['production_status_history'] as List? ?? const [])
+              .whereType<Map>()
+              .map((value) => Map<String, dynamic>.from(value))
+              .toList(),
     );
   }
 
@@ -97,6 +98,7 @@ class PosOrderDetail extends Equatable {
   final bool customerProfileRequested;
   final String? orderType;
   final String? status; // e.g., 'active', 'completed', 'cancelled'
+  final bool webOrderPayBeforeProcessing;
   final String? _paymentStatus;
   String get paymentStatus => _paymentStatus ?? 'belum_bayar';
   final double? totalAmount;
@@ -130,6 +132,7 @@ class PosOrderDetail extends Equatable {
     this.customerProfileRequested = false,
     this.orderType,
     this.status,
+    this.webOrderPayBeforeProcessing = false,
     String? paymentStatus = 'belum_bayar',
     this.totalAmount,
     this.subtotal,
@@ -169,6 +172,8 @@ class PosOrderDetail extends Equatable {
       customerProfileRequested: json['customer_profile_requested'] == true,
       orderType: _text(json['tipe_pesanan']) ?? 'take_away',
       status: _text(json['status']),
+      webOrderPayBeforeProcessing:
+          json['web_order_pay_before_processing'] == true,
       paymentStatus: _text(json['status_pembayaran']) ?? 'belum_bayar',
       totalAmount: rawTotal is num
           ? rawTotal.toDouble()
@@ -227,6 +232,7 @@ class PosOrderDetail extends Equatable {
     customerProfileRequested,
     orderType,
     status,
+    webOrderPayBeforeProcessing,
     paymentStatus,
     totalAmount,
     subtotal,

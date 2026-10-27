@@ -308,6 +308,49 @@ class _PosStockViewState extends State<_PosStockView> {
                       child: _buildStockTable(state.stocks),
                     ),
                   ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          tooltip: 'Halaman sebelumnya',
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed:
+                              state.page <= 1 ||
+                                  state.status == PosStockStatus.loading
+                              ? null
+                              : () => context.read<PosStockBloc>().add(
+                                  LoadStocks(
+                                    search: state.search,
+                                    stockFilter: state.currentFilter,
+                                    locationId: state.selectedLocationId,
+                                    page: state.page - 1,
+                                  ),
+                                ),
+                        ),
+                        Text('Halaman ${state.page} · ${state.total} produk'),
+                        IconButton(
+                          tooltip: 'Halaman berikutnya',
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed:
+                              state.page * 20 >= state.total ||
+                                  state.status == PosStockStatus.loading
+                              ? null
+                              : () => context.read<PosStockBloc>().add(
+                                  LoadStocks(
+                                    search: state.search,
+                                    stockFilter: state.currentFilter,
+                                    locationId: state.selectedLocationId,
+                                    page: state.page + 1,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 // Bottom spacing
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
@@ -1765,16 +1808,7 @@ class _PosStockViewState extends State<_PosStockView> {
     return value.toStringAsFixed(1);
   }
 
-  String _formatCurrency(double value) {
-    if (value >= 1000000000) {
-      return '${(value / 1000000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}Jt';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}Rb';
-    }
-    return NumberFormat('#,###', 'id_ID').format(value.toInt());
-  }
+  String _formatCurrency(double value) => formatRupiahAmount(value);
 }
 
 class _StockCardSkeleton extends StatelessWidget {

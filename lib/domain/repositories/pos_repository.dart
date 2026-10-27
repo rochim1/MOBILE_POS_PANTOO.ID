@@ -13,6 +13,7 @@ import '../../core/utils/logger.dart';
 import '../../data/graphql/pos_queries.dart';
 import '../../data/graphql/pos_return_queries.dart';
 import '../../data/datasources/local/pos_local_database.dart';
+import '../../data/datasources/local/pos_catalog_filter.dart';
 import '../../data/datasources/local/pos_offline_pin_store.dart';
 import '../../data/datasources/local/pos_offline_read_store.dart';
 import '../models/pos_product.dart';
@@ -24,6 +25,19 @@ import '../models/pos_transaction_result.dart';
 import '../models/hold_order.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+
+class PosCatalogPage {
+  final List<PosProduct> items;
+  final int total;
+  final bool offline;
+  const PosCatalogPage(this.items, this.total, {this.offline = false});
+}
+
+class PosCatalogCategoryPage {
+  final List<String> items;
+  final int total;
+  const PosCatalogCategoryPage(this.items, this.total);
+}
 
 class PosRepository {
   final GraphQLClientProvider _clientProvider;
@@ -161,7 +175,7 @@ class PosRepository {
       'delete_purchase_returns': false,
       'view_inventory_purchases': false,
       'view_payables': false,
-      'record_payable_payment': false,
+      'request_purchase_advance': false,
       'view_inventory_opnames': false,
       'view_inventory_transfers': false,
       'receive_inventory_transfers': false,
@@ -169,9 +183,14 @@ class PosRepository {
       'create_inventory_purchases': false,
       'update_inventory_purchases': false,
       'submit_inventory_purchases': false,
+      'send_inventory_purchases': false,
+      'acknowledge_inventory_purchases': false,
+      'close_inventory_purchases': false,
       'approve_inventory_purchases': false,
       'reject_inventory_purchases': false,
       'receive_inventory_purchases': false,
+      'override_receiving_tolerance': false,
+      'cancel_inventory_receiving': false,
       'delete_inventory_purchases': false,
       'create_inventory_opnames': false,
       'update_inventory_opnames': false,
@@ -788,23 +807,46 @@ class PosRepository {
     }
   }
 
-  Future<List<PosProduct>> getProducts({String? branchId}) async {
+  Future<List<PosProduct>> getProducts({String? branchId}) async =>
+      (await getCatalogPage(branchId: branchId)).items;
+
+  Future<PosCatalogPage> getCatalogPage({
+    String? branchId,
+    String search = '',
+    String category = 'Semua Kategori',
+    Set<String> favorites = const {},
+    int page = 1,
+  }) async {
     if (supportsOfflineDatabase && await _hasNoNetwork()) {
-      return _getLocalProducts(branchId);
+      return _localCatalogPage(branchId, search, category, favorites, page);
     }
     try {
+      if (branchId == null || branchId.isEmpty) {
+        throw const ServerFailure('Pilih lokasi toko untuk memuat katalog');
+      }
+      const special = {
+        'Semua Kategori',
+        'Favorit',
+        'Produk Paket',
+        'Produk Layanan',
+        'Promo',
+        'Deposit',
+      };
       final QueryOptions options = QueryOptions(
-        document: gql(
-          branchId != null && branchId.isNotEmpty
-              ? PosQueries.getInventarisAvailableInLocation
-              : PosQueries.getAllInventarisUmum,
-        ),
-        variables: branchId != null && branchId.isNotEmpty
-            ? {'cabang_id': branchId, 'limit': 1000}
-            : const {
-                'filter': {'kategori': 'barang_dagangan'},
-                'pagination': {'page': 0, 'limit': 1000},
-              },
+        document: gql(PosQueries.catalogPage),
+        variables: {
+          'branch': branchId,
+          'search': search.trim(),
+          'category': special.contains(category) ? null : category,
+          'type': const {
+            'Produk Paket': 'package',
+            'Produk Layanan': 'service',
+            'Deposit': 'deposit',
+          }[category],
+          'promo': category == 'Promo',
+          'ids': category == 'Favorit' ? favorites.toList() : null,
+          'pagination': {'page': page < 1 ? 1 : page, 'limit': 30},
+        },
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
@@ -815,12 +857,8 @@ class PosRepository {
         throw const ServerFailure('Katalog POS tidak tersedia');
       }
 
-      final items = branchId != null && branchId.isNotEmpty
-          ? (result.data?['GetInventarisAvailableInLocation']
-                    as List<dynamic>? ??
-                [])
-          : (result.data?['GetAllInventarisUmum']?['items'] as List<dynamic>? ??
-                []);
+      final items =
+          result.data?['GetPOSCatalogPage']?['items'] as List? ?? const [];
       final products = items
           .map(
             (e) => PosProduct(
@@ -898,13 +936,104 @@ class PosRepository {
           .toList();
 
       await _saveProductsToLocal(products, branchId: branchId);
-      return products;
+      return PosCatalogPage(
+        products,
+        (result.data?['GetPOSCatalogPage']?['totalCount'] as num?)?.toInt() ??
+            0,
+      );
     } catch (e) {
       if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
-        return _getLocalProducts(branchId);
+        return _localCatalogPage(branchId, search, category, favorites, page);
       }
       rethrow;
     }
+  }
+
+  Future<PosCatalogPage> _localCatalogPage(
+    String? branchId,
+    String search,
+    String category,
+    Set<String> favorites,
+    int page,
+  ) async {
+    if (branchId != null && branchId.isNotEmpty) {
+      final active = await _offlineReadStore.read(_activeProductCacheKey);
+      if (active?.data['catalog_key'] == _productSnapshotKey(branchId)) {
+        final filter = PosCatalogFilter(search, category, favorites);
+        final db = await PosLocalDatabase.instance.database;
+        final count = await db.rawQuery(
+          'SELECT COUNT(*) AS total FROM products WHERE ${filter.where}',
+          filter.args,
+        );
+        final rows = await _getLocalProducts(
+          branchId,
+          filter: filter,
+          page: page,
+        );
+        return PosCatalogPage(
+          rows,
+          (count.first['total'] as num?)?.toInt() ?? 0,
+          offline: true,
+        );
+      }
+    }
+    final rows =
+        (await _getLocalProducts(branchId)).where((item) {
+          final term = search.trim().toLowerCase();
+          final matches =
+              term.isEmpty ||
+              [
+                item.name,
+                item.code,
+                item.sku,
+                item.barcode,
+              ].any((value) => value.toLowerCase().contains(term));
+          final selected = switch (category) {
+            'Semua Kategori' => true,
+            'Favorit' => favorites.contains(item.id),
+            'Produk Paket' => item.productType == 'package',
+            'Produk Layanan' => item.productType == 'service',
+            'Deposit' => item.productType == 'deposit',
+            'Promo' => item.promoEligible,
+            _ => item.category == category,
+          };
+          return matches && selected;
+        }).toList()..sort(
+          (a, b) => a.name.compareTo(b.name) != 0
+              ? a.name.compareTo(b.name)
+              : a.id.compareTo(b.id),
+        );
+    return PosCatalogPage(
+      rows.skip(((page < 1 ? 1 : page) - 1) * 30).take(30).toList(),
+      rows.length,
+      offline: true,
+    );
+  }
+
+  Future<PosCatalogCategoryPage> getCatalogCategories({
+    required String branchId,
+    String search = '',
+    int page = 1,
+  }) async {
+    final result = await _clientProvider.client.query(
+      QueryOptions(
+        document: gql(PosQueries.catalogCategories),
+        variables: {
+          'branch': branchId,
+          'search': search,
+          'pagination': {'page': page, 'limit': 20},
+        },
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+    if (result.hasException) throw result.exception!;
+    final root = result.data?['SearchPOSCatalogCategories'];
+    return PosCatalogCategoryPage(
+      (root?['items'] as List? ?? const [])
+          .map((value) => value.toString())
+          .toList(),
+      (root?['totalCount'] as num?)?.toInt() ?? 0,
+    );
   }
 
   Future<List<PosProduct>> searchProductsRemote({
@@ -1037,7 +1166,11 @@ class PosRepository {
 
   static const _activeProductCacheKey = 'pos_active_product_catalog_v1';
 
-  Future<List<PosProduct>> _getLocalProducts(String? branchId) async {
+  Future<List<PosProduct>> _getLocalProducts(
+    String? branchId, {
+    PosCatalogFilter? filter,
+    int page = 1,
+  }) async {
     try {
       if (branchId == null || branchId.isEmpty) {
         final saved = await _offlineReadStore.read(_productSnapshotKey(null));
@@ -1050,9 +1183,16 @@ class PosRepository {
       final targetKey = _productSnapshotKey(branchId);
       final active = await _offlineReadStore.read(_activeProductCacheKey);
       final result = active?.data['catalog_key'] == targetKey
-          ? await db.query('products')
+          ? await db.query(
+              'products',
+              where: filter?.where,
+              whereArgs: filter?.args,
+              orderBy: filter == null ? null : 'name COLLATE NOCASE, id',
+              limit: filter == null ? null : 30,
+              offset: filter == null ? null : ((page < 1 ? 1 : page) - 1) * 30,
+            )
           : <Map<String, Object?>>[];
-      if (result.isEmpty) {
+      if (result.isEmpty && filter == null) {
         final saved = await _offlineReadStore.read(targetKey);
         final products = (saved?.data['products'] as List? ?? const [])
             .whereType<Map>()
@@ -1140,7 +1280,20 @@ class PosRepository {
           return;
         }
         final batch = txn.batch();
-        batch.delete('products');
+        final activeRows = await txn.query(
+          'read_snapshots',
+          where: 'scope_key = ?',
+          whereArgs: [_activeProductCacheKey],
+          limit: 1,
+        );
+        final activePayload = activeRows.isEmpty
+            ? null
+            : jsonDecode(activeRows.first['payload'] as String) as Map;
+        // A page is a partial snapshot. Merge within the same tenant/user/store
+        // catalog instead of deleting products cached from other pages.
+        if (activePayload?['catalog_key'] != _productSnapshotKey(branchId)) {
+          batch.delete('products');
+        }
         for (var product in products) {
           batch.insert('products', {
             'product_json': jsonEncode(product.toJson()),
@@ -1158,19 +1311,23 @@ class PosRepository {
             'image_url': product.imageUrl,
             'base_unit': product.saleUnit,
             'unit_conversions': jsonEncode(product.unitConversions),
-          });
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
         final cachedAt = DateTime.now().toUtc().toIso8601String();
         batch.insert('read_snapshots', {
           'scope_key': _productSnapshotKey(branchId),
           'payload': jsonEncode({
+            'complete': false,
             'products': products.map((product) => product.toJson()).toList(),
           }),
           'cached_at': cachedAt,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
         batch.insert('read_snapshots', {
           'scope_key': _activeProductCacheKey,
-          'payload': jsonEncode({'catalog_key': _productSnapshotKey(branchId)}),
+          'payload': jsonEncode({
+            'catalog_key': _productSnapshotKey(branchId),
+            'complete': false,
+          }),
           'cached_at': cachedAt,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
         await batch.commit(noResult: true);
@@ -2168,20 +2325,28 @@ class PosRepository {
 
     try {
       final MutationOptions options = MutationOptions(
-        document: gql(PosQueries.processPOSPenjualan),
+        document: gql(
+          paymentMethod == 'tempo'
+              ? PosQueries.issuePOSCreditInvoice
+              : PosQueries.processPOSPenjualan,
+        ),
         variables: {'input': payload},
       );
 
       final QueryResult result = await _clientProvider.client.mutate(options);
 
-      if (result.data != null && result.data!['ProcessPOSPenjualan'] != null) {
+      final resultKey = paymentMethod == 'tempo'
+          ? 'IssuePOSCreditInvoice'
+          : 'ProcessPOSPenjualan';
+      if (result.data != null && result.data![resultKey] != null) {
         return Right(
           PosTransactionResult.fromJson(
-            Map<String, dynamic>.from(result.data!['ProcessPOSPenjualan']),
+            Map<String, dynamic>.from(result.data![resultKey]),
             customerName: pelangganName ?? '',
             customerPhone: pelangganPhone ?? '',
             customerEmail: pelangganEmail ?? '',
             cashierName: _prefs.getString('name') ?? '',
+            storeName: _prefs.getString('pos_toko_nama') ?? '',
             salesChannel: salesChannel,
             customerSegment: customerSegment,
             orderType: orderType,
@@ -2235,6 +2400,8 @@ class PosRepository {
             customerEmail: pelangganEmail ?? '',
             date: payload['tanggal'].toString(),
             cashierName: _prefs.getString('name') ?? '',
+            shiftReference: shiftId,
+            transactionReference: payload['client_transaction_id'].toString(),
             salesChannel: salesChannel,
             customerSegment: customerSegment,
             orderType: orderType,
@@ -2296,6 +2463,8 @@ class PosRepository {
           customerEmail: pelangganEmail ?? '',
           date: payload['tanggal'].toString(),
           cashierName: _prefs.getString('name') ?? '',
+          shiftReference: shiftId,
+          transactionReference: payload['client_transaction_id'].toString(),
           salesChannel: salesChannel,
           customerSegment: customerSegment,
           orderType: orderType,
@@ -2621,6 +2790,8 @@ class PosRepository {
     customerEmail: customerEmail,
     date: payload['tanggal']?.toString() ?? '',
     cashierName: _prefs.getString('name') ?? '',
+    shiftReference: payload['shift_id']?.toString() ?? '',
+    transactionReference: payload['client_transaction_id']?.toString() ?? '',
     salesChannel: salesChannel,
     customerSegment: customerSegment,
     orderType: orderType,

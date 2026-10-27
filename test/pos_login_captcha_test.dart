@@ -89,6 +89,7 @@ void main() {
     );
     await tester.enterText(find.byType(TextFormField).at(0), 'kasir');
     await tester.enterText(find.byType(TextFormField).at(1), 'sandi');
+    await tester.ensureVisible(find.text('Masuk'));
     await tester.tap(find.text('Masuk'));
     await tester.pumpAndSettle();
 
@@ -97,6 +98,7 @@ void main() {
     expect(find.byType(TextFormField), findsNWidgets(3));
     expect(repository.attempts.single.captchaId, isNull);
 
+    await tester.ensureVisible(find.text('Masuk'));
     await tester.tap(find.text('Masuk'));
     await tester.pump();
     expect(repository.attempts.length, 1);
@@ -104,6 +106,7 @@ void main() {
 
     repository.responses.add(const Right('Kasir'));
     await tester.enterText(find.byType(TextFormField).at(2), 'ABC123');
+    await tester.ensureVisible(find.text('Masuk'));
     await tester.tap(find.text('Masuk'));
     await tester.pump();
 

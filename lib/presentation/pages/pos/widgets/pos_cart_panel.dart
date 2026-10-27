@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/core/utils/rupiah_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
@@ -159,7 +160,7 @@ class PosCartPanel extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              '@ Rp ${unitPrice.toStringAsFixed(0)}',
+                              '@ Rp ${formatRupiahAmount(unitPrice)}',
                               style: TextStyle(
                                 color: allowPriceEdit
                                     ? AppColors.primary
@@ -182,7 +183,7 @@ class PosCartPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Rp ${(unitPrice * quantity).toStringAsFixed(0)}',
+                    'Rp ${formatRupiahAmount((unitPrice * quantity))}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -267,7 +268,7 @@ class PosCartPanel extends StatelessWidget {
     double currentPrice,
   ) async {
     final controller = TextEditingController(
-      text: currentPrice.toStringAsFixed(0),
+      text: formatRupiahAmount(currentPrice),
     );
     final price = await showDialog<double>(
       context: context,
@@ -277,9 +278,7 @@ class PosCartPanel extends StatelessWidget {
           controller: controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,2}')),
-          ],
+          inputFormatters: const [RupiahInputFormatter(decimalDigits: 2)],
           decoration: InputDecoration(
             labelText: 'Harga ${product.name}',
             prefixText: 'Rp ',
@@ -293,10 +292,8 @@ class PosCartPanel extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () {
-              final value = double.tryParse(
-                controller.text.replaceAll(',', '.'),
-              );
-              if (value == null || value <= 0) return;
+              final value = parseRupiahAmount(controller.text);
+              if (value <= 0) return;
               Navigator.pop(dialogContext, value);
             },
             child: const Text('Terapkan'),

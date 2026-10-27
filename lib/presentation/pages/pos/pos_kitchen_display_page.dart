@@ -80,6 +80,7 @@ class _KitchenBoard extends StatefulWidget {
 class _KitchenBoardState extends State<_KitchenBoard> {
   late String _storeId;
   String _filter = '';
+  int _page = 0;
   Timer? _refreshTimer;
   Timer? _slaTimer;
   Timer? _clockTimer;
@@ -200,7 +201,12 @@ class _KitchenBoardState extends State<_KitchenBoard> {
 
   void _reload() {
     context.read<PosOrderManagementBloc>().add(
-      LoadKitchenTickets(storeId: _storeId, stationId: _stationId),
+      LoadKitchenTickets(
+        storeId: _storeId,
+        stationId: _stationId,
+        page: _page,
+        status: _filter,
+      ),
     );
   }
 
@@ -272,6 +278,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                                 if (value == null || value == _storeId) return;
                                 setState(() {
                                   _storeId = value;
+                                  _page = 0;
                                   _stationId = '';
                                 });
                                 _loadStations();
@@ -317,7 +324,10 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         onChanged: _pendingMove != null
                             ? null
                             : (value) {
-                                setState(() => _stationId = value ?? '');
+                                setState(() {
+                                  _stationId = value ?? '';
+                                  _page = 0;
+                                });
                                 _reload();
                               },
                       ),
@@ -367,6 +377,48 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                   },
                 ),
               ),
+            ),
+          ),
+          BlocBuilder<PosOrderManagementBloc, PosOrderManagementState>(
+            builder: (context, state) => Column(
+              children: [
+                _filterBar(state.orders),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: 'Halaman sebelumnya',
+                      onPressed:
+                          _page > 0 &&
+                              state.status != PosOrderManagementStatus.loading
+                          ? () {
+                              setState(() => _page--);
+                              _reload();
+                            }
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Flexible(
+                      child: Text(
+                        'Halaman ${_page + 1} · ${state.total} pesanan',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Halaman berikutnya',
+                      onPressed:
+                          (_page + 1) * 30 < state.total &&
+                              state.status != PosOrderManagementStatus.loading
+                          ? () {
+                              setState(() => _page++);
+                              _reload();
+                            }
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -432,7 +484,6 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         );
                     return Column(
                       children: [
-                        _filterBar(orders),
                         if (widget.canUpdate) _compactDropTargets(),
                         Expanded(
                           child: RefreshIndicator(
@@ -472,24 +523,41 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
     child: SegmentedButton<String>(
       segments: [
-        ButtonSegment(value: '', label: Text('Semua (${orders.length})')),
+        ButtonSegment(
+          value: '',
+          label: Text(
+            'Semua (${context.read<PosOrderManagementBloc>().state.statusCounts.values.fold(0, (a, b) => a + b)})',
+          ),
+        ),
         ButtonSegment(
           value: 'Baru',
-          label: Text('Baru (${_count(orders, 'Baru')})'),
+          label: Text(
+            'Baru (${context.read<PosOrderManagementBloc>().state.statusCounts['Baru'] ?? 0})',
+          ),
         ),
         ButtonSegment(
           value: 'Diproses',
-          label: Text('Dibuat (${_count(orders, 'Diproses')})'),
+          label: Text(
+            'Dibuat (${context.read<PosOrderManagementBloc>().state.statusCounts['Diproses'] ?? 0})',
+          ),
         ),
         ButtonSegment(
           value: 'Siap',
-          label: Text('Siap (${_count(orders, 'Siap')})'),
+          label: Text(
+            'Siap (${context.read<PosOrderManagementBloc>().state.statusCounts['Siap'] ?? 0})',
+          ),
         ),
       ],
       selected: {_filter},
       onSelectionChanged: _pendingMove != null
           ? null
-          : (value) => setState(() => _filter = value.first),
+          : (value) {
+              setState(() {
+                _filter = value.first;
+                _page = 0;
+              });
+              _reload();
+            },
     ),
   );
 
@@ -953,8 +1021,6 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     _reload();
   }
 
-  int _count(List<PosOrderDetail> orders, String status) =>
-      orders.where((order) => order.status == status).length;
   String _statusLabel(String status) => switch (status) {
     'Baru' => 'Pesanan Baru',
     'Diproses' => 'Sedang Dibuat',

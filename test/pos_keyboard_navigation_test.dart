@@ -45,7 +45,7 @@ void main() {
     expect(canOpenPosKeyboardDestination(config, 0), isTrue);
     expect(canOpenPosKeyboardDestination(config, 1), isTrue);
     expect(canOpenPosKeyboardDestination(config, 2), isFalse);
-    expect(canOpenPosKeyboardDestination(config, 5), isFalse);
+    expect(canOpenPosKeyboardDestination(config, 5), isTrue);
     expect(canOpenPosKeyboardDestination(config, 7), isTrue);
     expect(canOpenPosKeyboardDestination(config, 3), isTrue);
     expect(canOpenPosKeyboardDestination(config, 14), isFalse);

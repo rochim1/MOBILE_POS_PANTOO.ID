@@ -6,6 +6,8 @@ import 'pos_order_management_state.dart';
 class PosOrderManagementBloc
     extends Bloc<PosOrderManagementEvent, PosOrderManagementState> {
   final PosOrderRepository repository;
+  int _activeVersion = 0;
+  LoadActiveOrders? _lastActiveRequest;
 
   PosOrderManagementBloc({required this.repository})
     : super(const PosOrderManagementState()) {
@@ -20,11 +22,15 @@ class PosOrderManagementBloc
     LoadKitchenTickets event,
     Emitter<PosOrderManagementState> emit,
   ) async {
+    final version = ++_activeVersion;
     emit(state.copyWith(status: PosOrderManagementStatus.loading));
-    final result = await repository.getKitchenTickets(
+    final result = await repository.getKitchenPage(
       storeId: event.storeId,
       stationId: event.stationId,
+      page: event.page,
+      status: event.status,
     );
+    if (version != _activeVersion || emit.isDone) return;
     result.fold(
       (failure) => emit(
         state.copyWith(
@@ -32,10 +38,13 @@ class PosOrderManagementBloc
           errorMessage: failure.message,
         ),
       ),
-      (orders) => emit(
+      (result) => emit(
         state.copyWith(
           status: PosOrderManagementStatus.loaded,
-          orders: orders,
+          orders: result.items,
+          total: result.total,
+          page: event.page,
+          statusCounts: result.statusCounts,
           errorMessage: '',
         ),
       ),
@@ -46,12 +55,20 @@ class PosOrderManagementBloc
     LoadActiveOrders event,
     Emitter<PosOrderManagementState> emit,
   ) async {
+    final version = ++_activeVersion;
+    _lastActiveRequest = event;
     emit(state.copyWith(status: PosOrderManagementStatus.loading));
     final result = await repository.getActiveOrders(
       storeId: event.storeId,
       search: event.search,
       status: event.status,
+      fulfillment: event.fulfillment,
+      dateFrom: event.dateFrom,
+      dateTo: event.dateTo,
+      sort: event.sort,
+      page: event.page,
     );
+    if (version != _activeVersion || emit.isDone) return;
     result.fold(
       (failure) => emit(
         state.copyWith(
@@ -59,10 +76,13 @@ class PosOrderManagementBloc
           errorMessage: failure.message,
         ),
       ),
-      (orders) => emit(
+      (result) => emit(
         state.copyWith(
           status: PosOrderManagementStatus.loaded,
-          orders: orders,
+          orders: result.items,
+          page: event.page,
+          total: result.total,
+          statusCounts: result.statusCounts,
           errorMessage: '',
         ),
       ),
@@ -123,6 +143,10 @@ class PosOrderManagementBloc
               storeId: event.storeId,
               search: event.search,
               status: event.statusFilter,
+              fulfillment: _lastActiveRequest?.fulfillment ?? '',
+              dateFrom: _lastActiveRequest?.dateFrom ?? '',
+              dateTo: _lastActiveRequest?.dateTo ?? '',
+              sort: _lastActiveRequest?.sort ?? 'oldest',
             ),
           );
         } else {
@@ -164,6 +188,10 @@ class PosOrderManagementBloc
               storeId: event.storeId,
               search: event.search,
               status: event.statusFilter,
+              fulfillment: _lastActiveRequest?.fulfillment ?? '',
+              dateFrom: _lastActiveRequest?.dateFrom ?? '',
+              dateTo: _lastActiveRequest?.dateTo ?? '',
+              sort: _lastActiveRequest?.sort ?? 'oldest',
             ),
           );
         } else {

@@ -57,4 +57,41 @@ void main() {
       expect(progress, contains("item['qty_received_base']"));
     },
   );
+
+  test('draft receiving offline terisolasi dan refresh sebelum retry', () {
+    final page = readProjectFile(
+      'lib/presentation/pages/pos/pos_purchase_receiving_page.dart',
+    );
+    final query = readProjectFile(
+      'lib/data/graphql/pos_inventory_queries.dart',
+    );
+    expect(page, contains("'operation_kind': 'purchase_receiving_draft'"));
+    expect(page, contains("'instansi_id': tenantId"));
+    expect(page, contains("'user_id': userId"));
+    expect(page, contains("'payload_hash': _payloadHash(payload)"));
+    expect(page, contains("status: 'retry_required'"));
+    expect(page, contains('getPurchaseReceivings'));
+    expect(page, contains('getPurchaseForPrint'));
+    expect(page, contains('Penerimaan sebelumnya sudah tercatat'));
+    expect(page, contains('Sisa PO berubah sejak request disimpan'));
+    expect(query, contains('client_request_id'));
+  });
+
+  test('over receipt dan pembatalan mengikuti policy serta permission', () {
+    final page = readProjectFile(
+      'lib/presentation/pages/pos/pos_purchase_receiving_page.dart',
+    );
+    final workspace = readProjectFile(
+      'lib/presentation/pages/pos/pos_purchase_workspace.dart',
+    );
+    final runtimeQuery = readProjectFile('lib/data/graphql/pos_queries.dart');
+    expect(page, contains('canOverrideReceivingTolerance'));
+    expect(page, contains('overReceiptTolerancePercent'));
+    expect(page, contains('Batas dengan toleransi'));
+    expect(page, contains('widget.canCancelReceiving'));
+    expect(page, contains('Alasan pembatalan *'));
+    expect(workspace, contains("permissions['override_receiving_tolerance']"));
+    expect(workspace, contains("permissions['cancel_inventory_receiving']"));
+    expect(runtimeQuery, contains('over_receipt_tolerance_percent'));
+  });
 }

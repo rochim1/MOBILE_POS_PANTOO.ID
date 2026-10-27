@@ -24,4 +24,34 @@ void main() {
     expect(provider.endpointUrl, GraphQLClientProvider.productionEndpoint);
     expect(provider.endpointUrl, 'https://graphql.pantoo.id/');
   });
+  test(
+    'development menggunakan endpoint pilihan dan dapat kembali ke default',
+    () async {
+      dotenv.loadFromString(envString: 'API_URL=http://localhost:8080/graphql');
+      SharedPreferences.setMockInitialValues({
+        'custom_endpoint': 'http://localhost:9090/graphql',
+      });
+      final preferences = await SharedPreferences.getInstance();
+      final provider = GraphQLClientProvider(
+        preferences,
+        const FlutterSecureStorage(),
+        environment: FlavorEnvironment.development,
+      );
+      expect(provider.endpointUrl, 'http://localhost:9090/graphql');
+      await preferences.remove('custom_endpoint');
+      provider.rebuild();
+      expect(provider.endpointUrl, GraphQLClientProvider.developmentEndpoint);
+    },
+  );
+  test('development fallback tetap localhost 8080 tanpa API_URL', () async {
+    dotenv.loadFromString(envString: 'MOBILE_API_KEY=test');
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final provider = GraphQLClientProvider(
+      preferences,
+      const FlutterSecureStorage(),
+      environment: FlavorEnvironment.development,
+    );
+    expect(provider.endpointUrl, 'http://localhost:8080/graphql');
+  });
 }

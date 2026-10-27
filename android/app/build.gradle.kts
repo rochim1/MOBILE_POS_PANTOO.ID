@@ -77,3 +77,13 @@ android {
 flutter {
     source = "../.."
 }
+
+// Profile choices are fetched at runtime; bundled profiles are offline fallbacks.
+// JNI merges must consume the Flutter output after compilation. Without this
+// explicit input/order, an incremental APK can retain a previous libapp.so.
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }.configureEach {
+    val variantSuffix = name.removePrefix("merge").removeSuffix("JniLibFolders")
+    val variantDirectory = variantSuffix.replaceFirstChar { it.lowercaseChar() }
+    dependsOn("compileFlutterBuild$variantSuffix")
+    inputs.dir(layout.buildDirectory.dir("intermediates/flutter/$variantDirectory/jniLibs"))
+}

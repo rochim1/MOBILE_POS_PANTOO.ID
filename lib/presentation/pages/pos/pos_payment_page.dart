@@ -79,6 +79,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     'debit' => 'Kartu Debit',
     'kartu_kredit' || 'credit_card' => 'Kartu Kredit',
     'e_wallet' => 'E-Wallet',
+    'tempo' => 'Tempo / Piutang',
     _ => 'Tunai',
   };
 
@@ -376,6 +377,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                         _buildPaymentMethodTile('QRIS'),
                                         _buildPaymentMethodTile('E-Wallet'),
                                         _buildPaymentMethodTile('Kartu Kredit'),
+                                        _buildPaymentMethodTile(
+                                          'Tempo / Piutang',
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -706,10 +710,26 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             'Kartu Debit' => 'debit',
                                             'E-Wallet' => 'e_wallet',
                                             'Kartu Kredit' => 'kartu_kredit',
+                                            'Tempo / Piutang' => 'tempo',
                                             'Pisah Bayar' => 'split',
                                             _ => '',
                                           };
                                       if (normalizedMethod.isEmpty) return;
+                                      if (normalizedMethod == 'tempo' &&
+                                          (_paymentCustomer ??
+                                                  state.selectedCustomer) ==
+                                              null) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Pilih pelanggan terlebih dahulu untuk penjualan tempo.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
                                       if (widget.pendingOrder == null &&
                                           state.orderType == 'reservation') {
                                         await _createInvoice(
@@ -897,6 +917,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       'Kartu Debit' => 'debit',
       'E-Wallet' => 'e_wallet',
       'Kartu Kredit' => 'kartu_kredit',
+      'Tempo / Piutang' => 'tempo',
       'Pisah Bayar' => 'split',
       _ => '',
     };
@@ -1678,7 +1699,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     );
     final deposit = TextEditingController(
       text: _reservationDepositAmount > 0
-          ? _reservationDepositAmount.toStringAsFixed(0)
+          ? formatRupiahAmount(_reservationDepositAmount)
           : '',
     );
     var start =
@@ -1775,10 +1796,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[0-9.,]'),
-                              ),
+                            inputFormatters: const [
+                              RupiahInputFormatter(decimalDigits: 2),
                             ],
                             decoration: const InputDecoration(
                               labelText: 'Deposit diminta',
@@ -1806,8 +1825,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               FilledButton(
                 onPressed: () {
                   final guestCount = int.tryParse(guests.text) ?? 0;
-                  final depositAmount =
-                      double.tryParse(deposit.text.replaceAll(',', '.')) ?? 0;
+                  final depositAmount = parseRupiahAmount(deposit.text);
                   if (start == null ||
                       end == null ||
                       !end!.isAfter(start!) ||
@@ -2200,7 +2218,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         children: [
           Text(label),
           Text(
-            'Rp ${amount.toStringAsFixed(0)}',
+            'Rp ${formatRupiahAmount(amount)}',
             style: TextStyle(fontWeight: FontWeight.bold, color: color),
           ),
         ],
@@ -2218,12 +2236,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             child: ListTile(
               title: Text(item['metode'].toString().toUpperCase()),
               trailing: Text(
-                'Rp ${(item['jumlah'] as num).toStringAsFixed(0)}',
+                'Rp ${formatRupiahAmount((item['jumlah'] as num))}',
               ),
             ),
           ),
         Text(
-          'Total: Rp ${total.toStringAsFixed(0)}',
+          'Total: Rp ${formatRupiahAmount(total)}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ],
@@ -2299,6 +2317,7 @@ const _splitPaymentMethods = <String, String>{
   'qris': 'QRIS',
   'e_wallet': 'E-Wallet',
   'kartu_kredit': 'Kartu Kredit',
+  'tempo': 'Tempo / Piutang',
 };
 
 class _SplitPaymentDraft {

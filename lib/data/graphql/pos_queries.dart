@@ -1,4 +1,20 @@
 class PosQueries {
+  static const String catalogPage = r'''
+    query GetPOSCatalogPage($branch: ID!, $search: String, $category: String, $type: String, $promo: Boolean, $ids: [ID!], $pagination: pagination) {
+      GetPOSCatalogPage(cabang_id: $branch, search: $search, category: $category, product_type: $type, promo_only: $promo, ids: $ids, pagination: $pagination) {
+        totalCount
+        items { _id inventaris_id kode_inventaris nama_inventaris kategori merchandise_category_id merchandise_category_name
+          pos_product_type composition_type tracks_stock promo_eligible sku barcode foto brand deskripsi harga_beli harga_beli_source harga_jual
+          pos_package_components { inventaris_id qty_base } base_unit unit unit_conversions { unit factor }
+          stok_minimum stok_maksimum titik_reorder lead_time_pengadaan preparation_mode production_station_id prep_time_minutes allow_station_override qty }
+      }
+    }
+  ''';
+  static const String catalogCategories = r'''
+    query SearchPOSCatalogCategories($branch: ID!, $search: String, $pagination: pagination) {
+      SearchPOSCatalogCategories(cabang_id: $branch, search: $search, pagination: $pagination) { items totalCount }
+    }
+  ''';
   static const String getMyPOSFavoriteProductIds = r'''
     query GetMyPOSFavoriteProductIds {
       GetMyPOSFavoriteProductIds
@@ -38,6 +54,8 @@ class PosQueries {
           use_store_warehouse
           use_display_stock
           allow_direct_purchase_to_store
+          allow_over_receipt
+          over_receipt_tolerance_percent
           default_receiving_location_id
           default_transfer_transit_location_id
         }
@@ -126,7 +144,7 @@ class PosQueries {
           delete_purchase_returns
           view_inventory_purchases
           view_payables
-          record_payable_payment
+          request_purchase_advance
           view_inventory_opnames
           view_inventory_transfers
           receive_inventory_transfers
@@ -134,9 +152,14 @@ class PosQueries {
           create_inventory_purchases
           update_inventory_purchases
           submit_inventory_purchases
+          send_inventory_purchases
+          acknowledge_inventory_purchases
+          close_inventory_purchases
           approve_inventory_purchases
           reject_inventory_purchases
           receive_inventory_purchases
+          override_receiving_tolerance
+          cancel_inventory_receiving
           delete_inventory_purchases
           create_inventory_opnames
           update_inventory_opnames
@@ -437,6 +460,7 @@ class PosQueries {
           lead_time_pengadaan
           status
         }
+        info_page { count }
       }
     }
   ''';
@@ -524,14 +548,52 @@ class PosQueries {
     mutation ProcessPOSPenjualan($input: ProcessPOSPenjualanInput!) {
       ProcessPOSPenjualan(input: $input) {
         _id
+        client_transaction_id
         invoice
         tanggal
+        toko_nama
+        kasir_shift_id
+        kasir_name
         total
         subtotal
         diskon
         promo_discount
         pajak
         metode_pembayaran
+        due_date
+        sales_invoice_id
+        tipe_pesanan
+        uang_diterima
+        kembalian
+        expired_sale_reason
+        expired_sale_authorizer_name
+        expired_sale_authorized_at
+        sync_status
+        sync_conflict_reason
+        payments { metode jumlah }
+        items { inventaris_id nama_inventaris qty unit harga_jual subtotal }
+      }
+    }
+  ''';
+
+  static const String issuePOSCreditInvoice = r'''
+    mutation IssuePOSCreditInvoice($input: ProcessPOSPenjualanInput!) {
+      IssuePOSCreditInvoice(input: $input) {
+        _id
+        client_transaction_id
+        invoice
+        tanggal
+        toko_nama
+        kasir_shift_id
+        kasir_name
+        total
+        subtotal
+        diskon
+        promo_discount
+        pajak
+        metode_pembayaran
+        due_date
+        sales_invoice_id
         tipe_pesanan
         uang_diterima
         kembalian
