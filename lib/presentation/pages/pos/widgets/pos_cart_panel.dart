@@ -37,6 +37,7 @@ class PosCartPanel extends StatelessWidget {
               product,
               qty,
               state.unitPriceFor(product),
+              selectedUnit: state.unitFor(product),
               allowPriceEdit:
                   state.runtimeConfig['allow_cashier_price_edit'] == true,
             );
@@ -51,6 +52,7 @@ class PosCartPanel extends StatelessWidget {
     PosProduct product,
     double quantity,
     double unitPrice, {
+    required String selectedUnit,
     required bool allowPriceEdit,
   }) {
     return Column(
@@ -141,6 +143,40 @@ class PosCartPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            SizedBox(
+              width: 76,
+              height: 36,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedUnit,
+                      isExpanded: true,
+                      isDense: true,
+                      style: const TextStyle(fontSize: 11, color: Colors.black87),
+                      items: product.saleUnits
+                          .map((unit) => DropdownMenuItem(
+                                value: unit,
+                                child: Text(unit, overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
+                      onChanged: (unit) {
+                        if (unit != null) {
+                          context.read<PosBloc>().add(UpdateCartUnit(product, unit));
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,

@@ -5,6 +5,7 @@ import '../../../bloc/pos_shift/pos_shift_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_event.dart';
 import '../../../bloc/pos_shift/pos_shift_state.dart';
 import 'package:intl/intl.dart';
+import '../utils/pos_shift_cash.dart';
 
 class PosShiftHistoryTab extends StatefulWidget {
   const PosShiftHistoryTab({super.key});
@@ -263,7 +264,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           ),
           _buildInfoRow(
             'Kas Expected',
-            formatCurrency.format(shift['closing_cash_expected'] ?? 0),
+            formatCurrency.format(posShiftExpectedCash(shift)),
           ),
           if (!isOpen) ...[
             _buildInfoRow(

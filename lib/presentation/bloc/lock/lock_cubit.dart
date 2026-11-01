@@ -16,6 +16,8 @@ class AppLockCubit extends Cubit<AppLockState> {
 
   Future<void> lock() async {
     final loginUserId = sl<SharedPreferences>().getString('user_id');
+    sl<PosRepository>().setOperatorSessionToken('');
+    sl<SyncService>().setOperatorSessionToken('');
     emit(
       state.copyWith(
         status: AppLockStatus.locked,
@@ -179,6 +181,28 @@ class AppLockCubit extends Cubit<AppLockState> {
         employeeId,
         enteredPin,
       );
+      final missingOperator = result.fold(
+        (failure) => failure.message.contains(
+          'Pengguna tidak ditemukan pada instansi ini',
+        ),
+        (_) => false,
+      );
+      if (missingOperator) {
+        await loadEmployees();
+        if (isClosed) return false;
+        final rosterRefreshed =
+            state.errorMessage.isEmpty &&
+            state.employees.isNotEmpty &&
+            !state.employees.any((row) => row['_id']?.toString() == employeeId);
+        emit(
+          state.copyWith(
+            errorMessage: rosterRefreshed
+                ? 'Daftar kasir telah diperbarui. Pilih kasir dan masukkan PIN kembali.'
+                : 'Daftar kasir tidak sesuai dengan sesi saat ini. Keluar dari akun, lalu login kembali; transaksi offline yang belum dikirim tetap tersimpan.',
+          ),
+        );
+        return false;
+      }
       return result.fold(
         (failure) {
           emit(state.copyWith(errorMessage: failure.message));

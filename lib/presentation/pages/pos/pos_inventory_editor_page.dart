@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
@@ -9,6 +10,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_full_width_tabs.dart';
+import '../../bloc/pos/pos_bloc.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'utils/pos_inventory_barcode_match.dart';
 import 'utils/pos_purchase_amount.dart';
@@ -18,6 +20,9 @@ class PosInventoryEditorPage extends StatefulWidget {
   final Map<String, dynamic>? existing;
   final String? initialInventoryId;
   final double? initialQuantity;
+  final String? initialSourceId;
+  final String? initialDestinationId;
+  final bool displayReplenishment;
   final bool inModal;
   const PosInventoryEditorPage({
     super.key,
@@ -25,6 +30,9 @@ class PosInventoryEditorPage extends StatefulWidget {
     this.existing,
     this.initialInventoryId,
     this.initialQuantity,
+    this.initialSourceId,
+    this.initialDestinationId,
+    this.displayReplenishment = false,
     this.inModal = false,
   });
 
@@ -39,6 +47,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   final _reasonDetail = TextEditingController();
   PosInventoryLookups? _lookups;
   List<Map<String, dynamic>> _catalog = const [];
+  int _locationLoadGeneration = 0;
   final Map<String, Map<String, dynamic>> _selected = {};
   final List<Map<String, dynamic>> _additionalCosts = [];
   String _supplierId = '';
@@ -88,13 +97,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       _deliveryAddress.trim().isNotEmpty &&
       (_deliveryAddressMode != 'warehouse' || _deliveryWarehouseId.isNotEmpty);
 
+  Map<String, dynamic> get _inventoryPolicy => Map<String, dynamic>.from(
+    context.read<PosBloc>().state.runtimeConfig['inventory_policy'] as Map? ??
+        const {},
+  );
+
   @override
   void initState() {
     super.initState();
     _purchaseClientRequestId =
         widget.existing?['client_request_id']?.toString() ??
         'mobile-po-${DateTime.now().microsecondsSinceEpoch}';
-    _notes.text = widget.existing?['catatan']?.toString() ?? '';
+    _notes.text =
+        widget.existing?['catatan']?.toString() ??
+        (widget.displayReplenishment ? 'Isi rak display' : '');
     _reasonDetail.text = widget.existing?['alasan_detail']?.toString() ?? '';
     _supplierId = widget.existing?['supplier_id']?.toString() ?? '';
     _supplierName = widget.existing?['supplier_name']?.toString() ?? '';
@@ -102,9 +118,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         (widget.existing?['lokasi'] as Map?)?['cabang_id']?.toString() ??
         (widget.existing?['dari'] as Map?)?['cabang_id']?.toString() ??
         _existingScrapLocationId() ??
+        widget.initialSourceId ??
         '';
     _destinationId =
-        (widget.existing?['ke'] as Map?)?['cabang_id']?.toString() ?? '';
+        (widget.existing?['ke'] as Map?)?['cabang_id']?.toString() ??
+        widget.initialDestinationId ??
+        '';
     final existingLocation = widget.existing?['lokasi'] as Map?;
     _buildingCode = existingLocation?['gedung_kode']?.toString() ?? '';
     _roomCode = existingLocation?['ruangan_kode']?.toString() ?? '';
@@ -122,6 +141,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       widget.existing?['due_date']?.toString() ?? '',
     );
     _deliveryAddress = widget.existing?['alamat_pengiriman']?.toString() ?? '';
+    _deliveryWarehouseId =
+        widget.existing?['receiving_location_id']?.toString() ?? '';
+    if (_deliveryWarehouseId.isNotEmpty) _deliveryAddressMode = 'warehouse';
     _supplierContact = widget.existing?['supplier_contact']?.toString() ?? '';
     _paymentTermNote = widget.existing?['payment_term_note']?.toString() ?? '';
     _dueDateBasis =
@@ -171,7 +193,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _ppnPercent = (widget.existing?['ppn_persen'] as num?)?.toDouble() ?? 0;
     _supplierIsPkp = widget.existing?['supplier_is_pkp'] == true;
     _additionalCosts.addAll(
-      (widget.existing?['biaya_tambahan'] as List? ?? const [])
+      (widget.existing?[_vendorBillPurchase
+                      ? 'estimasi_biaya_tambahan'
+                      : 'biaya_tambahan']
+                  as List? ??
+              const [])
           .whereType<Map>()
           .map(
             (row) => {
@@ -183,7 +209,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     );
     final legacyShippingCost =
         (widget.existing?['biaya_pengiriman'] as num?)?.toDouble() ?? 0;
-    if (_additionalCosts.isEmpty && legacyShippingCost > 0) {
+    if (!_vendorBillPurchase &&
+        _additionalCosts.isEmpty &&
+        legacyShippingCost > 0) {
       _additionalCosts.add({
         'jenis_biaya': 'ongkir',
         'deskripsi': '',
@@ -254,6 +282,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       (data) async {
         _lookups = data;
         if (widget.type == PosInventoryDocumentType.purchase &&
+            _deliveryWarehouseId.isEmpty &&
             _deliveryAddress.trim().isNotEmpty) {
           final normalizedAddress = _deliveryAddress.trim().toLowerCase();
           for (final warehouse in data.warehouses) {
@@ -287,6 +316,24 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         if (widget.type == PosInventoryDocumentType.purchase) {
           _catalog = data.inventoryItems;
           _restoreExisting();
+          if (!_editing && _inventoryPolicy['inventory_profile'] == 'simple') {
+            final defaultId =
+                _inventoryPolicy['default_receiving_location_id']?.toString() ??
+                '';
+            final defaultLocation = data.warehouses
+                .cast<Map<String, dynamic>?>()
+                .firstWhere(
+                  (item) => item?['_id']?.toString() == defaultId,
+                  orElse: () => null,
+                );
+            if (defaultLocation != null &&
+                defaultLocation['is_receiving_location'] != false) {
+              _deliveryAddressMode = 'warehouse';
+              _deliveryWarehouseId = defaultId;
+              _deliveryAddress =
+                  defaultLocation['alamat_cabang']?.toString() ?? '';
+            }
+          }
           if (!_editing && widget.initialInventoryId != null) {
             final requestedId = widget.initialInventoryId!;
             Map<String, dynamic>? requestedItem;
@@ -341,9 +388,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     String warehouseId, {
     bool restoreExisting = false,
   }) async {
+    final generation = ++_locationLoadGeneration;
     setState(() => _loading = true);
     final result = await _repository.getLocationItems(warehouseId);
-    if (!mounted) return;
+    // A cashier may change the source warehouse while the previous request is
+    // still in flight. Never let that older response replace the new catalog.
+    if (!mounted ||
+        generation != _locationLoadGeneration ||
+        warehouseId != _sourceId) {
+      return;
+    }
     result.fold((failure) => AppToast.error(context, failure.message), (rows) {
       _catalog = rows;
       if (restoreExisting && _editing) {
@@ -1052,6 +1106,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       return;
     }
     if (widget.type == PosInventoryDocumentType.purchase &&
+        _vendorBillPurchase &&
+        _additionalCosts.any(
+          (row) => ((row['nominal'] as num?)?.toDouble() ?? 0) % 1 != 0,
+        )) {
+      AppToast.error(context, 'Estimasi biaya harus dalam Rupiah bulat');
+      return;
+    }
+    if (widget.type == PosInventoryDocumentType.purchase &&
         _paymentTerms == 'kredit' &&
         (_termDays < 0 ||
             (_creditType == 'termin' &&
@@ -1204,6 +1266,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             ? ''
             : _dateValue(_estimatedArrivalDate!),
         'alamat_pengiriman': _deliveryAddress.trim(),
+        'receiving_location_id':
+            _deliveryAddressMode == 'warehouse' &&
+                _deliveryWarehouseId.isNotEmpty
+            ? _deliveryWarehouseId
+            : null,
         'supplier_contact': _supplierContact.trim(),
         'payment_method': _paymentMethod,
         'syarat_pembayaran': _paymentTerms,
@@ -1229,16 +1296,34 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         'ppn_source': _ppnSource,
         'supplier_is_pkp': _supplierIsPkp,
         'biaya_pengiriman': 0,
-        'biaya_tambahan': _additionalCosts
-            .where((row) => ((row['nominal'] as num?)?.toDouble() ?? 0) > 0)
-            .map(
-              (row) => {
-                'jenis_biaya': row['jenis_biaya'],
-                'deskripsi': row['deskripsi'],
-                'nominal': row['nominal'],
-              },
-            )
-            .toList(),
+        'biaya_tambahan': !_vendorBillPurchase
+            ? _additionalCosts
+                  .where(
+                    (row) => ((row['nominal'] as num?)?.toDouble() ?? 0) > 0,
+                  )
+                  .map(
+                    (row) => {
+                      'jenis_biaya': row['jenis_biaya'],
+                      'deskripsi': row['deskripsi'],
+                      'nominal': row['nominal'],
+                    },
+                  )
+                  .toList()
+            : <Map<String, dynamic>>[],
+        'estimasi_biaya_tambahan': _vendorBillPurchase
+            ? _additionalCosts
+                  .where(
+                    (row) => ((row['nominal'] as num?)?.toDouble() ?? 0) > 0,
+                  )
+                  .map(
+                    (row) => {
+                      'jenis_biaya': row['jenis_biaya'],
+                      'deskripsi': row['deskripsi'],
+                      'nominal': row['nominal'],
+                    },
+                  )
+                  .toList()
+            : <Map<String, dynamic>>[],
         'biaya_mode': _costMode,
         'biaya_alokasi': _costAllocation,
         'catatan': _notes.text.trim(),
@@ -1383,9 +1468,17 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       {};
 
   List<Map<String, dynamic>> get _purchaseDeliveryLocations {
-    final locations = List<Map<String, dynamic>>.from(
+    var locations = List<Map<String, dynamic>>.from(
       _lookups?.warehouses ?? const [],
     );
+    final policy = _inventoryPolicy;
+    if (policy['inventory_profile'] == 'simple') {
+      final defaultId =
+          policy['default_receiving_location_id']?.toString() ?? '';
+      locations = locations
+          .where((item) => item['_id']?.toString() == defaultId)
+          .toList();
+    }
     locations.sort((a, b) {
       final aWarehouse = a['is_warehouse'] == true;
       final bWarehouse = b['is_warehouse'] == true;
@@ -1493,10 +1586,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       _ppnPercent /
       100;
 
+  bool get _vendorBillPurchase =>
+      !_editing || widget.existing?['accounting_flow'] == 'vendor_bill';
+
   double get _purchaseGrandTotal =>
       (_purchaseSubtotal - _purchaseDiscount).clamp(0, double.infinity) +
       _purchaseTax +
-      _effectivePurchaseCost;
+      (_vendorBillPurchase ? 0 : _effectivePurchaseCost);
 
   void _advancePurchaseStep() {
     if (_purchaseStep == 0 && _supplierId.isEmpty) {
@@ -1788,7 +1884,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 children: [
                   const Icon(Icons.inventory_2_outlined, color: Colors.black45),
                   const SizedBox(height: 8),
-                  const Text('Belum ada barang di faktur'),
+                  const Text('Belum ada barang di Purchase Order'),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: _chooseItem,
@@ -2748,15 +2844,15 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   ),
                 ], breakpoint: 900),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Komponen biaya tambahan',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    TextButton.icon(
+                Text(
+                  _vendorBillPurchase
+                      ? 'Estimasi biaya tidak menambah tagihan atau nilai stok. Catat biaya aktual saat penerimaan atau lewat landed cost.'
+                      : 'Biaya tambahan mengikuti alur PO lama.',
+                ),
+                if (_vendorBillPurchase)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
                       onPressed: () => setState(
                         () => _additionalCosts.add({
                           'jenis_biaya': 'ongkir',
@@ -2765,158 +2861,171 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         }),
                       ),
                       icon: const Icon(Icons.add),
-                      label: const Text('Tambah biaya'),
+                      label: const Text('Tambah estimasi'),
                     ),
-                  ],
-                ),
-                ..._additionalCosts.asMap().entries.map((entry) {
-                  final row = entry.value;
-                  Widget feeTypeField() => DropdownButtonFormField<String>(
-                    initialValue: row['jenis_biaya']?.toString() ?? 'lainnya',
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Jenis biaya',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'ongkir',
+                  ),
+                if (_additionalCosts.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Expanded(
                         child: Text(
-                          'Ongkos kirim',
-                          overflow: TextOverflow.ellipsis,
+                          _vendorBillPurchase
+                              ? 'Estimasi biaya'
+                              : 'Biaya PO lama',
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
-                      DropdownMenuItem(
-                        value: 'handling',
-                        child: Text('Handling'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'asuransi',
-                        child: Text('Asuransi'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'bea_cukai',
-                        child: Text('Bea cukai'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'lainnya',
-                        child: Text('Lainnya'),
-                      ),
                     ],
-                    onChanged: (value) =>
-                        row['jenis_biaya'] = value ?? 'lainnya',
-                  );
-                  Widget descriptionField() => TextFormField(
-                    initialValue: row['deskripsi']?.toString() ?? '',
-                    decoration: const InputDecoration(
-                      labelText: 'Deskripsi',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) => row['deskripsi'] = value,
-                  );
-                  Widget amountField() => TextFormField(
-                    initialValue: formatRupiahAmount(
-                      (row['nominal'] as num?) ?? 0,
-                    ),
-                    inputFormatters: const [
-                      RupiahInputFormatter(decimalDigits: 2),
-                    ],
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Nominal',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) => setState(
-                      () => row['nominal'] = parseRupiahAmount(value),
-                    ),
-                  );
-                  Widget removeButton() => IconButton(
-                    tooltip: 'Hapus biaya',
-                    onPressed: () =>
-                        setState(() => _additionalCosts.removeAt(entry.key)),
-                    icon: const Icon(Icons.delete_outline),
-                  );
-
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final narrow = constraints.maxWidth < 720;
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: narrow
-                            ? Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(child: feeTypeField()),
-                                      removeButton(),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  descriptionField(),
-                                  const SizedBox(height: 8),
-                                  amountField(),
-                                ],
-                              )
-                            : Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(child: feeTypeField()),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: descriptionField()),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: amountField()),
-                                  removeButton(),
-                                ],
-                              ),
-                      );
-                    },
-                  );
-                }),
-                if (_additionalCosts.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  responsive([
-                    DropdownButtonFormField<String>(
-                      initialValue: _costMode,
+                  ),
+                  ..._additionalCosts.asMap().entries.map((entry) {
+                    final row = entry.value;
+                    Widget feeTypeField() => DropdownButtonFormField<String>(
+                      initialValue: row['jenis_biaya']?.toString() ?? 'lainnya',
+                      isExpanded: true,
                       decoration: const InputDecoration(
-                        labelText: 'Perlakuan biaya',
+                        labelText: 'Jenis biaya',
                         border: OutlineInputBorder(),
                       ),
                       items: const [
                         DropdownMenuItem(
-                          value: 'expense',
-                          child: Text('Beban langsung'),
+                          value: 'ongkir',
+                          child: Text(
+                            'Ongkos kirim',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         DropdownMenuItem(
-                          value: 'landed_cost',
-                          child: Text('Tambahkan ke nilai persediaan'),
+                          value: 'handling',
+                          child: Text('Handling'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'asuransi',
+                          child: Text('Asuransi'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'bea_cukai',
+                          child: Text('Bea cukai'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'lainnya',
+                          child: Text('Lainnya'),
                         ),
                       ],
                       onChanged: (value) =>
-                          setState(() => _costMode = value ?? 'expense'),
-                    ),
-                    DropdownButtonFormField<String>(
-                      initialValue: _costAllocation,
+                          row['jenis_biaya'] = value ?? 'lainnya',
+                    );
+                    Widget descriptionField() => TextFormField(
+                      initialValue: row['deskripsi']?.toString() ?? '',
                       decoration: const InputDecoration(
-                        labelText: 'Alokasi biaya',
+                        labelText: 'Deskripsi',
                         border: OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'per_nilai',
-                          child: Text('Berdasarkan nilai'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'per_qty',
-                          child: Text('Berdasarkan jumlah'),
-                        ),
-                      ],
-                      onChanged: (value) => setState(
-                        () => _costAllocation = value ?? 'per_nilai',
+                      onChanged: (value) => row['deskripsi'] = value,
+                    );
+                    Widget amountField() => TextFormField(
+                      initialValue: formatRupiahAmount(
+                        (row['nominal'] as num?) ?? 0,
                       ),
-                    ),
-                  ]),
+                      inputFormatters: const [
+                        RupiahInputFormatter(decimalDigits: 2),
+                      ],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Nominal',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) => setState(
+                        () => row['nominal'] = parseRupiahAmount(value),
+                      ),
+                    );
+                    Widget removeButton() => IconButton(
+                      tooltip: 'Hapus biaya',
+                      onPressed: () =>
+                          setState(() => _additionalCosts.removeAt(entry.key)),
+                      icon: const Icon(Icons.delete_outline),
+                    );
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final narrow = constraints.maxWidth < 720;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: narrow
+                              ? Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(child: feeTypeField()),
+                                        removeButton(),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    descriptionField(),
+                                    const SizedBox(height: 8),
+                                    amountField(),
+                                  ],
+                                )
+                              : Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: feeTypeField()),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: descriptionField()),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: amountField()),
+                                    removeButton(),
+                                  ],
+                                ),
+                        );
+                      },
+                    );
+                  }),
+                  if (!_vendorBillPurchase && _additionalCosts.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    responsive([
+                      DropdownButtonFormField<String>(
+                        initialValue: _costMode,
+                        decoration: const InputDecoration(
+                          labelText: 'Perlakuan biaya',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'expense',
+                            child: Text('Beban langsung'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'landed_cost',
+                            child: Text('Tambahkan ke nilai persediaan'),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _costMode = value ?? 'expense'),
+                      ),
+                      DropdownButtonFormField<String>(
+                        initialValue: _costAllocation,
+                        decoration: const InputDecoration(
+                          labelText: 'Alokasi biaya',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'per_nilai',
+                            child: Text('Berdasarkan nilai'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'per_qty',
+                            child: Text('Berdasarkan jumlah'),
+                          ),
+                        ],
+                        onChanged: (value) => setState(
+                          () => _costAllocation = value ?? 'per_nilai',
+                        ),
+                      ),
+                    ]),
+                  ],
                 ],
               ],
             ],
@@ -3276,7 +3385,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       backgroundColor: const Color(0xFFF7F8FA),
       resizeToAvoidBottomInset: !widget.inModal,
       appBar: AppBar(
-        title: Text('${_editing ? 'Ubah' : 'Tambah'} ${_title(widget.type)}'),
+        title: Text(
+          widget.displayReplenishment
+              ? 'Isi Rak Display'
+              : '${_editing ? 'Ubah' : 'Tambah'} ${_title(widget.type)}',
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         leading: widget.inModal
@@ -4235,7 +4348,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                       value: _purchaseTax,
                                     ),
                                     _PurchaseSummaryRow(
-                                      label: 'Biaya tambahan',
+                                      label: _vendorBillPurchase
+                                          ? 'Estimasi biaya'
+                                          : 'Biaya tambahan',
                                       value: _effectivePurchaseCost,
                                     ),
                                     const Divider(height: 20),
@@ -4244,6 +4359,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                       value: _purchaseGrandTotal,
                                       emphasized: true,
                                     ),
+                                    if (_vendorBillPurchase &&
+                                        _effectivePurchaseCost > 0)
+                                      _PurchaseSummaryRow(
+                                        label: 'Perkiraan kebutuhan dana',
+                                        value:
+                                            _purchaseGrandTotal +
+                                            _effectivePurchaseCost,
+                                      ),
                                   ],
                                 ),
                               ),
@@ -4737,7 +4860,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
 }
 
 String _title(PosInventoryDocumentType type) => switch (type) {
-  PosInventoryDocumentType.purchase => 'Faktur Pembelian',
+  PosInventoryDocumentType.purchase => 'Purchase Order',
   PosInventoryDocumentType.opname => 'Stok Opname',
   PosInventoryDocumentType.transfer => 'Mutasi Stok',
   PosInventoryDocumentType.scrap => 'Stok Terbuang',

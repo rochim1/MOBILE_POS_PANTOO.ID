@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../../../../domain/models/pos_remote_profile_catalog.dart';
+import '../../../../domain/models/pos_settings.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 
 import 'package:flutter/gestures.dart';
@@ -438,7 +439,11 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       'onboarding_completed': true,
       'onboarding_version': 1,
       'business_profile': _profile,
-      'enabled_features': _features,
+      'enabled_features': {
+        for (final entry in _features.entries)
+          if (PosSettings.featureFlagKeys.contains(entry.key))
+            entry.key: entry.value,
+      },
       'default_channel_penjualan': _channel,
       'default_price_level': _priceLevel,
       'default_tipe_pesanan': _fulfillment,

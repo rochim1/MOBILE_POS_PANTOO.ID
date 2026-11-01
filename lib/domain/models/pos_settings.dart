@@ -1,6 +1,18 @@
 import 'package:equatable/equatable.dart';
 
 class PosSettings extends Equatable {
+  static const featureFlagKeys = <String>{
+    'use_tables',
+    'use_kitchen_flow',
+    'use_service_order',
+    'use_appointments',
+    'use_technicians',
+    'use_vehicle_data',
+    'use_delivery',
+    'require_customer',
+    'track_stock',
+  };
+
   final bool? onboardingCompleted;
   final int? onboardingVersion;
   final bool? operationalSetupCompleted;
@@ -65,11 +77,11 @@ class PosSettings extends Equatable {
       onboardingVersion: (json['onboarding_version'] as num?)?.toInt(),
       operationalSetupCompleted: json['operational_setup_completed'] as bool?,
       businessProfile: json['business_profile'] as String?,
-      enabledFeatures:
-          (json['enabled_features'] as Map?)?.map(
-            (key, value) => MapEntry(key.toString(), value == true),
-          ) ??
-          const {},
+      enabledFeatures: {
+        for (final entry in (json['enabled_features'] as Map? ?? const {}).entries)
+          if (featureFlagKeys.contains(entry.key.toString()))
+            entry.key.toString(): entry.value == true,
+      },
       pajakPersen: (json['pajak_persen'] as num?)?.toDouble(),
       defaultMetodePembayaran: json['default_metode_pembayaran'] as String?,
       defaultChannelPenjualan: json['default_channel_penjualan'] as String?,

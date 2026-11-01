@@ -50,13 +50,17 @@ class PosRepository {
 
   void setOperatorSessionToken(String token) {
     _operatorSessionToken = token.trim();
+    _clientProvider.setPOSOperatorToken(_operatorSessionToken);
   }
+
+  String get activeOperatorId => operatorIdFromToken(_operatorSessionToken);
 
   String? get _favoritePreferenceKey {
     final tenant = _prefs.getString('instansi_id')?.trim() ?? '';
     final user = _prefs.getString('user_id')?.trim() ?? '';
     if (tenant.isEmpty || user.isEmpty) return null;
-    return 'pos_favorite_product_ids:$tenant:$user';
+    final operator = operatorIdFromToken(_operatorSessionToken);
+    return 'pos_favorite_product_ids:$tenant:$user:${operator.isEmpty ? user : operator}';
   }
 
   Set<String> _localFavoriteProductIds(String key) =>
@@ -153,6 +157,12 @@ class PosRepository {
       'view_transactions': false,
       'view_reports': false,
       'view_returns': false,
+      'create_returns': false,
+      'submit_returns': false,
+      'approve_returns': false,
+      'process_returns': false,
+      'delete_returns': false,
+      'cancel_orders': false,
       'view_settings': false,
       'view_receipt': false,
       'view_stock': false,
@@ -253,7 +263,7 @@ class PosRepository {
       'permissions': fallbackPermissions,
     };
     Map<String, dynamic>? cachedConfig;
-    final cachedJson = _prefs.getString('pos_runtime_config');
+    final cachedJson = _prefs.getString(_runtimeConfigCacheKey);
     if (cachedJson != null && cachedJson.isNotEmpty) {
       try {
         final cached = Map<String, dynamic>.from(jsonDecode(cachedJson) as Map);
@@ -265,7 +275,7 @@ class PosRepository {
         };
         cachedConfig = cached;
       } catch (_) {
-        await _prefs.remove('pos_runtime_config');
+        await _prefs.remove(_runtimeConfigCacheKey);
       }
     }
     if (supportsOfflineDatabase && await _hasNoNetwork()) {
@@ -277,6 +287,7 @@ class PosRepository {
           document: gql(PosQueries.getPOSRuntimeConfig),
           fetchPolicy: FetchPolicy.networkOnly,
         ),
+        timeout: const Duration(seconds: 30),
       );
       if (result.hasException) throw result.exception!;
       if (result.data?['GetPOSRuntimeConfig'] == null) {
@@ -292,7 +303,7 @@ class PosRepository {
         ...fallbackPermissions,
         ...serverPermissions,
       };
-      await _prefs.setString('pos_runtime_config', jsonEncode(config));
+      await _prefs.setString(_runtimeConfigCacheKey, jsonEncode(config));
       return config;
     } catch (error, stackTrace) {
       appLogger.e(
@@ -398,13 +409,20 @@ class PosRepository {
 
   String _dashboardSnapshotKey(int days) {
     final tenant = _prefs.getString('instansi_id')?.trim() ?? '';
-    final user =
+    final terminalUser =
         _prefs.getString('user_id')?.trim() ??
         _prefs.getString('username')?.trim().toLowerCase() ??
         '';
+    final operator = operatorIdFromToken(_operatorSessionToken);
     // Dashboard may reveal turnover, therefore it must never be shared with a
-    // different account on the same device.
-    return 'pos_dashboard_snapshot_v1:$tenant:$user:$days';
+    // different PIN operator on the same terminal.
+    return 'pos_dashboard_snapshot_v1:$tenant:$terminalUser:${operator.isEmpty ? terminalUser : operator}:$days';
+  }
+
+  String get _runtimeConfigCacheKey {
+    final operator = operatorIdFromToken(_operatorSessionToken);
+    if (operator.isEmpty) return 'pos_runtime_config';
+    return 'pos_runtime_config:${_prefs.getString('instansi_id') ?? ''}:$operator';
   }
 
   Future<void> _saveDashboardSnapshot(
@@ -452,7 +470,7 @@ class PosRepository {
   }
 
   String get _heldOrderUserKey =>
-      '${_prefs.getString('instansi_id') ?? ''}:${_prefs.getString('username')?.trim().toLowerCase() ?? ''}';
+      '${_prefs.getString('instansi_id') ?? ''}:${_prefs.getString('username')?.trim().toLowerCase() ?? ''}:${operatorIdFromToken(_operatorSessionToken)}';
 
   String get _heldOrdersPreferenceKey =>
       'pos_held_orders_v1:$_heldOrderUserKey';
@@ -666,8 +684,13 @@ class PosRepository {
         ),
       );
       if (result.hasException) {
-        final cached = await _offlinePinStore().employees(search: search);
-        if (cached.isNotEmpty) return Right(cached);
+        // A GraphQL rejection (including a revoked session) is not offline.
+        // Reusing an old operator ID here makes the next PIN attempt fail as
+        // "Pengguna tidak ditemukan pada instansi ini" after a roster change.
+        if (_isRetryableNetworkFailure(result.exception)) {
+          final cached = await _offlinePinStore().employees(search: search);
+          if (cached.isNotEmpty) return Right(cached);
+        }
         return Left(AppErrorHandler.handle(result.exception!));
       }
       final rows =
@@ -682,12 +705,20 @@ class PosRepository {
       await _offlinePinStore().cacheEmployees(
         employees,
         completeRoster:
-            search.trim().isEmpty && hasPin == null && employees.length < 100,
+            search.trim().isEmpty && hasPin != false && employees.length < 100,
       );
       return Right(employees);
     } catch (error) {
-      final cached = await _offlinePinStore().employees(search: search);
-      if (cached.isNotEmpty) return Right(cached);
+      final retryable = error is OperationException
+          ? _isRetryableNetworkFailure(error)
+          : error is LinkException &&
+                _isRetryableNetworkFailure(
+                  OperationException(linkException: error),
+                );
+      if (retryable) {
+        final cached = await _offlinePinStore().employees(search: search);
+        if (cached.isNotEmpty) return Right(cached);
+      }
       return Left(AppErrorHandler.handle(error));
     }
   }
@@ -1832,7 +1863,8 @@ class PosRepository {
 
   String _ordersSnapshotKey(int page, int limit) =>
       'pos_orders_snapshot_v1:${_prefs.getString('instansi_id') ?? ''}:'
-      '${_prefs.getString('user_id') ?? ''}:$page:$limit';
+      '${_prefs.getString('user_id') ?? ''}:'
+      '${operatorIdFromToken(_operatorSessionToken)}:$page:$limit';
 
   Future<({List<PosOrder> items, bool hasMore})?> _readCachedOrdersPage(
     int page,
@@ -2145,6 +2177,8 @@ class PosRepository {
   Future<Either<Failure, PosTransactionResult>> submitTransaction({
     required Map<PosProduct, double> cart,
     Map<String, double> unitPrices = const {},
+    Map<String, String> selectedUnits = const {},
+    Map<String, double> receiptUnitPrices = const {},
     required double total,
     required String paymentMethod,
     required String tokoId,
@@ -2179,7 +2213,7 @@ class PosRepository {
         .map(
           (e) => {
             'inventaris_id': e.key.id,
-            'unit': e.key.saleUnit,
+            'unit': selectedUnits[e.key.id] ?? e.key.saleUnit,
             'qty': e.value.toDouble(),
             if (unitPrices[e.key.id] != null)
               'harga_jual': unitPrices[e.key.id],
@@ -2191,11 +2225,23 @@ class PosRepository {
           (entry) => <String, dynamic>{
             'inventaris_id': entry.key.id,
             'nama_inventaris': entry.key.name,
-            'unit': entry.key.saleUnit,
+            'unit': selectedUnits[entry.key.id] ?? entry.key.saleUnit,
             'qty': entry.value,
-            'harga_jual': unitPrices[entry.key.id] ?? entry.key.price,
+            'harga_jual':
+                receiptUnitPrices[entry.key.id] ??
+                unitPrices[entry.key.id] ??
+                entry.key.price *
+                    entry.key.factorForUnit(
+                      selectedUnits[entry.key.id] ?? entry.key.saleUnit,
+                    ),
             'subtotal':
-                (unitPrices[entry.key.id] ?? entry.key.price) * entry.value,
+                (receiptUnitPrices[entry.key.id] ??
+                    unitPrices[entry.key.id] ??
+                    entry.key.price *
+                        entry.key.factorForUnit(
+                          selectedUnits[entry.key.id] ?? entry.key.saleUnit,
+                        )) *
+                entry.value,
           },
         )
         .toList();
@@ -2241,7 +2287,14 @@ class PosRepository {
       'subtotal': cart.entries.fold<double>(
         0,
         (sum, entry) =>
-            sum + ((unitPrices[entry.key.id] ?? entry.key.price) * entry.value),
+            sum +
+            ((receiptUnitPrices[entry.key.id] ??
+                    unitPrices[entry.key.id] ??
+                    entry.key.price *
+                        entry.key.factorForUnit(
+                          selectedUnits[entry.key.id] ?? entry.key.saleUnit,
+                        )) *
+                entry.value),
       ),
       'manual_discount': diskon ?? 0,
       'tax': pajak ?? 0,
@@ -2260,11 +2313,23 @@ class PosRepository {
             (entry) => {
               'inventaris_id': entry.key.id,
               'name': entry.key.name,
-              'unit': entry.key.saleUnit,
+              'unit': selectedUnits[entry.key.id] ?? entry.key.saleUnit,
               'qty': entry.value,
-              'unit_price': unitPrices[entry.key.id] ?? entry.key.price,
+              'unit_price':
+                  receiptUnitPrices[entry.key.id] ??
+                  unitPrices[entry.key.id] ??
+                  entry.key.price *
+                      entry.key.factorForUnit(
+                        selectedUnits[entry.key.id] ?? entry.key.saleUnit,
+                      ),
               'subtotal':
-                  (unitPrices[entry.key.id] ?? entry.key.price) * entry.value,
+                  (receiptUnitPrices[entry.key.id] ??
+                      unitPrices[entry.key.id] ??
+                      entry.key.price *
+                          entry.key.factorForUnit(
+                            selectedUnits[entry.key.id] ?? entry.key.saleUnit,
+                          )) *
+                  entry.value,
             },
           )
           .toList(),
@@ -2481,6 +2546,7 @@ class PosRepository {
   Future<Either<Failure, Map<String, dynamic>>> createUnpaidInvoice({
     String? clientRequestId,
     required Map<PosProduct, double> cart,
+    Map<String, String> selectedUnits = const {},
     required String tokoId,
     required String shiftId,
     required String orderType,
@@ -2543,7 +2609,7 @@ class PosRepository {
                 'nama': entry.key.name,
                 'kode': entry.key.code,
                 'qty': entry.value.toDouble(),
-                'unit': entry.key.saleUnit,
+                'unit': selectedUnits[entry.key.id] ?? entry.key.saleUnit,
                 'harga_satuan': itemPrices[entry.key.id] ?? entry.key.price,
               },
             )
@@ -2661,6 +2727,7 @@ class PosRepository {
   Future<Either<Failure, Map<String, dynamic>>> previewPricing({
     required Map<PosProduct, double> cart,
     Map<String, double> unitPrices = const {},
+    Map<String, String> selectedUnits = const {},
     required String tokoId,
     required String promoCode,
     required String discountPolicy,
@@ -2691,7 +2758,7 @@ class PosRepository {
                   .map(
                     (entry) => {
                       'inventaris_id': entry.key.id,
-                      'unit': entry.key.saleUnit,
+                      'unit': selectedUnits[entry.key.id] ?? entry.key.saleUnit,
                       'qty': entry.value.toDouble(),
                       if (unitPrices[entry.key.id] != null)
                         'harga_jual': unitPrices[entry.key.id],
@@ -2914,7 +2981,7 @@ class PosRepository {
       bool trackStock = true;
       try {
         final config =
-            jsonDecode(_prefs.getString('pos_runtime_config') ?? '{}') as Map;
+            jsonDecode(_prefs.getString(_runtimeConfigCacheKey) ?? '{}') as Map;
         trackStock = (config['features'] as Map?)?['track_stock'] != false;
       } on FormatException {
         // Invalid cache must retain the conservative stock checks.
@@ -3117,6 +3184,26 @@ class PosRepository {
         return Left(AppErrorHandler.handle(result.exception!));
       }
       return const Left(ServerFailure('Gagal menyetujui retur'));
+    } catch (e) {
+      return Left(AppErrorHandler.handle(e));
+    }
+  }
+
+  Future<Either<Failure, bool>> submitSalesReturn(String id) async {
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosReturnQueries.submitSalesReturn),
+          variables: {'_id': id},
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      if (result.data?['SubmitSalesReturn'] != null) {
+        return const Right(true);
+      }
+      return const Left(ServerFailure('Gagal mengajukan retur'));
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
     }

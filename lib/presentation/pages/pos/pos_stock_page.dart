@@ -743,9 +743,19 @@ class _PosStockViewState extends State<_PosStockView> {
                       DataCell(Text(stock.namaInventaris)),
                       DataCell(Text(stock.kategori)),
                       DataCell(
-                        Text('${_formatStock(stock.stok)} ${stock.unit}'),
+                        Text(
+                          stock.tracksStock
+                              ? '${_formatStock(stock.stok)} ${stock.unit}'
+                              : 'Tidak dilacak',
+                        ),
                       ),
-                      DataCell(Text(_formatStock(stock.stokMinimum))),
+                      DataCell(
+                        Text(
+                          stock.tracksStock
+                              ? _formatStock(stock.stokMinimum)
+                              : '-',
+                        ),
+                      ),
                       DataCell(Text('Rp ${_formatCurrency(stock.hargaJual)}')),
                       DataCell(
                         Text(
@@ -783,7 +793,7 @@ class _PosStockViewState extends State<_PosStockView> {
                                   size: 19,
                                 ),
                               ),
-                            if (_canAdjustStock)
+                            if (_canAdjustStock && stock.tracksStock)
                               IconButton(
                                 key: index == 0
                                     ? widget.adjustmentTourKey
@@ -892,55 +902,61 @@ class _PosStockViewState extends State<_PosStockView> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.inventory_2_outlined,
-                      size: 18,
-                      color: Colors.grey.shade500,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${_formatStock(stock.stok)} ${stock.unit}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: stockColor,
+                if (stock.tracksStock)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 18,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${_formatStock(stock.stok)} ${stock.unit}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: stockColor,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                'Minimum ${_formatStock(stock.stokMinimum)}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
+                                Text(
+                                  'Minimum ${_formatStock(stock.stokMinimum)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade500,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: stockRatio.clamp(0.0, 1.0),
-                              minHeight: 5,
-                              backgroundColor: Colors.grey.shade200,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                stockColor,
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: stockRatio.clamp(0.0, 1.0),
+                                minHeight: 5,
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  stockColor,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  )
+                else
+                  const Text(
+                    'Produk ini tidak menggunakan saldo stok.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
                 const SizedBox(height: 14),
                 const Divider(height: 1),
                 const SizedBox(height: 10),
@@ -999,7 +1015,7 @@ class _PosStockViewState extends State<_PosStockView> {
                       icon: const Icon(Icons.barcode_reader, size: 18),
                       visualDensity: VisualDensity.compact,
                     ),
-                    if (_canAdjustStock)
+                    if (_canAdjustStock && stock.tracksStock)
                       OutlinedButton.icon(
                         key: adjustmentTourKey,
                         onPressed: () => _handleAdjustment(stock),
@@ -1010,7 +1026,7 @@ class _PosStockViewState extends State<_PosStockView> {
                           visualDensity: VisualDensity.compact,
                         ),
                       ),
-                    if (!_canAdjustStock)
+                    if (!_canAdjustStock || !stock.tracksStock)
                       const Icon(
                         Icons.chevron_right_rounded,
                         color: Colors.grey,
@@ -1089,11 +1105,15 @@ class _PosStockViewState extends State<_PosStockView> {
                 ),
                 _stockDetailRow(
                   'Stok tersedia',
-                  '${_formatStock(stock.stok)} ${stock.unit}',
+                  stock.tracksStock
+                      ? '${_formatStock(stock.stok)} ${stock.unit}'
+                      : 'Tidak dilacak',
                 ),
                 _stockDetailRow(
                   'Stok minimum',
-                  '${_formatStock(stock.stokMinimum)} ${stock.unit}',
+                  stock.tracksStock
+                      ? '${_formatStock(stock.stokMinimum)} ${stock.unit}'
+                      : '-',
                 ),
                 _stockDetailRow(
                   'Status stok',
@@ -1333,7 +1353,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 );
               }),
             ],
-            if (_canAdjustStock && batches.isEmpty) ...[
+            if (_canAdjustStock && stock.tracksStock && batches.isEmpty) ...[
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
@@ -1357,6 +1377,7 @@ class _PosStockViewState extends State<_PosStockView> {
     PosStock stock, {
     List<Map<String, dynamic>>? knownBalances,
   }) async {
+    if (!stock.tracksStock) return;
     if (stock.requiresBatchAdjustment) {
       await _showAdjustmentInfo(
         'Stok dilacak per batch',

@@ -34,7 +34,11 @@ class _Settings implements PosSettingsRepository {
   Future<Either<Failure, PosSettings>> getSettings() async => const Right(
     PosSettings(
       businessProfile: 'jasa',
-      enabledFeatures: {'use_service_order': true, 'track_stock': true},
+      enabledFeatures: {
+        'use_service_order': true,
+        'track_stock': true,
+        '__typename': false,
+      },
       pajakPersen: 5.5,
       autoPrintReceipt: true,
       defaultChannelPenjualan: 'retail',
@@ -57,6 +61,20 @@ class _Settings implements PosSettingsRepository {
 
 void main() {
   tearDown(() async => sl.reset());
+  test('GraphQL metadata is never copied into POS feature input', () {
+    final settings = PosSettings.fromJson({
+      'enabled_features': {
+        '__typename': 'POSFeatureFlags',
+        'track_stock': true,
+        'use_tables': false,
+        'unexpected_future_flag': true,
+      },
+    });
+    expect(settings.enabledFeatures, {
+      'track_stock': true,
+      'use_tables': false,
+    });
+  });
   testWidgets('backend-only profile appears without bundled catalog update', (
     tester,
   ) async {
@@ -151,6 +169,12 @@ void main() {
       expect(
         repository.saved?['enabled_features'],
         posProfileFeatures('salon'),
+      );
+      expect(
+        (repository.saved?['enabled_features'] as Map).containsKey(
+          '__typename',
+        ),
+        isFalse,
       );
       expect(repository.saved?['pajak_persen'], 5.5);
       expect(repository.saved?['auto_print_receipt'], isTrue);

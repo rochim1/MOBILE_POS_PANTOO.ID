@@ -54,6 +54,7 @@ class PurchaseReturnQueries {
       GetPurchaseReturnSourceAvailability(purchase_id: $purchase_id, exclude_return_id: $exclude_return_id) {
         lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama label }
         items {
+          vendor_bill_id vendor_bill_item_id receiving_id receiving_item_id
           purchase_item_id inventaris_id kode_inventaris nama_inventaris sku barcode
           unit base_unit conversion_factor harga_beli no_batch
           available_qty available_qty_base

@@ -845,6 +845,87 @@ class PosInventoryRepository {
     'input': input,
   }, 'AddInventoryReceiving');
 
+  Future<Either<Failure, dynamic>> createLandedCost(
+    Map<String, dynamic> input,
+  ) => _mutate(PosInventoryQueries.createLandedCost, {
+    'input': input,
+  }, 'CreateLandedCost');
+
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  getCashAccountsForLandedCost() async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.cashAccountsForLandedCost),
+          variables: {
+            'filter': {
+              'account_type': 'asset',
+              'is_active': true,
+              'is_header': false,
+            },
+            'pagination': {'page': 1, 'limit': 500},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final rows =
+          (result.data?['GetAllFinanceCoa']?['items'] as List? ?? const [])
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .where((row) {
+                final code = row['account_code']?.toString() ?? '';
+                final category =
+                    row['account_category']?.toString().toLowerCase() ?? '';
+                return category.contains('kas') ||
+                    category.contains('bank') ||
+                    row['parent_code']?.toString() == '1000' ||
+                    const ['1001', '1002', '1006'].contains(code);
+              })
+              .toList();
+      return Right(rows);
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
+  Future<Either<Failure, dynamic>> validateLandedCost(String id) => _mutate(
+    PosInventoryQueries.validateLandedCost,
+    {'id': id},
+    'ValidateLandedCost',
+  );
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> getLandedCostsForPurchase(
+    String purchaseId,
+  ) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.landedCostsForPurchase),
+          variables: {
+            'poId': purchaseId,
+            'pagination': {'page': 1, 'limit': 100},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final root = result.data?['GetAllLandedCosts'] as Map?;
+      return Right(
+        (root?['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList(),
+      );
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, dynamic>> markPurchaseSent(
     Map<String, dynamic> input,
   ) => _mutate(PosInventoryQueries.markPurchaseSent, {

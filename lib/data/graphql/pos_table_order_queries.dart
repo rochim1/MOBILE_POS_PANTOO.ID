@@ -125,6 +125,15 @@ class PosTableOrderQueries {
     }
   ''';
 
+  static const String cancelOrder = r'''
+    mutation CancelPOSOrder($orderId: ID!, $reason: String, $supervisorPin: String) {
+      CancelPOSOrder(_id: $orderId, alasan: $reason, supervisor_pin: $supervisorPin) {
+        _id
+        status
+      }
+    }
+  ''';
+
   static const String updateOrderItems = r'''
     mutation UpdatePOSOrderItems($orderId: ID!, $items: [POSOrderItemInput!]!) {
       UpdatePOSOrderItems(_id: $orderId, items: $items) {

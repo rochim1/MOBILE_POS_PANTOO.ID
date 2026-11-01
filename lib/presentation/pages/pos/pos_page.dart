@@ -967,7 +967,7 @@ class _PosPageViewState extends State<PosPageView> {
               'nama': entry.key.name,
               'kode': entry.key.code,
               'qty': entry.value,
-              'unit': entry.key.saleUnit,
+              'unit': state.unitFor(entry.key),
               'harga_satuan': state.unitPriceFor(entry.key),
             },
           )
@@ -990,6 +990,7 @@ class _PosPageViewState extends State<PosPageView> {
     }
     final result = await sl<PosRepository>().createUnpaidInvoice(
       cart: state.cart,
+      selectedUnits: state.selectedUnits,
       tokoId:
           state.activeShift?['toko_id']?.toString() ??
           state.stores

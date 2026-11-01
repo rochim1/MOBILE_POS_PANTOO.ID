@@ -151,6 +151,10 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
           final productCount =
               sharedReadiness['product_count'] as int? ?? state.products.length;
           final healthy = health['valid'] != false;
+          final needsDisplayPair = (health['issues'] as List? ?? const [])
+              .any((issue) => issue.toString().contains('Isi Rak Display'));
+          final needsTransitLocation = (health['issues'] as List? ?? const [])
+              .any((issue) => issue.toString().contains('Lokasi Transit'));
           final readiness = PosSetupReadiness(
             hasStore: hasStore,
             hasStockLocation: hasStockLocation,
@@ -265,10 +269,16 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                         .join(' · ')),
               complete: healthy,
               icon: Icons.tune_outlined,
-              actionLabel: !healthy && permissions['manage_settings'] == true
+              actionLabel: !healthy && needsDisplayPair &&
+                      permissions['view_warehouses'] == true
+                  ? 'Atur lokasi display'
+                  : !healthy && needsTransitLocation
+                  ? null
+                  : !healthy && permissions['manage_settings'] == true
                   ? 'Periksa pengaturan'
                   : null,
-              destination: 17,
+              destination: needsDisplayPair ? 7 : 17,
+              section: needsDisplayPair ? 'warehouse' : null,
               walkthrough: const [
                 _WalkthroughStage(
                   title: 'Periksa profil transaksi',

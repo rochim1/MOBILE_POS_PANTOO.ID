@@ -13,6 +13,9 @@ import '../utils/logger.dart';
 class GraphQLClientProvider {
   static const productionEndpoint = 'https://graphql.pantoo.id/';
   static const developmentEndpoint = 'http://localhost:8080/graphql';
+  // Optional emulator-only QA route. The normal development default remains
+  // localhost:8080 and release builds never read this override.
+  static const _qaEndpoint = String.fromEnvironment('POS_QA_ENDPOINT');
 
   final SharedPreferences sharedPreferences;
   final void Function()? onUnauthorized;
@@ -21,6 +24,7 @@ class GraphQLClientProvider {
   late GraphQLClient client;
   late String endpointUrl;
   String? _sessionToken;
+  String? _posOperatorToken;
   bool _unauthorizedNotified = false;
   DateTime? _tokenActivatedAt;
   Future<bool>? _refreshInFlight;
@@ -73,6 +77,8 @@ class GraphQLClientProvider {
         // non-student/non-reseller channel against the internal user model.
         'apps': 'pos',
         'x-iid': sharedPreferences.getString('instansi_id') ?? '',
+        if (_posOperatorToken != null)
+          'x-pos-operator-token': _posOperatorToken!,
       },
     );
 
@@ -136,6 +142,15 @@ class GraphQLClientProvider {
       _tokenActivatedAt = null;
     }
     appLogger.d('[GraphQL] Session token tersedia: ${_sessionToken != null}');
+    _initClient();
+  }
+
+  void setPOSOperatorToken(String? rawToken) {
+    final token = rawToken?.trim() ?? '';
+    final next = token.isEmpty ? null : token;
+    if (_posOperatorToken == next) return;
+    _posOperatorToken = next;
+    // A new operator must never reuse the previous operator's GraphQL cache.
     _initClient();
   }
 
@@ -206,6 +221,20 @@ class GraphQLClientProvider {
   }
 
   bool _shouldInvalidateSession(String rawMessage, dynamic code) {
+    return shouldRefreshForAuthError(
+      rawMessage,
+      code,
+      tokenActivatedAt: _tokenActivatedAt,
+    );
+  }
+
+  @visibleForTesting
+  static bool shouldRefreshForAuthError(
+    String rawMessage,
+    dynamic code, {
+    DateTime? tokenActivatedAt,
+    DateTime? now,
+  }) {
     final message = rawMessage.toLowerCase();
     final explicitlyExpired =
         code == 'UNAUTHENTICATED' ||
@@ -215,14 +244,17 @@ class GraphQLClientProvider {
 
     final ambiguousUnauthorized =
         message.contains('sesi pengguna atau instansi tidak valid') ||
-        message.contains('bearer token invalid');
+        message.contains('bearer token invalid') ||
+        message.contains('pengguna tidak ditemukan atau status tidak aktif') ||
+        message.contains('sesi sudah dicabut');
     if (!ambiguousUnauthorized) return false;
 
     // Requests dispatched by the previous anonymous client can finish just
     // after login. They must not revoke the newly issued token.
-    final activatedAt = _tokenActivatedAt;
+    final activatedAt = tokenActivatedAt;
     if (activatedAt != null &&
-        DateTime.now().difference(activatedAt) < const Duration(seconds: 3)) {
+        (now ?? DateTime.now()).difference(activatedAt) <
+            const Duration(seconds: 3)) {
       appLogger.d('[GraphQL] Mengabaikan respons 401 dari request sesi lama');
       return false;
     }
@@ -298,6 +330,12 @@ class GraphQLClientProvider {
   String _resolveEndpoint(String? customEndpoint, String? envUrl) {
     if (environment == FlavorEnvironment.production) {
       return productionEndpoint;
+    }
+    if ((environment == FlavorEnvironment.development ||
+            environment == FlavorEnvironment.staging) &&
+        kDebugMode &&
+        _qaEndpoint.isNotEmpty) {
+      return _qaEndpoint;
     }
     if (customEndpoint != null && customEndpoint.trim().isNotEmpty) {
       return customEndpoint.trim();

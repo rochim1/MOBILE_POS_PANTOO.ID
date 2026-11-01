@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+const _unchangedSearchResult = Object();
+
 enum PosReturnStatus { initial, loading, success, failure }
 
 class PosReturnState extends Equatable {
@@ -21,14 +23,16 @@ class PosReturnState extends Equatable {
     PosReturnStatus? status,
     String? errorMessage,
     List<Map<String, dynamic>>? returns,
-    Map<String, dynamic>? searchResult,
+    Object? searchResult = _unchangedSearchResult,
     List<Map<String, dynamic>>? returnItems,
   }) {
     return PosReturnState(
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       returns: returns ?? this.returns,
-      searchResult: searchResult ?? this.searchResult,
+      searchResult: identical(searchResult, _unchangedSearchResult)
+          ? this.searchResult
+          : searchResult as Map<String, dynamic>?,
       returnItems: returnItems ?? this.returnItems,
     );
   }

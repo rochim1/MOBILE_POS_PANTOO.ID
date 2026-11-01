@@ -71,7 +71,9 @@ class _PosShellPageState extends State<PosShellPage>
   int _sidebarMode = 1;
   bool _productGridView = true;
   bool _stockGridView = true;
-  bool _historyGridView = false;
+  bool? _historyGridView;
+  bool get _useHistoryGridView =>
+      _historyGridView ?? MediaQuery.sizeOf(context).width < 600;
   bool? _orderTableGridView;
   bool get _useOrderTableGridView => _orderTableGridView ?? true;
   bool _posDataRequested = false;
@@ -558,7 +560,7 @@ class _PosShellPageState extends State<PosShellPage>
       setupTourTargets: _setupTourTargets,
       tourController: _productTourController,
     ),
-    PosOrderPage(isGridView: _historyGridView),
+    PosOrderPage(isGridView: _useHistoryGridView),
     PosMoreMenuPage(onNavigate: _openMoreDestination, onLogout: _confirmLogout),
     PosOrderTableHubPage(
       key: ValueKey('table-orders-$_tableOrdersRefresh'),
@@ -619,7 +621,11 @@ class _PosShellPageState extends State<PosShellPage>
       },
     ),
     const PosReportPage(),
-    const PosReturnPage(),
+    PosReturnPage(
+      permissions: Map<String, dynamic>.from(
+        _posBloc.state.runtimeConfig['permissions'] as Map? ?? const {},
+      ),
+    ),
     const PosPrinterPage(),
     const PosOfflineQueuePage(),
     const PosPurchaseReturnPage(),
@@ -1563,18 +1569,18 @@ class _PosShellPageState extends State<PosShellPage>
                                       padding: EdgeInsets.zero,
                                     )
                                   : null,
-                              tooltip: _historyGridView
+                              tooltip: _useHistoryGridView
                                   ? 'Tampilkan sebagai tabel'
                                   : 'Tampilkan sebagai kartu',
                               icon: Icon(
-                                _historyGridView
+                                _useHistoryGridView
                                     ? Icons.table_rows
                                     : Icons.view_agenda,
                                 color: Colors.white,
                               ),
                               onPressed: () {
                                 setState(
-                                  () => _historyGridView = !_historyGridView,
+                                  () => _historyGridView = !_useHistoryGridView,
                                 );
                               },
                             ),

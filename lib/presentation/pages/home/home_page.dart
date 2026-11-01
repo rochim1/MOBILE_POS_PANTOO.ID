@@ -463,7 +463,14 @@ class _HomePageState extends State<HomePage> {
   Widget _buildDashboardHeader(bool isTablet) {
     final greeting = BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
-        final name = authState.username?.trim();
+        final operatorName = context
+            .watch<AppLockCubit>()
+            .state
+            .activeEmployeeName
+            ?.trim();
+        final name = operatorName?.isNotEmpty == true
+            ? operatorName
+            : authState.username?.trim();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

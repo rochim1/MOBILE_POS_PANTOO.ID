@@ -13,6 +13,7 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
     on<UpdateReturnItem>(_onUpdateReturnItem);
     on<SubmitReturn>(_onSubmitReturn);
     on<ApproveReturn>(_onApproveReturn);
+    on<SubmitReturnDraft>(_onSubmitReturnDraft);
     on<ProcessReturn>(_onProcessReturn);
     on<DeleteReturn>(_onDeleteReturn);
     on<ClearReturnForm>(_onClearReturnForm);
@@ -192,6 +193,21 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
         ),
       ),
       (success) => add(const LoadReturns()),
+    );
+  }
+
+  Future<void> _onSubmitReturnDraft(
+    SubmitReturnDraft event,
+    Emitter<PosReturnState> emit,
+  ) async {
+    emit(state.copyWith(status: PosReturnStatus.loading));
+    final result = await posRepository.submitSalesReturn(event.id);
+    result.fold(
+      (failure) => emit(state.copyWith(
+        status: PosReturnStatus.failure,
+        errorMessage: failure.message,
+      )),
+      (_) => add(const LoadReturns()),
     );
   }
 

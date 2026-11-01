@@ -285,6 +285,32 @@ class PosOrderRepository {
     }
   }
 
+  Future<Either<Failure, bool>> cancelOrder(
+    String orderId, {
+    String reason = '',
+    String supervisorPin = '',
+  }) async {
+    if (orderId.trim().isEmpty) return const Left(ServerFailure('ID pesanan tidak valid'));
+    try {
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosTableOrderQueries.cancelOrder),
+          variables: {
+            'orderId': orderId.trim(),
+            'reason': reason.trim(),
+            'supervisorPin': supervisorPin.trim().isEmpty ? null : supervisorPin.trim(),
+          },
+        ),
+      );
+      if (result.hasException) return Left(AppErrorHandler.handle(result.exception!));
+      return result.data?['CancelPOSOrder'] is Map
+          ? const Right(true)
+          : const Left(ServerFailure('Pesanan tidak dapat dibatalkan'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, bool>> updateOrderItems(
     String orderId,
     List<Map<String, dynamic>> items,

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/_core.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
+import '../../../domain/repositories/pos_repository.dart';
+import '../../../domain/models/pos_store.dart';
 import '../../../injections.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
@@ -200,6 +202,13 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
     Map<String, dynamic>? existing, {
     bool guided = false,
   }) async {
+    List<PosStore> outlets = const [];
+    try {
+      outlets = await sl<PosRepository>().getStores();
+    } catch (_) {
+      // Warehouse tetap dapat dikelola saat daftar outlet belum tersedia.
+    }
+    if (!mounted) return;
     final code = TextEditingController(
       text: existing?['branch_code']?.toString() ?? '',
     );
@@ -213,6 +222,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
       text: existing?['no_telp']?.toString() ?? '',
     );
     var type = existing?['warehouse_type']?.toString() ?? 'store';
+    var linkedOutletId = existing?['linked_toko_id']?.toString() ?? '';
     var sellable = existing?['is_sellable_location'] == true;
     var receiving =
         existing == null || existing['is_receiving_location'] == true;
@@ -352,9 +362,37 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                             child: Text('Lainnya'),
                           ),
                         ],
-                        onChanged: (value) => type = value ?? 'store',
+                        onChanged: (value) =>
+                            setSheetState(() => type = value ?? 'store'),
                       ),
                     ),
+                    if (type == 'store' || type == 'display') ...[
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: linkedOutletId.isEmpty ? '' : linkedOutletId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Outlet POS terkait',
+                          helperText: 'Wajib untuk pemindahan stok gudang toko ↔ display.',
+                        ),
+                        items: [
+                          const DropdownMenuItem(value: '', child: Text('Belum ditautkan')),
+                          for (final outlet in outlets)
+                            DropdownMenuItem(
+                              value: outlet.id,
+                              child: Text(outlet.name, overflow: TextOverflow.ellipsis),
+                            ),
+                          if (linkedOutletId.isNotEmpty &&
+                              !outlets.any((outlet) => outlet.id == linkedOutletId))
+                            DropdownMenuItem(
+                              value: linkedOutletId,
+                              child: Text('Outlet tersimpan ($linkedOutletId)'),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setSheetState(() => linkedOutletId = value ?? ''),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Text(
                       'Capability operasional',
@@ -417,6 +455,9 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                                 'tipe_cabang': 'gudang',
                                 'is_warehouse': true,
                                 'warehouse_type': type,
+                                'linked_toko_id': linkedOutletId.isEmpty
+                                    ? null
+                                    : linkedOutletId,
                                 'is_sellable_location': sellable,
                                 'is_receiving_location': receiving,
                                 'is_transfer_source': transferSource,

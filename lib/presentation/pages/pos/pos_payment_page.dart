@@ -175,12 +175,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           if (state.status == PosStatus.paymentSuccess) {
             final transaction = state.lastTransaction;
             if (transaction == null) return;
+            final posBloc = context.read<PosBloc>();
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => PosSuccessPage(
+                builder: (_) => PosSuccessPage(
                   transaction: transaction,
                   autoPrint: state.runtimeConfig['auto_print_receipt'] == true,
+                  onDone: () => posBloc.add(RefreshProducts()),
                 ),
               ),
             );
@@ -361,12 +363,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Text(
-                                                'Metode Pembayaran',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
+                                              Expanded(
+                                                child: Text(
+                                                  'Metode Pembayaran',
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                               ),
+                                              SizedBox(width: 4),
                                               Icon(Icons.sort, size: 20),
                                             ],
                                           ),
@@ -970,306 +978,333 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     DateTime? appointmentAt;
     String mode = 'kiloan';
     String validationMessage = '';
+    ModalRoute<Map<String, dynamic>>? serviceDialogRoute;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => PosKeyboardStableFormDialog(
-          width: 520,
-          height: 620,
-          title: Text(
-            profile == 'laundry' ? 'Detail cucian' : 'Detail layanan',
-          ),
-          content: SizedBox(
+      builder: (dialogContext) {
+        serviceDialogRoute = ModalRoute.of<Map<String, dynamic>>(dialogContext);
+        return StatefulBuilder(
+          builder: (context, setDialogState) => PosKeyboardStableFormDialog(
             width: 520,
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (profile == 'laundry') ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: mode,
-                      decoration: const InputDecoration(
-                        labelText: 'Model layanan',
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'kiloan',
-                          child: Text('Kiloan'),
+            height: 620,
+            title: Text(
+              profile == 'laundry' ? 'Detail cucian' : 'Detail layanan',
+            ),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (profile == 'laundry') ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: mode,
+                        decoration: const InputDecoration(
+                          labelText: 'Model layanan',
                         ),
-                        DropdownMenuItem(
-                          value: 'satuan',
-                          child: Text('Satuan'),
-                        ),
-                        DropdownMenuItem(value: 'paket', child: Text('Paket')),
-                      ],
-                      onChanged: (value) => setDialogState(() {
-                        mode = value ?? 'kiloan';
-                        if (serviceQuantity <= 0) return;
-                        if (mode == 'kiloan') {
-                          weight.text = _quantityText(serviceQuantity);
-                        } else {
-                          pieces.text = serviceQuantity.round().toString();
-                        }
-                      }),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: weight,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            decoration: const InputDecoration(
-                              labelText: 'Berat (kg)',
-                            ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'kiloan',
+                            child: Text('Kiloan'),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: pieces,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Jumlah item',
-                            ),
+                          DropdownMenuItem(
+                            value: 'satuan',
+                            child: Text('Satuan'),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: tag,
-                      decoration: const InputDecoration(
-                        labelText: 'Tag kantong',
+                          DropdownMenuItem(
+                            value: 'paket',
+                            child: Text('Paket'),
+                          ),
+                        ],
+                        onChanged: (value) => setDialogState(() {
+                          mode = value ?? 'kiloan';
+                          if (serviceQuantity <= 0) return;
+                          if (mode == 'kiloan') {
+                            weight.text = _quantityText(serviceQuantity);
+                          } else {
+                            pieces.text = serviceQuantity.round().toString();
+                          }
+                        }),
                       ),
-                    ),
-                    if (serviceEntries.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        'Jumlah tagihan mengikuti jumlah layanan di keranjang. '
-                        'Ketuk angka jumlah pada keranjang untuk mengubah berat/jumlah.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ] else ...[
-                    TextField(
-                      controller: subject,
-                      decoration: InputDecoration(
-                        labelText: features?['use_vehicle_data'] == true
-                            ? 'Objek/jenis kendaraan *'
-                            : 'Objek layanan *',
-                      ),
-                    ),
-                    if (features?['use_vehicle_data'] == true) ...[
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: TextField(
-                              controller: vehicleNo,
-                              textCapitalization: TextCapitalization.characters,
+                              controller: weight,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               decoration: const InputDecoration(
-                                labelText: 'No. polisi / ID unit',
+                                labelText: 'Berat (kg)',
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: TextField(
-                              controller: vehicleModel,
+                              controller: pieces,
+                              keyboardType: TextInputType.number,
                               decoration: const InputDecoration(
-                                labelText: 'Model / tipe',
+                                labelText: 'Jumlah item',
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ],
-                    if (features?['use_technicians'] == true) ...[
                       const SizedBox(height: 12),
                       TextField(
-                        controller: technician,
+                        controller: tag,
                         decoration: const InputDecoration(
-                          labelText: 'Teknisi / staf penanggung jawab',
+                          labelText: 'Tag kantong',
                         ),
                       ),
-                    ],
-                    if (features?['use_appointments'] == true) ...[
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                      if (serviceEntries.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          'Jumlah tagihan mengikuti jumlah layanan di keranjang. '
+                          'Ketuk angka jumlah pada keranjang untuk mengubah berat/jumlah.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade400),
+                      ],
+                    ] else ...[
+                      TextField(
+                        controller: subject,
+                        decoration: InputDecoration(
+                          labelText: features?['use_vehicle_data'] == true
+                              ? 'Objek/jenis kendaraan'
+                              : 'Objek layanan',
                         ),
-                        leading: const Icon(Icons.event_outlined),
-                        title: Text(
-                          appointmentAt == null
-                              ? 'Pilih jadwal layanan'
-                              : DateFormat(
-                                  'dd MMM yyyy · HH:mm',
-                                  'id_ID',
-                                ).format(appointmentAt!),
-                        ),
-                        trailing: appointmentAt == null
-                            ? const Icon(Icons.chevron_right)
-                            : IconButton(
-                                tooltip: 'Hapus jadwal',
-                                onPressed: () =>
-                                    setDialogState(() => appointmentAt = null),
-                                icon: const Icon(Icons.close),
+                      ),
+                      if (features?['use_vehicle_data'] == true) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: vehicleNo,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                decoration: const InputDecoration(
+                                  labelText: 'No. polisi / ID unit',
+                                ),
                               ),
-                        onTap: () async {
-                          final now = DateTime.now();
-                          final date = await showDatePicker(
-                            context: dialogContext,
-                            initialDate: appointmentAt ?? now,
-                            firstDate: DateTime(now.year, now.month, now.day),
-                            lastDate: now.add(const Duration(days: 730)),
-                          );
-                          if (date == null || !dialogContext.mounted) return;
-                          final time = await showTimePicker(
-                            context: dialogContext,
-                            initialTime: appointmentAt == null
-                                ? TimeOfDay.now()
-                                : TimeOfDay.fromDateTime(appointmentAt!),
-                          );
-                          if (time == null) return;
-                          setDialogState(
-                            () => appointmentAt = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
-                              time.hour,
-                              time.minute,
                             ),
-                          );
-                        },
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: vehicleModel,
+                                decoration: const InputDecoration(
+                                  labelText: 'Model / tipe',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (features?['use_technicians'] == true) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: technician,
+                          decoration: const InputDecoration(
+                            labelText: 'Teknisi / staf penanggung jawab',
+                          ),
+                        ),
+                      ],
+                      if (features?['use_appointments'] == true) ...[
+                        const SizedBox(height: 12),
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade400),
+                          ),
+                          leading: const Icon(Icons.event_outlined),
+                          title: Text(
+                            appointmentAt == null
+                                ? 'Pilih jadwal layanan'
+                                : DateFormat(
+                                    'dd MMM yyyy · HH:mm',
+                                    'id_ID',
+                                  ).format(appointmentAt!),
+                          ),
+                          trailing: appointmentAt == null
+                              ? const Icon(Icons.chevron_right)
+                              : IconButton(
+                                  tooltip: 'Hapus jadwal',
+                                  onPressed: () => setDialogState(
+                                    () => appointmentAt = null,
+                                  ),
+                                  icon: const Icon(Icons.close),
+                                ),
+                          onTap: () async {
+                            final now = DateTime.now();
+                            final date = await showDatePicker(
+                              context: dialogContext,
+                              initialDate: appointmentAt ?? now,
+                              firstDate: DateTime(now.year, now.month, now.day),
+                              lastDate: now.add(const Duration(days: 730)),
+                            );
+                            if (date == null || !dialogContext.mounted) return;
+                            final time = await showTimePicker(
+                              context: dialogContext,
+                              initialTime: appointmentAt == null
+                                  ? TimeOfDay.now()
+                                  : TimeOfDay.fromDateTime(appointmentAt!),
+                            );
+                            if (time == null) return;
+                            setDialogState(
+                              () => appointmentAt = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                time.hour,
+                                time.minute,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notes,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: profile == 'laundry'
+                            ? 'Kondisi/catatan'
+                            : 'Keluhan / catatan layanan',
+                      ),
+                    ),
+                    if (profile != 'laundry') ...[
+                      const SizedBox(height: 8),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Isi objek layanan atau keluhan, minimal salah satu.',
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ),
+                    ],
+                    if (validationMessage.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          validationMessage,
+                          style: const TextStyle(
+                            color: AppColors.danger,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ],
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: notes,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: profile == 'laundry'
-                          ? 'Kondisi/catatan'
-                          : 'Keluhan *',
-                    ),
-                  ),
-                  if (validationMessage.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        validationMessage,
-                        style: const TextStyle(
-                          color: AppColors.danger,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final kg =
-                    double.tryParse(weight.text.replaceAll(',', '.')) ?? 0;
-                final count = int.tryParse(pieces.text) ?? 0;
-                final billedQuantity = mode == 'kiloan' ? kg : count.toDouble();
-                final quantityMismatch =
-                    profile == 'laundry' &&
-                    serviceEntries.isNotEmpty &&
-                    (billedQuantity - serviceQuantity).abs() > 0.000001;
-                final reservationRequiresSchedule =
-                    state.orderType == 'reservation' && appointmentAt == null;
-                if ((profile == 'laundry' && kg <= 0 && count <= 0) ||
-                    quantityMismatch ||
-                    (profile != 'laundry' &&
-                        subject.text.trim().isEmpty &&
-                        notes.text.trim().isEmpty) ||
-                    reservationRequiresSchedule) {
-                  setDialogState(() {
-                    validationMessage = quantityMismatch
-                        ? 'Berat/jumlah harus sama dengan jumlah layanan di keranjang '
-                              '(${_quantityText(serviceQuantity)}).'
-                        : reservationRequiresSchedule
-                        ? 'Jadwal layanan wajib dipilih untuk reservasi.'
-                        : 'Lengkapi detail layanan sebelum melanjutkan.';
-                  });
-                  return;
-                }
-                final pricingBasis = switch (mode) {
-                  'kiloan' => 'per_kg',
-                  'paket' => 'package',
-                  _ => 'per_item',
-                };
-                final serviceLines = serviceEntries.indexed.map((indexed) {
-                  final index = indexed.$1;
-                  final entry = indexed.$2;
-                  return <String, dynamic>{
-                    'product_id': entry.key.id,
-                    'name': entry.key.name,
-                    'object_type': profile.isEmpty ? 'service' : profile,
-                    'pricing_basis': pricingBasis,
-                    'quantity': pricingBasis == 'per_kg' ? 0 : entry.value,
-                    'weight_kg': pricingBasis == 'per_kg' ? entry.value : 0,
-                    'unit': pricingBasis == 'per_kg'
-                        ? 'kg'
-                        : entry.key.saleUnit,
-                    if (index == 0 && tag.text.trim().isNotEmpty)
-                      'tag_code': tag.text.trim(),
-                    'condition_notes': notes.text.trim(),
-                    'status': 'diterima',
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final kg =
+                      double.tryParse(weight.text.replaceAll(',', '.')) ?? 0;
+                  final count = int.tryParse(pieces.text) ?? 0;
+                  final billedQuantity = mode == 'kiloan'
+                      ? kg
+                      : count.toDouble();
+                  final quantityMismatch =
+                      profile == 'laundry' &&
+                      serviceEntries.isNotEmpty &&
+                      (billedQuantity - serviceQuantity).abs() > 0.000001;
+                  final reservationRequiresSchedule =
+                      state.orderType == 'reservation' && appointmentAt == null;
+                  if ((profile == 'laundry' && kg <= 0 && count <= 0) ||
+                      quantityMismatch ||
+                      (profile != 'laundry' &&
+                          subject.text.trim().isEmpty &&
+                          notes.text.trim().isEmpty) ||
+                      reservationRequiresSchedule) {
+                    setDialogState(() {
+                      validationMessage = quantityMismatch
+                          ? 'Berat/jumlah harus sama dengan jumlah layanan di keranjang '
+                                '(${_quantityText(serviceQuantity)}).'
+                          : reservationRequiresSchedule
+                          ? 'Jadwal layanan wajib dipilih untuk reservasi.'
+                          : 'Lengkapi detail layanan sebelum melanjutkan.';
+                    });
+                    return;
+                  }
+                  final pricingBasis = switch (mode) {
+                    'kiloan' => 'per_kg',
+                    'paket' => 'package',
+                    _ => 'per_item',
                   };
-                }).toList();
-                Navigator.pop(dialogContext, {
-                  'service_type': profile == 'laundry' ? 'Laundry' : 'Service',
-                  'service_subject': profile == 'laundry'
-                      ? 'Cucian pelanggan'
-                      : subject.text.trim(),
-                  'complaint': notes.text.trim(),
-                  'condition_notes': profile == 'laundry'
-                      ? notes.text.trim()
-                      : '',
-                  'service_mode': profile == 'laundry' ? mode : '',
-                  'weight_kg': kg,
-                  'item_count': count,
-                  'bag_tag': tag.text.trim(),
-                  'vehicle_no': vehicleNo.text.trim().toUpperCase(),
-                  'vehicle_model': vehicleModel.text.trim(),
-                  'technician_name': technician.text.trim(),
-                  if (appointmentAt != null)
-                    'appointment_at': appointmentAt!.toIso8601String(),
-                  'status': 'diterima',
-                  if (serviceLines.isNotEmpty) 'service_lines': serviceLines,
-                });
-              },
-              child: const Text('Simpan'),
-            ),
-          ],
-        ),
-      ),
+                  final serviceLines = serviceEntries.indexed.map((indexed) {
+                    final index = indexed.$1;
+                    final entry = indexed.$2;
+                    return <String, dynamic>{
+                      'product_id': entry.key.id,
+                      'name': entry.key.name,
+                      'object_type': profile.isEmpty ? 'service' : profile,
+                      'pricing_basis': pricingBasis,
+                      'quantity': pricingBasis == 'per_kg' ? 0 : entry.value,
+                      'weight_kg': pricingBasis == 'per_kg' ? entry.value : 0,
+                      'unit': pricingBasis == 'per_kg'
+                          ? 'kg'
+                          : entry.key.saleUnit,
+                      if (index == 0 && tag.text.trim().isNotEmpty)
+                        'tag_code': tag.text.trim(),
+                      'condition_notes': notes.text.trim(),
+                      'status': 'diterima',
+                    };
+                  }).toList();
+                  Navigator.pop(dialogContext, {
+                    'service_type': profile == 'laundry'
+                        ? 'Laundry'
+                        : 'Service',
+                    'service_subject': profile == 'laundry'
+                        ? 'Cucian pelanggan'
+                        : subject.text.trim(),
+                    'complaint': notes.text.trim(),
+                    'condition_notes': profile == 'laundry'
+                        ? notes.text.trim()
+                        : '',
+                    'service_mode': profile == 'laundry' ? mode : '',
+                    'weight_kg': kg,
+                    'item_count': count,
+                    'bag_tag': tag.text.trim(),
+                    'vehicle_no': vehicleNo.text.trim().toUpperCase(),
+                    'vehicle_model': vehicleModel.text.trim(),
+                    'technician_name': technician.text.trim(),
+                    if (appointmentAt != null)
+                      'appointment_at': appointmentAt!.toIso8601String(),
+                    'status': 'diterima',
+                    if (serviceLines.isNotEmpty) 'service_lines': serviceLines,
+                  });
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          ),
+        );
+      },
     );
+    // showDialog completes when pop is requested, before its reverse animation
+    // removes the TextFields. Their controllers must remain alive until then.
+    await serviceDialogRoute?.completed;
     subject.dispose();
     notes.dispose();
     weight.dispose();
@@ -1923,6 +1958,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       final result = await sl<PosRepository>().createUnpaidInvoice(
         clientRequestId: _invoiceRequestId,
         cart: state.cart,
+        selectedUnits: state.selectedUnits,
         tokoId: activeShift?['toko_id']?.toString() ?? '',
         shiftId: activeShift?['_id']?.toString() ?? '',
         orderType: state.orderType,
@@ -2009,16 +2045,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   }
 
   Future<void> _enterCustomCash() async {
-    final controller = TextEditingController();
+    var cashInput = '';
     final result = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Uang diterima'),
         content: TextField(
-          controller: controller,
           autofocus: true,
           keyboardType: TextInputType.number,
           inputFormatters: const [RupiahInputFormatter()],
+          onChanged: (value) => cashInput = value,
           decoration: const InputDecoration(
             prefixText: 'Rp ',
             border: OutlineInputBorder(),
@@ -2031,13 +2067,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           ),
           FilledButton(
             onPressed: () =>
-                Navigator.pop(dialogContext, parseRupiah(controller.text)),
+                Navigator.pop(dialogContext, parseRupiah(cashInput)),
             child: const Text('Gunakan'),
           ),
         ],
       ),
     );
-    controller.dispose();
     if (result != null && result > 0 && mounted) {
       setState(() => _cashReceived = result);
     }

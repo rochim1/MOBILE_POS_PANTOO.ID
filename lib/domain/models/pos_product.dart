@@ -70,6 +70,30 @@ class PosProduct {
     return normalizedBaseUnit.isEmpty ? 'unit' : normalizedBaseUnit;
   }
 
+  List<String> get saleUnits {
+    final units = <String>{saleUnit};
+    for (final row in unitConversions) {
+      final unit = row['unit']?.toString().trim().toLowerCase() ?? '';
+      final factor = double.tryParse(row['factor']?.toString() ?? '');
+      if (unit.isNotEmpty && factor != null && factor.isFinite && factor > 0) {
+        units.add(unit);
+      }
+    }
+    return units.toList();
+  }
+
+  double factorForUnit(String unit) {
+    final normalized = unit.trim().toLowerCase();
+    if (normalized == saleUnit) return 1;
+    for (final row in unitConversions) {
+      if (row['unit']?.toString().trim().toLowerCase() == normalized) {
+        final factor = double.tryParse(row['factor']?.toString() ?? '');
+        if (factor != null && factor.isFinite && factor > 0) return factor;
+      }
+    }
+    return 1;
+  }
+
   factory PosProduct.fromJson(Map<String, dynamic> json) {
     return PosProduct(
       id: json['id'] as String? ?? json['code'] as String,

@@ -636,10 +636,10 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
           final oldItems = existing?['items'] as List? ?? const [];
           final old = oldItems.whereType<Map>().cast<Map?>().firstWhere(
             (candidate) =>
-                candidate?['purchase_item_id']?.toString() ==
-                    item['purchase_item_id']?.toString() &&
-                (candidate?['no_batch']?.toString() ?? '') ==
-                    (item['no_batch']?.toString() ?? ''),
+                candidate?['receiving_item_id']?.toString() ==
+                    item['receiving_item_id']?.toString() &&
+                (candidate?['vendor_bill_id']?.toString() ?? '') ==
+                    (item['vendor_bill_id']?.toString() ?? ''),
             orElse: () => null,
           );
           if (old != null) {
@@ -730,8 +730,17 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
       'items': selected.map((item) {
         final qty = (item['qty_return'] as num).toDouble();
         return {
+          'vendor_bill_id': item['vendor_bill_id'],
+          'vendor_bill_item_id': item['vendor_bill_item_id'],
+          'receiving_id': item['receiving_id'],
+          'receiving_item_id': item['receiving_item_id'],
           'purchase_item_id': item['purchase_item_id'],
+          'inventaris_id': item['inventaris_id'],
+          'kode_inventaris': item['kode_inventaris'],
           'nama_inventaris': item['nama_inventaris'],
+          'unit': item['unit'],
+          'base_unit': item['base_unit'],
+          'conversion_factor': item['conversion_factor'],
           'qty_return': qty,
           'no_batch': item['no_batch'],
           'alasan': (item['item_reason']?.toString().trim() ?? '').isEmpty

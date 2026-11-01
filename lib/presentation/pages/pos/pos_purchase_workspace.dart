@@ -42,6 +42,7 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
 
   @override
   Widget build(BuildContext context) {
+    final simpleInventory = widget.inventoryPolicy['inventory_profile'] == 'simple';
     final receiving = _activeReceiving;
     if (receiving != null) {
       return PosPurchaseReceivingPage(
@@ -82,28 +83,69 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
     }
     return Column(
       children: [
+        if (simpleInventory)
+          Material(
+            color: const Color(0xFFEAF7F5),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 18, color: Color(0xFF087F76)),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Buat pesanan ke supplier, lalu terima barang saat tiba. Stok belum bertambah saat PO dibuat.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF265953)),
+                    ),
+                  ),
+                  PopupMenuButton<int>(
+                    tooltip: 'Fitur pembelian lainnya',
+                    icon: const Icon(Icons.more_vert, size: 19),
+                    onSelected: (value) => setState(() => _tab = value),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 2, child: Text('Pembelian Langsung')),
+                      PopupMenuItem(value: 3, child: Text('Permintaan DP')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         PosFullWidthTabs(
-          tabs: const [
+          tabs: [
             PosFullWidthTab(
               icon: Icons.description_outlined,
-              label: 'Purchase Order',
+              label: simpleInventory ? 'Pesan ke supplier' : 'Purchase Order',
             ),
-            PosFullWidthTab(
+            const PosFullWidthTab(
               icon: Icons.inventory_outlined,
               label: 'Penerimaan',
             ),
-            PosFullWidthTab(
-              icon: Icons.receipt_long_outlined,
-              label: 'Pembelian Langsung',
-            ),
-            PosFullWidthTab(
-              icon: Icons.account_balance_wallet_outlined,
-              label: 'Permintaan DP',
-            ),
+            if (!simpleInventory) ...const [
+              PosFullWidthTab(
+                icon: Icons.receipt_long_outlined,
+                label: 'Pembelian Langsung',
+              ),
+              PosFullWidthTab(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'Permintaan DP',
+              ),
+            ],
           ],
           selectedIndex: _tab,
           onSelected: (value) => setState(() => _tab = value),
         ),
+        if (simpleInventory && _tab >= 2)
+          Material(
+            color: Colors.white,
+            child: ListTile(
+              dense: true,
+              leading: const Icon(Icons.arrow_back, size: 18),
+              title: Text(_tab == 2 ? 'Pembelian Langsung' : 'Permintaan DP'),
+              subtitle: const Text('Opsi lanjutan pembelian'),
+              onTap: () => setState(() => _tab = 0),
+            ),
+          ),
         const Divider(height: 1),
         Expanded(
           child: IndexedStack(
@@ -122,15 +164,18 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
                   }),
                 ),
               ),
-              _ReceivingList(
-                key: ValueKey('receiving-list-$_revision'),
-                canReceive:
-                    widget.permissions['receive_inventory_purchases'] == true,
-                onReceive: (purchase) => setState(() {
-                  _activePayable = null;
-                  _activeReceiving = purchase;
-                }),
-              ),
+              if (_tab == 1)
+                _ReceivingList(
+                  key: ValueKey('receiving-list-$_revision'),
+                  canReceive:
+                      widget.permissions['receive_inventory_purchases'] == true,
+                  onReceive: (purchase) => setState(() {
+                    _activePayable = null;
+                    _activeReceiving = purchase;
+                  }),
+                )
+              else
+                const SizedBox.shrink(),
               PosDirectPurchasePage(
                 canCreate:
                     widget.permissions['create_direct_purchases'] == true ||

@@ -54,4 +54,22 @@ void main() {
     );
     expect(provider.endpointUrl, 'http://localhost:8080/graphql');
   });
+  test('ganti operator membuang cache GraphQL operator sebelumnya', () async {
+    dotenv.loadFromString(envString: 'MOBILE_API_KEY=test');
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final provider = GraphQLClientProvider(
+      preferences,
+      const FlutterSecureStorage(),
+      environment: FlavorEnvironment.development,
+    );
+    final before = provider.client;
+    provider.setPOSOperatorToken('operator-a');
+    final first = provider.client;
+    provider.setPOSOperatorToken('operator-b');
+    expect(first, isNot(same(before)));
+    expect(provider.client, isNot(same(first)));
+    provider.setPOSOperatorToken('');
+    expect(provider.client, isNot(same(first)));
+  });
 }

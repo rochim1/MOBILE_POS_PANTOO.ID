@@ -14,19 +14,21 @@ import 'pos_add_return_page.dart';
 import 'package:intl/intl.dart';
 
 class PosReturnPage extends StatelessWidget {
-  const PosReturnPage({super.key});
+  final Map<String, dynamic> permissions;
+  const PosReturnPage({super.key, required this.permissions});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<PosReturnBloc>()..add(const LoadReturns()),
-      child: const PosReturnView(),
+      child: PosReturnView(permissions: permissions),
     );
   }
 }
 
 class PosReturnView extends StatefulWidget {
-  const PosReturnView({super.key});
+  final Map<String, dynamic> permissions;
+  const PosReturnView({super.key, required this.permissions});
 
   @override
   State<PosReturnView> createState() => _PosReturnViewState();
@@ -36,6 +38,7 @@ class _PosReturnViewState extends State<PosReturnView> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = '';
   Timer? _searchDebounce;
+  bool _can(String action) => widget.permissions[action] == true;
 
   @override
   void dispose() {
@@ -131,6 +134,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                     items: const [
                       DropdownMenuItem(value: '', child: Text('Semua Status')),
                       DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                      DropdownMenuItem(value: 'pending', child: Text('Menunggu persetujuan')),
                       DropdownMenuItem(
                         value: 'approved',
                         child: Text('Approved'),
@@ -154,7 +158,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                 final addButton = SizedBox(
                   height: compact ? 40 : 48,
                   child: ElevatedButton.icon(
-                    onPressed: _openAddReturn,
+                      onPressed: _openAddReturn,
                     icon: const Icon(Icons.add),
                     label: const Text('Tambah Retur'),
                   ),
@@ -165,8 +169,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                       Expanded(child: search),
                       const SizedBox(width: 10),
                       SizedBox(width: 190, child: filter),
-                      const SizedBox(width: 10),
-                      addButton,
+                      if (_can('create_returns')) ...[
+                        const SizedBox(width: 10),
+                        addButton,
+                      ],
                     ],
                   );
                 }
@@ -177,8 +183,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                     Row(
                       children: [
                         Expanded(child: filter),
-                        const SizedBox(width: 8),
-                        addButton,
+                        if (_can('create_returns')) ...[
+                          const SizedBox(width: 8),
+                          addButton,
+                        ],
                       ],
                     ),
                   ],
@@ -300,30 +308,44 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 ),
                               ],
                             ),
-                            if (status == 'draft' || status == 'approved') ...[
+                            if (status == 'draft' ||
+                                status == 'pending' ||
+                                status == 'approved') ...[
                               const SizedBox(height: 16),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  if (status == 'draft')
+                                  if (status == 'draft' && _can('submit_returns'))
+                                    TextButton(
+                                      onPressed: () => _confirmAction(
+                                        title: 'Ajukan retur?',
+                                        message:
+                                            'Retur ${item['no_retur'] ?? ''} akan menunggu persetujuan supervisor.',
+                                        confirmLabel: 'Ajukan',
+                                        onConfirmed: () => context
+                                            .read<PosReturnBloc>()
+                                            .add(SubmitReturnDraft(item['_id'])),
+                                      ),
+                                      child: const Text(
+                                        'Ajukan',
+                                        style: TextStyle(color: AppColors.info),
+                                      ),
+                                    ),
+                                  if (status == 'pending' && _can('approve_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
                                         title: 'Setujui retur?',
-                                        message:
-                                            'Retur ${item['no_retur'] ?? ''} akan siap diproses.',
+                                        message: 'Retur ${item['no_retur'] ?? ''} akan siap diproses.',
                                         confirmLabel: 'Setujui',
                                         onConfirmed: () => context
                                             .read<PosReturnBloc>()
                                             .add(ApproveReturn(item['_id'])),
                                       ),
-                                      child: const Text(
-                                        'Approve',
-                                        style: TextStyle(color: AppColors.info),
-                                      ),
+                                      child: const Text('Setujui'),
                                     ),
-                                  if (status == 'draft')
+                                  if (status == 'draft' && _can('submit_returns') && _can('delete_returns'))
                                     const SizedBox(width: 8),
-                                  if (status == 'draft')
+                                  if (status == 'draft' && _can('delete_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
                                         title: 'Hapus draft retur?',
@@ -342,7 +364,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                         ),
                                       ),
                                     ),
-                                  if (status == 'approved')
+                                  if (status == 'approved' && _can('process_returns'))
                                     ElevatedButton(
                                       onPressed: () => _confirmAction(
                                         title: 'Proses retur?',

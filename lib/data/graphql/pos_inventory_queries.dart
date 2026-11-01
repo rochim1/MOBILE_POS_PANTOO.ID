@@ -8,7 +8,7 @@ class PosInventoryQueries {
       } }
     }
   ''';
-  static const eligibleAdvancePurchases=r'''
+  static const eligibleAdvancePurchases = r'''
     query($search:String,$pagination:pagination){GetEligibleAdvancePurchasePage(search:$search,pagination:$pagination){totalCount items{_id no_po supplier_name status accounting_flow grand_total down_payment_amount down_payment_percent advance_available_amount}}}
   ''';
 
@@ -69,7 +69,7 @@ class PosInventoryQueries {
       ) {
         cabang {
           _id branch_code nama_cabang alamat_cabang no_telp status
-          is_warehouse warehouse_type is_sellable_location
+          is_warehouse warehouse_type is_sellable_location linked_toko_id
           is_receiving_location is_transfer_source is_transfer_destination
         }
       }
@@ -99,7 +99,7 @@ class PosInventoryQueries {
       GetAllInventoryPurchases(filter: $filter, pagination: $pagination) {
         totalCount
         items {
-          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman supplier_contact
+          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman receiving_location_id supplier_contact
           metode_pembayaran payment_method syarat_pembayaran tipe_kredit payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent
           jumlah_termin jadwal_termin { no_termin amount due_date status paid_date paid_amount }
           prioritas status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close payable_status payable_outstanding_amount catatan alasan_penolakan total_amount
@@ -107,6 +107,7 @@ class PosInventoryQueries {
           sent_by supplier_ack_by closed_by
           diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount ppn_source supplier_is_pkp
           biaya_pengiriman biaya_tambahan { _id jenis_biaya deskripsi nominal }
+          estimasi_biaya_tambahan { _id jenis_biaya deskripsi nominal } total_estimasi_biaya estimasi_total
           total_biaya_tambahan biaya_mode biaya_alokasi grand_total
           items {
             _id inventaris_id kode_inventaris nama_inventaris
@@ -123,10 +124,11 @@ class PosInventoryQueries {
   static const purchaseDetail = r'''
     query GetOneInventoryPurchaseForPrint($id: ID!) {
       GetOneInventoryPurchase(_id: $id) {
-        _id no_po supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman
+        _id no_po supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman receiving_location_id
         metode_pembayaran payment_method syarat_pembayaran payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close catatan total_amount grand_total
         diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount
         biaya_pengiriman biaya_tambahan { jenis_biaya deskripsi nominal }
+        estimasi_biaya_tambahan { jenis_biaya deskripsi nominal } total_estimasi_biaya estimasi_total
         jadwal_termin { no_termin amount due_date status paid_date paid_amount }
         created_by { _id name username }
         createdAt updatedAt
@@ -185,9 +187,10 @@ class PosInventoryQueries {
 
   static const lookups = r'''
     query GetPOSInventoryFormLookups {
-      getAllCabangs(filter: { status: "active", has_warehouse: true }, pagination: { page: 0, limit: 100 }) {
+      getAllCabangs(filter: { status: "active", has_warehouse: true }, pagination: { page: 0, limit: 200 }) {
         cabang {
-          _id nama_cabang is_receiving_location is_transfer_source is_transfer_destination
+          _id nama_cabang warehouse_type linked_toko_id
+          is_receiving_location is_transfer_source is_transfer_destination
           gedung {
             kode_gedung nama_gedung
             ruangan { kode_ruangan nama_ruangan rak { nama_rak } }
@@ -320,6 +323,30 @@ class PosInventoryQueries {
       r'''mutation DeleteInventoryPurchase($id: ID!, $reason: String) { DeleteInventoryPurchase(_id: $id, delete_reason: $reason) { _id status } }''';
   static const receivePurchase =
       r'''mutation AddInventoryReceiving($input: InventoryReceivingInput!) { AddInventoryReceiving(input: $input) { _id no_grn purchase_id status journal_status journal_error } }''';
+  static const landedCostsForPurchase = r'''
+    query GetAllLandedCosts($poId: ID, $pagination: PaginationInput) {
+      GetAllLandedCosts(filter: { po_id: $poId }, pagination: $pagination) {
+        items { _id no_landed_cost receiving_id total_biaya status client_request_id }
+      }
+    }
+  ''';
+  static const cashAccountsForLandedCost = r'''
+    query GetAllFinanceCoa($filter: FinanceCoaFilter, $pagination: pagination) {
+      GetAllFinanceCoa(filter: $filter, pagination: $pagination) {
+        items { account_code account_name account_type account_category parent_code is_active is_header }
+      }
+    }
+  ''';
+  static const createLandedCost = r'''
+    mutation CreateLandedCost($input: LandedCostInput!) {
+      CreateLandedCost(input: $input) { _id no_landed_cost receiving_id status total_biaya }
+    }
+  ''';
+  static const validateLandedCost = r'''
+    mutation ValidateLandedCost($id: ID!) {
+      ValidateLandedCost(_id: $id) { _id no_landed_cost status }
+    }
+  ''';
 
   static const directPurchases = r'''
     query GetDirectPurchasesForPOS {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -8,185 +9,241 @@ import '../../injections.dart';
 
 Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
   final service = sl<PosCustomerDisplayService>();
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) => SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: ValueListenableBuilder<PosCustomerDisplayState>(
-            valueListenable: service.state,
-            builder: (context, state, _) {
-              final isWaiting =
-                  state.connection == PosCustomerDisplayConnection.connecting ||
-                  state.connection == PosCustomerDisplayConnection.waiting;
-              final isConnected =
-                  state.connection == PosCustomerDisplayConnection.connected;
-              final hasPairingSession =
-                  state.pairingUrl.isNotEmpty && (isWaiting || isConnected);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.connected_tv_outlined,
-                        color: AppColors.primary,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Hubungkan Layar Pelanggan',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.heading,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Buka tautan ini pada tablet/monitor pelanggan. Layar tersebut hanya menampilkan keranjang dan total, tanpa akses akun POS.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _PairingGuide(hasLink: state.pairingUrl.isNotEmpty),
-                  const SizedBox(height: 18),
-                  if (state.pairingUrl.isNotEmpty) ...[
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: QrImageView(
-                          data: state.pairingUrl,
-                          size: 148,
-                          eyeStyle: const QrEyeStyle(
-                            eyeShape: QrEyeShape.square,
-                            color: AppColors.primary,
-                          ),
-                          dataModuleStyle: const QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.successBorder),
-                      ),
-                      child: SelectableText(
-                        state.pairingUrl,
-                        style: const TextStyle(
-                          color: AppColors.body,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: state.pairingUrl),
-                        );
-                        if (sheetContext.mounted) {
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(
-                            const SnackBar(
-                              content: Text('Tautan layar pelanggan disalin'),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.copy_outlined),
-                      label: const Text('Salin tautan'),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (state.message.isNotEmpty) ...[
-                    Text(
-                      state.message,
-                      style: const TextStyle(
-                        color: AppColors.danger,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: isWaiting || isConnected
-                              ? null
-                              : () => service.beginPairing(),
-                          icon: isWaiting
-                              ? const SizedBox.square(
-                                  dimension: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+  final selectedTransport = ValueNotifier(service.state.value.transport);
+  try {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: ValueListenableBuilder<PosCustomerDisplayTransport>(
+              valueListenable: selectedTransport,
+              builder: (context, transport, _) =>
+                  ValueListenableBuilder<PosCustomerDisplayState>(
+                    valueListenable: service.state,
+                    builder: (context, state, _) {
+                      final isWaiting =
+                          state.connection ==
+                              PosCustomerDisplayConnection.connecting ||
+                          state.connection ==
+                              PosCustomerDisplayConnection.waiting;
+                      final isConnected =
+                          state.connection ==
+                          PosCustomerDisplayConnection.connected;
+                      final hasPairingSession =
+                          state.pairingUrl.isNotEmpty &&
+                          (isWaiting || isConnected);
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.connected_tv_outlined,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Hubungkan Layar Pelanggan',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.heading,
                                   ),
-                                )
-                              : const Icon(Icons.link_outlined),
-                          label: Text(
-                            isWaiting
-                                ? 'Menunggu perangkat…'
-                                : isConnected
-                                ? 'Layar terhubung'
-                                : 'Buat tautan pairing',
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      if (hasPairingSession) ...[
-                        const SizedBox(width: 10),
-                        OutlinedButton(
-                          onPressed: service.disconnect,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.danger,
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Buka tautan ini pada tablet/monitor pelanggan. Layar tersebut hanya menampilkan keranjang dan total, tanpa akses akun POS.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
-                          child: const Text('Putuskan'),
-                        ),
-                      ],
-                    ],
+                          const SizedBox(height: 14),
+                          SegmentedButton<PosCustomerDisplayTransport>(
+                            segments: const [
+                              ButtonSegment(
+                                value: PosCustomerDisplayTransport.internet,
+                                icon: Icon(Icons.cloud_outlined),
+                                label: Text('Internet'),
+                              ),
+                              ButtonSegment(
+                                value: PosCustomerDisplayTransport.localWifi,
+                                icon: Icon(Icons.wifi),
+                                label: Text('Wi-Fi lokal'),
+                                enabled: !kIsWeb,
+                              ),
+                            ],
+                            selected: {transport},
+                            onSelectionChanged: (selection) async {
+                              await service.disconnect();
+                              if (sheetContext.mounted) {
+                                selectedTransport.value = selection.first;
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          _PairingGuide(
+                            hasLink: state.pairingUrl.isNotEmpty,
+                            isLocal:
+                                transport ==
+                                PosCustomerDisplayTransport.localWifi,
+                          ),
+                          const SizedBox(height: 18),
+                          if (state.pairingUrl.isNotEmpty) ...[
+                            Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: QrImageView(
+                                  data: state.pairingUrl,
+                                  size: 148,
+                                  eyeStyle: const QrEyeStyle(
+                                    eyeShape: QrEyeShape.square,
+                                    color: AppColors.primary,
+                                  ),
+                                  dataModuleStyle: const QrDataModuleStyle(
+                                    dataModuleShape: QrDataModuleShape.square,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySoft,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.successBorder,
+                                ),
+                              ),
+                              child: SelectableText(
+                                state.pairingUrl,
+                                style: const TextStyle(
+                                  color: AppColors.body,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: state.pairingUrl),
+                                );
+                                if (sheetContext.mounted) {
+                                  ScaffoldMessenger.of(
+                                    sheetContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Tautan layar pelanggan disalin',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.copy_outlined),
+                              label: const Text('Salin tautan'),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          if (state.message.isNotEmpty) ...[
+                            Text(
+                              state.message,
+                              style: const TextStyle(
+                                color: AppColors.danger,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: isWaiting || isConnected
+                                      ? null
+                                      : () =>
+                                            transport ==
+                                                PosCustomerDisplayTransport
+                                                    .localWifi
+                                            ? service.beginLocalPairing()
+                                            : service.beginPairing(),
+                                  icon: isWaiting
+                                      ? const SizedBox.square(
+                                          dimension: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.link_outlined),
+                                  label: Text(
+                                    isWaiting
+                                        ? 'Menunggu perangkat…'
+                                        : isConnected
+                                        ? 'Layar terhubung'
+                                        : 'Buat tautan pairing',
+                                  ),
+                                ),
+                              ),
+                              if (hasPairingSession) ...[
+                                const SizedBox(width: 10),
+                                OutlinedButton(
+                                  onPressed: service.disconnect,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.danger,
+                                  ),
+                                  child: const Text('Putuskan'),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (isConnected) ...[
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Terhubung · perubahan keranjang akan tampil otomatis.',
+                              style: TextStyle(
+                                color: AppColors.success,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
-                  if (isConnected) ...[
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Terhubung · perubahan keranjang akan tampil otomatis.',
-                      style: TextStyle(color: AppColors.success, fontSize: 12),
-                    ),
-                  ],
-                ],
-              );
-            },
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  } finally {
+    selectedTransport.dispose();
+  }
 }
 
 class _PairingGuide extends StatelessWidget {
   final bool hasLink;
+  final bool isLocal;
 
-  const _PairingGuide({required this.hasLink});
+  const _PairingGuide({required this.hasLink, required this.isLocal});
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +267,13 @@ class _PairingGuide extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 9),
+          if (isLocal) ...[
+            const Text(
+              'Ponsel POS dan layar pelanggan harus berada pada Wi-Fi/hotspot pribadi yang sama. Mode ini tidak memerlukan internet; biarkan aplikasi POS tetap terbuka. Hindari Wi-Fi publik.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 9),
+          ],
           _GuideStep(
             number: '1',
             text: hasLink
@@ -235,8 +299,10 @@ class _PairingGuide extends StatelessWidget {
                 'Tekan “Putuskan” setelah kasir selesai atau sebelum berganti operator. Tautan akan dinonaktifkan.',
           ),
           const SizedBox(height: 9),
-          const Text(
-            'Kedua perangkat memerlukan koneksi internet. Layar pelanggan tidak dapat mengakses data akun atau mengubah transaksi.',
+          Text(
+            isLocal
+                ? 'Jika tautan tidak terbuka, periksa apakah kedua perangkat benar-benar satu jaringan dan fitur isolasi perangkat pada router tidak aktif.'
+                : 'Kedua perangkat memerlukan internet, tetapi tidak harus memakai Wi-Fi yang sama. Bluetooth tidak digunakan untuk layar pelanggan.',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
           ),
         ],

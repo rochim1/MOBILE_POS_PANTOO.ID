@@ -64,6 +64,13 @@ class ApproveReturn extends PosReturnEvent {
   List<Object?> get props => [id];
 }
 
+class SubmitReturnDraft extends PosReturnEvent {
+  final String id;
+  const SubmitReturnDraft(this.id);
+  @override
+  List<Object?> get props => [id];
+}
+
 class ProcessReturn extends PosReturnEvent {
   final String id;
   const ProcessReturn(this.id);

@@ -8,6 +8,7 @@ import '../../../bloc/pos_shift/pos_shift_state.dart';
 import '../../../bloc/lock/lock_cubit.dart';
 import 'package:intl/intl.dart';
 import '../../../widgets/pos_keyboard_stable_sheet.dart';
+import '../utils/pos_shift_cash.dart';
 
 class PosActiveShiftTab extends StatefulWidget {
   final GlobalKey? storeTourKey;
@@ -85,6 +86,8 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     final selectedStores = stores.where((store) => store.id == selectedTokoId);
     final selectedStore = selectedStores.isEmpty ? null : selectedStores.first;
     final operatorName = context.watch<AppLockCubit>().state.activeEmployeeName;
+    final shiftState = context.watch<PosShiftBloc>().state;
+    final hasActiveShift = shiftState is PosShiftLoaded && shiftState.activeShift != null;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -98,7 +101,16 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildStoreSelector(stores),
+            _buildStoreSelector(stores, hasActiveShift: hasActiveShift),
+            if (hasActiveShift && stores.length > 1) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Tutup shift aktif sebelum memilih toko lain.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
             if (selectedStore != null) ...[
               const SizedBox(height: 10),
               _buildShiftModeInfo(selectedStore.shiftMode, operatorName),
@@ -138,7 +150,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     );
   }
 
-  Widget _buildStoreSelector(List<dynamic> stores) {
+  Widget _buildStoreSelector(List<dynamic> stores, {required bool hasActiveShift}) {
     return Container(
       key: widget.storeTourKey,
       decoration: BoxDecoration(
@@ -177,7 +189,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                       ),
                     )
                     .toList(),
-                onChanged: (val) {
+                onChanged: hasActiveShift ? null : (val) {
                   if (val != null) {
                     setState(() => selectedTokoId = val);
                     context.read<PosShiftBloc>().add(LoadShiftData(val));
@@ -322,9 +334,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                   Expanded(
                     child: _buildShiftMetric(
                       'Kas seharusnya',
-                      formatCurrency.format(
-                        shift['closing_cash_expected'] ?? 0,
-                      ),
+                      formatCurrency.format(posShiftExpectedCash(shift)),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -650,8 +660,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
   }
 
   void _promptCloseShift(BuildContext context, Map<String, dynamic> shift) {
-    double actualCash =
-        double.tryParse(shift['closing_cash_expected']?.toString() ?? '0') ?? 0;
+    double actualCash = posShiftExpectedCash(shift);
     String notes = '';
 
     showModalBottomSheet(

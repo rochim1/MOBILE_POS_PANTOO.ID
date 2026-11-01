@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +12,7 @@ import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
+import '../../bloc/pos/pos_bloc.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'utils/pos_purchase_progress.dart';
 
@@ -110,7 +112,33 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   late DateTime _receivingDate;
   bool _loading = true;
   List<Map<String, dynamic>> _history = const [];
+  List<Map<String, dynamic>> _landedCosts = const [];
   late final List<Map<String, dynamic>> _items;
+
+  Map<String, dynamic> get _inventoryPolicy => Map<String, dynamic>.from(
+    context.read<PosBloc>().state.runtimeConfig['inventory_policy'] as Map? ??
+        const {},
+  );
+
+  List<Map<String, dynamic>> get _receivingWarehouses {
+    final policy = _inventoryPolicy;
+    final defaultId = policy['default_receiving_location_id']?.toString() ?? '';
+    final purchaseLocationId =
+        widget.purchase['receiving_location_id']?.toString() ?? '';
+    return (_lookups?.warehouses ?? const <Map<String, dynamic>>[])
+        .where((item) => item['is_receiving_location'] != false)
+        .where(
+          (item) =>
+              purchaseLocationId.isEmpty ||
+              item['_id']?.toString() == purchaseLocationId,
+        )
+        .where(
+          (item) =>
+              policy['inventory_profile'] != 'simple' ||
+              (defaultId.isNotEmpty && item['_id']?.toString() == defaultId),
+        )
+        .toList();
+  }
 
   void _finish() {
     if (widget.embedded) {
@@ -181,35 +209,284 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     final historyResult = await _repository.getPurchaseReceivings(
       widget.purchase['_id']?.toString() ?? '',
     );
+    final costResult = await _repository.getLandedCostsForPurchase(
+      widget.purchase['_id']?.toString() ?? '',
+    );
     if (!mounted) return;
     result.fold((failure) => AppToast.error(context, failure.message), (data) {
       _lookups = data;
-      final receivingWarehouses = data.warehouses
-          .where((item) => item['is_receiving_location'] != false)
-          .toList();
-      final activeIsEligible = receivingWarehouses.any(
-        (item) => item['_id']?.toString() == data.activeWarehouseId,
-      );
-      _warehouseId = activeIsEligible
-          ? data.activeWarehouseId
-          : receivingWarehouses.length == 1
+      final receivingWarehouses = _receivingWarehouses;
+      // Alamat pengiriman PO belum menyimpan ID lokasi stok. Jika beberapa
+      // gudang tersedia, jangan diam-diam memakai lokasi shift/default:
+      // penerimaan bisa tercatat di gudang yang berbeda dari tujuan PO.
+      _warehouseId = receivingWarehouses.length == 1
           ? receivingWarehouses.first['_id']?.toString() ?? ''
           : '';
       if (receivingWarehouses.isEmpty) {
         AppToast.error(
           context,
-          'Belum ada warehouse yang diaktifkan untuk penerimaan pembelian.',
+          widget.purchase['receiving_location_id'] != null
+              ? 'Tujuan stok pada PO tidak tersedia untuk penerimaan. Periksa lokasi PO dan pengaturan inventori.'
+              : _inventoryPolicy['inventory_profile'] == 'simple'
+              ? 'Atur lokasi penerimaan default pada profil Inventory Simple sebelum menerima PO.'
+              : 'Belum ada warehouse yang diaktifkan untuk penerimaan pembelian.',
         );
       }
     });
+    var historyLoaded = false;
     historyResult.fold(
       (failure) => AppToast.error(
         context,
         'Riwayat penerimaan gagal dimuat: ${failure.message}',
       ),
-      (data) => _history = data,
+      (data) {
+        _history = data;
+        historyLoaded = true;
+      },
+    );
+    // A rejected request aimed at a non-default location cannot become valid
+    // after the Simple profile narrows receiving to its configured location.
+    // Check server history first so a committed request is never discarded.
+    final pending = _pendingInput;
+    final defaultId =
+        _inventoryPolicy['default_receiving_location_id']?.toString() ?? '';
+    if (historyLoaded &&
+        pending != null &&
+        _inventoryPolicy['inventory_profile'] == 'simple' &&
+        defaultId.isNotEmpty &&
+        !_history.any(
+          (row) =>
+              row['client_request_id']?.toString() ==
+              pending['client_request_id']?.toString(),
+        )) {
+      final pendingItems = pending['items'] as List? ?? const [];
+      final wrongLocation = pendingItems.whereType<Map>().any((item) {
+        final allocations = item['allocations'] as List? ?? const [];
+        return allocations.whereType<Map>().any(
+          (allocation) =>
+              allocation['lokasi_cabang_id']?.toString() != defaultId,
+        );
+      });
+      if (wrongLocation) {
+        await sl<SharedPreferences>().remove(_pendingKey);
+        _pendingInput = null;
+        if (!mounted) return;
+        AppToast.error(
+          context,
+          'Request lama memakai lokasi yang ditolak profil Simple. Isi ulang jumlah penerimaan pada lokasi default.',
+        );
+      }
+    }
+    costResult.fold((_) {}, (data) => _landedCosts = data);
+    setState(() => _loading = false);
+  }
+
+  Map<String, dynamic>? _costForReceipt(Map<String, dynamic> receipt) {
+    final id = receipt['_id']?.toString();
+    for (final cost in _landedCosts) {
+      if (cost['receiving_id']?.toString() == id &&
+          cost['client_request_id']?.toString() == 'mobile-lc:$id' &&
+          cost['status'] != 'cancelled') {
+        return cost;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _validateCost(Map<String, dynamic> cost) async {
+    final id = cost['_id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    setState(() => _loading = true);
+    final result = await _repository.validateLandedCost(id);
+    if (!mounted) return;
+    result.fold(
+      (failure) => AppToast.error(
+        context,
+        'Draft biaya tersimpan, tetapi belum diterapkan: ${failure.message}. Periksa di Inventory > Landed Cost.',
+      ),
+      (_) => AppToast.success(
+        context,
+        'Biaya aktual berhasil diterapkan ke nilai barang',
+      ),
+    );
+    final costs = await _repository.getLandedCostsForPurchase(
+      widget.purchase['_id']?.toString() ?? '',
+    );
+    if (!mounted) return;
+    costs.fold((_) {}, (rows) => _landedCosts = rows);
+    setState(() => _loading = false);
+  }
+
+  Future<void> _recordActualCost(Map<String, dynamic> receipt) async {
+    final existing = _costForReceipt(receipt);
+    if (existing != null) {
+      if (existing['status'] == 'draft') await _validateCost(existing);
+      return;
+    }
+    setState(() => _loading = true);
+    final accountResult = await _repository.getCashAccountsForLandedCost();
+    if (!mounted) return;
+    List<Map<String, dynamic>> cashAccounts = [];
+    String? accountError;
+    accountResult.fold(
+      (failure) => accountError = failure.message,
+      (rows) => cashAccounts = rows,
     );
     setState(() => _loading = false);
+    if (accountError != null || cashAccounts.isEmpty) {
+      AppToast.error(
+        context,
+        accountError ??
+            'Belum ada akun kas/bank aktif. Siapkan di Finance terlebih dahulu.',
+      );
+      return;
+    }
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    final referenceController = TextEditingController();
+    var kind = 'freight';
+    var paymentAccountCode =
+        cashAccounts.any((row) => row['account_code'] == '1006')
+        ? '1006'
+        : cashAccounts.first['account_code'].toString();
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: Text('Biaya aktual ${receipt['no_grn'] ?? ''}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Hanya untuk ongkir/biaya yang dibayar terpisah. Jika ongkir ada dalam invoice supplier yang sama dengan barang, catat lewat Vendor Bill di Finance web untuk satu GRN yang ditagih penuh; jangan catat di sini agar utang tidak ganda.',
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: kind,
+                  decoration: const InputDecoration(labelText: 'Jenis biaya'),
+                  items: const [
+                    DropdownMenuItem(value: 'freight', child: Text('Ongkir')),
+                    DropdownMenuItem(
+                      value: 'handling',
+                      child: Text('Handling'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'insurance',
+                      child: Text('Asuransi'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'customs',
+                      child: Text('Bea masuk'),
+                    ),
+                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+                  ],
+                  onChanged: (value) => update(() => kind = value ?? 'freight'),
+                ),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Nominal aktual (Rp)',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentAccountCode,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Kas / bank pembayaran',
+                  ),
+                  items: cashAccounts
+                      .map(
+                        (account) => DropdownMenuItem<String>(
+                          value: account['account_code']?.toString() ?? '',
+                          child: Text(
+                            '${account['account_code']} · ${account['account_name']}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => update(
+                    () => paymentAccountCode = value ?? paymentAccountCode,
+                  ),
+                ),
+                TextField(
+                  controller: referenceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Referensi pembayaran (opsional)',
+                  ),
+                  maxLength: 120,
+                ),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan (opsional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = int.tryParse(amountController.text.trim());
+                if (amount == null || amount <= 0) {
+                  AppToast.error(
+                    context,
+                    'Nominal biaya harus Rupiah bulat positif',
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, {
+                  'kind': kind,
+                  'amount': amount,
+                  'note': noteController.text.trim(),
+                  'payment_account_code': paymentAccountCode,
+                  'payment_reference': referenceController.text.trim(),
+                });
+              },
+              child: const Text('Simpan & Terapkan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    amountController.dispose();
+    noteController.dispose();
+    referenceController.dispose();
+    if (values == null || !mounted) return;
+    setState(() => _loading = true);
+    final result = await _repository.createLandedCost({
+      'client_request_id': 'mobile-lc:${receipt['_id']}',
+      'po_id': widget.purchase['_id'],
+      'receiving_id': receipt['_id'],
+      'tanggal': DateTime.now().toIso8601String().split('T').first,
+      'syarat_pembayaran': 'tunai',
+      'payment_account_code': values['payment_account_code'],
+      'payment_reference': values['payment_reference'],
+      'catatan': values['note'],
+      'biaya': [
+        {
+          'nama_biaya': values['kind'] == 'freight' ? 'Ongkir' : values['kind'],
+          'tipe_biaya': values['kind'],
+          'jumlah': values['amount'],
+          'metode_alokasi': 'by_value',
+        },
+      ],
+    });
+    if (!mounted) return;
+    dynamic created;
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (value) => created = value,
+    );
+    setState(() => _loading = false);
+    if (created is Map) await _validateCost(Map<String, dynamic>.from(created));
   }
 
   Map<String, dynamic>? get _selectedWarehouse =>
@@ -415,7 +692,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       if (retry == true && mounted) await _retryPendingReceiving();
       return;
     }
-    final warehouse = _lookups?.warehouses
+    final warehouse = _receivingWarehouses
         .cast<Map<String, dynamic>?>()
         .firstWhere(
           (item) => item?['_id']?.toString() == _warehouseId,
@@ -657,11 +934,19 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     final result = await _repository.receivePurchase(input);
     if (!mounted) return;
     var succeeded = false;
+    var rejectedByPolicy = false;
     dynamic receipt;
     String failureMessage = '';
     result.fold(
       (failure) {
         failureMessage = failure.message;
+        rejectedByPolicy =
+            failure.message.contains(
+              'Profil Inventory Simple hanya menerima stok pada lokasi default',
+            ) ||
+            failure.message.contains(
+              'Lokasi penerimaan berbeda dari tujuan stok yang tercatat pada PO',
+            );
         AppToast.error(context, failure.message);
         setState(() => _loading = false);
       },
@@ -671,6 +956,11 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       },
     );
     if (!succeeded) {
+      if (rejectedByPolicy) {
+        await sl<SharedPreferences>().remove(_pendingKey);
+        _pendingInput = null;
+        return;
+      }
       try {
         await _persistPending(
           input,
@@ -696,6 +986,32 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     }
     // Receiving posts stock and GRNI only. Supplier invoices and payments are
     // verified separately by Finance; never imply that a receipt creates AP.
+    if (receipt is Map && receipt['status'] == 'active') {
+      final recordCost = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Ada ongkir atau biaya aktual?'),
+          content: const Text(
+            'Jika dibayar terpisah, catat sekarang agar biaya masuk nilai barang. Estimasi di PO tidak otomatis dibebankan.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Catat biaya'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (recordCost == true) {
+        await _recordActualCost(Map<String, dynamic>.from(receipt));
+      }
+      if (!mounted) return;
+    }
     _finish();
   }
 
@@ -830,6 +1146,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
               })
               .join('\n');
           final cancelled = receipt['status']?.toString() == 'cancelled';
+          final actualCost = _costForReceipt(
+            Map<String, dynamic>.from(receipt),
+          );
           return ListTile(
             title: Text(receipt['no_grn']?.toString() ?? 'Penerimaan'),
             subtitle: Text(
@@ -840,6 +1159,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                   : receipt['journal_status'] == 'pending'
                   ? '\nJurnal asal belum terkonfirmasi'
                   : ''}'
+              '${actualCost == null ? '' : '\nBiaya aktual: ${actualCost['status'] == 'validated' ? 'diterapkan' : 'draft menunggu validasi'}'}'
               '${receipt['cancel_journal_status'] == 'failed'
                   ? '\nJurnal pembatalan gagal: ${receipt['cancel_journal_error'] ?? ''}'
                   : cancelled && receipt['cancel_journal_status'] == 'pending'
@@ -862,6 +1182,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                     enabled: !_loading,
                     tooltip: 'Aksi penerimaan',
                     onSelected: (action) => switch (action) {
+                      'cost' => _recordActualCost(
+                        Map<String, dynamic>.from(receipt),
+                      ),
                       'retry_journal' => _retryReceivingJournal(receipt),
                       'retry_cancel_journal' => _retryReceivingCancelJournal(
                         receipt,
@@ -869,6 +1192,15 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                       _ => _cancelReceiving(receipt),
                     },
                     itemBuilder: (_) => [
+                      if (!cancelled && actualCost?['status'] != 'validated')
+                        PopupMenuItem(
+                          value: 'cost',
+                          child: Text(
+                            actualCost == null
+                                ? 'Catat ongkir/biaya aktual'
+                                : 'Terapkan draft biaya',
+                          ),
+                        ),
                       if ([
                         'failed',
                         'pending',
@@ -1078,7 +1410,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               prefixIcon: Icon(Icons.warehouse_outlined),
                               border: OutlineInputBorder(),
                             ),
-                            items: (_lookups?.warehouses ?? const [])
+                            items: _receivingWarehouses
                                 .where(
                                   (item) =>
                                       item['is_receiving_location'] != false,

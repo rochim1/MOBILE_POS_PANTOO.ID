@@ -40,29 +40,33 @@ void main() {
       'lib/data/graphql/pos_inventory_queries.dart',
     ).readAsStringSync();
 
-    expect(queries, contains('GetPurchaseAdvanceRequests'));
+    expect(queries, contains('GetPurchaseAdvancePage'));
+    expect(queries, contains('GetPOSPurchaseAdvanceWorkspace'));
     expect(queries, contains('RequestPurchaseAdvance(input: \$input)'));
     expect(queries, isNot(contains('PayPurchaseAdvance(')));
     expect(page, contains('Status pembayaran hanya dicatat oleh Finance'));
     expect(page, isNot(contains('Bayar DP')));
   });
 
-  test('mobile supplier payable cannot enable payment mutation from PO routes', () {
-    final page = File(
-      'lib/presentation/pages/pos/pos_purchase_payable_page.dart',
-    ).readAsStringSync();
-    final workspace = File(
-      'lib/presentation/pages/pos/pos_purchase_workspace.dart',
-    ).readAsStringSync();
-    final runtimeQuery = File(
-      'lib/data/graphql/pos_queries.dart',
-    ).readAsStringSync();
+  test(
+    'mobile supplier payable cannot enable payment mutation from PO routes',
+    () {
+      final page = File(
+        'lib/presentation/pages/pos/pos_purchase_payable_page.dart',
+      ).readAsStringSync();
+      final workspace = File(
+        'lib/presentation/pages/pos/pos_purchase_workspace.dart',
+      ).readAsStringSync();
+      final runtimeQuery = File(
+        'lib/data/graphql/pos_queries.dart',
+      ).readAsStringSync();
 
-    expect(page, contains('final bool canRecordPayment = false;'));
-    expect(page, isNot(contains('this.canRecordPayment')));
-    expect(workspace, isNot(contains('canRecordPayment:')));
-    expect(runtimeQuery, isNot(contains('record_payable_payment')));
-  });
+      expect(page, contains('final bool canRecordPayment = false;'));
+      expect(page, isNot(contains('this.canRecordPayment')));
+      expect(workspace, isNot(contains('canRecordPayment:')));
+      expect(runtimeQuery, isNot(contains('record_payable_payment')));
+    },
+  );
 
   test('direct purchase draft keeps idempotency and receipt sync metadata', () {
     final page = File(

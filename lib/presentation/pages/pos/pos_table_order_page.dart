@@ -114,6 +114,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   Timer? _pingTimer;
   Timer? _reconnectTimer;
   WebSocketChannel? _channel;
+  StreamSubscription<dynamic>? _channelSubscription;
+  bool _isDisposing = false;
   bool _realtimeConnected = false;
   int _warningMinutes = 15;
   int _criticalMinutes = 25;
@@ -124,6 +126,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   String _sort = 'oldest';
   String _period = 'all';
   ({String orderId, String target, bool acknowledged})? _pendingMove;
+  bool _cancellingOrder = false;
 
   static const _fulfillmentItems = <DropdownMenuItem<String>>[
     DropdownMenuItem(value: '', child: Text('Semua tipe')),
@@ -188,6 +191,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
 
   @override
   void dispose() {
+    _isDisposing = true;
     _debounce?.cancel();
     _durationTicker?.cancel();
     _refreshTimer?.cancel();
@@ -195,6 +199,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     _eventDebounce?.cancel();
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
+    _channelSubscription?.cancel();
     _channel?.sink.close();
     _searchController.dispose();
     super.dispose();
@@ -211,10 +216,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   Future<void> _connectRealtime() async {
-    if (!mounted || _channel != null) return;
+    if (!mounted || _isDisposing || _channel != null) return;
     try {
       final token = await sl<FlutterSecureStorage>().read(key: 'auth_token');
-      if (!mounted || token == null || token.isEmpty) return;
+      if (!mounted || _isDisposing || token == null || token.isEmpty) return;
       final endpoint = Uri.parse(sl<GraphQLClientProvider>().endpointUrl);
       final channel = WebSocketChannel.connect(
         endpoint.replace(
@@ -226,14 +231,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       );
       _channel = channel;
       await channel.ready;
-      if (!mounted) {
+      if (!mounted || _isDisposing) {
         channel.sink.close();
         return;
       }
       channel.sink.add(
         jsonEncode({'type': 'auth', 'token': token, 'client_type': 'mobile'}),
       );
-      channel.stream.listen(
+      _channelSubscription = channel.stream.listen(
         _handleRealtimeMessage,
         onError: (_) => _handleRealtimeClosed(),
         onDone: _handleRealtimeClosed,
@@ -245,7 +250,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   void _handleRealtimeMessage(dynamic raw) {
-    if (!mounted) return;
+    if (!mounted || _isDisposing) return;
     try {
       final message = jsonDecode(raw.toString()) as Map<String, dynamic>;
       if (message['type'] == 'auth_success') {
@@ -273,8 +278,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
 
   void _handleRealtimeClosed() {
     _channel = null;
+    _channelSubscription = null;
     _pingTimer?.cancel();
-    if (!mounted) return;
+    if (!mounted || _isDisposing) return;
     setState(() => _realtimeConnected = false);
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(seconds: 5), _connectRealtime);
@@ -1010,6 +1016,68 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     );
   }
 
+  Future<void> _cancelOrder(PosOrderDetail order) async {
+    if (_cancellingOrder || order.id == null || order.paymentStatus == 'lunas') return;
+    final preparing = order.items.any((item) => item.productionStatus == 'preparing');
+    final reasonController = TextEditingController();
+    final pinController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Batalkan pesanan?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Pesanan ${order.orderNumber ?? ''} belum dibayar. Stok yang dipesan akan dilepas.'),
+            if (preparing) const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Ada item yang sedang dibuat. PIN supervisor diperlukan.'),
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Alasan pembatalan')),
+            if (preparing) TextField(
+              controller: pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'PIN supervisor'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Batalkan pesanan')),
+        ],
+      ),
+    );
+    if (!mounted) {
+      reasonController.dispose();
+      pinController.dispose();
+      return;
+    }
+    final reason = reasonController.text;
+    final supervisorPin = pinController.text;
+    reasonController.dispose();
+    pinController.dispose();
+    if (confirmed != true) return;
+    if (preparing && supervisorPin.trim().isEmpty) {
+      AppToast.error(context, 'PIN supervisor wajib diisi');
+      return;
+    }
+    setState(() => _cancellingOrder = true);
+    final result = await sl<PosOrderRepository>().cancelOrder(
+      order.id!, reason: reason, supervisorPin: supervisorPin,
+    );
+    if (!mounted) return;
+    setState(() => _cancellingOrder = false);
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      (_) {
+        AppToast.success(context, 'Pesanan dibatalkan');
+        _reloadCurrentPage();
+      },
+    );
+  }
+
   String _orderStatusLabel(String status) => switch (status) {
     'Baru' => 'Pesanan Baru',
     'Diproses' => _usesKitchenFlow ? 'Sedang Dibuat' : 'Sedang Diproses',
@@ -1159,6 +1227,17 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             : _nextStatusLabel(next),
                       ),
                     ),
+                  ),
+                ],
+                if (context.read<PosBloc>().state.runtimeConfig['permissions'] is Map &&
+                    (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map)['cancel_orders'] == true &&
+                    order.paymentStatus != 'lunas' &&
+                    order.status != 'Batal' && order.status != 'Selesai') ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _cancellingOrder ? null : () => _cancelOrder(order),
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Batalkan pesanan'),
                   ),
                 ],
               ],
@@ -1504,6 +1583,20 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                           ? 'Tutup pesanan & kosongkan meja'
                           : _nextStatusLabel(next),
                     ),
+                  ),
+                ],
+                if (context.read<PosBloc>().state.runtimeConfig['permissions'] is Map &&
+                    (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map)['cancel_orders'] == true &&
+                    order.paymentStatus != 'lunas' &&
+                    order.status != 'Batal' && order.status != 'Selesai') ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _cancellingOrder ? null : () {
+                      Navigator.pop(sheetContext);
+                      _cancelOrder(order);
+                    },
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Batalkan pesanan'),
                   ),
                 ],
                 if (order.statusHistory.isNotEmpty) ...[

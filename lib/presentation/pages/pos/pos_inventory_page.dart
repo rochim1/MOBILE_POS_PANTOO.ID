@@ -16,6 +16,7 @@ import '../../../domain/models/pos_stock.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
+import '../../bloc/lock/lock_cubit.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_category_navigation.dart';
@@ -376,6 +377,8 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       type: PosInventoryDocumentType.transfer,
       permissions: permissions,
       canReceiveTransfer: permissions['receive_inventory_transfers'] == true,
+      showDisplayReplenishment:
+          inventoryPolicy['use_display_stock'] == true,
     ),
     _InventorySection.scrap => _InventoryDocumentPage(
       key: const ValueKey(PosInventoryDocumentType.scrap),
@@ -425,6 +428,7 @@ class _InventoryPurchaseSkeletonCard extends StatelessWidget {
 class _InventoryDocumentPage extends StatefulWidget {
   final PosInventoryDocumentType type;
   final bool canReceiveTransfer;
+  final bool showDisplayReplenishment;
   final Map<String, dynamic> permissions;
   final ValueChanged<Map<String, dynamic>>? onReceivePurchase;
   final ValueChanged<Map<String, dynamic>>? onPayPurchase;
@@ -433,6 +437,7 @@ class _InventoryDocumentPage extends StatefulWidget {
     required this.type,
     required this.permissions,
     this.canReceiveTransfer = false,
+    this.showDisplayReplenishment = false,
     this.onReceivePurchase,
     this.onPayPurchase,
   });
@@ -457,6 +462,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   bool _loading = true;
   String? _runningActionId;
   String? _runningActionLabel;
+  bool _openingDisplayMove = false;
 
   static const _limit = 20;
 
@@ -467,7 +473,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     if (widget.type == PosInventoryDocumentType.purchase) {
       // The server returns approval eligibility with each visible document.
     }
-    if (widget.type == PosInventoryDocumentType.opname) _loadWarehouses();
+    if (widget.type == PosInventoryDocumentType.opname ||
+        widget.type == PosInventoryDocumentType.scrap) {
+      _loadWarehouses();
+    }
   }
 
   @override
@@ -763,6 +772,78 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       );
     }
     if (changed == true && mounted) _load(page: 1);
+  }
+
+  Future<void> _openDisplayReplenishment() async {
+    if (_openingDisplayMove) return;
+    setState(() => _openingDisplayMove = true);
+    try {
+      final result = await _repository.getWarehouses();
+      if (!mounted) return;
+      final warehouses = result.fold<List<Map<String, dynamic>>?>(
+        (failure) {
+          AppToast.error(context, failure.message);
+          return null;
+        },
+        (items) => items,
+      );
+      if (warehouses == null) return;
+      final pairs = <(Map<String, dynamic>, Map<String, dynamic>)>[];
+      for (final source in warehouses.where(
+        (item) => item['warehouse_type'] == 'store' &&
+            item['is_transfer_source'] != false &&
+            item['linked_toko_id'] != null,
+      )) {
+        for (final destination in warehouses.where(
+          (item) => item['warehouse_type'] == 'display' &&
+              item['is_transfer_destination'] != false &&
+              item['linked_toko_id']?.toString() ==
+                  source['linked_toko_id']?.toString(),
+        )) {
+          pairs.add((source, destination));
+        }
+      }
+      if (pairs.isEmpty) {
+        AppToast.warning(
+          context,
+          'Tautkan gudang toko dan display ke outlet POS yang sama di Warehouse & Lokasi.',
+        );
+        return;
+      }
+      final selectedIndex = pairs.length == 1
+          ? 0
+          : await showDialog<int>(
+              context: context,
+              builder: (dialogContext) => SimpleDialog(
+                title: const Text('Pilih lokasi isi rak'),
+                children: [
+                  for (var index = 0; index < pairs.length; index++)
+                    SimpleDialogOption(
+                      onPressed: () => Navigator.pop(dialogContext, index),
+                      child: Text(
+                        '${pairs[index].$1['nama_cabang']} → ${pairs[index].$2['nama_cabang']}',
+                      ),
+                    ),
+                ],
+              ),
+            );
+      if (!mounted || selectedIndex == null) return;
+      final pair = pairs[selectedIndex];
+      final changed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PosInventoryEditorPage(
+            type: PosInventoryDocumentType.transfer,
+            initialSourceId: pair.$1['_id']?.toString(),
+            initialDestinationId: pair.$2['_id']?.toString(),
+            displayReplenishment: true,
+          ),
+        ),
+      );
+      if (changed == true && mounted) _load(page: 1);
+    } finally {
+      if (mounted) setState(() => _openingDisplayMove = false);
+    }
   }
 
   Future<void> _runAction(Map<String, dynamic> item, String action) async {
@@ -1247,6 +1328,28 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               },
             ),
           ),
+          if (widget.type == PosInventoryDocumentType.transfer &&
+              widget.showDisplayReplenishment &&
+              _can('create'))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _openingDisplayMove
+                      ? null
+                      : _openDisplayReplenishment,
+                  icon: _openingDisplayMove
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.shelves, size: 18),
+                  label: const Text('Isi Rak Display'),
+                ),
+              ),
+            ),
           if (_runningActionLabel != null) ...[
             const LinearProgressIndicator(minHeight: 3),
             Padding(
@@ -1852,9 +1955,22 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     final system = row['qty_system'];
                     final isScrap =
                         widget.type == PosInventoryDocumentType.scrap;
+                    final sourceBranchId =
+                        row['lokasi_cabang_id']?.toString() ?? '';
+                    final sourceWarehouse = _warehouses.where(
+                      (warehouse) =>
+                          warehouse['_id']?.toString() == sourceBranchId,
+                    );
+                    final sourceBranchName =
+                        (row['lokasi_cabang_nama']?.toString().trim() ?? '')
+                                .isNotEmpty
+                            ? row['lokasi_cabang_nama']
+                            : sourceWarehouse.isEmpty
+                            ? ''
+                            : sourceWarehouse.first['nama_cabang'];
                     final source =
                         [
-                              row['lokasi_cabang_nama'],
+                              sourceBranchName,
                               row['lokasi_gedung_nama'] ??
                                   row['lokasi_gedung_kode'],
                               row['lokasi_ruangan_nama'] ??
@@ -1873,7 +1989,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                             )
                           : isScrap
                           ? Text(
-                              '${source.isEmpty ? 'Sumber stok tidak tercatat' : source}'
+                              '${source.isEmpty ? (row['stock_balance_id'] == null ? 'Sumber stok tidak tercatat' : 'Lokasi stok') : source}'
                               '${(row['no_batch']?.toString() ?? '').isEmpty ? '' : ' • Batch ${row['no_batch']}'}\n'
                               '${row['tindakan'] == 'recycle' ? 'Recycle ${_compactNumber(row['jumlah_hasil_recycle'])} • ' : ''}'
                               'Hilang ${_compactNumber(row['jumlah_hilang'] ?? row['qty'])}',
@@ -2009,6 +2125,16 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       canViewPurchasePayments: widget.permissions['view_payables'] == true,
       purchaseHasPayable: item['payable_status'] != null,
     );
+    if (widget.type == PosInventoryDocumentType.scrap) {
+      final submittedBy = item['diajukan_oleh'];
+      final submittedById = submittedBy is Map
+          ? submittedBy['_id']?.toString()
+          : submittedBy?.toString();
+      final operatorId = context.read<AppLockCubit>().state.activeEmployeeId;
+      if (submittedById != null && submittedById == operatorId) {
+        actions.remove('approve');
+      }
+    }
     if (widget.type == PosInventoryDocumentType.purchase) {
       actions.add('preview_po');
       if (PosPurchaseOrderDocument.isApproved(item)) {
@@ -2774,9 +2900,14 @@ String _location(dynamic raw) {
   return label.isEmpty ? 'Lokasi belum tercatat' : label;
 }
 
-String _compactNumber(double value) => value == value.roundToDouble()
-    ? value.toInt().toString()
-    : value.toStringAsFixed(2);
+String _compactNumber(dynamic value) {
+  final number = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  return number == number.roundToDouble()
+      ? number.toInt().toString()
+      : number.toStringAsFixed(2);
+}
 
 String _money(dynamic value) => NumberFormat.currency(
   locale: 'id_ID',

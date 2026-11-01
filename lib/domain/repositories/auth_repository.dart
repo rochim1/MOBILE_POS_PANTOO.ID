@@ -572,7 +572,45 @@ class AuthRepository {
     _clientProvider.setAccessToken(token);
     if (_prefs.getBool('needs_workspace_setup') == true &&
         (_prefs.getString('instansi_id')?.isEmpty ?? true)) {
-      return true;
+      // A saved account without a workspace still needs a live identity
+      // check. Otherwise a removed account or a restarted QA tenant can open
+      // the business-creation screen with an orphaned token.
+      try {
+        final identity = await _clientProvider.client
+            .query(
+              QueryOptions(
+                document: gql(PosQueries.getCurrentUser),
+                fetchPolicy: FetchPolicy.networkOnly,
+              ),
+            )
+            .timeout(const Duration(seconds: 10));
+        if (identity.hasException) {
+          final exception = identity.exception!;
+          if (supportsOfflineDatabase && isOfflineReadFailure(exception)) {
+            return true;
+          }
+          final failure = AppErrorHandler.handle(exception);
+          if (failure is AuthFailure ||
+              failure.message.toLowerCase().contains('user tidak ditemukan')) {
+            await _clearInvalidSession();
+            return false;
+          }
+          throw failure;
+        }
+        final currentUser = identity.data?['GetOneUser'];
+        if (currentUser == null ||
+            currentUser['_id']?.toString() != restoredUserId) {
+          await _clearInvalidSession();
+          return false;
+        }
+        final tenantId = currentUser['instansi_id']?['_id']?.toString() ?? '';
+        if (tenantId.isEmpty) return true;
+        await _prefs.setString('instansi_id', tenantId);
+        await _prefs.remove('needs_workspace_setup');
+      } catch (error) {
+        if (supportsOfflineDatabase && isOfflineReadFailure(error)) return true;
+        rethrow;
+      }
     }
     if (supportsOfflineDatabase) {
       try {
@@ -623,6 +661,11 @@ class AuthRepository {
       if (supportsOfflineDatabase && isOfflineReadFailure(error)) return true;
       rethrow;
     }
+    await _clearInvalidSession();
+    return false;
+  }
+
+  Future<void> _clearInvalidSession() async {
     _clientProvider.setAccessToken(null);
     await _secureStorage.delete(key: 'auth_token');
     await _secureStorage.delete(key: 'refresh_token');
@@ -630,7 +673,7 @@ class AuthRepository {
     await _prefs.remove('user_id');
     await _prefs.remove('instansi_id');
     await _prefs.remove('pos_runtime_config');
-    return false;
+    await _prefs.remove('needs_workspace_setup');
   }
 
   String? getSavedUsername() {

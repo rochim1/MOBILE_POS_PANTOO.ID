@@ -121,6 +121,12 @@ class PosQueries {
           view_transactions
           view_reports
           view_returns
+          create_returns
+          submit_returns
+          approve_returns
+          process_returns
+          delete_returns
+          cancel_orders
           view_settings
           view_receipt
           view_stock
@@ -277,6 +283,12 @@ class PosQueries {
     }
   ''';
 
+  static const String getCurrentUser = r'''
+    query GetCurrentPOSUser {
+      GetOneUser { _id instansi_id { _id } }
+    }
+  ''';
+
   static const String register = r'''
     mutation CreateUser($input: UserInput) {
       CreateUser(input: $input) {
@@ -372,6 +384,13 @@ class PosQueries {
         shift_mode
         opened_at
         opening_cash
+        closing_cash_expected
+        total_transaksi
+        total_penjualan
+        total_tunai
+        total_non_tunai
+        petty_cash_in
+        petty_cash_out
         status
         toko {
           _id

@@ -852,7 +852,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
         (state.runtimeConfig['features'] as Map?)?['track_stock'] != false;
     if (trackStock &&
         product.tracksStock &&
-        (state.cart[product] ?? 0) + 1 > product.stock) {
+        state.baseQuantityFor(product, (state.cart[product] ?? 0) + 1) >
+            product.stock) {
       AppToast.warning(context, 'Stok ${product.name} tidak mencukupi');
       return;
     }

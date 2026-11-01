@@ -7,21 +7,35 @@ import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../network/graphql_client_provider.dart';
+import 'local_customer_display_host_stub.dart'
+    if (dart.library.io) 'local_customer_display_host_io.dart'
+    as local;
 
-enum PosCustomerDisplayConnection { disconnected, connecting, waiting, connected, error }
+enum PosCustomerDisplayTransport { internet, localWifi }
+
+enum PosCustomerDisplayConnection {
+  disconnected,
+  connecting,
+  waiting,
+  connected,
+  error,
+}
 
 class PosCustomerDisplayState {
   final PosCustomerDisplayConnection connection;
   final String pairingUrl;
   final String message;
+  final PosCustomerDisplayTransport transport;
 
   const PosCustomerDisplayState({
     this.connection = PosCustomerDisplayConnection.disconnected,
     this.pairingUrl = '',
     this.message = '',
+    this.transport = PosCustomerDisplayTransport.internet,
   });
 
-  bool get isActive => connection == PosCustomerDisplayConnection.waiting ||
+  bool get isActive =>
+      connection == PosCustomerDisplayConnection.waiting ||
       connection == PosCustomerDisplayConnection.connected;
 }
 
@@ -32,8 +46,11 @@ class PosCustomerDisplayService {
 
   final GraphQLClientProvider _network;
   final FlutterSecureStorage _secureStorage;
-  final ValueNotifier<PosCustomerDisplayState> state =
-      ValueNotifier(const PosCustomerDisplayState());
+  final local.LocalCustomerDisplayHost _localHost =
+      local.LocalCustomerDisplayHost();
+  final ValueNotifier<PosCustomerDisplayState> state = ValueNotifier(
+    const PosCustomerDisplayState(),
+  );
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
@@ -42,22 +59,75 @@ class PosCustomerDisplayService {
   Timer? _reconnectTimer;
   Timer? _handshakeTimer;
   bool _manualDisconnect = false;
+  bool _authRecoveryInProgress = false;
   int _reconnectAttempts = 0;
+  PosCustomerDisplayTransport _transport = PosCustomerDisplayTransport.internet;
 
   Future<PosCustomerDisplayState> beginPairing() async {
     await disconnect();
+    _transport = PosCustomerDisplayTransport.internet;
     final token = await _secureStorage.read(key: 'auth_token');
     if (token == null || token.trim().isEmpty) {
-      return _terminalFailure('Sesi POS tidak tersedia. Login kembali terlebih dahulu.');
+      return _terminalFailure(
+        'Sesi POS tidak tersedia. Login kembali terlebih dahulu.',
+      );
     }
 
     _manualDisconnect = false;
     _pairingToken = const Uuid().v4().replaceAll('-', '');
     final connected = await _connect(token, isInitialConnection: true);
     if (!connected) {
-      return _terminalFailure('Tidak dapat menghubungkan layanan layar pelanggan.');
+      return _terminalFailure(
+        'Tidak dapat menghubungkan layanan layar pelanggan.',
+      );
     }
     return state.value;
+  }
+
+  Future<PosCustomerDisplayState> beginLocalPairing() async {
+    await disconnect();
+    _manualDisconnect = false;
+    _transport = PosCustomerDisplayTransport.localWifi;
+    final token = const Uuid().v4().replaceAll('-', '');
+    _pairingToken = token;
+    state.value = const PosCustomerDisplayState(
+      connection: PosCustomerDisplayConnection.connecting,
+      transport: PosCustomerDisplayTransport.localWifi,
+    );
+    try {
+      final url = await _localHost.start(
+        token,
+        onClientCountChanged: (count) {
+          if (_pairingToken != token ||
+              _transport != PosCustomerDisplayTransport.localWifi) {
+            return;
+          }
+          state.value = PosCustomerDisplayState(
+            connection: count > 0
+                ? PosCustomerDisplayConnection.connected
+                : PosCustomerDisplayConnection.waiting,
+            pairingUrl: state.value.pairingUrl,
+            transport: PosCustomerDisplayTransport.localWifi,
+          );
+        },
+      );
+      if (_pairingToken != token || _manualDisconnect) {
+        await _localHost.stop();
+        return state.value;
+      }
+      state.value = PosCustomerDisplayState(
+        connection: PosCustomerDisplayConnection.waiting,
+        pairingUrl: url,
+        transport: PosCustomerDisplayTransport.localWifi,
+      );
+      return state.value;
+    } catch (error) {
+      return _terminalFailure(
+        error is StateError
+            ? error.message.toString()
+            : 'Wi-Fi lokal belum dapat dibuka. Periksa jaringan dan coba lagi.',
+      );
+    }
   }
 
   Future<bool> _connect(
@@ -70,7 +140,9 @@ class PosCustomerDisplayService {
     state.value = PosCustomerDisplayState(
       connection: PosCustomerDisplayConnection.connecting,
       pairingUrl: _pairingUrl(_pairingToken),
-      message: isInitialConnection ? '' : 'Menghubungkan ulang layar pelanggan…',
+      message: isInitialConnection
+          ? ''
+          : 'Menghubungkan ulang layar pelanggan…',
     );
 
     try {
@@ -90,13 +162,9 @@ class PosCustomerDisplayService {
         onDone: () => _handleSocketLoss(channel),
         cancelOnError: true,
       );
-      await channel.ready;
+      await channel.ready.timeout(const Duration(seconds: 8));
       if (!identical(_channel, channel)) return false;
-      _send(channel, {
-        'type': 'auth',
-        'token': token,
-        'client_type': 'mobile',
-      });
+      _send(channel, {'type': 'auth', 'token': token, 'client_type': 'mobile'});
       _handshakeTimer?.cancel();
       _handshakeTimer = Timer(const Duration(seconds: 8), () {
         if (identical(_channel, channel) &&
@@ -107,6 +175,7 @@ class PosCustomerDisplayService {
       });
       return true;
     } catch (_) {
+      await _disposeSocket();
       if (!isInitialConnection) _scheduleReconnect();
       return false;
     }
@@ -114,13 +183,23 @@ class PosCustomerDisplayService {
 
   void _onMessage(dynamic raw) {
     try {
-      final message = Map<String, dynamic>.from(jsonDecode(raw.toString()) as Map);
+      final message = Map<String, dynamic>.from(
+        jsonDecode(raw.toString()) as Map,
+      );
       final type = message['type']?.toString();
       if (type == 'auth_success') {
         _send(_channel, {
           'type': 'customer_display_host',
           'pairing_token': _pairingToken,
         });
+      } else if (type == 'auth_error') {
+        if (message['reason'] == 'token_expired') {
+          unawaited(_recoverExpiredSession());
+        } else {
+          _terminalFailure(
+            'Sesi POS tidak valid. Login kembali untuk menghubungkan layar pelanggan.',
+          );
+        }
       } else if (type == 'customer_display_host_ready') {
         _handshakeTimer?.cancel();
         _handshakeTimer = null;
@@ -155,8 +234,40 @@ class PosCustomerDisplayService {
     });
   }
 
+  Future<void> _recoverExpiredSession() async {
+    if (_authRecoveryInProgress || _manualDisconnect || _pairingToken.isEmpty) {
+      return;
+    }
+    _authRecoveryInProgress = true;
+    _handshakeTimer?.cancel();
+    _handshakeTimer = null;
+    await _disposeSocket();
+    try {
+      final refreshed = await _network.refreshAccessToken();
+      if (_manualDisconnect || _pairingToken.isEmpty) return;
+      if (!refreshed) {
+        _terminalFailure(
+          'Sesi POS berakhir. Login kembali untuk menghubungkan layar pelanggan.',
+        );
+        return;
+      }
+      final token = await _secureStorage.read(key: 'auth_token');
+      if (token == null || token.trim().isEmpty || !await _connect(token)) {
+        _scheduleReconnect();
+      }
+    } catch (_) {
+      _terminalFailure(
+        'Sesi POS berakhir. Login kembali untuk menghubungkan layar pelanggan.',
+      );
+    } finally {
+      _authRecoveryInProgress = false;
+    }
+  }
+
   void _handleSocketLoss(WebSocketChannel source) {
-    if (!identical(_channel, source) || _manualDisconnect || _pairingToken.isEmpty) {
+    if (!identical(_channel, source) ||
+        _manualDisconnect ||
+        _pairingToken.isEmpty) {
       return;
     }
     _pingTimer?.cancel();
@@ -169,9 +280,13 @@ class PosCustomerDisplayService {
   }
 
   void _scheduleReconnect() {
-    if (_manualDisconnect || _pairingToken.isEmpty || _reconnectTimer != null) return;
+    if (_manualDisconnect || _pairingToken.isEmpty || _reconnectTimer != null) {
+      return;
+    }
     if (_reconnectAttempts >= 3) {
-      _terminalFailure('Koneksi layar pelanggan terputus. Buat pairing baru untuk mencoba lagi.');
+      _terminalFailure(
+        'Koneksi layar pelanggan terputus. Buat pairing baru untuk mencoba lagi.',
+      );
       return;
     }
     _reconnectAttempts += 1;
@@ -184,7 +299,9 @@ class PosCustomerDisplayService {
       _reconnectTimer = null;
       final token = await _secureStorage.read(key: 'auth_token');
       if (token == null || token.trim().isEmpty) {
-        _terminalFailure('Sesi POS berakhir. Login kembali untuk menghubungkan layar pelanggan.');
+        _terminalFailure(
+          'Sesi POS berakhir. Login kembali untuk menghubungkan layar pelanggan.',
+        );
         return;
       }
       await _connect(token);
@@ -200,18 +317,23 @@ class PosCustomerDisplayService {
     String status = 'cart',
   }) {
     if (!state.value.isActive || _pairingToken.isEmpty) return;
+    final data = <String, dynamic>{
+      'items': items,
+      'subtotal': subtotal,
+      'discount': discount,
+      'total': total,
+      'store_name': storeName,
+      'status': status,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (_transport == PosCustomerDisplayTransport.localWifi) {
+      _localHost.publish(data);
+      return;
+    }
     _send(_channel, {
       'type': 'customer_display_state',
       'pairing_token': _pairingToken,
-      'data': {
-        'items': items,
-        'subtotal': subtotal,
-        'discount': discount,
-        'total': total,
-        'store_name': storeName,
-        'status': status,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      },
+      'data': data,
     });
   }
 
@@ -230,6 +352,7 @@ class PosCustomerDisplayService {
       });
     }
     _pairingToken = '';
+    await _localHost.stop();
     await _disposeSocket();
     state.value = const PosCustomerDisplayState();
   }
@@ -267,6 +390,7 @@ class PosCustomerDisplayService {
       });
     }
     _pairingToken = '';
+    unawaited(_localHost.stop());
     unawaited(_disposeSocket());
     final failed = PosCustomerDisplayState(
       connection: PosCustomerDisplayConnection.error,
@@ -287,14 +411,18 @@ class PosCustomerDisplayService {
 
   String _pairingUrl(String token) {
     final endpoint = Uri.parse(_network.endpointUrl);
-    final localHost = endpoint.host == 'localhost' || endpoint.host == '127.0.0.1';
+    final localHost =
+        endpoint.host == 'localhost' || endpoint.host == '127.0.0.1';
     final origin = endpoint.host == 'graphql.pantoo.id'
         ? Uri.parse('https://app.pantoo.id')
         : localHost
-            ? endpoint.replace(port: 5173, path: '/', query: null, fragment: null)
-            : endpoint.replace(path: '/', query: null, fragment: null);
+        ? endpoint.replace(port: 5173, path: '/', query: null, fragment: null)
+        : endpoint.replace(path: '/', query: null, fragment: null);
     return origin
-        .replace(path: '/pos/customer-display', queryParameters: {'pair': token})
+        .replace(
+          path: '/pos/customer-display',
+          queryParameters: {'pair': token},
+        )
         .toString();
   }
 }

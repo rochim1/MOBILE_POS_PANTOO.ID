@@ -94,4 +94,28 @@ void main() {
     expect(workspace, contains("permissions['cancel_inventory_receiving']"));
     expect(runtimeQuery, contains('over_receipt_tolerance_percent'));
   });
+
+  test(
+    'profil Simple membatasi tujuan PO dan penerimaan ke lokasi default',
+    () {
+      final editor = readProjectFile(
+        'lib/presentation/pages/pos/pos_inventory_editor_page.dart',
+      );
+      final receiving = readProjectFile(
+        'lib/presentation/pages/pos/pos_purchase_receiving_page.dart',
+      );
+      expect(editor, contains("policy['inventory_profile'] == 'simple'"));
+      expect(editor, contains('default_receiving_location_id'));
+      expect(editor, contains('_deliveryWarehouseId = defaultId'));
+    expect(editor, contains("'receiving_location_id':"));
+      expect(
+        receiving,
+        contains('List<Map<String, dynamic>> get _receivingWarehouses'),
+      );
+    expect(receiving, contains("widget.purchase['receiving_location_id']"));
+      expect(receiving, contains('items: _receivingWarehouses'));
+      expect(receiving, contains('Request lama memakai lokasi yang ditolak'));
+      expect(receiving, contains('if (rejectedByPolicy)'));
+    },
+  );
 }

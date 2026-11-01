@@ -7,6 +7,7 @@ class HoldOrder {
   final DateTime time;
   final Map<PosProduct, double> cart;
   final Map<String, double> manualUnitPrices;
+  final Map<String, String> selectedUnits;
   final PosCustomer? customer;
   final PosStore store;
   final String notes;
@@ -25,6 +26,7 @@ class HoldOrder {
     required this.time,
     required this.cart,
     this.manualUnitPrices = const {},
+    this.selectedUnits = const {},
     required this.customer,
     required this.store,
     required this.notes,
@@ -57,6 +59,11 @@ class HoldOrder {
           ),
         ),
       ),
+      selectedUnits: Map<String, String>.fromEntries(
+        (json['selectedUnits'] as Map? ?? const {}).entries.map(
+          (entry) => MapEntry(entry.key.toString(), entry.value.toString()),
+        ),
+      ),
       customer: json['customer'] == null
           ? null
           : PosCustomer.fromJson(
@@ -86,6 +93,7 @@ class HoldOrder {
         )
         .toList(),
     'manualUnitPrices': manualUnitPrices,
+    'selectedUnits': selectedUnits,
     'customer': customer?.toJson(),
     'store': store.toJson(),
     'notes': notes,

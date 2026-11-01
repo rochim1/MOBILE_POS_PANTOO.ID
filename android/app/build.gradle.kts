@@ -67,6 +67,11 @@ android {
             applicationIdSuffix = ".stg"
             resValue("string", "app_name", "Pantoo POS Stg")
         }
+        create("qa") {
+            dimension = "flavor-type"
+            applicationIdSuffix = ".qa"
+            resValue("string", "app_name", "Pantoo POS QA")
+        }
         create("production") {
             dimension = "flavor-type"
             resValue("string", "app_name", "Pantoo POS")

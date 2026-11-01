@@ -6,6 +6,7 @@ import 'pos_state.dart';
 import '../../../domain/repositories/pos_repository.dart';
 import '../../../domain/models/hold_order.dart';
 import '../../../domain/models/pos_order.dart';
+import '../../../domain/models/pos_customer.dart';
 import '../../../domain/models/pos_product.dart';
 import '../../../core/network/offline_network_failure.dart';
 import '../../../core/utils/logger.dart';
@@ -15,7 +16,8 @@ String _dashboardLoadError(Object error) {
     final serverErrors = error.linkException is ServerException
         ? (error.linkException as ServerException).parsedResponse?.errors
         : null;
-    final graphQLError = error.graphqlErrors.firstOrNull ?? serverErrors?.firstOrNull;
+    final graphQLError =
+        error.graphqlErrors.firstOrNull ?? serverErrors?.firstOrNull;
     if (graphQLError == null) {
       return 'Dashboard gagal dimuat. Periksa layanan server, lalu coba lagi.';
     }
@@ -50,6 +52,7 @@ String _defaultOrderType(Map<String, dynamic> config) {
 class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository posRepository;
   int _requestedDashboardDays = 7;
+  String? _loadedOperatorId;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
@@ -64,6 +67,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<RemoveCartItem>(_onRemoveCartItem);
     on<UpdateQuantity>(_onUpdateQuantity);
     on<UpdateCartUnitPrice>(_onUpdateCartUnitPrice);
+    on<UpdateCartUnit>(_onUpdateCartUnit);
     on<ClearCart>(_onClearCart);
     on<EditActiveOrder>(_onEditActiveOrder);
     on<SelectCustomer>(_onSelectCustomer);
@@ -86,7 +90,15 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RefreshProducts event,
     Emitter<PosState> emit,
   ) async {
-    emit(state.copyWith(productsRefreshing: true, errorMessage: ''));
+    emit(
+      state.copyWith(
+        productsRefreshing: true,
+        errorMessage: '',
+        status: state.status == PosStatus.paymentSuccess
+            ? PosStatus.success
+            : state.status,
+      ),
+    );
     try {
       final activeStore = state.activeShift == null
           ? state.stores
@@ -176,6 +188,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         cart: Map<PosProduct, double>.fromEntries(
           state.cart.entries.where((entry) => entry.key.id != event.productId),
         ),
+        selectedUnits: Map<String, String>.of(state.selectedUnits)
+          ..remove(event.productId),
+        manualUnitPrices: Map<String, double>.of(state.manualUnitPrices)
+          ..remove(event.productId),
       ),
     );
   }
@@ -239,24 +255,38 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   Future<void> _onLoadPosData(LoadPosData event, Emitter<PosState> emit) async {
-    emit(state.copyWith(status: PosStatus.loading));
+    final operatorId = posRepository.activeOperatorId;
+    if (_loadedOperatorId != operatorId) {
+      // Keep a locked terminal's previous operator data out of the next
+      // operator's cart, dashboard, permissions, and offline history.
+      _loadedOperatorId = operatorId;
+      emit(PosState(status: PosStatus.loading, isGridView: state.isGridView));
+    } else {
+      emit(state.copyWith(status: PosStatus.loading));
+    }
     try {
-      final (
-        customers,
-        runtimeConfig,
-        stores,
-        ordersPage,
-        fetchedShift,
-      ) = await (
-        posRepository.getCustomers(),
+      final (runtimeConfig, stores, fetchedShift) = await (
         posRepository.getRuntimeConfig(),
         posRepository.getStores(),
-        posRepository.getOrdersPage(),
         posRepository.getActiveShift(),
       ).wait;
-      final orders = ordersPage.items;
       // Satu kasir hanya boleh memiliki satu shift terbuka lintas toko.
       final activeShift = stores.isNotEmpty ? fetchedShift : null;
+      final permissions =
+          runtimeConfig['permissions'] as Map<String, dynamic>? ??
+          const <String, dynamic>{};
+      final canOperateWithoutShift =
+          runtimeConfig['allow_out_of_shift'] == true;
+      final customers =
+          (activeShift == null && !canOperateWithoutShift) ||
+              permissions['view_customers'] != true
+          ? <PosCustomer>[]
+          : await posRepository.getCustomers();
+      final ordersPage =
+          activeShift == null || permissions['view_transactions'] != true
+          ? (items: <PosOrder>[], hasMore: false)
+          : await posRepository.getOrdersPage();
+      final orders = ordersPage.items;
       final activeStore = activeShift != null
           ? stores
                 .where(
@@ -273,7 +303,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       if (activeStore == null || activeStore.branchId.isEmpty) {
         emit(
           state.copyWith(
-            status: PosStatus.failure,
+            status: PosStatus.success,
             customers: customers,
             runtimeConfig: runtimeConfig,
             stores: stores,
@@ -281,19 +311,27 @@ class PosBloc extends Bloc<PosEvent, PosState> {
             ordersPage: 0,
             ordersHasMore: ordersPage.hasMore,
             activeShift: activeShift,
+            clearActiveShift: activeShift == null,
             errorMessage: 'Toko shift belum terhubung ke warehouse aktif',
           ),
         );
         return;
       }
-      final products = await posRepository.getProducts(
-        branchId: activeStore.branchId,
-      );
-      final favoriteProductIds = await posRepository.getFavoriteProductIds();
-      final heldOrders = await posRepository.getHeldOrders(
-        storeId: activeStore.id,
-        shiftId: activeShift?['_id']?.toString() ?? '',
-      );
+      final products =
+          permissions['view_products'] == true ||
+              permissions['use_cashier'] == true
+          ? await posRepository.getProducts(branchId: activeStore.branchId)
+          : <PosProduct>[];
+      final favoriteProductIds = products.isNotEmpty
+          ? await posRepository.getFavoriteProductIds()
+          : <String>{};
+      final heldOrders =
+          activeShift != null && permissions['use_cashier'] == true
+          ? await posRepository.getHeldOrders(
+              storeId: activeStore.id,
+              shiftId: activeShift['_id']?.toString() ?? '',
+            )
+          : <HoldOrder>[];
 
       emit(
         state.copyWith(
@@ -362,7 +400,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final trackStock = features?['track_stock'] != false;
     if (trackStock &&
         event.product.tracksStock &&
-        current + 1.0 > event.product.stock) {
+        state.baseQuantityFor(event.product, current + 1.0) >
+            event.product.stock) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
@@ -385,10 +424,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   void _onRemoveFromCart(RemoveFromCart event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
     final prices = Map<String, double>.of(state.manualUnitPrices);
+    final units = Map<String, String>.of(state.selectedUnits);
     final currentQty = newCart[event.product] ?? 0.0;
     if (currentQty <= 1) {
       newCart.remove(event.product);
       prices.remove(event.product.id);
+      units.remove(event.product.id);
     } else {
       newCart[event.product] = currentQty - 1.0;
     }
@@ -396,6 +437,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       state.copyWith(
         cart: newCart,
         manualUnitPrices: prices,
+        selectedUnits: units,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -407,10 +449,13 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final newCart = Map.of(state.cart)..remove(event.product);
     final prices = Map<String, double>.of(state.manualUnitPrices)
       ..remove(event.product.id);
+    final units = Map<String, String>.of(state.selectedUnits)
+      ..remove(event.product.id);
     emit(
       state.copyWith(
         cart: newCart,
         manualUnitPrices: prices,
+        selectedUnits: units,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -440,9 +485,39 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     add(RefreshPricingPreview());
   }
 
+  void _onUpdateCartUnit(UpdateCartUnit event, Emitter<PosState> emit) {
+    if (!state.cart.containsKey(event.product)) return;
+    final unit = event.unit.trim().toLowerCase();
+    if (!event.product.saleUnits.contains(unit)) return;
+    final quantity = state.cart[event.product] ?? 0;
+    if ((state.runtimeConfig['features'] as Map?)?['track_stock'] != false &&
+        event.product.tracksStock &&
+        quantity * event.product.factorForUnit(unit) > event.product.stock) {
+      emit(
+        state.copyWith(
+          status: PosStatus.failure,
+          errorMessage:
+              'Stok ${event.product.name} tidak mencukupi untuk satuan $unit',
+        ),
+      );
+      return;
+    }
+    emit(
+      state.copyWith(
+        selectedUnits: {...state.selectedUnits, event.product.id: unit},
+        manualUnitPrices: Map<String, double>.of(state.manualUnitPrices)
+          ..remove(event.product.id),
+        status: PosStatus.success,
+        clearPricingPreview: true,
+      ),
+    );
+    add(RefreshPricingPreview());
+  }
+
   void _onUpdateQuantity(UpdateQuantity event, Emitter<PosState> emit) {
     final newCart = Map.of(state.cart);
     final prices = Map<String, double>.of(state.manualUnitPrices);
+    final units = Map<String, String>.of(state.selectedUnits);
     final currentQty = newCart[event.product] ?? 0.0;
     final nextQty = currentQty + event.delta;
 
@@ -450,7 +525,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final trackStock = features?['track_stock'] != false;
     if (trackStock &&
         event.product.tracksStock &&
-        nextQty > event.product.stock) {
+        state.baseQuantityFor(event.product, nextQty) > event.product.stock) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
@@ -461,6 +536,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     } else if (nextQty <= 0) {
       newCart.remove(event.product);
       prices.remove(event.product.id);
+      units.remove(event.product.id);
     } else {
       newCart[event.product] = nextQty;
     }
@@ -468,6 +544,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       state.copyWith(
         cart: newCart,
         manualUnitPrices: prices,
+        selectedUnits: units,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -480,6 +557,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       state.copyWith(
         cart: const {},
         manualUnitPrices: const {},
+        selectedUnits: const {},
         manualDiscountPercent: 0,
         promoCode: '',
         discountPolicy: state.defaultDiscountPolicy,
@@ -503,6 +581,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       for (final product in state.products) product.id: product,
     };
     final cart = <PosProduct, double>{};
+    final selectedUnits = <String, String>{};
     for (final item in order.items) {
       final product =
           productsById[item.productId] ??
@@ -519,7 +598,13 @@ class PosBloc extends Bloc<PosEvent, PosState> {
                   baseUnit: item.unit ?? 'unit',
                 ));
       final quantity = item.quantity ?? 0.0;
-      if (product != null && quantity > 0) cart[product] = quantity;
+      if (product != null && quantity > 0) {
+        cart[product] = quantity;
+        final unit = item.unit?.trim().toLowerCase();
+        if (unit != null && product.saleUnits.contains(unit)) {
+          selectedUnits[product.id] = unit;
+        }
+      }
     }
     final matchingCustomers = state.customers.where(
       (customer) => customer.id == order.customerId,
@@ -527,6 +612,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     emit(
       state.copyWith(
         cart: cart,
+        selectedUnits: selectedUnits,
         orderType: 'dine_in',
         selectedTableId: order.tableId,
         selectedTableName: order.tableName,
@@ -567,6 +653,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       time: DateTime.now(),
       cart: Map.of(state.cart),
       manualUnitPrices: Map.of(state.manualUnitPrices),
+      selectedUnits: Map.of(state.selectedUnits),
       customer: state.selectedCustomer,
       store: activeStores.first,
       notes: event.notes,
@@ -601,6 +688,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         heldOrders: newHeldOrders,
         cart: const {},
         manualUnitPrices: const {},
+        selectedUnits: const {},
         manualDiscountPercent: 0,
         promoCode: '',
         discountPolicy: state.defaultDiscountPolicy,
@@ -641,6 +729,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       cart: state.cart,
       tokoId: storeId,
       unitPrices: state.manualUnitPrices,
+      selectedUnits: state.selectedUnits,
       promoCode: state.promoCode,
       discountPolicy: state.discountPolicy,
       manualDiscount: state.manualDiscount,
@@ -681,6 +770,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       state.copyWith(
         cart: event.order.cart,
         manualUnitPrices: event.order.manualUnitPrices,
+        selectedUnits: event.order.selectedUnits,
         manualDiscountPercent: event.order.manualDiscountPercent,
         promoCode: event.order.promoCode,
         discountPolicy: event.order.discountPolicy,
@@ -730,12 +820,16 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   ) async {
     if (state.cart.isEmpty) return;
     if (state.promoCode.trim().isNotEmpty && !state.promoApplied) {
-      emit(state.copyWith(
-        status: PosStatus.failure,
-        errorMessage: state.pricingPreview?['promo_message']?.toString().isNotEmpty == true
-            ? state.pricingPreview!['promo_message'].toString()
-            : 'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.',
-      ));
+      emit(
+        state.copyWith(
+          status: PosStatus.failure,
+          errorMessage:
+              state.pricingPreview?['promo_message']?.toString().isNotEmpty ==
+                  true
+              ? state.pricingPreview!['promo_message'].toString()
+              : 'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.',
+        ),
+      );
       return;
     }
     final stateCustomer = state.selectedCustomer;
@@ -789,6 +883,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         tokoId: tokoId,
         shiftId: state.activeShift?['_id']?.toString() ?? '',
         unitPrices: state.manualUnitPrices,
+        selectedUnits: state.selectedUnits,
+        receiptUnitPrices: {
+          for (final product in state.cart.keys)
+            product.id: state.unitPriceFor(product),
+        },
         // Cash is stored in whole rupiah. Round here as a final guard against
         // floating-point artefacts from discounts/tax calculations.
         cashReceived: event.cashReceived.roundToDouble(),
@@ -827,6 +926,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
             status: PosStatus.paymentSuccess,
             cart: const {},
             manualUnitPrices: const {},
+            selectedUnits: const {},
             manualDiscountPercent: 0,
             promoCode: '',
             discountPolicy: state.defaultDiscountPolicy,
@@ -946,6 +1046,17 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     Emitter<PosState> emit,
   ) async {
     _requestedDashboardDays = event.days;
+    if (state.runtimeConfig.isNotEmpty && state.activeShift == null) {
+      emit(
+        state.copyWith(
+          dashboardData: const {
+            '_dashboard_error':
+                'Buka shift kasir untuk melihat dashboard toko ini.',
+          },
+        ),
+      );
+      return;
+    }
     // Agregasi server adalah sumber utama agar dashboard tidak bergantung
     // pada jumlah halaman riwayat yang sudah dimuat di perangkat.
     try {
@@ -982,11 +1093,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       }
       if (!offline) {
         emit(
-          state.copyWith(
-            dashboardData: {
-              '_dashboard_error': failureMessage,
-            },
-          ),
+          state.copyWith(dashboardData: {'_dashboard_error': failureMessage}),
         );
         return;
       }

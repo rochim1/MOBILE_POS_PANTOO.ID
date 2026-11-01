@@ -194,6 +194,18 @@ void main() {
       await store.cacheEmployees([]);
       expect((await store.verify('a', '123456'))?['success'], isTrue);
     });
+    test('complete online PIN roster removes an operator absent from server', () async {
+      await store.cacheVerifiedPin(
+        userId: 'b',
+        pin: '654321',
+        response: {'name': 'B'},
+      );
+      await store.cacheEmployees([
+        {'_id': 'b', 'name': 'B', 'has_pin': true},
+      ], completeRoster: true);
+      expect(await store.verify('a', '123456'), isNull);
+      expect((await store.verify('b', '654321'))?['success'], isTrue);
+    });
     test(
       'five wrong attempts lock even a correct PIN for fifteen minutes',
       () async {

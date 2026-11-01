@@ -51,6 +51,15 @@ class PosReturnQueries {
     }
   ''';
 
+  static const String submitSalesReturn = r'''
+    mutation SubmitSalesReturn($_id: ID!) {
+      SubmitSalesReturn(_id: $_id) {
+        _id
+        status
+      }
+    }
+  ''';
+
   static const String rejectSalesReturn = r'''
     mutation RejectSalesReturn($_id: ID!, $catatan: String!) {
       RejectSalesReturn(_id: $_id, catatan: $catatan) {

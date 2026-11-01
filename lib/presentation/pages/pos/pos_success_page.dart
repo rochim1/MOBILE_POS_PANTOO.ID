@@ -20,10 +20,12 @@ import 'package:url_launcher/url_launcher.dart';
 class PosSuccessPage extends StatelessWidget {
   final PosTransactionResult transaction;
   final bool autoPrint;
+  final VoidCallback? onDone;
   const PosSuccessPage({
     super.key,
     required this.transaction,
     this.autoPrint = false,
+    this.onDone,
   });
 
   @override
@@ -198,6 +200,7 @@ class PosSuccessPage extends StatelessWidget {
                                       context,
                                       (route) => route.isFirst,
                                     );
+                                    onDone?.call();
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primary,

@@ -75,6 +75,14 @@ class UpdateCartUnitPrice extends PosEvent {
   List<Object> get props => [product, price];
 }
 
+class UpdateCartUnit extends PosEvent {
+  final PosProduct product;
+  final String unit;
+  const UpdateCartUnit(this.product, this.unit);
+  @override
+  List<Object> get props => [product, unit];
+}
+
 class ClearCart extends PosEvent {}
 
 class EditActiveOrder extends PosEvent {

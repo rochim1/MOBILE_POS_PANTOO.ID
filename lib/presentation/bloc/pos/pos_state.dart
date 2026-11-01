@@ -25,6 +25,7 @@ class PosState extends Equatable {
 
   final Map<PosProduct, double> cart;
   final Map<String, double> manualUnitPrices;
+  final Map<String, String> selectedUnits;
   final List<HoldOrder> heldOrders;
 
   final double manualDiscountPercent;
@@ -65,6 +66,7 @@ class PosState extends Equatable {
     this.editingOrderNumber,
     this.cart = const {},
     this.manualUnitPrices = const {},
+    this.selectedUnits = const {},
     this.heldOrders = const [],
     this.manualDiscountPercent = 0,
     this.promoCode = '',
@@ -103,6 +105,7 @@ class PosState extends Equatable {
     bool clearEditingOrder = false,
     Map<PosProduct, double>? cart,
     Map<String, double>? manualUnitPrices,
+    Map<String, String>? selectedUnits,
     List<HoldOrder>? heldOrders,
     double? manualDiscountPercent,
     String? promoCode,
@@ -147,6 +150,7 @@ class PosState extends Equatable {
           : (editingOrderNumber ?? this.editingOrderNumber),
       cart: cart ?? this.cart,
       manualUnitPrices: manualUnitPrices ?? this.manualUnitPrices,
+      selectedUnits: selectedUnits ?? this.selectedUnits,
       heldOrders: heldOrders ?? this.heldOrders,
       manualDiscountPercent:
           manualDiscountPercent ?? this.manualDiscountPercent,
@@ -181,6 +185,16 @@ class PosState extends Equatable {
     0,
     (sum, entry) => sum + (unitPriceFor(entry.key) * entry.value),
   );
+
+  String unitFor(PosProduct product) {
+    final selected = selectedUnits[product.id]?.trim().toLowerCase();
+    return selected != null && product.saleUnits.contains(selected)
+        ? selected
+        : product.saleUnit;
+  }
+
+  double baseQuantityFor(PosProduct product, double quantity) =>
+      quantity * product.factorForUnit(unitFor(product));
 
   double get subTotal =>
       (pricingPreview?['subtotal'] as num?)?.toDouble() ?? baseSubtotal;
@@ -238,9 +252,10 @@ class PosState extends Equatable {
       (item) => item['inventaris_id']?.toString() == product.id,
     );
     if (match != null && match.isNotEmpty) {
-      return (match.first['harga_jual'] as num?)?.toDouble() ?? product.price;
+      return (match.first['harga_jual'] as num?)?.toDouble() ??
+          product.price * product.factorForUnit(unitFor(product));
     }
-    return product.price;
+    return product.price * product.factorForUnit(unitFor(product));
   }
 
   String get defaultSalesChannel =>
@@ -297,6 +312,7 @@ class PosState extends Equatable {
     editingOrderNumber,
     cart,
     manualUnitPrices,
+    selectedUnits,
     heldOrders,
     manualDiscountPercent,
     promoCode,
