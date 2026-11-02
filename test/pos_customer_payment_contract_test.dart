@@ -45,10 +45,39 @@ void main() {
     ).readAsStringSync();
 
     expect(cashier, contains('initialCustomer:'));
-    expect(payment, contains('customerOverride: widget.initialCustomer'));
+    expect(
+      payment,
+      matches(
+        RegExp(
+          r'customerOverride:\s*_paymentCustomer\s*\?\?\s*widget.initialCustomer',
+        ),
+      ),
+    );
     expect(bloc, contains('stateCustomer.id.trim().isNotEmpty'));
     expect(bloc, contains(': event.customerOverride'));
   });
+
+  test(
+    'new order uses the customer just selected, not an older bloc snapshot',
+    () {
+      final payment = File(
+        'lib/presentation/pages/pos/pos_payment_page.dart',
+      ).readAsStringSync();
+      final start = payment.indexOf('Future<void> _createInvoice(');
+      final end = payment.indexOf('Future<void> _enterCustomCash', start);
+      final create = payment.substring(start, end);
+      expect(
+        create,
+        matches(
+          RegExp(
+            r'final checkoutCustomer\s*=\s*_paymentCustomer\s*\?\?\s*state.selectedCustomer\s*\?\?\s*widget.initialCustomer',
+          ),
+        ),
+      );
+      expect(create, contains('customerId: checkoutCustomer?.id'));
+      expect(create, contains('customerName: checkoutCustomer?.name'));
+    },
+  );
 
   test('memilih pelanggan membersihkan kegagalan pembayaran sebelumnya', () {
     final bloc = File(

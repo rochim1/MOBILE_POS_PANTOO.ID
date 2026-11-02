@@ -11,4 +11,5 @@ String? nextPosOrderStatus(String? current) => switch (current) {
 
 bool shouldPayBeforeOrderTransition(PosOrderDetail order, String target) =>
     order.paymentStatus != 'lunas' &&
-    (target == 'Selesai' || order.webOrderPayBeforeProcessing);
+    ((target == 'Selesai' && !order.financiallyReleased) ||
+        order.webOrderPayBeforeProcessing);

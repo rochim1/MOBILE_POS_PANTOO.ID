@@ -19,7 +19,7 @@ class PosSettingsQueries {
         onboarding_version
         operational_setup_completed
         business_profile
-        enabled_features { use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
+        enabled_features { use_order_queue use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
         pajak_persen
         default_metode_pembayaran
         default_channel_penjualan
@@ -55,7 +55,7 @@ class PosSettingsQueries {
         onboarding_version
         operational_setup_completed
         business_profile
-        enabled_features { use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
+        enabled_features { use_order_queue use_tables use_kitchen_flow use_service_order use_appointments use_technicians use_vehicle_data use_delivery require_customer track_stock }
         pajak_persen
         default_metode_pembayaran
         default_channel_penjualan

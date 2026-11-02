@@ -1,4 +1,6 @@
+import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
 import 'package:flutter/material.dart';
+import 'utils/pos_service_quantity.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +18,7 @@ import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/models/pos_customer.dart';
 import 'widgets/pos_quick_customer_dialog.dart';
+import 'widgets/pos_payment_connection_badge.dart';
 
 class PosPaymentPage extends StatefulWidget {
   final PosOrder? pendingOrder;
@@ -136,37 +139,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(left: 8, right: 12),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Online',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            child: Center(child: PosPaymentConnectionBadge()),
           ),
         ],
       ),
@@ -175,6 +148,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           if (state.status == PosStatus.paymentSuccess) {
             final transaction = state.lastTransaction;
             if (transaction == null) return;
+            sl<PosCustomerDisplayService>().publishCart(
+              items: const [],
+              subtotal: transaction.subtotal,
+              discount: transaction.discount,
+              total: transaction.total,
+              storeName: transaction.storeName.isNotEmpty
+                  ? transaction.storeName
+                  : _activeStoreName(context),
+              status: 'payment_success',
+            );
             final posBloc = context.read<PosBloc>();
             Navigator.pushReplacement(
               context,
@@ -314,7 +297,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                   Icons.receipt_long,
                                   state.orderType == 'dine_in'
                                       ? 'Simpan ke Meja'
-                                      : 'Jadikan Invoice',
+                                      : 'Buat Pesanan / Ambil Nanti',
                                   onPressed:
                                       _creatingInvoice ||
                                           widget.pendingOrder != null
@@ -767,6 +750,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             payments: _splitPayments,
                                             note: _invoiceNote,
                                             customerOverride:
+                                                _paymentCustomer ??
                                                 widget.initialCustomer,
                                             serviceOrder: _serviceOrder,
                                           ),
@@ -976,7 +960,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final vehicleModel = TextEditingController();
     final technician = TextEditingController();
     DateTime? appointmentAt;
-    String mode = 'kiloan';
+    String mode = profile == 'laundry' ? 'kiloan' : 'satuan';
     String validationMessage = '';
     ModalRoute<Map<String, dynamic>>? serviceDialogRoute;
     final result = await showDialog<Map<String, dynamic>>(
@@ -1247,11 +1231,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     });
                     return;
                   }
-                  final pricingBasis = switch (mode) {
-                    'kiloan' => 'per_kg',
-                    'paket' => 'package',
-                    _ => 'per_item',
-                  };
+                  final pricingBasis = posServicePricingBasis(profile, mode);
                   final serviceLines = serviceEntries.indexed.map((indexed) {
                     final index = indexed.$1;
                     final entry = indexed.$2;
@@ -1283,14 +1263,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         ? notes.text.trim()
                         : '',
                     'service_mode': profile == 'laundry' ? mode : '',
-                    'weight_kg': kg,
+                    'weight_kg': profile == 'laundry' && mode != 'kiloan'
+                        ? 0
+                        : kg,
                     'item_count': count,
                     'bag_tag': tag.text.trim(),
                     'vehicle_no': vehicleNo.text.trim().toUpperCase(),
                     'vehicle_model': vehicleModel.text.trim(),
                     'technician_name': technician.text.trim(),
                     if (appointmentAt != null)
-                      'appointment_at': appointmentAt!.toIso8601String(),
+                      'appointment_at': appointmentAt!
+                          .toUtc()
+                          .toIso8601String(),
                     'status': 'diterima',
                     if (serviceLines.isNotEmpty) 'service_lines': serviceLines,
                   });
@@ -1359,7 +1343,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         AppToast.error(context, failure.message);
       },
       (_) {
+        sl<PosCustomerDisplayService>().publishCart(
+          items: const [],
+          subtotal: order.subtotal,
+          discount: order.discountAmount,
+          total: order.total,
+          storeName: _activeStoreName(context),
+          status: 'payment_success',
+        );
         context.read<PosBloc>().add(RefreshOrders());
+        context.read<PosBloc>().add(
+          const RefreshPosRuntimeConfig(preserveCheckout: true),
+        );
         AppToast.success(context, 'Invoice ${order.invoice} berhasil dibayar');
         Navigator.pop(context);
       },
@@ -1583,11 +1578,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         ?.toString()
         .trim();
     if (fromShift != null && fromShift.isNotEmpty) return fromShift;
-    final storeId = state.activeShift?['toko_id']?.toString();
-    final matching = state.stores.where((store) => store.id == storeId);
-    if (matching.isNotEmpty) return matching.first.name;
-    if (state.stores.length == 1) return state.stores.first.name;
-    return 'Pantoo POS';
+    return state.checkoutStore?.name ?? 'Pantoo POS';
   }
 
   String _failureTitle(String message) {
@@ -1879,7 +1870,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   if (_serviceOrder != null) {
                     _serviceOrder = {
                       ..._serviceOrder!,
-                      'appointment_at': start!.toIso8601String(),
+                      'appointment_at': start!.toUtc().toIso8601String(),
                     };
                   }
                   Navigator.pop(dialogContext, true);
@@ -1911,6 +1902,23 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       if (!await _ensureRequiredCustomer(state)) return;
       if (!context.mounted) return;
       state = context.read<PosBloc>().state;
+      // SelectCustomer is dispatched asynchronously. The picker result is
+      // authoritative even before that event has updated the captured state.
+      final checkoutCustomer =
+          _paymentCustomer ?? state.selectedCustomer ?? widget.initialCustomer;
+      final checkoutStore = state.checkoutStore;
+      if (checkoutStore == null) {
+        AppToast.warning(
+          context,
+          'Toko aktif belum terhubung ke lokasi stok. Periksa toko dan shift kasir.',
+        );
+        return;
+      }
+      if (state.activeShift == null &&
+          state.runtimeConfig['allow_out_of_shift'] != true) {
+        AppToast.warning(context, 'Buka shift kasir sebelum membuat pesanan.');
+        return;
+      }
       if (state.orderType == 'dine_in' &&
           (state.selectedTableId == null || state.selectedTableId!.isEmpty)) {
         AppToast.warning(
@@ -1927,14 +1935,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 ? 'Simpan reservasi & lanjut bayar?'
                 : state.orderType == 'dine_in'
                 ? 'Simpan pesanan ke meja?'
-                : 'Jadikan Invoice?',
+                : 'Buat pesanan / ambil nanti?',
           ),
           content: Text(
             continueToPayment
                 ? 'Jadwal reservasi diperiksa sebelum pembayaran. Jika pembayaran dibatalkan, reservasi tetap tersedia di Pesanan Aktif untuk dilanjutkan.'
                 : state.orderType == 'dine_in'
                 ? 'Pesanan akan dicatat pada meja ${state.selectedTableName}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.'
-                : 'Pesanan akan disimpan sebagai tagihan belum dibayar. Stok belum dipotong sampai invoice dibayar dari Daftar Order.',
+                : 'Pesanan operasional disimpan untuk disiapkan dan dibayar kemudian. Bukan invoice piutang Finance. Buka dari Pesanan atau Riwayat Transaksi; untuk keranjang sementara gunakan Simpan pesanan.',
           ),
           actions: [
             TextButton(
@@ -1946,7 +1954,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               child: Text(
                 state.orderType == 'dine_in'
                     ? 'Simpan ke Meja'
-                    : 'Buat Invoice',
+                    : 'Buat Pesanan',
               ),
             ),
           ],
@@ -1959,13 +1967,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         clientRequestId: _invoiceRequestId,
         cart: state.cart,
         selectedUnits: state.selectedUnits,
-        tokoId: activeShift?['toko_id']?.toString() ?? '',
+        tokoId: checkoutStore.id,
         shiftId: activeShift?['_id']?.toString() ?? '',
         orderType: state.orderType,
         tableId: state.selectedTableId,
-        customerId: state.selectedCustomer?.id ?? widget.initialCustomer?.id,
-        customerName:
-            state.selectedCustomer?.name ?? widget.initialCustomer?.name,
+        customerId: checkoutCustomer?.id,
+        customerName: checkoutCustomer?.name,
         note: _invoiceNote,
         discountPercent: state.subTotal > 0
             ? (state.totalDiscount / state.subTotal * 100)
@@ -2015,26 +2022,24 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   pendingOrder: PosOrder.fromPendingOrderJson({
                     ...invoice,
                     'tipe_pesanan': state.orderType,
-                    'pelanggan_id':
-                        state.selectedCustomer?.id ??
-                        widget.initialCustomer?.id,
-                    'pelanggan_nama':
-                        state.selectedCustomer?.name ??
-                        widget.initialCustomer?.name,
+                    'pelanggan_id': checkoutCustomer?.id,
+                    'pelanggan_nama': checkoutCustomer?.name,
                   }),
-                  initialCustomer:
-                      state.selectedCustomer ?? widget.initialCustomer,
+                  initialCustomer: checkoutCustomer,
                 ),
               ),
             ),
           );
           return;
         }
+        context.read<PosBloc>().add(
+          const RefreshPosRuntimeConfig(preserveCheckout: true),
+        );
         AppToast.success(
           context,
           state.orderType == 'dine_in'
               ? 'Pesanan meja ${state.selectedTableName ?? ''} berhasil disimpan.'
-              : 'Invoice ${invoice['order_no'] ?? ''} berhasil dibuat.',
+              : 'Pesanan ${invoice['order_no'] ?? ''} tersedia di Pesanan dan Riwayat Transaksi.',
         );
         Navigator.pop(context);
       });

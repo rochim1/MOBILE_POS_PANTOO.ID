@@ -24,6 +24,7 @@ import 'widgets/pos_category_sidebar.dart';
 import 'widgets/shift_management_panel.dart';
 import 'widgets/pos_info_panel.dart';
 import 'widgets/pos_cashier_tour.dart';
+import 'widgets/pos_held_order_name_dialog.dart';
 
 class PosPage extends StatelessWidget {
   final PosCashierTourTargets? tourTargets;
@@ -144,9 +145,15 @@ class _PosPageViewState extends State<PosPageView> {
             },
           )
           .toList(),
-      subtotal: state.subTotal,
-      discount: state.totalDiscount,
-      total: state.grandTotal,
+      subtotal: state.status == PosStatus.paymentSuccess
+          ? state.lastTransaction?.subtotal ?? state.subTotal
+          : state.subTotal,
+      discount: state.status == PosStatus.paymentSuccess
+          ? state.lastTransaction?.discount ?? state.totalDiscount
+          : state.totalDiscount,
+      total: state.status == PosStatus.paymentSuccess
+          ? state.lastTransaction?.total ?? state.grandTotal
+          : state.grandTotal,
       storeName: storeName,
       status: state.status == PosStatus.paymentSuccess
           ? 'payment_success'
@@ -221,8 +228,10 @@ class _PosPageViewState extends State<PosPageView> {
           autofocus: true,
           child: BlocListener<PosBloc, PosState>(
             listener: (context, state) {
-              if (ModalRoute.of(context)?.isCurrent != true) return;
+              // Cart updates must reach the customer even while a cashier
+              // dialog or payment page covers this route.
               _publishCustomerDisplay(state);
+              if (ModalRoute.of(context)?.isCurrent != true) return;
               if (state.status == PosStatus.paymentSuccess) {
                 showDialog(
                   context: context,
@@ -920,34 +929,10 @@ class _PosPageViewState extends State<PosPageView> {
       if (createNew != true) return;
       if (!context.mounted) return;
     }
-    final notesController = TextEditingController();
     final notes = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Simpan pesanan'),
-        content: TextField(
-          controller: notesController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Nama pesanan',
-            hintText: 'Contoh: Pesanan Pak Budi',
-            helperText: 'Nama ini ditampilkan sebagai judul pesanan tersimpan.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, notesController.text.trim()),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
+      builder: (_) => const PosHeldOrderNameDialog(),
     );
-    notesController.dispose();
     if (notes != null && context.mounted) {
       context.read<PosBloc>().add(HoldCurrentOrder(notes));
       AppToast.success(context, 'Pesanan disimpan sementara');
@@ -988,16 +973,21 @@ class _PosPageViewState extends State<PosPageView> {
       });
       return;
     }
+    final checkoutStore = state.checkoutStore;
+    if (checkoutStore == null ||
+        (state.activeShift == null &&
+            state.runtimeConfig['allow_out_of_shift'] != true)) {
+      setState(() => _savingTableOrder = false);
+      AppToast.warning(
+        context,
+        'Periksa toko aktif dan buka shift kasir sebelum membuat pesanan.',
+      );
+      return;
+    }
     final result = await sl<PosRepository>().createUnpaidInvoice(
       cart: state.cart,
       selectedUnits: state.selectedUnits,
-      tokoId:
-          state.activeShift?['toko_id']?.toString() ??
-          state.stores
-              .where((store) => store.status.toLowerCase() == 'active')
-              .firstOrNull
-              ?.id ??
-          '',
+      tokoId: checkoutStore.id,
       shiftId: state.activeShift?['_id']?.toString() ?? '',
       orderType: 'dine_in',
       tableId: state.selectedTableId,

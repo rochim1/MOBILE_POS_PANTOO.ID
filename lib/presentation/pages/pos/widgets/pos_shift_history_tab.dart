@@ -5,6 +5,7 @@ import '../../../bloc/pos_shift/pos_shift_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_event.dart';
 import '../../../bloc/pos_shift/pos_shift_state.dart';
 import 'package:intl/intl.dart';
+import '../utils/pos_shift_time.dart';
 import '../utils/pos_shift_cash.dart';
 
 class PosShiftHistoryTab extends StatefulWidget {
@@ -165,10 +166,8 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
       decimalDigits: 0,
     );
 
-    final openedAt = DateTime.tryParse(shift['opened_at'] ?? '');
-    final closedAt = shift['closed_at'] != null
-        ? DateTime.tryParse(shift['closed_at'])
-        : null;
+    final openedAt = posShiftLocalTime(shift['opened_at']);
+    final closedAt = posShiftLocalTime(shift['closed_at']);
 
     final isDiffZero = (shift['cash_difference'] ?? 0) == 0;
     final diffColor = isDiffZero ? AppColors.success : AppColors.danger;

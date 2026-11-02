@@ -29,6 +29,10 @@ class AppErrorHandler {
             message.toLowerCase().contains('auth')) {
           return AuthFailure(message);
         }
+        if (graphQLError.extensions?['inventory_request_rejected'] == true &&
+            graphQLError.extensions?['code'] != 'INVENTORY_RECOVERY_REQUIRED') {
+          return InventoryRequestRejectedFailure(message);
+        }
         return ServerFailure(message);
       }
 

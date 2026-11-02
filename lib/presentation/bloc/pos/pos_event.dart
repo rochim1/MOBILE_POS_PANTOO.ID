@@ -16,7 +16,12 @@ class LoadPosData extends PosEvent {}
 /// Reloads only the server-driven POS configuration used by navigation and
 /// feature gates. This keeps the current workspace/cart intact after settings
 /// are saved while still rebuilding menus immediately.
-class RefreshPosRuntimeConfig extends PosEvent {}
+class RefreshPosRuntimeConfig extends PosEvent {
+  const RefreshPosRuntimeConfig({this.preserveCheckout = false});
+  final bool preserveCheckout;
+  @override
+  List<Object> get props => [preserveCheckout];
+}
 
 class RefreshProducts extends PosEvent {}
 

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_customer.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_order.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_store.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
@@ -52,7 +53,28 @@ class _NoShiftRepository extends Fake implements PosRepository {
   }) async => throw StateError('Riwayat tidak boleh diambil sebelum shift');
 }
 
+class _CatalogFailureRepository extends _NoShiftRepository {
+  @override
+  Future<List<PosStore>> getStores() async => const [
+    PosStore(id: 'store-qa', name: 'Toko QA', status: 'active', branchId: 'branch-qa'),
+  ];
+
+  @override
+  Future<List<PosProduct>> getProducts({String? branchId}) async =>
+      throw StateError('Catalog rejected');
+}
+
 void main() {
+  test('kegagalan katalog tidak menghilangkan toko dan izin yang sudah dimuat', () async {
+    final bloc = PosBloc(posRepository: _CatalogFailureRepository());
+    addTearDown(bloc.close);
+    bloc.add(LoadPosData());
+    final failed = await bloc.stream.firstWhere((state) => state.status == PosStatus.failure);
+    expect(failed.stores.single.id, 'store-qa');
+    expect(failed.runtimeConfig['permissions']['view_shifts'], isTrue);
+    expect(failed.runtimeConfig['permissions']['use_cashier'], isTrue);
+    expect(failed.products, isEmpty);
+  });
   test(
     'kasir tanpa shift tetap memuat izin dan dapat membuka halaman shift',
     () async {

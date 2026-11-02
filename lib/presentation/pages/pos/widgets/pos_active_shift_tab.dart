@@ -9,6 +9,7 @@ import '../../../bloc/lock/lock_cubit.dart';
 import 'package:intl/intl.dart';
 import '../../../widgets/pos_keyboard_stable_sheet.dart';
 import '../utils/pos_shift_cash.dart';
+import '../utils/pos_shift_time.dart';
 
 class PosActiveShiftTab extends StatefulWidget {
   final GlobalKey? storeTourKey;
@@ -87,7 +88,8 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     final selectedStore = selectedStores.isEmpty ? null : selectedStores.first;
     final operatorName = context.watch<AppLockCubit>().state.activeEmployeeName;
     final shiftState = context.watch<PosShiftBloc>().state;
-    final hasActiveShift = shiftState is PosShiftLoaded && shiftState.activeShift != null;
+    final hasActiveShift =
+        shiftState is PosShiftLoaded && shiftState.activeShift != null;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -106,9 +108,9 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 8),
               Text(
                 'Tutup shift aktif sebelum memilih toko lain.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
               ),
             ],
             if (selectedStore != null) ...[
@@ -150,7 +152,10 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     );
   }
 
-  Widget _buildStoreSelector(List<dynamic> stores, {required bool hasActiveShift}) {
+  Widget _buildStoreSelector(
+    List<dynamic> stores, {
+    required bool hasActiveShift,
+  }) {
     return Container(
       key: widget.storeTourKey,
       decoration: BoxDecoration(
@@ -189,12 +194,14 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                       ),
                     )
                     .toList(),
-                onChanged: hasActiveShift ? null : (val) {
-                  if (val != null) {
-                    setState(() => selectedTokoId = val);
-                    context.read<PosShiftBloc>().add(LoadShiftData(val));
-                  }
-                },
+                onChanged: hasActiveShift
+                    ? null
+                    : (val) {
+                        if (val != null) {
+                          setState(() => selectedTokoId = val);
+                          context.read<PosShiftBloc>().add(LoadShiftData(val));
+                        }
+                      },
               ),
             ),
           ),
@@ -251,7 +258,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     BuildContext context,
     Map<String, dynamic> shift,
   ) {
-    final openedAt = DateTime.tryParse(shift['opened_at'] ?? '');
+    final openedAt = posShiftLocalTime(shift['opened_at']);
     final formatCurrency = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',

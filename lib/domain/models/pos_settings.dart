@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 class PosSettings extends Equatable {
   static const featureFlagKeys = <String>{
+    'use_order_queue',
     'use_tables',
     'use_kitchen_flow',
     'use_service_order',
@@ -78,7 +79,8 @@ class PosSettings extends Equatable {
       operationalSetupCompleted: json['operational_setup_completed'] as bool?,
       businessProfile: json['business_profile'] as String?,
       enabledFeatures: {
-        for (final entry in (json['enabled_features'] as Map? ?? const {}).entries)
+        for (final entry
+            in (json['enabled_features'] as Map? ?? const {}).entries)
           if (featureFlagKeys.contains(entry.key.toString()))
             entry.key.toString(): entry.value == true,
       },
@@ -101,7 +103,8 @@ class PosSettings extends Equatable {
       invoicePrefix: json['invoice_prefix'] as String?,
       autoPrintReceipt: json['auto_print_receipt'] as bool?,
       allowOutOfShift: json['allow_out_of_shift'] as bool?,
-      webOrderPayBeforeProcessing: json['web_order_pay_before_processing'] as bool?,
+      webOrderPayBeforeProcessing:
+          json['web_order_pay_before_processing'] as bool?,
       allowKasirPriceEdit: json['allow_kasir_price_edit'] as bool?,
       expiredSalePolicy: json['expired_sale_policy'] as String?,
       posLockEnabled: json['pos_lock_enabled'] as bool?,

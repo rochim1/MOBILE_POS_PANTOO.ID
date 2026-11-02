@@ -2587,9 +2587,9 @@ class PosRepository {
         'tipe_pesanan': orderType,
         if (tableId != null && tableId.isNotEmpty) 'table_id': tableId,
         if (orderType == 'reservation' && reservationStartAt != null)
-          'reservation_start_at': reservationStartAt.toIso8601String(),
+          'reservation_start_at': reservationStartAt.toUtc().toIso8601String(),
         if (orderType == 'reservation' && reservationEndAt != null)
-          'reservation_end_at': reservationEndAt.toIso8601String(),
+          'reservation_end_at': reservationEndAt.toUtc().toIso8601String(),
         if (orderType == 'reservation')
           'reservation_guest_count': reservationGuestCount,
         if (orderType == 'reservation')

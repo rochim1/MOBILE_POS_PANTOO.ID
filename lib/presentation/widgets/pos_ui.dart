@@ -243,3 +243,37 @@ class PosSkeletonList extends StatelessWidget {
     ),
   );
 }
+
+/// A failed first load must not be presented as an authoritatively empty queue.
+class PosQueueLoadError extends StatelessWidget {
+  final VoidCallback onRetry;
+  const PosQueueLoadError({super.key, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.all(24),
+    children: [
+      const Icon(Icons.cloud_off_outlined, size: 36),
+      const SizedBox(height: 12),
+      Text(
+        'Antrean belum berhasil dimuat',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Data pesanan belum dapat dipastikan kosong. Periksa koneksi, lalu muat ulang.',
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 16),
+      Center(
+        child: FilledButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Muat ulang antrean'),
+        ),
+      ),
+    ],
+  );
+}

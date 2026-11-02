@@ -4,6 +4,7 @@ import 'package:mobile_pos_pantoo/core/_core.dart';
 
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_state.dart';
+import 'utils/pos_order_workspace_policy.dart';
 
 /// Tujuan sekunder di mobile. Menu utama tetap berada di navbar bawah.
 class PosMoreMenuPage extends StatelessWidget {
@@ -41,7 +42,9 @@ class PosMoreMenuPage extends StatelessWidget {
 
     return {
       'Operasional': [
-        if (viewTables || (useTables && can('manage_tables'))) 5,
+        if ((viewTables && PosOrderWorkspacePolicy(runtimeConfig).visible) ||
+            (useTables && can('manage_tables')))
+          5,
         if (useKitchenFlow && viewTables) 18,
         if (can('view_shifts')) 11,
         15, // Antrean offline tetap bisa diperiksa tanpa koneksi/izin server.
@@ -115,12 +118,10 @@ class PosMoreMenuPage extends StatelessWidget {
                       children: [
                         for (final index in section.value)
                           _MenuTile(
-                            title:
-                                index == 5 &&
-                                    (state.runtimeConfig['features']
-                                            as Map?)?['use_tables'] !=
-                                        true
-                                ? 'Pesanan Aktif'
+                            title: index == 5
+                                ? PosOrderWorkspacePolicy(
+                                    state.runtimeConfig,
+                                  ).title
                                 : _destinations[index]!.title,
                             icon: _destinations[index]!.icon,
                             onTap: () => onNavigate(index),

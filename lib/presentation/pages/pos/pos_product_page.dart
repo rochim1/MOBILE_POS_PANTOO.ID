@@ -41,6 +41,13 @@ class PosProductPage extends StatefulWidget {
 }
 
 class _PosProductPageState extends State<PosProductPage> {
+  static const _catalogGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
+    maxCrossAxisExtent: 210,
+    mainAxisExtent: 224,
+    crossAxisSpacing: 12,
+    mainAxisSpacing: 12,
+  );
+
   String _searchQuery = '';
   String? _categoryFilter;
   String _stockFilter = 'all';
@@ -194,7 +201,7 @@ class _PosProductPageState extends State<PosProductPage> {
   }
 
   Widget _buildCatalogSkeleton(bool isMobile) {
-    if (!widget.isGridView) {
+    if (!widget.isGridView || isMobile) {
       return ListView.separated(
         physics: const NeverScrollableScrollPhysics(),
         itemCount: isMobile ? 5 : 7,
@@ -204,13 +211,8 @@ class _PosProductPageState extends State<PosProductPage> {
     }
     return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isMobile ? 2 : 4,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: isMobile ? .9 : 1.2,
-      ),
-      itemCount: isMobile ? 6 : 8,
+      gridDelegate: _catalogGridDelegate,
+      itemCount: 8,
       itemBuilder: (_, _) => const SkeletonProductCard(),
     );
   }
@@ -664,94 +666,87 @@ class _PosProductPageState extends State<PosProductPage> {
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) => GridView.builder(
-        itemCount: filteredProducts.length,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: constraints.maxWidth >= 1200 ? 4 : 3,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          mainAxisExtent: 252,
-        ),
-        itemBuilder: (context, index) {
-          final product = filteredProducts[index];
-          return Card(
-            clipBehavior: Clip.antiAlias,
-            margin: EdgeInsets.zero,
-            child: InkWell(
-              onTap: () => _showProductDetails(context, product, false),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    height: 126,
-                    child: product.imageUrl.trim().isEmpty
-                        ? Container(
+    return GridView.builder(
+      itemCount: filteredProducts.length,
+      gridDelegate: _catalogGridDelegate,
+      itemBuilder: (context, index) {
+        final product = filteredProducts[index];
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: InkWell(
+            onTap: () => _showProductDetails(context, product, false),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 100,
+                  child: product.imageUrl.trim().isEmpty
+                      ? Container(
+                          color: AppColors.primarySoft,
+                          child: const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 44,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : Image.network(
+                          product.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
                             color: AppColors.primarySoft,
                             child: const Icon(
                               Icons.inventory_2_outlined,
                               size: 44,
                               color: AppColors.primary,
                             ),
-                          )
-                        : Image.network(
-                            product.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: AppColors.primarySoft,
-                              child: const Icon(
-                                Icons.inventory_2_outlined,
-                                size: 44,
-                                color: AppColors.primary,
-                              ),
-                            ),
                           ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
+                        ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
                           ),
-                          const Spacer(),
-                          Text(
-                            'Rp ${formatRupiahAmount(product.price)}',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Rp ${formatRupiahAmount(product.price)}',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
                           ),
-                          const SizedBox(height: 5),
-                          Text(
-                            trackStock
-                                ? '${product.category} • Stok ${product.stock}'
-                                : product.category,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 11,
-                            ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          trackStock
+                              ? '${product.category} • Stok ${product.stock}'
+                              : product.category,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 11,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

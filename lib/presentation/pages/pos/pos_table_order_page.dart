@@ -26,7 +26,10 @@ import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/repositories/pos_order_repository.dart';
 import '../../../../core/network/graphql_client_provider.dart';
 import 'utils/pos_order_age.dart';
+import 'utils/pos_reservation_time.dart';
 import 'utils/pos_order_transition_policy.dart';
+import 'utils/pos_order_workspace_policy.dart';
+import 'utils/pos_service_quantity.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'pos_payment_page.dart';
 import 'widgets/pos_active_order_mobile_filters.dart';
@@ -46,15 +49,9 @@ class PosTableOrderPage extends StatelessWidget {
     final canView = (config['permissions'] as Map?)?['view_tables'] == true;
     final posState = context.read<PosBloc>().state;
     final allowOutOfShift = config['allow_out_of_shift'] == true;
-    final storeId =
-        posState.activeShift?['toko_id']?.toString() ??
-        (allowOutOfShift
-            ? posState.stores
-                      .where((store) => store.status.toLowerCase() == 'active')
-                      .firstOrNull
-                      ?.id ??
-                  ''
-            : '');
+    final storeId = posState.activeShift != null || allowOutOfShift
+        ? posState.checkoutStore?.id ?? ''
+        : '';
     if (!canView || storeId.isEmpty) {
       return Center(
         child: Padding(
@@ -105,6 +102,12 @@ class _ActiveOrderListView extends StatefulWidget {
 }
 
 class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
+  PosOrderWorkspacePolicy get _workflow =>
+      PosOrderWorkspacePolicy(context.read<PosBloc>().state.runtimeConfig);
+  bool get _canManageOrders =>
+      (context.read<PosBloc>().state.runtimeConfig['permissions']
+          as Map?)?['manage_orders'] ==
+      true;
   final _searchController = TextEditingController();
   Timer? _debounce;
   Timer? _durationTicker;
@@ -119,7 +122,6 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   bool _realtimeConnected = false;
   int _warningMinutes = 15;
   int _criticalMinutes = 25;
-  bool _usesKitchenFlow = false;
   DateTime _now = DateTime.now();
   String _status = '';
   String _fulfillment = '';
@@ -128,21 +130,28 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   ({String orderId, String target, bool acknowledged})? _pendingMove;
   bool _cancellingOrder = false;
 
-  static const _fulfillmentItems = <DropdownMenuItem<String>>[
-    DropdownMenuItem(value: '', child: Text('Semua tipe')),
-    DropdownMenuItem(value: 'dine_in', child: Text('Meja')),
-    DropdownMenuItem(value: 'free_table', child: Text('Tanpa meja')),
-    DropdownMenuItem(value: 'take_away', child: Text('Bawa pulang')),
-    DropdownMenuItem(value: 'delivery', child: Text('Pesan antar')),
-    DropdownMenuItem(value: 'quick_service', child: Text('Layanan cepat')),
-    DropdownMenuItem(value: 'reservation', child: Text('Reservasi')),
+  List<DropdownMenuItem<String>> get _fulfillmentItems => [
+    const DropdownMenuItem(value: '', child: Text('Semua tipe')),
+    const DropdownMenuItem(value: 'dine_in', child: Text('Meja')),
+    const DropdownMenuItem(value: 'free_table', child: Text('Tanpa meja')),
+    DropdownMenuItem(
+      value: 'take_away',
+      child: Text(_workflow.kitchen ? 'Bawa pulang' : 'Ambil di toko'),
+    ),
+    const DropdownMenuItem(value: 'delivery', child: Text('Pesan antar')),
+    const DropdownMenuItem(
+      value: 'quick_service',
+      child: Text('Layanan cepat'),
+    ),
+    const DropdownMenuItem(value: 'reservation', child: Text('Reservasi')),
   ];
-  static const _statusItems = <DropdownMenuItem<String>>[
-    DropdownMenuItem(value: '', child: Text('Semua aktif')),
-    DropdownMenuItem(value: 'Baru', child: Text('Baru')),
-    DropdownMenuItem(value: 'Diproses', child: Text('Diproses')),
-    DropdownMenuItem(value: 'Siap', child: Text('Siap')),
-    DropdownMenuItem(value: 'Disajikan', child: Text('Diserahkan')),
+  List<DropdownMenuItem<String>> get _statusItems => [
+    const DropdownMenuItem(value: '', child: Text('Semua aktif')),
+    for (final status in ['Baru', 'Diproses', 'Siap', 'Disajikan'])
+      DropdownMenuItem(
+        value: status,
+        child: Text(_workflow.stageLabel(status)),
+      ),
   ];
   static const _sortItems = <DropdownMenuItem<String>>[
     DropdownMenuItem(
@@ -172,8 +181,6 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   void initState() {
     super.initState();
     final runtime = context.read<PosBloc>().state.runtimeConfig;
-    _usesKitchenFlow =
-        (runtime['features'] as Map?)?['use_kitchen_flow'] == true;
     _warningMinutes = (runtime['sla_warning_minutes'] as num?)?.toInt() ?? 15;
     _criticalMinutes = (runtime['sla_critical_minutes'] as num?)?.toInt() ?? 25;
     _durationTicker = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -387,6 +394,11 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                           ),
                         )
                       : const PosOrderBoardSkeleton();
+                }
+                if (state.status == PosOrderManagementStatus.failure &&
+                    state.orders.isEmpty &&
+                    _pendingMove == null) {
+                  return PosQueueLoadError(onRetry: _reloadCurrentPage);
                 }
                 if (state.orders.isEmpty && _pendingMove == null) {
                   return RefreshIndicator(
@@ -769,6 +781,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       itemBuilder: (context, index) {
         if (index == 0) {
           return PosActiveOrderStatusTabs(
+            labels: {
+              for (final status in ['Baru', 'Diproses', 'Siap', 'Disajikan'])
+                status: _workflow.stageLabel(status),
+            },
             selectedStatus: _status,
             counts: counts,
             onSelected: (status) {
@@ -891,7 +907,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             child: columnOrders.isEmpty && !showPending
                                 ? const Center(
                                     child: Text(
-                                      'Tarik pesanan ke sini',
+                                      'Belum ada pesanan',
                                       style: TextStyle(
                                         color: AppColors.textSecondary,
                                         fontSize: 12,
@@ -952,11 +968,17 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         order.status == 'Baru' ||
         order.status == 'Diproses' ||
         order.status == 'Siap';
-    if (!canDrag || _pendingMove != null) {
+    if (!_canManageOrders ||
+        !canDrag ||
+        _workflow.isServiceOrder(order) ||
+        _pendingMove != null ||
+        reservationNeedsSeating(order.orderType, order.reservationStatus)) {
       return _activeOrderCard(order, index);
     }
     return Draggable<PosOrderDetail>(
       data: order,
+      affinity: Axis.horizontal,
+      axis: Axis.horizontal,
       maxSimultaneousDrags: 1,
       feedback: Material(
         color: Colors.transparent,
@@ -983,7 +1005,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   bool _canMoveTo(PosOrderDetail order, String target) =>
-      _pendingMove == null && nextPosOrderStatus(order.status) == target;
+      _canManageOrders &&
+      !_workflow.isServiceOrder(order) &&
+      _pendingMove == null &&
+      nextPosOrderStatus(order.status) == target;
 
   void _moveOrder(PosOrderDetail order, String status) {
     if (_pendingMove != null || !_canMoveTo(order, status)) return;
@@ -1017,8 +1042,15 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   Future<void> _cancelOrder(PosOrderDetail order) async {
-    if (_cancellingOrder || order.id == null || order.paymentStatus == 'lunas') return;
-    final preparing = order.items.any((item) => item.productionStatus == 'preparing');
+    if (_cancellingOrder ||
+        order.id == null ||
+        order.paymentStatus == 'lunas') {
+      return;
+    }
+    final preparing =
+        order.items.any((item) => item.productionStatus == 'preparing') ||
+        (order.status == 'Diproses' &&
+            order.items.any((item) => item.preparationMode == 'station'));
     final reasonController = TextEditingController();
     final pinController = TextEditingController();
     final confirmed = await showDialog<bool>(
@@ -1028,24 +1060,39 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Pesanan ${order.orderNumber ?? ''} belum dibayar. Stok yang dipesan akan dilepas.'),
-            if (preparing) const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text('Ada item yang sedang dibuat. PIN supervisor diperlukan.'),
+            Text(
+              'Pesanan ${order.orderNumber ?? ''} belum dibayar. Stok yang dipesan akan dilepas.',
             ),
+            if (preparing)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Ada item yang sedang dibuat. PIN supervisor diperlukan.',
+                ),
+              ),
             const SizedBox(height: 12),
-            TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Alasan pembatalan')),
-            if (preparing) TextField(
-              controller: pinController,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'PIN supervisor'),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(labelText: 'Alasan pembatalan'),
             ),
+            if (preparing)
+              TextField(
+                controller: pinController,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'PIN supervisor'),
+              ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Batalkan pesanan')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Kembali'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Batalkan pesanan'),
+          ),
         ],
       ),
     );
@@ -1065,26 +1112,19 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     }
     setState(() => _cancellingOrder = true);
     final result = await sl<PosOrderRepository>().cancelOrder(
-      order.id!, reason: reason, supervisorPin: supervisorPin,
+      order.id!,
+      reason: reason,
+      supervisorPin: supervisorPin,
     );
     if (!mounted) return;
     setState(() => _cancellingOrder = false);
-    result.fold(
-      (failure) => AppToast.error(context, failure.message),
-      (_) {
-        AppToast.success(context, 'Pesanan dibatalkan');
-        _reloadCurrentPage();
-      },
-    );
+    result.fold((failure) => AppToast.error(context, failure.message), (_) {
+      AppToast.success(context, 'Pesanan dibatalkan');
+      _reloadCurrentPage();
+    });
   }
 
-  String _orderStatusLabel(String status) => switch (status) {
-    'Baru' => 'Pesanan Baru',
-    'Diproses' => _usesKitchenFlow ? 'Sedang Dibuat' : 'Sedang Diproses',
-    'Siap' => _usesKitchenFlow ? 'Siap Disajikan' : 'Siap Diserahkan',
-    'Disajikan' => 'Sudah Diserahkan',
-    _ => status,
-  };
+  String _orderStatusLabel(String status) => _workflow.stageLabel(status);
 
   Color _orderStatusColor(String status) => switch (status) {
     'Diproses' => AppColors.warning,
@@ -1125,7 +1165,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  _statusBadge(order.status),
+                  _statusBadge(order.status, order),
                 ],
               ),
               const SizedBox(height: 9),
@@ -1192,7 +1232,11 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                           : AppColors.warning,
                     ),
                     Text(
-                      order.paymentStatus == 'lunas' ? 'Lunas' : 'Belum lunas',
+                      order.paymentStatus == 'lunas'
+                          ? 'Lunas'
+                          : order.hasPostedTransaction
+                          ? 'Piutang · kelola di Finance'
+                          : 'Belum lunas',
                       style: const TextStyle(fontSize: 12),
                     ),
                     if (order.note?.isNotEmpty == true ||
@@ -1204,7 +1248,28 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       ),
                   ],
                 ),
-                if (nextPosOrderStatus(order.status) case final next?) ...[
+                if (reservationNeedsSeating(
+                  order.orderType,
+                  order.reservationStatus,
+                )) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showActiveOrder(order),
+                      icon: const Icon(Icons.event_seat_outlined),
+                      label: const Text('Kelola reservasi'),
+                    ),
+                  ),
+                ] else if (_workflow.isServiceOrder(order)) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => _showActiveOrder(order),
+                    icon: const Icon(Icons.assignment_outlined),
+                    label: const Text('Kelola layanan'),
+                  ),
+                ] else if (nextPosOrderStatus(order.status) case final next?
+                    when _canManageOrders) ...[
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
@@ -1224,18 +1289,24 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                       next != 'Selesai'
                                   ? 'Bayar dahulu'
                                   : 'Bayar pesanan'
-                            : _nextStatusLabel(next),
+                            : _nextStatusLabel(next, order),
                       ),
                     ),
                   ),
                 ],
-                if (context.read<PosBloc>().state.runtimeConfig['permissions'] is Map &&
-                    (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map)['cancel_orders'] == true &&
+                if (context.read<PosBloc>().state.runtimeConfig['permissions']
+                        is Map &&
+                    (context.read<PosBloc>().state.runtimeConfig['permissions']
+                            as Map)['cancel_orders'] ==
+                        true &&
                     order.paymentStatus != 'lunas' &&
-                    order.status != 'Batal' && order.status != 'Selesai') ...[
+                    order.status != 'Batal' &&
+                    order.status != 'Selesai') ...[
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: _cancellingOrder ? null : () => _cancelOrder(order),
+                    onPressed: _cancellingOrder
+                        ? null
+                        : () => _cancelOrder(order),
                     icon: const Icon(Icons.cancel_outlined),
                     label: const Text('Batalkan pesanan'),
                   ),
@@ -1291,7 +1362,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             DataCell(Text(_orderDate(entry.$2.createdAt))),
                             DataCell(Text(_orderTime(entry.$2.createdAt))),
                             DataCell(_ageChip(entry.$2)),
-                            DataCell(_statusBadge(entry.$2.status)),
+                            DataCell(_statusBadge(entry.$2.status, entry.$2)),
                             DataCell(
                               Text(_currency(entry.$2.totalAmount ?? 0)),
                             ),
@@ -1308,7 +1379,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     );
   }
 
-  Widget _statusBadge(String? status) {
+  Widget _statusBadge(String? status, [PosOrderDetail? order]) {
     final color = _orderStatusColor(status ?? '');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1318,7 +1389,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status ?? 'Aktif',
+        _workflow.stageLabel(status ?? '', order),
         style: const TextStyle(
           color: AppColors.heading,
           fontSize: 11,
@@ -1375,7 +1446,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     'delivery' || 'online_delivery' => 'Pesan antar',
     'quick_service' => 'Layanan cepat',
     'reservation' => 'Reservasi',
-    _ => 'Bawa pulang',
+    _ => _workflow.kitchen ? 'Bawa pulang' : 'Ambil di toko',
   };
 
   void _showActiveOrder(PosOrderDetail order) {
@@ -1436,7 +1507,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${order.reservationStartAt ?? '-'} – ${order.reservationEndAt ?? '-'}',
+                            '${formatPosReservationTime(order.reservationStartAt)} – ${formatPosReservationTime(order.reservationEndAt)}',
                           ),
                           Text(
                             '${order.reservationGuestCount <= 0 ? 1 : order.reservationGuestCount} tamu${order.reservationDepositAmount > 0 ? ' · Deposit ${_currency(order.reservationDepositAmount)} (${order.reservationDepositPaid ? 'lunas' : 'belum dibayar'})' : ''}',
@@ -1491,7 +1562,29 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     ),
                   ),
                 ),
-                if (order.serviceOrder case final service?) ...[
+                if (order.serviceOrder case final service?
+                    when _workflow.isServiceOrder(order)) ...[
+                  if (order.paymentStatus != 'lunas' &&
+                      !order.hasPostedTransaction &&
+                      (context
+                                  .read<PosBloc>()
+                                  .state
+                                  .runtimeConfig['permissions']
+                              as Map?)?['use_cashier'] ==
+                          true)
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _openPayment(order);
+                      },
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Bayar layanan'),
+                    ),
+                  if (order.paymentStatus != 'lunas' &&
+                      order.hasPostedTransaction)
+                    const Text(
+                      'Invoice sudah diterbitkan. Pelunasan melalui Piutang di Finance.',
+                    ),
                   const Divider(height: 24),
                   Text(
                     'Proses layanan',
@@ -1499,8 +1592,23 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${service['service_mode'] ?? 'Layanan'} · ${service['weight_kg'] ?? 0} kg · ${service['item_count'] ?? 0} item',
+                    '${service['service_subject'] ?? service['service_mode'] ?? 'Layanan'}',
                   ),
+                  if (_workflow.profile == 'laundry' ||
+                      (num.tryParse('${service['weight_kg']}') ?? 0) > 0)
+                    Text(posServiceQuantitySummary(service)),
+                  if ((service['vehicle_no']?.toString() ?? '').isNotEmpty)
+                    Text('Kendaraan: ${service['vehicle_no']}'),
+                  if ((service['vehicle_model']?.toString() ?? '').isNotEmpty)
+                    Text('Model: ${service['vehicle_model']}'),
+                  if ((service['technician_name']?.toString() ?? '').isNotEmpty)
+                    Text('Teknisi / staf: ${service['technician_name']}'),
+                  if ((service['appointment_at']?.toString() ?? '').isNotEmpty)
+                    Text(
+                      'Jadwal: ${DateFormat('dd/MM/yyyy HH:mm').format(PosOrder.parseDateValue(service['appointment_at'].toString()))}',
+                    ),
+                  if ((service['complaint']?.toString() ?? '').isNotEmpty)
+                    Text('Keluhan: ${service['complaint']}'),
                   if ((service['bag_tag']?.toString() ?? '').isNotEmpty)
                     Text('Tag: ${service['bag_tag']}'),
                   const SizedBox(height: 10),
@@ -1512,7 +1620,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         Map<String, dynamic>.from(rawLine),
                       ),
                     )
-                  else
+                  else if (_canManageOrders &&
+                      !['Selesai', 'Batal'].contains(order.status))
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -1559,7 +1668,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     label: Text('Lepas voucher ${order.promoCode}'),
                   ),
                 ],
-                if (nextPosOrderStatus(order.status) case final next?) ...[
+                if ((!_workflow.isServiceOrder(order) &&
+                            !reservationNeedsSeating(
+                              order.orderType,
+                              order.reservationStatus,
+                            )
+                        ? nextPosOrderStatus(order.status)
+                        : null)
+                    case final next?) ...[
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: _pendingMove == null
@@ -1581,20 +1697,26 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                 : 'Bayar pesanan'
                           : next == 'Selesai' && order.orderType == 'dine_in'
                           ? 'Tutup pesanan & kosongkan meja'
-                          : _nextStatusLabel(next),
+                          : _nextStatusLabel(next, order),
                     ),
                   ),
                 ],
-                if (context.read<PosBloc>().state.runtimeConfig['permissions'] is Map &&
-                    (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map)['cancel_orders'] == true &&
+                if (context.read<PosBloc>().state.runtimeConfig['permissions']
+                        is Map &&
+                    (context.read<PosBloc>().state.runtimeConfig['permissions']
+                            as Map)['cancel_orders'] ==
+                        true &&
                     order.paymentStatus != 'lunas' &&
-                    order.status != 'Batal' && order.status != 'Selesai') ...[
+                    order.status != 'Batal' &&
+                    order.status != 'Selesai') ...[
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: _cancellingOrder ? null : () {
-                      Navigator.pop(sheetContext);
-                      _cancelOrder(order);
-                    },
+                    onPressed: _cancellingOrder
+                        ? null
+                        : () {
+                            Navigator.pop(sheetContext);
+                            _cancelOrder(order);
+                          },
                     icon: const Icon(Icons.cancel_outlined),
                     label: const Text('Batalkan pesanan'),
                   ),
@@ -1648,16 +1770,19 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   );
 
   List<String> _serviceNext(String? status) => switch (status) {
-    'estimasi' => const ['diterima', 'batal'],
-    'diterima' => const ['ditimbang', 'disortir', 'dikerjakan', 'batal'],
-    'ditimbang' => const ['disortir', 'batal'],
-    'disortir' => const ['dicuci', 'dikerjakan', 'batal'],
-    'dicuci' => const ['dikeringkan', 'batal'],
-    'dikeringkan' => const ['disetrika', 'qc', 'batal'],
-    'disetrika' => const ['qc', 'batal'],
-    'qc' => const ['dikemas', 'selesai', 'batal'],
-    'dikemas' => const ['siap_diambil', 'selesai', 'batal'],
-    'dikerjakan' => const ['selesai', 'batal'],
+    'estimasi' => const ['diterima'],
+    'diterima' =>
+      _workflow.profile == 'laundry'
+          ? const ['ditimbang', 'disortir', 'dikerjakan']
+          : const ['dikerjakan'],
+    'ditimbang' => const ['disortir'],
+    'disortir' => const ['dicuci', 'dikerjakan'],
+    'dicuci' => const ['dikeringkan'],
+    'dikeringkan' => const ['disetrika', 'qc'],
+    'disetrika' => const ['qc'],
+    'qc' => const ['dikemas', 'selesai'],
+    'dikemas' => const ['siap_diambil', 'selesai'],
+    'dikerjakan' => const ['selesai'],
     'selesai' => const ['siap_diambil', 'diambil'],
     'siap_diambil' => const ['diambil'],
     _ => const [],
@@ -1682,19 +1807,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       value;
 
   List<String> _serviceLineNext(String? status) => switch (status) {
-    'diterima' => const ['inspeksi', 'antre_produksi', 'vendor', 'batal'],
-    'inspeksi' => const [
-      'menunggu_persetujuan',
-      'antre_produksi',
-      'vendor',
-      'batal',
-    ],
-    'menunggu_persetujuan' => const ['antre_produksi', 'batal'],
-    'antre_produksi' => const ['diproses', 'vendor', 'batal'],
-    'vendor' => const ['qc', 'antre_produksi', 'batal'],
-    'diproses' => const ['qc', 'batal'],
-    'qc' => const ['perlu_cuci_ulang', 'dikemas', 'batal'],
-    'perlu_cuci_ulang' => const ['antre_produksi', 'diproses', 'batal'],
+    'diterima' => const ['inspeksi', 'antre_produksi', 'vendor'],
+    'inspeksi' => const ['menunggu_persetujuan', 'antre_produksi', 'vendor'],
+    'menunggu_persetujuan' => const ['antre_produksi'],
+    'antre_produksi' => const ['diproses', 'vendor'],
+    'vendor' => const ['qc', 'antre_produksi'],
+    'diproses' => const ['qc'],
+    'qc' => const ['perlu_cuci_ulang', 'dikemas'],
+    'perlu_cuci_ulang' => const ['antre_produksi', 'diproses'],
     'dikemas' => const ['siap_diambil'],
     'siap_diambil' => const ['diserahkan'],
     _ => const [],
@@ -1763,7 +1883,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             Text('Tag: ${line['tag_code']}'),
           if ((line['condition_notes']?.toString() ?? '').isNotEmpty)
             Text('Kondisi: ${line['condition_notes']}'),
-          if (_serviceLineNext(status).isNotEmpty) ...[
+          if (_canManageOrders &&
+              !['Selesai', 'Batal'].contains(order.status) &&
+              _serviceLineNext(status).isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -1835,9 +1957,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
 
   Future<void> _rescheduleReservation(PosOrderDetail order) async {
     var start =
-        DateTime.tryParse(order.reservationStartAt ?? '') ?? DateTime.now();
+        posReservationLocalTime(order.reservationStartAt) ?? DateTime.now();
     var end =
-        DateTime.tryParse(order.reservationEndAt ?? '') ??
+        posReservationLocalTime(order.reservationEndAt) ??
         start.add(const Duration(hours: 2));
     final guests = TextEditingController(
       text:
@@ -2217,15 +2339,20 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     });
   }
 
-  String _nextStatusLabel(String status) => switch (status) {
-    'Diproses' => 'Mulai proses',
-    'Siap' => 'Tandai siap',
-    'Disajikan' => 'Tandai sudah disajikan/diserahkan',
-    'Selesai' => 'Selesaikan pesanan',
-    _ => 'Perbarui status',
-  };
+  String _nextStatusLabel(String status, [PosOrderDetail? order]) =>
+      _workflow.actionLabel(status, order);
 
   Future<void> _openPayment(PosOrderDetail order) async {
+    if (order.hasPostedTransaction) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tagihan sudah menjadi invoice. Pelunasan dicatat melalui Piutang di Finance.',
+          ),
+        ),
+      );
+      return;
+    }
     final posBloc = context.read<PosBloc>();
     final pendingOrder = PosOrder(
       id: order.id ?? '',

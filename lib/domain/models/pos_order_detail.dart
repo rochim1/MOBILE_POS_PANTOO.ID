@@ -101,6 +101,11 @@ class PosOrderDetail extends Equatable {
   final bool webOrderPayBeforeProcessing;
   final String? _paymentStatus;
   String get paymentStatus => _paymentStatus ?? 'belum_bayar';
+  final bool? _financiallyReleased;
+  bool get financiallyReleased =>
+      _financiallyReleased ?? paymentStatus == 'lunas';
+  final String? posTransactionId;
+  bool get hasPostedTransaction => posTransactionId?.isNotEmpty == true;
   final double? totalAmount;
   final double? subtotal;
   final double? discountAmount;
@@ -134,6 +139,8 @@ class PosOrderDetail extends Equatable {
     this.status,
     this.webOrderPayBeforeProcessing = false,
     String? paymentStatus = 'belum_bayar',
+    bool? financiallyReleased,
+    this.posTransactionId,
     this.totalAmount,
     this.subtotal,
     this.discountAmount,
@@ -155,7 +162,8 @@ class PosOrderDetail extends Equatable {
     this.reservationGuestCount = 0,
     this.reservationDepositAmount = 0,
     this.reservationDepositPaid = false,
-  }) : _paymentStatus = paymentStatus;
+  }) : _paymentStatus = paymentStatus,
+       _financiallyReleased = financiallyReleased;
 
   factory PosOrderDetail.fromJson(Map<String, dynamic> json) {
     final rawTotal = json['grand_total'] ?? json['total_amount'];
@@ -175,6 +183,8 @@ class PosOrderDetail extends Equatable {
       webOrderPayBeforeProcessing:
           json['web_order_pay_before_processing'] == true,
       paymentStatus: _text(json['status_pembayaran']) ?? 'belum_bayar',
+      financiallyReleased: json['financially_released'] as bool?,
+      posTransactionId: _text(json['pos_transaction_id']),
       totalAmount: rawTotal is num
           ? rawTotal.toDouble()
           : double.tryParse(_text(rawTotal) ?? ''),
@@ -234,6 +244,8 @@ class PosOrderDetail extends Equatable {
     status,
     webOrderPayBeforeProcessing,
     paymentStatus,
+    financiallyReleased,
+    posTransactionId,
     totalAmount,
     subtotal,
     discountAmount,

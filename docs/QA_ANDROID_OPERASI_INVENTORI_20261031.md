@@ -1,5 +1,7 @@
 # QA Android — operasi inventori dan profil POS (31 Oktober 2026)
 
+> Putaran lanjutan 1 November (Retail + Simple, API PO + UI Android penerimaan sisa, uji jumlah berlebih, serta perbaikan metadata retry/skeleton) dicatat terpisah di [QA_E2E_LANJUTAN_20261101.md](QA_E2E_LANJUTAN_20261101.md). Hasil terbatas tersebut tidak menggantikan matriks profil yang belum diuji di bawah.
+
 ## Ruang lingkup dan batas pembuktian
 
 Pengujian memakai APK **staging** Pantoo POS di emulator Android 16, API lokal port 8082/8083 (8083 untuk memuat perbaikan server), dan MongoDB replika **sementara di loopback**. Data QA tidak menyentuh instansi produksi. Akun, toko, lokasi toko/pusat/transit, satu barang stok, satu layanan nonstok, dan supplier dibuat khusus QA. Hasil di bawah membedakan operasi yang benar-benar selesai dari menu/form yang hanya berhasil dibuka.

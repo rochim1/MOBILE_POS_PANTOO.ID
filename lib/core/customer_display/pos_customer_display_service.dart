@@ -55,6 +55,7 @@ class PosCustomerDisplayService {
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
   String _pairingToken = '';
+  Map<String, dynamic>? _completedPayment;
   Timer? _pingTimer;
   Timer? _reconnectTimer;
   Timer? _handshakeTimer;
@@ -317,15 +318,26 @@ class PosCustomerDisplayService {
     String status = 'cart',
   }) {
     if (!state.value.isActive || _pairingToken.isEmpty) return;
-    final data = <String, dynamic>{
-      'items': items,
-      'subtotal': subtotal,
-      'discount': discount,
-      'total': total,
-      'store_name': storeName,
-      'status': status,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    };
+    // Refreshing products clears the cashier cart; keep the completion notice
+    // until a new customer starts shopping, including after reconnecting.
+    if (status != 'payment_success' && items.isNotEmpty) {
+      _completedPayment = null;
+    }
+    final data =
+        status != 'payment_success' &&
+            items.isEmpty &&
+            _completedPayment != null
+        ? _completedPayment!
+        : <String, dynamic>{
+            'items': items,
+            'subtotal': subtotal,
+            'discount': discount,
+            'total': total,
+            'store_name': storeName,
+            'status': status,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          };
+    if (status == 'payment_success') _completedPayment = data;
     if (_transport == PosCustomerDisplayTransport.localWifi) {
       _localHost.publish(data);
       return;
@@ -339,6 +351,7 @@ class PosCustomerDisplayService {
 
   Future<void> disconnect() async {
     _manualDisconnect = true;
+    _completedPayment = null;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _pingTimer?.cancel();

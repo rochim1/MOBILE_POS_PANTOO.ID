@@ -15,6 +15,11 @@ class ServerFailure extends Failure {
   const ServerFailure([super.message = 'Terjadi kesalahan pada server']);
 }
 
+/// The server confirmed that no inventory write was committed.
+class InventoryRequestRejectedFailure extends ServerFailure {
+  const InventoryRequestRejectedFailure(super.message);
+}
+
 class NetworkFailure extends Failure {
   const NetworkFailure([
     super.message =

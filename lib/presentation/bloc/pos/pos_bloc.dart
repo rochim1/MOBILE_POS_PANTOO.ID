@@ -100,21 +100,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       ),
     );
     try {
-      final activeStore = state.activeShift == null
-          ? state.stores
-                .where(
-                  (store) =>
-                      store.status.toLowerCase() == 'active' &&
-                      store.branchId.isNotEmpty,
-                )
-                .firstOrNull
-          : state.stores
-                .where(
-                  (store) =>
-                      store.id == state.activeShift!['toko_id']?.toString() &&
-                      store.branchId.isNotEmpty,
-                )
-                .firstOrNull;
+      final activeStore = state.checkoutStore;
       if (activeStore == null) {
         emit(
           state.copyWith(
@@ -287,19 +273,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           ? (items: <PosOrder>[], hasMore: false)
           : await posRepository.getOrdersPage();
       final orders = ordersPage.items;
-      final activeStore = activeShift != null
-          ? stores
-                .where(
-                  (store) => store.id == activeShift['toko_id']?.toString(),
-                )
-                .firstOrNull
-          : stores
-                .where(
-                  (store) =>
-                      store.status.toLowerCase() == 'active' &&
-                      store.branchId.isNotEmpty,
-                )
-                .firstOrNull;
+      final activeStore = PosState(
+        stores: stores,
+        activeShift: activeShift,
+        runtimeConfig: runtimeConfig,
+      ).checkoutStore;
       if (activeStore == null || activeStore.branchId.isEmpty) {
         emit(
           state.copyWith(
@@ -317,6 +295,17 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         );
         return;
       }
+      // Keep verified store/permission context even if a later catalog request
+      // fails. Otherwise a restricted operator appears to have no store at all.
+      emit(
+        state.copyWith(
+          customers: customers,
+          stores: stores,
+          runtimeConfig: runtimeConfig,
+          activeShift: activeShift,
+          clearActiveShift: activeShift == null,
+        ),
+      );
       final products =
           permissions['view_products'] == true ||
               permissions['use_cashier'] == true
@@ -377,6 +366,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     Emitter<PosState> emit,
   ) async {
     final runtimeConfig = await posRepository.getRuntimeConfig();
+    if (event.preserveCheckout) {
+      emit(state.copyWith(runtimeConfig: runtimeConfig));
+      return;
+    }
     emit(
       state.copyWith(
         runtimeConfig: runtimeConfig,
@@ -713,13 +706,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       emit(state.copyWith(clearPricingPreview: true));
       return;
     }
-    final storeId =
-        state.activeShift?['toko_id']?.toString() ??
-        state.stores
-            .where((store) => store.status.toLowerCase() == 'active')
-            .firstOrNull
-            ?.id ??
-        '';
+    final storeId = state.checkoutStore?.id ?? '';
     if (storeId.isEmpty) {
       emit(state.copyWith(clearPricingPreview: true));
       return;
@@ -859,13 +846,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
     emit(state.copyWith(status: PosStatus.loading));
     try {
-      final tokoId =
-          state.activeShift?['toko_id']?.toString() ??
-          state.stores
-              .where((store) => store.status.toLowerCase() == 'active')
-              .firstOrNull
-              ?.id ??
-          '';
+      final tokoId = state.checkoutStore?.id ?? '';
       if (tokoId.isEmpty) {
         emit(
           state.copyWith(

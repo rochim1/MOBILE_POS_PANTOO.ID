@@ -72,6 +72,13 @@ android {
             applicationIdSuffix = ".qa"
             resValue("string", "app_name", "Pantoo POS QA")
         }
+        // Separate storage/credentials for reproducible two-terminal offline QA.
+        // Never reuse staging or clear its data to emulate a second cashier.
+        create("qaPeer") {
+            dimension = "flavor-type"
+            applicationIdSuffix = ".qa.peer"
+            resValue("string", "app_name", "Pantoo POS QA Kasir B")
+        }
         create("production") {
             dimension = "flavor-type"
             resValue("string", "app_name", "Pantoo POS")

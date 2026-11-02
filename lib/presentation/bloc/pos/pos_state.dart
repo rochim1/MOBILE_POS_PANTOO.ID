@@ -181,6 +181,29 @@ class PosState extends Equatable {
   }
 
   // Computed properties
+  /// Match the catalog's store selection. An existing shift must never fall
+  /// back to another store if its store has disappeared or become inactive.
+  PosStore? get checkoutStore {
+    final shiftStoreId = activeShift?['toko_id']?.toString();
+    final policy = runtimeConfig['inventory_policy'] as Map? ?? const {};
+    final inventoryProfile =
+        policy['inventory_profile'] ?? runtimeConfig['inventory_profile'];
+    final defaultLocation =
+        policy['default_receiving_location_id']?.toString().trim() ?? '';
+    return stores
+        .where(
+          (store) =>
+              store.id.isNotEmpty &&
+              store.status.toLowerCase() == 'active' &&
+              store.branchId.isNotEmpty &&
+              (inventoryProfile != 'simple' ||
+                  defaultLocation.isEmpty ||
+                  store.branchId == defaultLocation) &&
+              (activeShift == null || store.id == shiftStoreId),
+        )
+        .firstOrNull;
+  }
+
   double get baseSubtotal => cart.entries.fold(
     0,
     (sum, entry) => sum + (unitPriceFor(entry.key) * entry.value),

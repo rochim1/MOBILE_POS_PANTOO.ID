@@ -94,8 +94,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   bool get _editing => widget.existing != null;
   bool get _usesLocation => widget.type != PosInventoryDocumentType.purchase;
   bool get _hasValidPurchaseDestination =>
-      _deliveryAddress.trim().isNotEmpty &&
-      (_deliveryAddressMode != 'warehouse' || _deliveryWarehouseId.isNotEmpty);
+      _deliveryAddress.trim().isNotEmpty && _deliveryWarehouseId.isNotEmpty;
 
   Map<String, dynamic> get _inventoryPolicy => Map<String, dynamic>.from(
     context.read<PosBloc>().state.runtimeConfig['inventory_policy'] as Map? ??
@@ -1068,8 +1067,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         !_hasValidPurchaseDestination) {
       AppToast.error(
         context,
-        _deliveryAddressMode == 'warehouse' && _deliveryWarehouseId.isEmpty
-            ? 'Pilih gudang tujuan atau tulis alamat secara manual'
+        _deliveryWarehouseId.isEmpty
+            ? 'Pilih lokasi stok penerimaan PO'
             : 'Isi alamat pengiriman',
       );
       return;
@@ -1266,9 +1265,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             ? ''
             : _dateValue(_estimatedArrivalDate!),
         'alamat_pengiriman': _deliveryAddress.trim(),
-        'receiving_location_id':
-            _deliveryAddressMode == 'warehouse' &&
-                _deliveryWarehouseId.isNotEmpty
+        'receiving_location_id': _deliveryWarehouseId.isNotEmpty
             ? _deliveryWarehouseId
             : null,
         'supplier_contact': _supplierContact.trim(),
@@ -1602,9 +1599,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     if (_purchaseStep == 0 && !_hasValidPurchaseDestination) {
       AppToast.error(
         context,
-        _deliveryAddressMode == 'warehouse' && _deliveryWarehouseId.isEmpty
-            ? 'Pilih gudang tujuan atau tulis alamat secara manual'
-            : 'Pilih gudang atau isi alamat pengiriman',
+        _deliveryWarehouseId.isEmpty
+            ? 'Pilih lokasi stok penerimaan PO'
+            : 'Isi alamat pengiriman',
       );
       return;
     }
@@ -1744,7 +1741,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 selected: _deliveryAddressMode == 'manual',
                 onTap: () => setState(() {
                   _deliveryAddressMode = 'manual';
-                  _deliveryWarehouseId = '';
                 }),
               ),
             ),
@@ -1752,56 +1748,56 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         ),
       ),
       const SizedBox(height: 12),
-      if (_deliveryAddressMode == 'warehouse') ...[
-        DropdownButtonFormField<String>(
-          initialValue: _deliveryWarehouseId.isEmpty
-              ? null
-              : _deliveryWarehouseId,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Gudang / cabang tujuan *',
-            border: OutlineInputBorder(),
-          ),
-          items: _purchaseDeliveryLocations
-              .map(
-                (warehouse) => DropdownMenuItem(
-                  value: warehouse['_id']?.toString(),
-                  child: Row(
-                    children: [
-                      Icon(
-                        warehouse['is_warehouse'] == true
-                            ? Icons.warehouse_outlined
-                            : Icons.store_outlined,
-                        size: 18,
+      DropdownButtonFormField<String>(
+        initialValue: _deliveryWarehouseId.isEmpty
+            ? null
+            : _deliveryWarehouseId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Lokasi stok penerimaan PO *',
+          border: OutlineInputBorder(),
+        ),
+        items: _purchaseDeliveryLocations
+            .map(
+              (warehouse) => DropdownMenuItem(
+                value: warehouse['_id']?.toString(),
+                child: Row(
+                  children: [
+                    Icon(
+                      warehouse['is_warehouse'] == true
+                          ? Icons.warehouse_outlined
+                          : Icons.store_outlined,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        warehouse['nama_cabang']?.toString() ?? '-',
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          warehouse['nama_cabang']?.toString() ?? '-',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              )
-              .toList(),
-          onChanged: (value) => setState(() {
-            _deliveryWarehouseId = value ?? '';
+              ),
+            )
+            .toList(),
+        onChanged: (value) => setState(() {
+          _deliveryWarehouseId = value ?? '';
+          if (_deliveryAddressMode == 'warehouse') {
             _deliveryAddress =
                 _warehouse(_deliveryWarehouseId)['alamat_cabang']?.toString() ??
                 '';
-          }),
-        ),
-        if (_purchaseDeliveryLocations.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text(
-              'Belum ada gudang aktif. Pilih Tulis manual untuk mengisi alamat.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
-            ),
+          }
+        }),
+      ),
+      if (_purchaseDeliveryLocations.isEmpty)
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text(
+            'Belum ada lokasi penerimaan aktif. Siapkan gudang sebelum membuat PO.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
-      ],
+        ),
       if (_deliveryAddressMode == 'manual' ||
           _deliveryWarehouseId.isNotEmpty) ...[
         const SizedBox(height: 12),

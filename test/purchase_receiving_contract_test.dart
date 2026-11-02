@@ -5,6 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 String readProjectFile(String path) => File(path).readAsStringSync();
 
 void main() {
+  test('riwayat GRN membuka pengelolaan PO sesuai izin', () {
+    final workspace = File(
+      'lib/presentation/pages/pos/pos_purchase_workspace.dart',
+    ).readAsStringSync();
+    final receiving = File(
+      'lib/presentation/pages/pos/pos_purchase_receiving_page.dart',
+    ).readAsStringSync();
+    expect(workspace, contains('Kelola penerimaan PO'));
+    expect(workspace, contains('if (widget.canManageReceiving)'));
+    expect(
+      workspace,
+      contains("widget.permissions['cancel_inventory_receiving'] == true"),
+    );
+    expect(workspace, contains('getPurchaseForPrint(purchaseId)'));
+    expect(receiving, contains('if (!widget.canReceive) return;'));
+  });
   test('penerimaan parsial membawa metadata dan riwayat dari backend', () {
     final query = readProjectFile(
       'lib/data/graphql/pos_inventory_queries.dart',
@@ -107,15 +123,35 @@ void main() {
       expect(editor, contains("policy['inventory_profile'] == 'simple'"));
       expect(editor, contains('default_receiving_location_id'));
       expect(editor, contains('_deliveryWarehouseId = defaultId'));
-    expect(editor, contains("'receiving_location_id':"));
+      expect(editor, contains("'receiving_location_id':"));
       expect(
         receiving,
         contains('List<Map<String, dynamic>> get _receivingWarehouses'),
       );
-    expect(receiving, contains("widget.purchase['receiving_location_id']"));
+      expect(receiving, contains("widget.purchase['receiving_location_id']"));
       expect(receiving, contains('items: _receivingWarehouses'));
       expect(receiving, contains('Request lama memakai lokasi yang ditolak'));
       expect(receiving, contains('if (rejectedByPolicy)'));
     },
   );
+
+  test('alamat PO manual tetap membawa lokasi stok penerimaan', () {
+    final editor = readProjectFile(
+      'lib/presentation/pages/pos/pos_inventory_editor_page.dart',
+    );
+    final manualModeStart = editor.indexOf("label: 'Tulis manual'");
+    final destinationFieldStart = editor.indexOf(
+      "labelText: 'Lokasi stok penerimaan PO *'",
+    );
+    expect(manualModeStart, greaterThanOrEqualTo(0));
+    expect(destinationFieldStart, greaterThan(manualModeStart));
+    expect(
+      editor.substring(manualModeStart, destinationFieldStart),
+      isNot(contains("_deliveryWarehouseId = ''")),
+    );
+    expect(
+      editor,
+      contains("'receiving_location_id': _deliveryWarehouseId.isNotEmpty"),
+    );
+  });
 }

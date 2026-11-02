@@ -722,6 +722,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
       return 'Belum Bayar';
     }
     if (order.paymentStatus.toLowerCase() == 'lunas') return 'Lunas';
+    if (order.paymentStatus == 'partial') return 'Sebagian dibayar';
+    if (order.paymentStatus == 'credited') return 'Dikreditkan';
+    if (order.paymentStatus == 'cancelled') return 'Invoice dibatalkan';
     return order.status;
   }
 
@@ -1034,7 +1037,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
               style: const TextStyle(fontSize: 15),
             ),
             Text(
-              'Waktu: ${order.date}',
+              'Waktu: ${_formatDate(order.date)}',
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),

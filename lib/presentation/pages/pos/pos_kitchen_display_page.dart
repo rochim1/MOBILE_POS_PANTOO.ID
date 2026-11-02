@@ -440,6 +440,11 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     _pendingMove == null) {
                   return const PosOrderBoardSkeleton();
                 }
+                if (state.status == PosOrderManagementStatus.failure &&
+                    state.orders.isEmpty &&
+                    _pendingMove == null) {
+                  return PosQueueLoadError(onRetry: _reload);
+                }
                 final orders = state.orders
                     .where(
                       (order) =>
@@ -484,7 +489,17 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         );
                     return Column(
                       children: [
-                        if (widget.canUpdate) _compactDropTargets(),
+                        if (widget.canUpdate)
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Geser kartu ke kanan untuk tahap berikutnya',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
                         Expanded(
                           child: RefreshIndicator(
                             onRefresh: () async => _reload(),
@@ -500,6 +515,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                                   padding: const EdgeInsets.only(bottom: 10),
                                   child: _draggableTicket(
                                     filtered[index - (showPending ? 1 : 0)],
+                                    compact: true,
                                   ),
                                 );
                               },
@@ -617,50 +633,27 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     }).toList(),
   );
 
-  Widget _compactDropTargets() => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-    child: Row(
-      children: ['Diproses', 'Siap'].map((status) {
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: DragTarget<PosOrderDetail>(
-              onWillAcceptWithDetails: (details) =>
-                  _canDrop(details.data, status),
-              onAcceptWithDetails: (details) => _advance(details.data, status),
-              builder: (context, candidates, rejected) => Container(
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: candidates.isNotEmpty
-                      ? _statusColor(status).withValues(alpha: .18)
-                      : Colors.white,
-                  border: Border.all(color: _statusColor(status)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Tarik ke ${_statusLabel(status)}',
-                  style: TextStyle(
-                    color: _statusColor(status),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    ),
-  );
-
-  Widget _draggableTicket(PosOrderDetail order) {
+  Widget _draggableTicket(PosOrderDetail order, {bool compact = false}) {
     if (!widget.canUpdate || order.status == 'Siap' || _pendingMove != null) {
       return _ticket(order);
     }
+    double horizontalTravel = 0;
     return Draggable<PosOrderDetail>(
       data: order,
+      affinity: Axis.horizontal,
+      axis: Axis.horizontal,
       maxSimultaneousDrags: 1,
+      onDragStarted: () => horizontalTravel = 0,
+      onDragUpdate: (details) => horizontalTravel += details.delta.dx,
+      onDragEnd: (details) {
+        if (!compact || details.wasAccepted || horizontalTravel < 72) return;
+        final nextStatus = switch (order.status) {
+          'Baru' => 'Diproses',
+          'Diproses' => 'Siap',
+          _ => null,
+        };
+        if (nextStatus != null) _advance(order, nextStatus);
+      },
       feedback: Material(
         color: Colors.transparent,
         child: SizedBox(

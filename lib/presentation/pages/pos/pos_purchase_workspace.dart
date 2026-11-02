@@ -42,12 +42,14 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
 
   @override
   Widget build(BuildContext context) {
-    final simpleInventory = widget.inventoryPolicy['inventory_profile'] == 'simple';
+    final simpleInventory =
+        widget.inventoryPolicy['inventory_profile'] == 'simple';
     final receiving = _activeReceiving;
     if (receiving != null) {
       return PosPurchaseReceivingPage(
         purchase: receiving,
         embedded: true,
+        canReceive: widget.permissions['receive_inventory_purchases'] == true,
         canViewPayable: widget.permissions['view_payables'] == true,
         canOverrideReceivingTolerance:
             widget.permissions['override_receiving_tolerance'] == true &&
@@ -90,7 +92,11 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 18, color: Color(0xFF087F76)),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: Color(0xFF087F76),
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -103,7 +109,10 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
                     icon: const Icon(Icons.more_vert, size: 19),
                     onSelected: (value) => setState(() => _tab = value),
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: 2, child: Text('Pembelian Langsung')),
+                      PopupMenuItem(
+                        value: 2,
+                        child: Text('Pembelian Langsung'),
+                      ),
                       PopupMenuItem(value: 3, child: Text('Permintaan DP')),
                     ],
                   ),
@@ -169,6 +178,10 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
                   key: ValueKey('receiving-list-$_revision'),
                   canReceive:
                       widget.permissions['receive_inventory_purchases'] == true,
+                  canManageReceiving:
+                      widget.permissions['receive_inventory_purchases'] ==
+                          true ||
+                      widget.permissions['cancel_inventory_receiving'] == true,
                   onReceive: (purchase) => setState(() {
                     _activePayable = null;
                     _activeReceiving = purchase;
@@ -195,10 +208,12 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
 
 class _ReceivingList extends StatefulWidget {
   final bool canReceive;
+  final bool canManageReceiving;
   final ValueChanged<Map<String, dynamic>> onReceive;
   const _ReceivingList({
     super.key,
     required this.canReceive,
+    required this.canManageReceiving,
     required this.onReceive,
   });
 
@@ -324,7 +339,7 @@ class _ReceivingListState extends State<_ReceivingList> {
 
   Future<void> _detail(Map<String, dynamic> receipt) async {
     final rows = (receipt['items'] as List? ?? const []).whereType<Map>();
-    await showModalBottomSheet<void>(
+    final manage = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -398,9 +413,34 @@ class _ReceivingListState extends State<_ReceivingList> {
               const Divider(),
               Text('Catatan: ${receipt['catatan']}'),
             ],
+            if (widget.canManageReceiving) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.manage_search),
+                label: const Text('Kelola penerimaan PO'),
+              ),
+            ],
           ],
         ),
       ),
+    );
+    if (manage != true || !mounted) return;
+    final purchaseId = receipt['purchase_id']?.toString().trim() ?? '';
+    if (purchaseId.isEmpty) {
+      AppToast.error(
+        context,
+        'Referensi PO tidak tersedia. Muat ulang daftar.',
+      );
+      return;
+    }
+    setState(() => _loading = true);
+    final result = await _repository.getPurchaseForPrint(purchaseId);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    result.fold(
+      (failure) => AppToast.error(context, failure.message),
+      widget.onReceive,
     );
   }
 

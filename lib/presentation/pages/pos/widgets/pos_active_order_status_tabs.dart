@@ -8,11 +8,13 @@ class PosActiveOrderStatusTabs extends StatelessWidget {
     required this.selectedStatus,
     required this.counts,
     required this.onSelected,
+    this.labels = const {},
   });
 
   final String selectedStatus;
   final Map<String, int> counts;
   final ValueChanged<String> onSelected;
+  final Map<String, String> labels;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +34,7 @@ class PosActiveOrderStatusTabs extends StatelessWidget {
           for (final (status, label) in statuses)
             ChoiceChip(
               key: ValueKey('order-status-${status.isEmpty ? 'all' : status}'),
-              label: Text('$label ${counts[status] ?? 0}'),
+              label: Text('${labels[status] ?? label} ${counts[status] ?? 0}'),
               selected: selectedStatus == status,
               onSelected: (_) => onSelected(status),
               materialTapTargetSize: MaterialTapTargetSize.padded,

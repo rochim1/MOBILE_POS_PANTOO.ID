@@ -71,11 +71,11 @@ void main() {
     expect(sections['Kelola Bisnis'], [7]);
   });
 
-  testWidgets('profil tanpa meja menamai menu hanya Pesanan Aktif', (
+  testWidgets('ritel dengan antrean menamai menu Pesanan tanpa istilah meja', (
     tester,
   ) async {
     final bloc = _ConfiguredPosBloc({
-      'features': {'use_tables': false},
+      'features': {'use_tables': false, 'use_order_queue': true},
       'permissions': {'view_tables': true},
     });
     addTearDown(bloc.close);
@@ -87,7 +87,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Pesanan Aktif'), findsOneWidget);
+    expect(find.text('Pesanan'), findsOneWidget);
     expect(find.text('Pesanan Aktif & Meja'), findsNothing);
   });
 
@@ -157,7 +157,7 @@ void main() {
     );
 
     for (final (label, index) in <(String, int)>[
-      ('Pesanan Aktif & Meja', 5),
+      ('Pesanan & Meja', 5),
       ('Tampilan Dapur', 18),
       ('Promo & Voucher', 8),
       ('Laporan Penjualan', 12),

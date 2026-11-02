@@ -3,7 +3,7 @@ class PosTableOrderQueries {
     query($storeId:ID!,$stationId:ID,$status:String,$pagination:pagination){
       GetPOSKitchenTicketPage(toko_id:$storeId,production_station_id:$stationId,order_status:$status,pagination:$pagination){
         totalCount status_counts{status count} items{
-          _id order_no pelanggan_id pelanggan_nama status status_pembayaran
+          _id order_no pelanggan_id pelanggan_nama status status_pembayaran financially_released pos_transaction_id
           subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
           table_id table{_id name} status_history{status at actor_id actor_name note}
           items{_id produk_id nama kode qty unit harga_satuan subtotal catatan preparation_mode production_station_id production_station_name prep_time_minutes production_status revision production_status_history{status at actor_id revision}}
@@ -21,7 +21,7 @@ class PosTableOrderQueries {
   static const String getKitchenTickets = r'''
     query GetPOSKitchenTickets($storeId: ID!, $stationId: ID) {
       GetPOSKitchenTickets(toko_id: $storeId, production_station_id: $stationId) {
-        _id order_no pelanggan_id pelanggan_nama status status_pembayaran
+        _id order_no pelanggan_id pelanggan_nama status status_pembayaran financially_released pos_transaction_id
         subtotal diskon_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
         table_id table { _id name }
         status_history { status at actor_id actor_name note }
@@ -41,7 +41,7 @@ class PosTableOrderQueries {
         info_page { count }
         status_counts { status count }
         items {
-          _id order_no pelanggan_id pelanggan_nama pelanggan_telepon customer_profile_requested status status_pembayaran web_order_pay_before_processing
+          _id order_no pelanggan_id pelanggan_nama pelanggan_telepon customer_profile_requested status status_pembayaran web_order_pay_before_processing financially_released pos_transaction_id
           subtotal diskon_amount promo_code promo_discount_amount pajak_amount grand_total catatan kitchen_note handover_note internal_note tipe_pesanan source
           reservation_status reservation_start_at reservation_end_at reservation_guest_count reservation_deposit_amount reservation_deposit_paid
           status_history { status at actor_id actor_name note }
@@ -49,6 +49,7 @@ class PosTableOrderQueries {
           items { _id produk_id nama kode qty unit harga_satuan subtotal catatan preparation_mode production_station_id production_station_name prep_time_minutes production_status revision production_status_history { status at actor_id revision } }
           service_order {
             service_type service_subject service_mode weight_kg item_count promised_at
+            vehicle_no vehicle_model technician_id technician_name appointment_at complaint diagnosis
             bag_tag fragrance finishing condition_notes status
             status_history { status at actor_id actor_name note }
             service_lines { line_id product_id name object_type pricing_basis quantity weight_kg unit unit_price minimum_charge subtotal tag_code brand color material size condition_notes risk_consent promised_at status addons { product_id name qty unit_price subtotal } media { url category note } status_history { status at actor_id actor_name note } }
@@ -69,7 +70,7 @@ class PosTableOrderQueries {
         pelanggan_telepon
         customer_profile_requested
         status
-        status_pembayaran
+        status_pembayaran financially_released pos_transaction_id
         subtotal
         diskon_amount
         promo_code
@@ -98,6 +99,7 @@ class PosTableOrderQueries {
         }
         service_order {
           service_type service_subject service_mode weight_kg item_count promised_at
+          vehicle_no vehicle_model technician_id technician_name appointment_at complaint diagnosis
           bag_tag fragrance finishing condition_notes status
           status_history { status at actor_id actor_name note }
           service_lines { line_id product_id name object_type pricing_basis quantity weight_kg unit unit_price minimum_charge subtotal tag_code brand color material size condition_notes risk_consent promised_at status addons { product_id name qty unit_price subtotal } media { url category note } status_history { status at actor_id actor_name note } }

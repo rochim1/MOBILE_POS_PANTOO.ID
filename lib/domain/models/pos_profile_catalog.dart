@@ -36,7 +36,8 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": false,
     "use_delivery": false,
     "require_customer": false,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   },
   "restoran": {
     "use_tables": true,
@@ -47,7 +48,8 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": false,
     "use_delivery": true,
     "require_customer": false,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   },
   "laundry": {
     "use_tables": false,
@@ -58,7 +60,8 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": false,
     "use_delivery": true,
     "require_customer": true,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   },
   "bengkel": {
     "use_tables": false,
@@ -69,7 +72,8 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": true,
     "use_delivery": false,
     "require_customer": true,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   },
   "salon": {
     "use_tables": false,
@@ -80,7 +84,8 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": false,
     "use_delivery": false,
     "require_customer": true,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   },
   "jasa": {
     "use_tables": false,
@@ -91,7 +96,8 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": false,
     "use_delivery": false,
     "require_customer": true,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   },
   "custom": {
     "use_tables": false,
@@ -102,10 +108,16 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_vehicle_data": false,
     "use_delivery": false,
     "require_customer": false,
-    "track_stock": true
+    "track_stock": true,
+    "use_order_queue": false
   }
 };
 const posFeatureOptions = <Map<String, String>>[
+  {
+    "key": "use_order_queue",
+    "label": "Antrean pesanan / ambil nanti",
+    "description": "Kelola pre-order, persiapan barang dan pengambilan. Penjualan langsung tetap selesai di kasir."
+  },
   {
     "key": "use_tables",
     "label": "Meja",

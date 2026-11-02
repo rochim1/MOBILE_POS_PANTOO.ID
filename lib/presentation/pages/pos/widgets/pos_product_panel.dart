@@ -8,6 +8,7 @@ import '../../../bloc/pos/pos_bloc.dart';
 import '../../../bloc/pos/pos_event.dart';
 import '../../../bloc/pos/pos_state.dart';
 import '../../../widgets/app_toast.dart';
+import '../../../widgets/skeleton_loading.dart';
 import '../../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../../../domain/models/pos_product.dart';
 import '../../../../domain/models/pos_customer.dart';
@@ -70,8 +71,28 @@ class _PosProductPanelState extends State<PosProductPanel> {
         final branch = _catalogBranch(state);
         final scope =
             '$branch|${widget.selectedCategory}|${state.favoriteProductIds.hashCode}|${state.products.hashCode}';
-        if (branch != null && scope != _catalogScope) {
+        if (branch == null && _catalogScope.isNotEmpty) {
+          ++_searchVersion;
+          _catalogScope = '';
+          _remoteProducts = const [];
+          _catalogTotal = 0;
+          _catalogPage = 1;
+          _catalogOffline = false;
+          _catalogLoaded = true;
+          _remoteSearching = false;
+          _catalogError = 'Toko belum terhubung ke lokasi penjualan aktif';
+        } else if (branch != null && scope != _catalogScope) {
+          // Never keep another location's stock actionable while its request
+          // is replaced, including a runtime/profile change without a shift.
+          ++_searchVersion;
           _catalogScope = scope;
+          _remoteProducts = const [];
+          _catalogTotal = 0;
+          _catalogPage = 1;
+          _catalogOffline = false;
+          _catalogLoaded = true;
+          _remoteSearching = true;
+          _catalogError = '';
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) _loadCatalog(page: 1);
           });
@@ -171,7 +192,20 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   child: Divider(height: 1, color: Colors.grey),
                 ),
               ],
-              if (filteredProducts.isEmpty)
+              if (_remoteSearching && filteredProducts.isEmpty)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: SkeletonProductListItem(),
+                    ),
+                    childCount: 4,
+                  ),
+                )
+              else if (filteredProducts.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Container(
@@ -309,17 +343,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
     );
   }
 
-  String? _catalogBranch(PosState state) {
-    final storeId = state.activeShift?['toko_id']?.toString();
-    return (state.stores.where((store) => store.id == storeId).firstOrNull ??
-            state.stores
-                .where(
-                  (store) =>
-                      store.status == 'active' && store.branchId.isNotEmpty,
-                )
-                .firstOrNull)
-        ?.branchId;
-  }
+  String? _catalogBranch(PosState state) => state.checkoutStore?.branchId;
 
   Future<void> _loadCatalog({required int page}) async {
     final bloc = context.read<PosBloc>(),

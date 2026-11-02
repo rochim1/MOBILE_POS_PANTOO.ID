@@ -28,9 +28,11 @@ import 'pos_onboarding_page.dart';
 import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
+import 'widgets/pos_cashier_entry_button.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
+import 'utils/pos_order_workspace_policy.dart';
 import '../home/home_page.dart';
 import '../login/login_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -598,6 +600,7 @@ class _PosShellPageState extends State<PosShellPage>
       storeTourKey: _setupTourTargets.shiftStore,
       formTourKey: _setupTourTargets.shiftForm,
       openTourKey: _setupTourTargets.shiftOpen,
+      onShiftClosed: () => _posBloc.add(LoadPosData()),
       onShiftOpened: () async {
         _posBloc.add(LoadPosData());
         try {
@@ -1125,7 +1128,7 @@ class _PosShellPageState extends State<PosShellPage>
                       appBar: AppBar(
                         elevation: 0,
                         backgroundColor: AppColors.primary,
-                        toolbarHeight: isSmallScreen ? 48 : 64,
+                        toolbarHeight: isSmallScreen ? 56 : 64,
                         // Di mobile navigasi sekunder berada di tab Lainnya.
                         // Tombol sidebar hanya dipertahankan pada layar lebar.
                         leadingWidth: isMobile
@@ -1220,13 +1223,12 @@ class _PosShellPageState extends State<PosShellPage>
                                           Text(
                                             isMobile
                                                 ? storeName.toString()
-                                                : _selectedIndex == 5 &&
-                                                      (_posBloc
-                                                                  .state
-                                                                  .runtimeConfig['features']
-                                                              as Map?)?['use_tables'] !=
-                                                          true
-                                                ? 'Pesanan Aktif'
+                                                : _selectedIndex == 5
+                                                ? PosOrderWorkspacePolicy(
+                                                    _posBloc
+                                                        .state
+                                                        .runtimeConfig,
+                                                  ).title
                                                 : _destinations[_selectedIndex]
                                                       .label,
                                             style:
@@ -1482,35 +1484,58 @@ class _PosShellPageState extends State<PosShellPage>
                               },
                             ),
                             if (!isSmallScreen)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10.0,
-                                  horizontal: 8.0,
-                                ),
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedIndex =
-                                          3; // Index for Transaksi (PosOrderPage)
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors
-                                        .teal
-                                        .shade600, // A darker green for the button
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
+                              BlocBuilder<PosBloc, PosState>(
+                                builder: (context, state) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10.0,
+                                    horizontal: 8.0,
                                   ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('Daftar Order'),
-                                      SizedBox(width: 4),
-                                      Icon(Icons.chevron_right, size: 16),
-                                    ],
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedIndex =
+                                            PosOrderWorkspacePolicy(
+                                                  state.runtimeConfig,
+                                                ).visible &&
+                                                (state.runtimeConfig['permissions']
+                                                        as Map?)?['view_tables'] ==
+                                                    true
+                                            ? 5
+                                            : 3;
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors
+                                          .teal
+                                          .shade600, // A darker green for the button
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          PosOrderWorkspacePolicy(
+                                                    state.runtimeConfig,
+                                                  ).visible &&
+                                                  (state.runtimeConfig['permissions']
+                                                          as Map?)?['view_tables'] ==
+                                                      true
+                                              ? PosOrderWorkspacePolicy(
+                                                  state.runtimeConfig,
+                                                ).title
+                                              : 'Riwayat Transaksi',
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1631,18 +1656,11 @@ class _PosShellPageState extends State<PosShellPage>
                       floatingActionButton:
                           isMobile &&
                               MediaQuery.of(context).viewInsets.bottom == 0
-                          ? FloatingActionButton.small(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 2,
-                              tooltip: 'Buka kasir',
-                              onPressed: () {
-                                setState(() {
-                                  _selectedIndex = 1;
-                                });
-                              },
-                              child: const Icon(Icons.point_of_sale, size: 20),
+                          ? PosCashierEntryButton(
+                              showSetupGuide: _showSetupGuide,
+                              onContinueSetup: _continueSetup,
+                              onOpenCashier: () =>
+                                  setState(() => _selectedIndex = 1),
                             )
                           : null,
                       floatingActionButtonLocation:
@@ -1653,7 +1671,7 @@ class _PosShellPageState extends State<PosShellPage>
                               notchMargin: 4.0,
                               color: Colors.white,
                               padding: EdgeInsets.zero,
-                              height: 50,
+                              height: 60,
                               child: Row(
                                 children: <Widget>[
                                   Expanded(
@@ -1877,7 +1895,9 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('use_cashier')) _sidebarItem(1),
       // Order dan manajemen meja sudah dilebur dalam satu workspace. Tampilkan
       // satu menu bila pengguna memiliki salah satu hak akses terkait.
-      if (viewTables || (useTables && manageTables)) _sidebarItem(5),
+      if ((viewTables && PosOrderWorkspacePolicy(runtimeConfig).visible) ||
+          (useTables && manageTables))
+        _sidebarItem(5),
       if (useKitchenFlow && viewTables) _sidebarItem(18),
       _sidebarSection('MANAJEMEN'),
       if (can('view_products')) _sidebarItem(2),
@@ -1919,11 +1939,8 @@ class _PosShellPageState extends State<PosShellPage>
 
   Widget _sidebarItem(int index) {
     final destination = _destinations[index];
-    final label =
-        index == 5 &&
-            (_posBloc.state.runtimeConfig['features'] as Map?)?['use_tables'] !=
-                true
-        ? 'Pesanan Aktif'
+    final label = index == 5
+        ? PosOrderWorkspacePolicy(_posBloc.state.runtimeConfig).title
         : destination.label;
     final selected = _selectedIndex == index;
     final item = InkWell(
@@ -2018,6 +2035,9 @@ class _PosShellPageState extends State<PosShellPage>
       minWidth: 0,
       padding: const EdgeInsets.symmetric(horizontal: 2),
       onPressed: () {
+        if (index == 4) {
+          _posBloc.add(const RefreshPosRuntimeConfig(preserveCheckout: true));
+        }
         setState(() {
           _selectedIndex = index;
         });

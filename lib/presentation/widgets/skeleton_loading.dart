@@ -234,8 +234,11 @@ class SkeletonProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
-              SkeletonBox(width: 60, height: 14),
-              SkeletonBox(width: 80, height: 36, borderRadius: 8),
+              Flexible(child: SkeletonBox(width: 60, height: 14)),
+              SizedBox(width: 8),
+              Flexible(
+                child: SkeletonBox(width: 80, height: 36, borderRadius: 8),
+              ),
             ],
           ),
         ],

@@ -4,6 +4,28 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/utils/pos_order_transit
 
 void main() {
   test(
+    'invoice tempo sah boleh diselesaikan tanpa disamarkan sebagai lunas',
+    () {
+      final order = PosOrderDetail.fromJson({
+        'status_pembayaran': 'partial',
+        'financially_released': true,
+      });
+      expect(order.paymentStatus, 'partial');
+      expect(shouldPayBeforeOrderTransition(order, 'Selesai'), isFalse);
+      expect(
+        shouldPayBeforeOrderTransition(
+          const PosOrderDetail(
+            paymentStatus: 'partial',
+            financiallyReleased: true,
+            webOrderPayBeforeProcessing: true,
+          ),
+          'Diproses',
+        ),
+        isTrue,
+      );
+    },
+  );
+  test(
     'transisi status pesanan mengikuti backend dan tidak melompati tahap',
     () {
       expect(nextPosOrderStatus('Baru'), 'Diproses');

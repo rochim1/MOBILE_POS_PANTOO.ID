@@ -42,6 +42,7 @@ class PosQueries {
   static const String getPOSRuntimeConfig = r'''
     query GetPOSRuntimeConfig {
       GetPOSRuntimeConfig {
+        has_open_orders
         instansi_id
         business_profile
         inventory_profile
@@ -100,7 +101,7 @@ class PosQueries {
         pos_auto_lock_minutes
         expired_sale_policy
         features {
-          use_tables
+          use_order_queue use_tables
           use_kitchen_flow
           use_service_order
           use_appointments
@@ -662,6 +663,11 @@ class PosQueries {
           pelanggan
           metode_pembayaran
           tipe_pesanan
+          status_pembayaran
+          sales_invoice_id
+          paid_amount
+          outstanding_amount
+          credited_amount
           subtotal
           diskon
           pajak

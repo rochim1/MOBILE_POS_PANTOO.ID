@@ -6,6 +6,7 @@ import '../../widgets/pos_full_width_tabs.dart';
 import 'pos_table_management_page.dart';
 import 'pos_table_order_page.dart';
 import '../../../../domain/models/pos_order_detail.dart';
+import 'utils/pos_order_workspace_policy.dart';
 
 /// Satu pintu UI untuk order dine-in dan master meja. API keduanya tetap
 /// terpisah supaya lifecycle transaksi tidak tercampur dengan CRUD meja.
@@ -48,9 +49,9 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
         PosFullWidthTabs(
           tabs: [
             if (canViewOrders)
-              const PosFullWidthTab(
+              PosFullWidthTab(
                 icon: Icons.receipt_long_outlined,
-                label: 'Pesanan Aktif',
+                label: PosOrderWorkspacePolicy(config).title,
               ),
             if (canManageTables)
               const PosFullWidthTab(

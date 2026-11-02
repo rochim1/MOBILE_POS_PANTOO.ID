@@ -86,7 +86,9 @@ class PosOrder {
       taxAmount: double.tryParse(json['pajak']?.toString() ?? '0') ?? 0,
       note: json['catatan']?.toString() ?? '',
       status: json['status']?.toString() ?? 'Selesai',
-      paymentStatus: json['status_pembayaran']?.toString() ?? 'lunas',
+      paymentStatus:
+          json['status_pembayaran']?.toString() ??
+          (json['metode_pembayaran'] == 'tempo' ? 'belum_bayar' : 'lunas'),
       isInvoice: false,
       source: json['source']?.toString() ?? 'kasir',
       items: (json['items'] as List? ?? const [])

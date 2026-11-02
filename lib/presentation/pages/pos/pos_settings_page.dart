@@ -15,6 +15,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/loading_indicator_widget.dart';
 import '../../widgets/pos_category_navigation.dart';
 import 'widgets/pos_setup_tour.dart';
+import 'widgets/pos_forced_profile_change_dialog.dart';
 
 enum _SettingsSection { transaction, finance, cashier }
 
@@ -169,7 +170,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       return;
     }
     String? selectedId = users.first['_id']?.toString();
-    final pin = TextEditingController();
+    var pin = '';
     var saving = false;
     var guideScheduled = false;
     await showDialog<void>(
@@ -251,20 +252,23 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                         ? null
                         : (value) => setDialogState(() {
                             selectedId = value;
-                            pin.clear();
+                            pin = '';
                           }),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  KeyedSubtree(
                     key: widget.setupTourTargets?.pinValue,
-                    controller: pin,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'PIN baru (4–6 digit)',
-                      counterText: '',
+                    child: TextFormField(
+                      key: ValueKey(selectedId),
+                      onChanged: (value) => pin = value,
+                      obscureText: true,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'PIN baru (4–6 digit)',
+                        counterText: '',
+                      ),
                     ),
                   ),
                   if (locked)
@@ -308,7 +312,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                     ? null
                     : () async {
                         final id = selectedId;
-                        final value = pin.text.trim();
+                        final value = pin.trim();
                         if (id == null ||
                             !RegExp(r'^\d{4,6}$').hasMatch(value)) {
                           AppToast.error(
@@ -343,7 +347,6 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         },
       ),
     );
-    pin.dispose();
   }
 
   void _applyBusinessProfile(String profile) {
@@ -529,79 +532,11 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       AppToast.error(context, message);
       return;
     }
-    final reason = TextEditingController();
-    var acknowledged = false;
-    String validation = '';
-    final confirmed = await showDialog<bool>(
+    final reasonText = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Profil masih digunakan operasional'),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(message),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Pesanan lama tetap memakai snapshot-nya. Profil baru berlaku untuk transaksi berikutnya. Periksa kembali fitur meja, layanan, pelanggan, dan tipe pemenuhan.',
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: reason,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Alasan perubahan paksa',
-                      hintText: 'Minimal 10 karakter',
-                    ),
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: acknowledged,
-                    onChanged: (value) =>
-                        setDialogState(() => acknowledged = value == true),
-                    title: const Text(
-                      'Saya memahami operasional aktif tidak ikut diubah.',
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                  if (validation.isNotEmpty)
-                    Text(
-                      validation,
-                      style: const TextStyle(color: AppColors.danger),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (reason.text.trim().length < 10 || !acknowledged) {
-                  setDialogState(
-                    () => validation =
-                        'Isi alasan minimal 10 karakter dan centang pernyataan pemahaman.',
-                  );
-                  return;
-                }
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Paksa lanjutkan'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => PosForcedProfileChangeDialog(message: message),
     );
-    final reasonText = reason.text.trim();
-    reason.dispose();
-    if (confirmed != true || !mounted) return;
+    if (reasonText == null || !mounted) return;
     context.read<PosSettingsBloc>().add(
       UpdateSettings(
         input: {

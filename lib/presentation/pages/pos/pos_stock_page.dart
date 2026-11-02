@@ -383,7 +383,7 @@ class _PosStockViewState extends State<_PosStockView> {
             ? 'Rp ${_formatCurrency(stats.totalNilaiInventaris)}'
             : '-',
         Icons.account_balance_wallet,
-        AppColors.info,
+        AppColors.neutral,
       ),
       (
         'Stok Rendah',
@@ -417,7 +417,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 .map(
                   (card) => SizedBox(
                     width: width,
-                    height: 116,
+                    height: 112,
                     child: _buildStatCard(card.$1, card.$2, card.$3, card.$4),
                   ),
                 )
@@ -438,8 +438,8 @@ class _PosStockViewState extends State<_PosStockView> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE1E5E9)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E9EE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -450,7 +450,7 @@ class _PosStockViewState extends State<_PosStockView> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
+                  color: color.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 19, color: color),
@@ -461,7 +461,7 @@ class _PosStockViewState extends State<_PosStockView> {
                   label,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF737B89),
+                    color: Color(0xFF667085),
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -481,13 +481,11 @@ class _PosStockViewState extends State<_PosStockView> {
                 value,
                 style: const TextStyle(
                   fontSize: 21,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF172033),
                 ),
               ),
             ),
-          const SizedBox(height: 7),
-          Container(height: 2, color: color),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
+import '../../../core/error/failures.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/inventory_action_style.dart';
@@ -19,6 +20,7 @@ import 'utils/pos_purchase_progress.dart';
 class PosPurchaseReceivingPage extends StatefulWidget {
   final Map<String, dynamic> purchase;
   final bool embedded;
+  final bool canReceive;
   final bool canViewPayable;
   final bool canRecordPayment;
   final bool canOverrideReceivingTolerance;
@@ -30,6 +32,7 @@ class PosPurchaseReceivingPage extends StatefulWidget {
     super.key,
     required this.purchase,
     this.embedded = false,
+    this.canReceive = true,
     this.canViewPayable = false,
     this.canRecordPayment = false,
     this.canOverrideReceivingTolerance = false,
@@ -662,6 +665,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   }
 
   Future<void> _save() async {
+    if (!widget.canReceive) return;
     if (_pendingPayloadUnreadable) {
       AppToast.error(
         context,
@@ -930,6 +934,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
   }
 
   Future<void> _sendReceiving(Map<String, dynamic> input) async {
+    if (!widget.canReceive) return;
     setState(() => _loading = true);
     final result = await _repository.receivePurchase(input);
     if (!mounted) return;
@@ -941,6 +946,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       (failure) {
         failureMessage = failure.message;
         rejectedByPolicy =
+            failure is InventoryRequestRejectedFailure ||
             failure.message.contains(
               'Profil Inventory Simple hanya menerima stok pada lokasi default',
             ) ||
@@ -1701,7 +1707,9 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: _loading || _items.isEmpty ? null : _save,
+                    onPressed: !widget.canReceive || _loading || _items.isEmpty
+                        ? null
+                        : _save,
                     style: InventoryActionStyle.primary(),
                     icon: const Icon(Icons.inventory, size: 18),
                     label: const Text('Simpan Penerimaan'),

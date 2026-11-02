@@ -10,6 +10,7 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_product_pan
 
 class QaCatalog extends Fake implements PosRepository {
   final calls = <(int, String)>[];
+  final branches = <String?>[];
   @override
   Future<PosCatalogPage> getCatalogPage({
     String? branchId,
@@ -19,6 +20,7 @@ class QaCatalog extends Fake implements PosRepository {
     int page = 1,
   }) async {
     calls.add((page, category));
+    branches.add(branchId);
     final items =
         List.generate(
               5005,
@@ -79,9 +81,75 @@ class QaCatalogBloc extends PosBloc {
       ),
     );
   }
+
+  void useDefaultLocation(String branch, {bool invalidShift = false}) {
+    emit(
+      state.copyWith(
+        stores: const [
+          PosStore(
+            id: 'other',
+            name: 'Other',
+            status: 'active',
+            branchId: 'other-branch',
+          ),
+          PosStore(
+            id: 'default',
+            name: 'Default',
+            status: 'active',
+            branchId: 'default-branch',
+          ),
+        ],
+        activeShift: invalidShift ? {'toko_id': 'missing'} : null,
+        clearActiveShift: !invalidShift,
+        runtimeConfig: {
+          'inventory_profile': 'simple',
+          'inventory_policy': {'default_receiving_location_id': branch},
+        },
+      ),
+    );
+  }
 }
 
 void main() {
+  testWidgets(
+    'catalog follows checkout default location and clears stale results for invalid shifts',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final repository = QaCatalog();
+      final bloc = QaCatalogBloc(repository)
+        ..useDefaultLocation('default-branch');
+      addTearDown(bloc.close);
+      await tester.pumpWidget(
+        BlocProvider<PosBloc>.value(
+          value: bloc,
+          child: MaterialApp(
+            home: Scaffold(
+              body: PosProductPanel(
+                isMobile: true,
+                selectedCategory: 'Semua Kategori',
+                categories: const ['Semua Kategori'],
+                onCategorySelected: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(repository.branches, ['default-branch']);
+      bloc.useDefaultLocation('other-branch');
+      await tester.pumpAndSettle();
+      expect(repository.branches.last, 'other-branch');
+      final before = repository.branches.length;
+      bloc.useDefaultLocation('other-branch', invalidShift: true);
+      await tester.pumpAndSettle();
+      expect(repository.branches.length, before);
+      expect(find.textContaining('QA Product 00000'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     '5,005 QA products/categories: server paging and category search reach records beyond first 1000',
     (tester) async {

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('favorit pending terisolasi per akun dan dikirim saat online', () async {
+  test('favorit pending terisolasi per akun/operator dan dikirim saat online', () async {
     dotenv.loadFromString(envString: 'API_URL=http://localhost/graphql');
     SharedPreferences.setMockInitialValues({
       'instansi_id': 'tenant-a',
@@ -55,15 +55,11 @@ void main() {
       }),
     );
     final repository = PosRepository(provider, prefs);
+    const favoriteKey = 'pos_favorite_product_ids:tenant-a:user-a:user-a';
 
     await repository.saveFavoriteProductIds({'product-a'});
-    expect(
-      prefs.getBool('pos_favorite_product_ids:tenant-a:user-a:pending'),
-      isTrue,
-    );
-    expect(prefs.getStringList('pos_favorite_product_ids:tenant-a:user-a'), [
-      'product-a',
-    ]);
+    expect(prefs.getBool('$favoriteKey:pending'), isTrue);
+    expect(prefs.getStringList(favoriteKey), ['product-a']);
 
     await prefs.setString('user_id', 'user-b');
     expect(await repository.getFavoriteProductIds(), isEmpty);
@@ -73,9 +69,6 @@ void main() {
     rejectSave = false;
     await repository.syncPendingFavoriteProductIds();
     expect(sentIds.last, ['product-a']);
-    expect(
-      prefs.getBool('pos_favorite_product_ids:tenant-a:user-a:pending'),
-      isFalse,
-    );
+    expect(prefs.getBool('$favoriteKey:pending'), isFalse);
   });
 }
