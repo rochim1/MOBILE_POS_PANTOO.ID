@@ -8,6 +8,7 @@ import '../../bloc/pos_stock/pos_stock_bloc.dart';
 import '../../bloc/pos_stock/pos_stock_event.dart';
 import '../../bloc/pos_stock/pos_stock_state.dart';
 import '../../../domain/models/pos_stock.dart';
+import '../../../domain/models/pos_opname.dart';
 import '../../../domain/repositories/pos_stock_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
@@ -21,6 +22,7 @@ import 'widgets/pos_stock_barcode_sheet.dart';
 class PosStockPage extends StatelessWidget {
   final bool isGridView;
   final VoidCallback? onOpenStockOpname;
+  final ValueChanged<PosOpnameTarget>? onCountStock;
   final ValueChanged<PosStock>? onCreatePurchase;
   final GlobalKey? locationTourKey;
   final GlobalKey? contentTourKey;
@@ -30,6 +32,7 @@ class PosStockPage extends StatelessWidget {
     super.key,
     this.isGridView = true,
     this.onOpenStockOpname,
+    this.onCountStock,
     this.onCreatePurchase,
     this.locationTourKey,
     this.contentTourKey,
@@ -62,6 +65,7 @@ class PosStockPage extends StatelessWidget {
       child: _PosStockView(
         isGridView: isGridView,
         onOpenStockOpname: onOpenStockOpname,
+        onCountStock: onCountStock,
         onCreatePurchase: onCreatePurchase,
         locationTourKey: locationTourKey,
         contentTourKey: contentTourKey,
@@ -114,6 +118,7 @@ class _StockAccessMessage extends StatelessWidget {
 class _PosStockView extends StatefulWidget {
   final bool isGridView;
   final VoidCallback? onOpenStockOpname;
+  final ValueChanged<PosOpnameTarget>? onCountStock;
   final ValueChanged<PosStock>? onCreatePurchase;
   final GlobalKey? locationTourKey;
   final GlobalKey? contentTourKey;
@@ -122,6 +127,7 @@ class _PosStockView extends StatefulWidget {
   const _PosStockView({
     required this.isGridView,
     this.onOpenStockOpname,
+    this.onCountStock,
     this.onCreatePurchase,
     this.locationTourKey,
     this.contentTourKey,
@@ -330,7 +336,14 @@ class _PosStockViewState extends State<_PosStockView> {
                                   ),
                                 ),
                         ),
-                        Text('Halaman ${state.page} · ${state.total} produk'),
+                        Expanded(
+                          child: Text(
+                            'Halaman ${state.page} · ${state.total} produk',
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         IconButton(
                           tooltip: 'Halaman berikutnya',
                           icon: const Icon(Icons.chevron_right),
@@ -791,7 +804,9 @@ class _PosStockViewState extends State<_PosStockView> {
                                   size: 19,
                                 ),
                               ),
-                            if (_canAdjustStock && stock.tracksStock)
+                            if ((_canAdjustStock ||
+                                    widget.onCountStock != null) &&
+                                stock.tracksStock)
                               IconButton(
                                 key: index == 0
                                     ? widget.adjustmentTourKey
@@ -1013,12 +1028,15 @@ class _PosStockViewState extends State<_PosStockView> {
                       icon: const Icon(Icons.barcode_reader, size: 18),
                       visualDensity: VisualDensity.compact,
                     ),
-                    if (_canAdjustStock && stock.tracksStock)
+                    if ((_canAdjustStock || widget.onCountStock != null) &&
+                        stock.tracksStock)
                       OutlinedButton.icon(
                         key: adjustmentTourKey,
                         onPressed: () => _handleAdjustment(stock),
                         icon: const Icon(Icons.tune, size: 17),
-                        label: const Text('Koreksi Darurat'),
+                        label: stock.requiresBatchAdjustment || !_canAdjustStock
+                            ? const Text('Hitung stok')
+                            : const Text('Koreksi Darurat'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           visualDensity: VisualDensity.compact,
@@ -1064,7 +1082,7 @@ class _PosStockViewState extends State<_PosStockView> {
     );
     final balances = balanceResult.getOrElse(() => const []);
     final stockColor = _getStockColor(stock);
-    await showModalBottomSheet<void>(
+    final selectedBalance = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -1210,6 +1228,12 @@ class _PosStockViewState extends State<_PosStockView> {
         ),
       ),
     );
+    if (!mounted || selectedBalance == null) return;
+    if (selectedBalance['_count_opname'] == true) {
+      _openCountForBalance(stock, selectedBalance);
+    } else {
+      await _handleAdjustment(stock, knownBalances: [selectedBalance]);
+    }
   }
 
   Widget _stockDetailRow(String label, String value, {Color? valueColor}) =>
@@ -1351,20 +1375,44 @@ class _PosStockViewState extends State<_PosStockView> {
                 );
               }),
             ],
-            if (_canAdjustStock && stock.tracksStock && batches.isEmpty) ...[
+            if ((_canAdjustStock || widget.onCountStock != null) &&
+                stock.tracksStock) ...[
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: () {
-                    Navigator.pop(context);
-                    _handleAdjustment(stock, knownBalances: [balance]);
+                    Navigator.pop(context, {
+                      ...balance,
+                      if (!_canAdjustStock || stock.needsBatchCountAt(balance))
+                        '_count_opname': true,
+                    });
                   },
                   icon: const Icon(Icons.tune, size: 17),
-                  label: const Text('Koreksi saldo ini'),
+                  label: Text(
+                    stock.needsBatchCountAt(balance)
+                        ? 'Hitung/koreksi per batch'
+                        : !_canAdjustStock
+                        ? 'Hitung stok'
+                        : 'Koreksi saldo ini',
+                  ),
                 ),
               ),
             ],
+            if (widget.onCountStock != null &&
+                _canAdjustStock &&
+                !stock.needsBatchCountAt(balance))
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.pop(context, {
+                    ...balance,
+                    '_count_opname': true,
+                  }),
+                  icon: const Icon(Icons.fact_check_outlined, size: 17),
+                  label: const Text('Hitung stok di lokasi ini'),
+                ),
+              ),
           ],
         ),
       ),
@@ -1376,11 +1424,10 @@ class _PosStockViewState extends State<_PosStockView> {
     List<Map<String, dynamic>>? knownBalances,
   }) async {
     if (!stock.tracksStock) return;
-    if (stock.requiresBatchAdjustment) {
+    if (stock.requiresSerial) {
       await _showAdjustmentInfo(
-        'Stok dilacak per batch',
-        'Selisih fisik produk ini harus dicatat melalui Stock Opname agar jumlah setiap batch dan tanggal kedaluwarsa tetap konsisten.',
-        openOpname: true,
+        'Stok dilacak per nomor seri',
+        'Gunakan penerimaan, retur, atau scrap dengan nomor seri yang jelas. Koreksi jumlah serial belum didukung pada opname.',
       );
       return;
     }
@@ -1402,28 +1449,41 @@ class _PosStockViewState extends State<_PosStockView> {
     if (balances.isEmpty) {
       await _showAdjustmentInfo(
         'Saldo lokasi tidak ditemukan',
-        'Produk belum memiliki saldo pada warehouse ini. Tambahkan saldo melalui penerimaan, mutasi, atau Stock Opname.',
+        'Produk belum memiliki saldo pada warehouse ini. Tambahkan melalui penerimaan atau mutasi terlebih dahulu; opname memerlukan saldo lokasi yang tercatat.',
         openOpname: true,
       );
       return;
     }
-    final hasBatch = balances.any(
-      (balance) =>
-          (balance['batches'] as List? ?? const []).whereType<Map>().any(
-            (batch) =>
-                batch['aktif'] != false &&
-                ((batch['qty'] as num?)?.toDouble() ?? 0) > 0,
-          ),
-    );
-    if (hasBatch) {
-      await _showAdjustmentInfo(
-        'Stok dilacak per batch',
-        'Saldo memiliki batch aktif. Gunakan Stock Opname agar jumlah batch dan tanggal kedaluwarsa tetap konsisten.',
-        openOpname: true,
-      );
+    if (balances.length > 1) {
+      await _showStockDetail(stock);
+      return;
+    }
+    if (stock.needsBatchCountAt(balances.single) ||
+        stock.valuationMethod == 'fifo' ||
+        !_canAdjustStock) {
+      _openCountForBalance(stock, balances.single);
       return;
     }
     await _showAdjustmentDialog(stock, balances);
+  }
+
+  void _openCountForBalance(PosStock stock, Map<String, dynamic> balance) {
+    if (stock.requiresSerial) {
+      _showAdjustmentInfo(
+        'Barang berserial',
+        'Gunakan penerimaan/retur/scrap dengan nomor seri.',
+      );
+      return;
+    }
+    if (widget.onCountStock == null) {
+      _showAdjustmentInfo(
+        'Perlu akses Stock Opname',
+        'Minta petugas yang memiliki akses membuat opname untuk lokasi ini.',
+        openOpname: true,
+      );
+      return;
+    }
+    widget.onCountStock!(PosOpnameTarget.fromBalance(stock, balance));
   }
 
   Future<void> _showAdjustmentInfo(

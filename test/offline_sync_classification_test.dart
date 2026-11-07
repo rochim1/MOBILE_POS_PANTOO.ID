@@ -4,6 +4,18 @@ import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/core/network/offline_network_failure.dart';
 
 void main() {
+  test('manual reconciliation requires a meaningful bounded audit note', () {
+    expect(() => normalizeOfflineResolutionNote(''), throwsArgumentError);
+    expect(() => normalizeOfflineResolutionNote('ok'), throwsArgumentError);
+    expect(
+      () => normalizeOfflineResolutionNote('x' * 501),
+      throwsArgumentError,
+    );
+    expect(
+      normalizeOfflineResolutionNote('  Uang sudah dikembalikan, bukti QA-1  '),
+      'Uang sudah dikembalikan, bukti QA-1',
+    );
+  });
   test('expired operator session needs review, not business rejection', () {
     expect(
       classifyOfflineGraphQLErrors([
@@ -26,16 +38,42 @@ void main() {
     expect(status, 'needs_review');
   });
 
-  test('input atau izin invalid ditandai ditolak', () {
-    final status = classifyOfflineGraphQLErrors([
-      const GraphQLError(
-        message: 'Akses ditolak',
-        extensions: {'code': 'FORBIDDEN'},
-      ),
-    ]);
+  test(
+    'permission changed while offline requires review without discarding the sale',
+    () {
+      final status = classifyOfflineGraphQLErrors([
+        const GraphQLError(
+          message: 'Akses ditolak',
+          extensions: {'code': 'FORBIDDEN'},
+        ),
+      ]);
 
-    expect(status, 'rejected');
-  });
+      expect(status, 'needs_review');
+    },
+  );
+  test(
+    'unknown server failure is uncertain, never a permanent business rejection',
+    () {
+      expect(
+        classifyOfflineGraphQLErrors([
+          const GraphQLError(
+            message: 'Internal server error',
+            extensions: {'code': 'INTERNAL_SERVER_ERROR'},
+          ),
+        ]),
+        'needs_review',
+      );
+      expect(
+        classifyOfflineGraphQLErrors([
+          const GraphQLError(
+            message: 'Invalid quantity',
+            extensions: {'code': 'BAD_USER_INPUT'},
+          ),
+        ]),
+        'rejected',
+      );
+    },
+  );
 
   test('server sale with a different cash total always needs review', () {
     expect(
@@ -73,6 +111,34 @@ void main() {
         ),
       ),
       isFalse,
+    );
+  });
+
+  test('HTTP authorization and malformed responses are not offline sales', () {
+    for (final status in [200, 400, 401, 403, 404, 409, 422]) {
+      expect(
+        isRetryableOfflineNetworkFailure(
+          OperationException(
+            linkException: ServerException(
+              statusCode: status,
+              originalException: 'failed response',
+            ),
+          ),
+        ),
+        isFalse,
+        reason: 'HTTP $status is not a transport outage',
+      );
+    }
+    expect(
+      isRetryableOfflineNetworkFailure(
+        OperationException(
+          linkException: const ServerException(
+            statusCode: 502,
+            originalException: 'Bad gateway',
+          ),
+        ),
+      ),
+      isTrue,
     );
   });
 

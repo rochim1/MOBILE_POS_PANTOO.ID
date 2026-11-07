@@ -10,11 +10,22 @@ import 'pos_operator_identity.dart';
 import '../utils/logger.dart';
 import '../database/database_platform_initializer.dart';
 
+String normalizeOfflineResolutionNote(String value) {
+  final note = value.trim();
+  if (note.length < 5 || note.length > 500) {
+    throw ArgumentError(
+      'Catatan rekonsiliasi wajib 5–500 karakter, sertakan hasil pemeriksaan invoice dan uang.',
+    );
+  }
+  return note;
+}
+
 String classifyOfflineGraphQLErrors(List<GraphQLError> errors) {
   for (final error in errors) {
     final code = error.extensions?['code']?.toString().toUpperCase();
     final message = error.message.toLowerCase();
     if (code == 'UNAUTHORIZED' ||
+        code == 'FORBIDDEN' ||
         code == 'UNAUTHENTICATED' ||
         code == 'CONFLICT' ||
         message.contains('harga') ||
@@ -26,7 +37,12 @@ String classifyOfflineGraphQLErrors(List<GraphQLError> errors) {
       return 'needs_review';
     }
   }
-  return 'rejected';
+  // Unknown server/schema failures can occur after a committed write. Keep the
+  // original immutable ID for reconciliation instead of declaring it rejected.
+  return errors.isNotEmpty &&
+          errors.every((e) => e.extensions?['code'] == 'BAD_USER_INPUT')
+      ? 'rejected'
+      : 'needs_review';
 }
 
 bool offlineSaleNeedsReview({
@@ -41,7 +57,7 @@ bool offlineSaleNeedsReview({
 
 class SyncService {
   final GraphQLClientProvider _clientProvider;
-  bool _isSyncing = false;
+  static bool _isSyncing = false;
   String _operatorToken = '';
 
   void setOperatorSessionToken(String token) => _operatorToken = token.trim();
@@ -160,12 +176,16 @@ class SyncService {
       );
 
       for (var tx in pendingTransactions) {
+        if (_clientProvider.sharedPreferences.getString('instansi_id') !=
+            instansiId) {
+          break; // Never submit the previous tenant's queue under a new login.
+        }
         final id = tx['id'] as int;
         final payloadString = tx['payload'] as String;
         final operationKind = tx['operation_kind']?.toString() ?? 'sale';
 
         try {
-          await db.update(
+          final claimed = await db.update(
             'offline_transactions',
             {
               'status': 'syncing',
@@ -175,6 +195,7 @@ class SyncService {
             where: 'id = ? AND status = ?',
             whereArgs: [id, 'pending'],
           );
+          if (claimed != 1) continue;
           final payload = Map<String, dynamic>.from(
             jsonDecode(payloadString) as Map,
           );
@@ -361,12 +382,15 @@ class SyncService {
           }
         } catch (e) {
           final attempts = (tx['attempts'] as int? ?? 0) + 1;
+          final corrupt = e is FormatException || e is TypeError;
           await db.update(
             'offline_transactions',
             {
-              'status': 'pending',
+              'status': corrupt ? 'needs_review' : 'pending',
               'error': e.toString(),
-              'next_retry_at': _nextRetryAt(attempts).toIso8601String(),
+              'next_retry_at': corrupt
+                  ? null
+                  : _nextRetryAt(attempts).toIso8601String(),
             },
             where: 'id = ?',
             whereArgs: [id],
@@ -515,6 +539,7 @@ class SyncService {
   }
 
   Future<void> rejectTransaction(int id, {String? reason}) async {
+    final note = normalizeOfflineResolutionNote(reason ?? '');
     final instansiId =
         _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
     if (instansiId.isEmpty) return;
@@ -523,9 +548,8 @@ class SyncService {
       'offline_transactions',
       {
         'status': 'rejected',
-        'resolution': reason?.trim().isNotEmpty == true
-            ? reason!.trim()
-            : 'rejected_by_operator',
+        'resolution': 'rejected_by_operator',
+        'resolution_note': note,
         'resolved_at': DateTime.now().toIso8601String(),
       },
       where:
@@ -534,7 +558,11 @@ class SyncService {
     );
   }
 
-  Future<void> resolveRejectedTransaction(int id) async {
+  Future<void> resolveRejectedTransaction(
+    int id, {
+    required String reason,
+  }) async {
+    final note = normalizeOfflineResolutionNote(reason);
     final instansiId =
         _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
     if (instansiId.isEmpty || !supportsOfflineDatabase) return;
@@ -543,6 +571,7 @@ class SyncService {
       'offline_transactions',
       {
         'resolution': 'rejected_by_operator',
+        'resolution_note': note,
         'resolved_at': DateTime.now().toIso8601String(),
       },
       where:

@@ -17,6 +17,7 @@ import 'pos_customer_page.dart';
 import 'pos_outlet_page.dart';
 import 'pos_shift_page.dart';
 import 'pos_return_page.dart';
+import 'pos_receivables_page.dart';
 import 'pos_printer_page.dart';
 import 'pos_offline_queue_page.dart';
 import 'pos_promo_page.dart';
@@ -125,6 +126,7 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Retur ke Supplier', icon: Icons.assignment_return_outlined),
     (label: 'Pengaturan POS', icon: Icons.settings_outlined),
     (label: 'Tampilan Dapur', icon: Icons.soup_kitchen_outlined),
+    (label: 'Piutang & Pelunasan', icon: Icons.account_balance_wallet_outlined),
   ];
 
   @override
@@ -389,23 +391,16 @@ class _PosShellPageState extends State<PosShellPage>
           final activeStores = state.stores
               .where((store) => store.status.toLowerCase() == 'active')
               .toList(growable: false);
-          if (activeStores.isEmpty) {
-            _secondaryOriginIndex = 0;
-            _selectedIndex = 10;
-          } else if (state.activeShift == null &&
-              (state.dashboardData?['_offline_snapshot'] == true ||
-                  state.dashboardData?['_offline_unavailable'] == true)) {
-            // Opening a new shift needs the server; land on the read-only
-            // dashboard rather than trapping the cashier on the shift form.
-            _selectedIndex = 0;
-          } else if (state.activeShift == null &&
-              state.runtimeConfig['allow_out_of_shift'] != true) {
-            _returnToCashierAfterShiftOpen = true;
-            _secondaryOriginIndex = 0;
-            _selectedIndex = 11;
-          } else {
-            _selectedIndex = 1;
-          }
+          _selectedIndex = mobilePosUnlockDestination(
+            state.runtimeConfig,
+            hasStore: activeStores.isNotEmpty,
+            hasShift: state.activeShift != null,
+            offline:
+                state.dashboardData?['_offline_snapshot'] == true ||
+                state.dashboardData?['_offline_unavailable'] == true,
+          );
+          _secondaryOriginIndex = 0;
+          _returnToCashierAfterShiftOpen = _selectedIndex == 11;
         }
       });
     }
@@ -638,6 +633,25 @@ class _PosShellPageState extends State<PosShellPage>
       pinTourController: _pinManagementTourController,
     ),
     const PosKitchenDisplayPage(),
+    if (_posBloc.state.runtimeConfig['permissions']?['view_receivables'] ==
+        true)
+      PosReceivablesPage(
+        key: ValueKey(
+          'receivables:${context.read<AppLockCubit>().state.activeEmployeeId}:${_posBloc.state.runtimeConfig['instansi_id']}',
+        ),
+        canCollect:
+            _posBloc
+                .state
+                .runtimeConfig['permissions']?['collect_receivables'] ==
+            true,
+        operatorId: context.read<AppLockCubit>().state.activeEmployeeId ?? '',
+      )
+    else
+      const Center(
+        child: Text(
+          'Piutang hanya tersedia bagi operator yang memiliki izin Finance.',
+        ),
+      ),
   ];
 
   void _openMoreDestination(int index) {
@@ -1096,9 +1110,12 @@ class _PosShellPageState extends State<PosShellPage>
           builder: (_) {
             return BlocListener<AppLockCubit, AppLockState>(
               listenWhen: (previous, current) =>
-                  previous.status != current.status,
+                  previous.status != current.status ||
+                  previous.activeEmployeeId != current.activeEmployeeId ||
+                  previous.operatorSessionToken != current.operatorSessionToken,
               listener: (context, state) {
                 if (state.status == AppLockStatus.unlocked) {
+                  _posDataRequested = false;
                   final setupCompleted =
                       PosOnboardingPage.isOperationalSetupCompleted(
                         sl<SharedPreferences>(),
@@ -1119,7 +1136,18 @@ class _PosShellPageState extends State<PosShellPage>
                 }
               },
               child: BlocListener<PosBloc, PosState>(
-                listener: (context, state) => _finishUnlockLoading(state),
+                listener: (context, state) {
+                  _finishUnlockLoading(state);
+                  if (_selectedIndex == 19 &&
+                      state.runtimeConfig.isNotEmpty &&
+                      state.runtimeConfig['permissions']?['view_receivables'] !=
+                          true) {
+                    setState(() {
+                      _selectedIndex = 4;
+                      _secondaryOriginIndex = 0;
+                    });
+                  }
+                },
                 child: Stack(
                   children: [
                     Scaffold(
@@ -1910,6 +1938,7 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('view_transactions')) _sidebarItem(3),
       if (can('view_reports')) _sidebarItem(12),
       if (can('view_returns')) _sidebarItem(13),
+      if (can('view_receivables')) _sidebarItem(19),
       _sidebarSection('PENGATURAN'),
       if (can('view_settings')) _sidebarItem(17),
       if (can('view_receipt')) _sidebarItem(14),
@@ -2039,6 +2068,7 @@ class _PosShellPageState extends State<PosShellPage>
           _posBloc.add(const RefreshPosRuntimeConfig(preserveCheckout: true));
         }
         setState(() {
+          _showSetupGuide = false;
           _selectedIndex = index;
         });
       },

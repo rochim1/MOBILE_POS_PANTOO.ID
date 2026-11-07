@@ -17,12 +17,55 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
     on<ProcessReturn>(_onProcessReturn);
     on<DeleteReturn>(_onDeleteReturn);
     on<ClearReturnForm>(_onClearReturnForm);
+    on<RecoverReturnDraft>(_onRecoverReturnDraft);
+  }
+
+  void _refreshPending(Emitter<PosReturnState> emit) {
+    try {
+      emit(
+        state.copyWith(
+          pendingDraft: posRepository.pendingReturnDraft(),
+          pendingDraftError: '',
+        ),
+      );
+    } catch (error) {
+      emit(state.copyWith(pendingDraftError: error.toString()));
+    }
+  }
+
+  Future<void> _onRecoverReturnDraft(
+    RecoverReturnDraft event,
+    Emitter<PosReturnState> emit,
+  ) async {
+    if (state.status == PosReturnStatus.loading) return;
+    emit(state.copyWith(status: PosReturnStatus.loading));
+    final result = await posRepository.createSalesReturn(null);
+    _refreshPending(emit);
+    result.fold(
+      (failure) => emit(
+        state.copyWith(
+          status: PosReturnStatus.failure,
+          errorMessage: failure.message,
+        ),
+      ),
+      (_) {
+        emit(
+          state.copyWith(
+            status: PosReturnStatus.success,
+            searchResult: null,
+            returnItems: const [],
+          ),
+        );
+        add(const LoadReturns());
+      },
+    );
   }
 
   Future<void> _onLoadReturns(
     LoadReturns event,
     Emitter<PosReturnState> emit,
   ) async {
+    _refreshPending(emit);
     emit(state.copyWith(status: PosReturnStatus.loading));
     final result = await posRepository.getAllSalesReturns(
       search: event.search,
@@ -121,6 +164,11 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
     SubmitReturn event,
     Emitter<PosReturnState> emit,
   ) async {
+    if (state.status == PosReturnStatus.loading) return;
+    if (state.pendingDraft != null || state.pendingDraftError.isNotEmpty) {
+      add(const RecoverReturnDraft());
+      return;
+    }
     if (state.searchResult == null) return;
     final selectedItems = state.returnItems
         .where((i) => i['selected'] == true && i['qty_returned'] > 0)
@@ -159,6 +207,7 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
     };
 
     final result = await posRepository.createSalesReturn(payload);
+    _refreshPending(emit);
     result.fold(
       (failure) => emit(
         state.copyWith(
@@ -203,10 +252,12 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
     emit(state.copyWith(status: PosReturnStatus.loading));
     final result = await posRepository.submitSalesReturn(event.id);
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: PosReturnStatus.failure,
-        errorMessage: failure.message,
-      )),
+      (failure) => emit(
+        state.copyWith(
+          status: PosReturnStatus.failure,
+          errorMessage: failure.message,
+        ),
+      ),
       (_) => add(const LoadReturns()),
     );
   }
@@ -215,6 +266,7 @@ class PosReturnBloc extends Bloc<PosReturnEvent, PosReturnState> {
     ProcessReturn event,
     Emitter<PosReturnState> emit,
   ) async {
+    if (state.status == PosReturnStatus.loading) return;
     emit(state.copyWith(status: PosReturnStatus.loading));
     final result = await posRepository.processSalesReturn(event.id);
     result.fold(

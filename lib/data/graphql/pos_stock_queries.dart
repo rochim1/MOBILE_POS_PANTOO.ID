@@ -7,7 +7,7 @@ class PosStockQueries {
         items {
           _id kode_inventaris nama_inventaris kategori pos_product_type composition_type tracks_stock
           harga_jual harga_beli stok_minimum stok_maksimum titik_reorder sku barcode unit base_unit qty
-          stock_balance_id location_count requires_batch_adjustment
+          stock_balance_id location_count requires_batch_adjustment wajib_batch_number wajib_serial_number valuation_method
         }
       }
     }
@@ -54,6 +54,7 @@ class PosStockQueries {
         stock_balance_id
         location_count
         requires_batch_adjustment
+        wajib_batch_number wajib_serial_number valuation_method
       }
     }
   ''';
@@ -67,7 +68,7 @@ class PosStockQueries {
       ) {
         items {
           _id kode_inventaris nama_inventaris kategori pos_product_type composition_type tracks_stock harga_jual harga_beli
-          stok_minimum sku barcode unit base_unit stok wajib_batch_number
+          stok_minimum sku barcode unit base_unit stok wajib_batch_number wajib_serial_number valuation_method
           stok_maksimum titik_reorder
           expiry_batches { qty aktif }
         }
@@ -97,7 +98,7 @@ class PosStockQueries {
           lokasi_cabang_id lokasi_cabang_nama
           lokasi_gedung_kode lokasi_gedung_nama
           lokasi_ruangan_kode lokasi_ruangan_nama lokasi_rak_nama
-          batches { no_batch tanggal_kadaluarsa qty aktif }
+          batches { batch_id no_batch tanggal_kadaluarsa qty aktif }
         }
       }
     }

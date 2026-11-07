@@ -1,4 +1,9 @@
 class PosReturnQueries {
+  static const String getOneSalesReturn = r'''
+    query GetOneSalesReturn($_id: ID!) {
+      GetOneSalesReturn(_id: $_id) { _id status }
+    }
+  ''';
   static const String getAllSalesReturns = r'''
     query GetAllSalesReturns($filter: SalesReturnFilterInput, $pagination: PaginationInput) {
       GetAllSalesReturns(filter: $filter, pagination: $pagination) {
@@ -10,6 +15,11 @@ class PosReturnQueries {
           sumber_no
           customer_name
           total_refund
+          ppn_retur
+          sales_invoice_id
+          ar_credit_amount
+          refund_amount
+          customer_credit_amount
           alasan
           metode_refund
           status

@@ -6,10 +6,12 @@ import '../../../bloc/pos_shift/pos_shift_bloc.dart';
 import '../../../bloc/pos_shift/pos_shift_event.dart';
 import '../../../bloc/pos_shift/pos_shift_state.dart';
 import '../../../bloc/lock/lock_cubit.dart';
+import '../../../bloc/lock/lock_state.dart';
 import 'package:intl/intl.dart';
 import '../../../widgets/pos_keyboard_stable_sheet.dart';
 import '../utils/pos_shift_cash.dart';
 import '../utils/pos_shift_time.dart';
+import 'pos_shift_recovery_card.dart';
 
 class PosActiveShiftTab extends StatefulWidget {
   final GlobalKey? storeTourKey;
@@ -63,15 +65,30 @@ class _ShiftSkeleton extends StatelessWidget {
 
 class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
   String? selectedTokoId;
+  bool _followInitialShift = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final stores = context.read<PosBloc>().state.stores;
+      if (!mounted) return;
+      final stores = context
+          .read<PosBloc>()
+          .state
+          .stores
+          .where((store) => store.status.toLowerCase() == 'active')
+          .toList();
       if (stores.isNotEmpty) {
-        setState(() => selectedTokoId = stores.first.id);
-        context.read<PosShiftBloc>().add(LoadShiftData(stores.first.id));
+        final activeId = context
+            .read<PosBloc>()
+            .state
+            .activeShift?['toko_id']
+            ?.toString();
+        final storeId = stores.any((store) => store.id == activeId)
+            ? activeId!
+            : stores.first.id;
+        setState(() => selectedTokoId = storeId);
+        context.read<PosShiftBloc>().add(LoadShiftData(storeId));
       }
     });
   }
@@ -91,62 +108,129 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     final hasActiveShift =
         shiftState is PosShiftLoaded && shiftState.activeShift != null;
 
-    return RefreshIndicator(
-      onRefresh: () async {
+    return BlocListener<AppLockCubit, AppLockState>(
+      listenWhen: (previous, current) =>
+          previous.activeEmployeeId != current.activeEmployeeId,
+      listener: (context, _) {
+        _followInitialShift = true;
         if (selectedTokoId != null) {
           context.read<PosShiftBloc>().add(LoadShiftData(selectedTokoId!));
         }
       },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildStoreSelector(stores, hasActiveShift: hasActiveShift),
-            if (hasActiveShift && stores.length > 1) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Tutup shift aktif sebelum memilih toko lain.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
-              ),
-            ],
-            if (selectedStore != null) ...[
-              const SizedBox(height: 10),
-              _buildShiftModeInfo(selectedStore.shiftMode, operatorName),
-            ],
-            const SizedBox(height: 16),
-            BlocBuilder<PosShiftBloc, PosShiftState>(
-              builder: (context, state) {
-                if (state is PosShiftLoading) {
-                  return const _ShiftSkeleton();
-                }
-
-                if (state is PosShiftLoaded) {
-                  if (state.activeShift != null) {
-                    final activeStoreId = state.activeShift!['toko_id']
-                        ?.toString();
-                    if (activeStoreId != null &&
-                        activeStoreId.isNotEmpty &&
-                        activeStoreId != selectedTokoId &&
-                        stores.any((store) => store.id == activeStoreId)) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && selectedTokoId != activeStoreId) {
-                          setState(() => selectedTokoId = activeStoreId);
-                        }
-                      });
+      child: BlocListener<PosShiftBloc, PosShiftState>(
+        listener: (context, state) {
+          if (!_followInitialShift || state is! PosShiftLoaded) return;
+          _followInitialShift = false;
+          final activeId = state.activeShift?['toko_id']?.toString();
+          if (activeId != null && stores.any((store) => store.id == activeId)) {
+            setState(() => selectedTokoId = activeId);
+          }
+        },
+        child: RefreshIndicator(
+          onRefresh: () async {
+            if (selectedTokoId != null) {
+              context.read<PosShiftBloc>().add(LoadShiftData(selectedTokoId!));
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildStoreSelector(
+                  stores,
+                  hasActiveShift:
+                      hasActiveShift || shiftState is PosShiftLoading,
+                ),
+                if (hasActiveShift && stores.length > 1) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tutup shift aktif sebelum memilih toko lain.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+                if (selectedStore != null) ...[
+                  const SizedBox(height: 10),
+                  _buildShiftModeInfo(selectedStore.shiftMode, operatorName),
+                ],
+                const SizedBox(height: 16),
+                if (shiftState is PosShiftLoaded && shiftState.notice != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(shiftState.notice!),
+                  ),
+                BlocBuilder<PosShiftBloc, PosShiftState>(
+                  builder: (context, state) {
+                    if (state is PosShiftLoading) {
+                      return const _ShiftSkeleton();
                     }
-                    return _buildActiveShiftInfo(context, state.activeShift!);
-                  }
-                  return _buildOpenShiftForm(context);
-                }
 
-                return const SizedBox();
-              },
+                    if (state is PosShiftLoaded) {
+                      if (state.activeShift != null) {
+                        final activeStoreId = state.activeShift!['toko_id']
+                            ?.toString();
+                        if (activeStoreId != null &&
+                            activeStoreId.isNotEmpty &&
+                            activeStoreId != selectedTokoId) {
+                          return PosShiftRecoveryCard(
+                            storeName:
+                                state.activeShift!['toko']?['nama_toko']
+                                    ?.toString() ??
+                                'outlet lain',
+                            onRetry: () => context.read<PosShiftBloc>().add(
+                              LoadShiftData(selectedTokoId ?? activeStoreId),
+                            ),
+                            onReturn:
+                                stores.any((store) => store.id == activeStoreId)
+                                ? () {
+                                    setState(
+                                      () => selectedTokoId = activeStoreId,
+                                    );
+                                    context.read<PosShiftBloc>().add(
+                                      LoadShiftData(activeStoreId),
+                                    );
+                                  }
+                                : null,
+                          );
+                        }
+                        return _buildActiveShiftInfo(
+                          context,
+                          state.activeShift!,
+                        );
+                      }
+                      return _buildOpenShiftForm(context);
+                    }
+
+                    if (state is PosShiftError) {
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Text(state.message),
+                              TextButton(
+                                onPressed: selectedTokoId == null
+                                    ? null
+                                    : () => context.read<PosShiftBloc>().add(
+                                        LoadShiftData(selectedTokoId!),
+                                      ),
+                                child: const Text('Periksa kembali shift'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return const SizedBox();
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -182,7 +266,9 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: selectedTokoId,
+                value: stores.any((store) => store.id == selectedTokoId)
+                    ? selectedTokoId
+                    : null,
                 hint: const Text('Pilih toko kasir'),
                 isExpanded: true,
                 isDense: true,
@@ -371,6 +457,13 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                   ),
                 ],
               ),
+              if ((shift['cash_refund_total'] as num? ?? 0) > 0) ...[
+                const SizedBox(height: 10),
+                _buildShiftMetric(
+                  'Refund tunai',
+                  formatCurrency.format(shift['cash_refund_total']),
+                ),
+              ],
             ],
           ),
         ),

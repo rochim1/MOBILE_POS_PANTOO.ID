@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../domain/services/pos_shift_sync.dart';
 import '../../../domain/models/pos_product.dart';
 import '../../../domain/models/pos_customer.dart';
 import '../../../domain/models/pos_store.dart';
@@ -48,6 +49,7 @@ class PosState extends Equatable {
   final bool isGridView;
 
   final String errorMessage;
+  final bool checkoutSyncFailed;
   final PosTransactionResult? lastTransaction;
   final Map<String, dynamic>? pricingPreview;
 
@@ -84,6 +86,7 @@ class PosState extends Equatable {
     this.runtimeConfig = const {},
     this.isGridView = false,
     this.errorMessage = '',
+    this.checkoutSyncFailed = false,
     this.lastTransaction,
     this.pricingPreview,
   }) : _productsRefreshing = productsRefreshing;
@@ -125,6 +128,7 @@ class PosState extends Equatable {
     Map<String, dynamic>? runtimeConfig,
     bool? isGridView,
     String? errorMessage,
+    bool? checkoutSyncFailed,
     PosTransactionResult? lastTransaction,
     Map<String, dynamic>? pricingPreview,
     bool clearPricingPreview = false,
@@ -173,6 +177,7 @@ class PosState extends Equatable {
       runtimeConfig: runtimeConfig ?? this.runtimeConfig,
       isGridView: isGridView ?? this.isGridView,
       errorMessage: errorMessage ?? this.errorMessage,
+      checkoutSyncFailed: checkoutSyncFailed ?? this.checkoutSyncFailed,
       lastTransaction: lastTransaction ?? this.lastTransaction,
       pricingPreview: clearPricingPreview
           ? null
@@ -185,22 +190,8 @@ class PosState extends Equatable {
   /// back to another store if its store has disappeared or become inactive.
   PosStore? get checkoutStore {
     final shiftStoreId = activeShift?['toko_id']?.toString();
-    final policy = runtimeConfig['inventory_policy'] as Map? ?? const {};
-    final inventoryProfile =
-        policy['inventory_profile'] ?? runtimeConfig['inventory_profile'];
-    final defaultLocation =
-        policy['default_receiving_location_id']?.toString().trim() ?? '';
-    return stores
-        .where(
-          (store) =>
-              store.id.isNotEmpty &&
-              store.status.toLowerCase() == 'active' &&
-              store.branchId.isNotEmpty &&
-              (inventoryProfile != 'simple' ||
-                  defaultLocation.isEmpty ||
-                  store.branchId == defaultLocation) &&
-              (activeShift == null || store.id == shiftStoreId),
-        )
+    return checkoutStores(stores, runtimeConfig)
+        .where((store) => (activeShift == null || store.id == shiftStoreId))
         .firstOrNull;
   }
 
@@ -353,6 +344,7 @@ class PosState extends Equatable {
     runtimeConfig,
     isGridView,
     errorMessage,
+    checkoutSyncFailed,
     lastTransaction,
     pricingPreview,
   ];

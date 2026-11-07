@@ -826,6 +826,27 @@ class PosInventoryRepository {
     return _mutate(document, {if (updating) 'id': id, 'input': input}, key);
   }
 
+  Future<Either<Failure, Map<String, dynamic>>> getOpname(String id) async {
+    try {
+      final result = await _provider.client.query(
+        QueryOptions(
+          document: gql(PosInventoryQueries.opnameDetail),
+          variables: {'id': id},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final document = result.data?['GetOneInventoryOpname'];
+      return document is Map
+          ? Right(Map<String, dynamic>.from(document))
+          : const Left(ServerFailure('Opname tidak ditemukan.'));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
+
   Future<Either<Failure, dynamic>> runAction({
     required PosInventoryDocumentType type,
     required String action,

@@ -42,5 +42,9 @@ bool isRetryableOfflineNetworkFailure(OperationException? exception) {
     final code = link.response.statusCode;
     return code >= 500 || code == 408 || code == 429;
   }
-  return link is ServerException || link is ResponseFormatException;
+  if (link is ServerException) {
+    final status = link.statusCode;
+    return status == null || status >= 500 || status == 408 || status == 429;
+  }
+  return false;
 }

@@ -22,6 +22,7 @@ import 'widgets/pos_cart_panel.dart';
 import 'pos_payment_page.dart';
 import 'widgets/pos_category_sidebar.dart';
 import 'widgets/shift_management_panel.dart';
+import 'widgets/pos_shift_sync_error.dart';
 import 'widgets/pos_info_panel.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_held_order_name_dialog.dart';
@@ -324,9 +325,47 @@ class _PosPageViewState extends State<PosPageView> {
                       ..._categories,
                       ...state.products.map((product) => product.category),
                     }.where((category) => category.trim().isNotEmpty).toList();
-                    if (state.status == PosStatus.loading &&
-                        state.products.isEmpty) {
+                    if (state.status == PosStatus.loading) {
                       return const PosPageSkeleton();
+                    }
+                    if (state.status == PosStatus.failure &&
+                        state.checkoutSyncFailed) {
+                      return PosShiftSyncError(
+                        message: state.errorMessage,
+                        onRetry: () =>
+                            context.read<PosBloc>().add(LoadPosData()),
+                        onClearCart: state.cart.isEmpty
+                            ? null
+                            : () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Kosongkan keranjang?'),
+                                    content: const Text(
+                                      'Barang dalam keranjang akan dihapus dari keranjang, bukan dari stok. Setelah itu toko dan shift diperiksa kembali.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext, false),
+                                        child: const Text('Batal'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext, true),
+                                        child: const Text('Kosongkan'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed != true || !context.mounted) {
+                                  return;
+                                }
+                                context.read<PosBloc>()
+                                  ..add(ClearCart())
+                                  ..add(LoadPosData());
+                              },
+                      );
                     }
 
                     final allowOutOfShift =

@@ -4,6 +4,7 @@ import '../../../../domain/repositories/pos_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lock_state.dart';
 import '../../../../core/network/sync_service.dart';
+import '../../../../core/network/pos_operator_identity.dart';
 
 class AppLockCubit extends Cubit<AppLockState> {
   AppLockCubit() : super(const AppLockState()) {
@@ -12,6 +13,22 @@ class AppLockCubit extends Cubit<AppLockState> {
 
   Future<void> _init() async {
     emit(state.copyWith(status: AppLockStatus.unlocked));
+  }
+
+  /// A queue PIN confirmation may renew this cashier, never switch or unlock it.
+  bool acceptVerifiedOperatorSession(String token) {
+    final actor = operatorIdFromToken(token);
+    if (state.status != AppLockStatus.unlocked ||
+        actor.isEmpty ||
+        actor != state.activeEmployeeId ||
+        actor != sl<PosRepository>().activeOperatorId ||
+        !operatorTokenIsCurrent(token)) {
+      return false;
+    }
+    sl<PosRepository>().setOperatorSessionToken(token);
+    sl<SyncService>().setOperatorSessionToken(token);
+    emit(state.copyWith(operatorSessionToken: token));
+    return true;
   }
 
   Future<void> lock() async {

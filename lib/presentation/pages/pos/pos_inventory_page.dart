@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../core/network/graphql_client_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,7 @@ import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../core/receipt/pos_receipt_print_service.dart';
 import '../../../domain/models/pos_stock.dart';
+import '../../../domain/models/pos_opname.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
@@ -30,11 +32,16 @@ import 'pos_purchase_payable_page.dart';
 import 'pos_purchase_workspace.dart';
 import 'pos_warehouse_page.dart';
 import 'utils/pos_inventory_action_policy.dart';
+import 'utils/pos_inventory_detail_format.dart';
 import 'utils/pos_purchase_progress.dart';
 import 'utils/pos_purchase_order_document.dart';
 import 'utils/pos_pdf_preview_bytes.dart';
 import 'utils/pos_business_print_branding.dart';
 import 'widgets/pos_setup_tour.dart';
+import '../../../domain/repositories/pos_transfer_repository.dart';
+import '../../../domain/models/pos_transfer.dart';
+import 'pos_transfer_operation_page.dart';
+import 'widgets/pos_transfer_details.dart';
 
 enum _InventorySection {
   warehouse,
@@ -70,6 +77,35 @@ class PosInventoryPage extends StatefulWidget {
 class _PosInventoryPageState extends State<PosInventoryPage> {
   late _InventorySection _selected;
   bool _checkingRestock = false;
+  bool _openingStockCount = false;
+
+  Future<void> _countStock(PosOpnameTarget target) async {
+    final permissions =
+        context.read<PosBloc>().state.runtimeConfig['permissions'] as Map? ??
+        const {};
+    if (_openingStockCount ||
+        permissions['view_inventory_opnames'] != true ||
+        permissions['create_inventory_opnames'] != true) {
+      return;
+    }
+    _openingStockCount = true;
+    try {
+      final changed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PosInventoryEditorPage(
+            type: PosInventoryDocumentType.opname,
+            opnameTarget: target,
+          ),
+        ),
+      );
+      if (mounted && changed == true) {
+        setState(() => _selected = _InventorySection.opname);
+      }
+    } finally {
+      _openingStockCount = false;
+    }
+  }
 
   Future<({double quantity, String? error})> _openPurchaseQuantity(
     String inventoryId,
@@ -352,6 +388,11 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       onOpenStockOpname: permissions['view_inventory_opnames'] == true
           ? () => setState(() => _selected = _InventorySection.opname)
           : null,
+      onCountStock:
+          permissions['view_inventory_opnames'] == true &&
+              permissions['create_inventory_opnames'] == true
+          ? _countStock
+          : null,
       locationTourKey: widget.stockTourKey,
       contentTourKey: widget.setupTourTargets?.stockContent,
       adjustmentTourKey: widget.setupTourTargets?.stockAdjust,
@@ -377,8 +418,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       type: PosInventoryDocumentType.transfer,
       permissions: permissions,
       canReceiveTransfer: permissions['receive_inventory_transfers'] == true,
-      showDisplayReplenishment:
-          inventoryPolicy['use_display_stock'] == true,
+      showDisplayReplenishment: inventoryPolicy['use_display_stock'] == true,
     ),
     _InventorySection.scrap => _InventoryDocumentPage(
       key: const ValueKey(PosInventoryDocumentType.scrap),
@@ -780,22 +820,21 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     try {
       final result = await _repository.getWarehouses();
       if (!mounted) return;
-      final warehouses = result.fold<List<Map<String, dynamic>>?>(
-        (failure) {
-          AppToast.error(context, failure.message);
-          return null;
-        },
-        (items) => items,
-      );
+      final warehouses = result.fold<List<Map<String, dynamic>>?>((failure) {
+        AppToast.error(context, failure.message);
+        return null;
+      }, (items) => items);
       if (warehouses == null) return;
       final pairs = <(Map<String, dynamic>, Map<String, dynamic>)>[];
       for (final source in warehouses.where(
-        (item) => item['warehouse_type'] == 'store' &&
+        (item) =>
+            item['warehouse_type'] == 'store' &&
             item['is_transfer_source'] != false &&
             item['linked_toko_id'] != null,
       )) {
         for (final destination in warehouses.where(
-          (item) => item['warehouse_type'] == 'display' &&
+          (item) =>
+              item['warehouse_type'] == 'display' &&
               item['is_transfer_destination'] != false &&
               item['linked_toko_id']?.toString() ==
                   source['linked_toko_id']?.toString(),
@@ -993,6 +1032,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   Future<void> _receive(Map<String, dynamic> item) async {
+    if (widget.type == PosInventoryDocumentType.transfer) {
+      await _advancedTransferAction(item, 'receive_transfer');
+      return;
+    }
     if (_runningActionId != null) return;
     final remaining = (item['items'] as List? ?? const [])
         .whereType<Map>()
@@ -1187,6 +1230,175 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       if (mounted) {
         setState(() {
           _loading = false;
+          _runningActionId = null;
+          _runningActionLabel = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _advancedTransferAction(
+    Map<String, dynamic> original,
+    String action,
+  ) async {
+    if (_runningActionId != null) return;
+    final repo = PosTransferRepository(sl<GraphQLClientProvider>());
+    setState(() {
+      _runningActionId = original['_id'].toString();
+      _runningActionLabel = 'Memeriksa transfer terbaru...';
+    });
+    TextEditingController? note, date;
+    try {
+      final current = await repo.detail(original['_id'].toString());
+      if (!mounted) return;
+      setState(
+        () => _items = _items
+            .map((row) => row['_id'] == current['_id'] ? current : row)
+            .toList(),
+      );
+      final movement =
+          action == 'receive_transfer' ||
+          action == 'report_transfer' ||
+          action.startsWith('decide_transfer:');
+      final allowed =
+          action == 'receive_transfer' || action == 'report_transfer'
+          ? widget.canReceiveTransfer
+          : action.startsWith('decide_transfer:')
+          ? _can('approve')
+          : _availableActions(current).contains(action);
+      if (!allowed) {
+        throw Exception(
+          'Aksi tidak tersedia untuk hak akses atau status transfer terbaru.',
+        );
+      }
+      if (movement) {
+        final changed = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PosTransferOperationPage(
+              transfer: current,
+              canApproveLoss:
+                  widget.permissions['approve_inventory_scraps'] == true,
+              mode: action == 'receive_transfer'
+                  ? 'receive'
+                  : action == 'report_transfer'
+                  ? 'report'
+                  : 'decide',
+              discrepancyId: action.startsWith('decide_transfer:')
+                  ? action.substring('decide_transfer:'.length)
+                  : null,
+            ),
+          ),
+        );
+        if (changed == true && mounted) await _load(page: 1);
+        return;
+      }
+      note = TextEditingController();
+      date = TextEditingController(text: transferToday());
+      final needsReason = [
+        'cancel',
+        'reject',
+        'retry_journal',
+      ].contains(action);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (c) => PosKeyboardStableFormDialog(
+          width: 560,
+          height: 420,
+          title: Text(
+            '${action == 'post' ? 'Kirim transfer' : _actionLabel(action)} ${current['no_transfer']}?',
+          ),
+          content: ListView(
+            children: [
+              Text(
+                action == 'post'
+                    ? '${(current['routing_snapshot'] ?? current['routing_preview'])?['mode'] == 'direct' ? 'Transfer langsung: stok tujuan bertambah dan dokumen selesai saat dikirim.' : 'Pengiriman menuju transit: stok tujuan baru bertambah setelah penerimaan.'}\n${_actionWarning(current, action)}'
+                    : _actionWarning(current, action),
+              ),
+              if (needsReason) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: note,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Alasan / catatan (wajib)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              if (action == 'retry_journal') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: date,
+                  decoration: const InputDecoration(
+                    labelText: 'Tanggal pembukuan biaya (YYYY-MM-DD)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Lanjutkan'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      final reason = note.text.trim();
+      if (needsReason && reason.length < 3) {
+        throw Exception('Alasan minimal 3 karakter.');
+      }
+      if (!mounted) return;
+      setState(() => _runningActionLabel = 'Memproses transfer...');
+      final payload = {'action': action, if (needsReason) 'reason': reason};
+      final result = await repo.action(
+        action,
+        current,
+        reason: reason,
+        postingDate: action == 'retry_journal' ? date.text.trim() : null,
+        requestId: transferRequestId(
+          action,
+          current['_id'].toString(),
+          current['updatedAt'],
+          payload,
+        ),
+      );
+      if (!mounted) return;
+      if (['failed', 'pending', 'unknown'].contains(result['journal_status']) &&
+          (result['total_biaya'] as num? ?? 0) > 0) {
+        AppToast.warning(
+          context,
+          'Stok/status diproses, tetapi jurnal biaya belum terkonfirmasi. Periksa rincian jurnal.',
+        );
+      } else if (result['cancel_journal_status'] == 'failed') {
+        AppToast.warning(
+          context,
+          'Stok dibalik; jurnal pembatalan perlu diperiksa.',
+        );
+      } else {
+        AppToast.success(context, 'Status transfer berhasil diperbarui');
+      }
+      await _load(page: 1);
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          '$e\nMuat ulang status sebelum mengulang jika koneksi terputus.',
+        );
+      }
+    } finally {
+      await Future<void>.delayed(kThemeAnimationDuration);
+      note?.dispose();
+      date?.dispose();
+      if (mounted) {
+        setState(() {
           _runningActionId = null;
           _runningActionLabel = null;
         });
@@ -1447,12 +1659,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   Widget _documentCard(Map<String, dynamic> item) {
     final itemCount = (item['items'] as List?)?.length ?? 0;
-    final transferReceived = (item['items'] as List? ?? const [])
-        .whereType<Map>()
-        .fold<double>(
-          0,
-          (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0),
-        );
+    final transferReceived = transferMaps(item['items'])
+        .where(
+          (row) =>
+              transferNumber(row['received_qty'] ?? 0) +
+                  transferNumber(row['resolved_qty'] ?? 0) >
+              0,
+        )
+        .length;
     final rawStatus = item['status']?.toString() ?? '-';
     final status = widget.type == PosInventoryDocumentType.purchase
         ? PosPurchaseProgress.effectiveStatus(item)
@@ -1509,7 +1723,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     rawStatus == 'in_transit' &&
                     transferReceived > 0)
                   Text(
-                    '${_compactNumber(transferReceived)} dari ${_compactNumber((item['items'] as List? ?? const []).whereType<Map>().fold<double>(0, (sum, row) => sum + ((row['qty'] as num?)?.toDouble() ?? 0)))} sudah diterima',
+                    '$transferReceived dari $itemCount baris sudah diproses • periksa sisa tiap barang',
                     style: const TextStyle(fontSize: 12, color: AppColors.info),
                   ),
                 if (widget.type == PosInventoryDocumentType.purchase &&
@@ -1539,7 +1753,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     value: action,
                     child: _ActionMenuItem(
                       _actionIcon(action),
-                      _actionLabel(action),
+                      widget.type == PosInventoryDocumentType.transfer &&
+                              action == 'post'
+                          ? 'Kirim transfer'
+                          : _actionLabel(action),
                       destructive: const {
                         'reject',
                         'cancel',
@@ -1580,7 +1797,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       vertical: 8,
                     ),
                   ),
-                  onPressed: _loading ? null : () => _receive(item),
+                  onPressed: _loading || transferRemainingRows(item).isEmpty
+                      ? null
+                      : () => _receive(item),
                   icon: const Icon(Icons.download_done, size: 16),
                   label: const Text('Terima'),
                 ),
@@ -1681,6 +1900,21 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   Future<void> _showDetail(Map<String, dynamic> item) async {
+    if (widget.type == PosInventoryDocumentType.transfer) {
+      if (_runningActionId != null) return;
+      setState(() => _runningActionId = item['_id'].toString());
+      try {
+        item = await PosTransferRepository(
+          sl<GraphQLClientProvider>(),
+        ).detail(item['_id'].toString());
+      } catch (e) {
+        if (mounted) AppToast.error(context, '$e');
+        return;
+      } finally {
+        if (mounted) setState(() => _runningActionId = null);
+      }
+      if (!mounted) return;
+    }
     final selectedAction = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -1783,7 +2017,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   children: [
                     _DetailMetric(
                       icon: Icons.inventory_2_outlined,
-                      label: '${rows.length} jenis barang',
+                      label: widget.type == PosInventoryDocumentType.opname
+                          ? opnameRowsSummary(rows)
+                          : '${rows.length} jenis barang',
                     ),
                     _DetailMetric(
                       icon: Icons.numbers_outlined,
@@ -1963,11 +2199,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     );
                     final sourceBranchName =
                         (row['lokasi_cabang_nama']?.toString().trim() ?? '')
-                                .isNotEmpty
-                            ? row['lokasi_cabang_nama']
-                            : sourceWarehouse.isEmpty
-                            ? ''
-                            : sourceWarehouse.first['nama_cabang'];
+                            .isNotEmpty
+                        ? row['lokasi_cabang_nama']
+                        : sourceWarehouse.isEmpty
+                        ? ''
+                        : sourceWarehouse.first['nama_cabang'];
                     final source =
                         [
                               sourceBranchName,
@@ -1985,7 +2221,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       title: Text(row['nama_inventaris']?.toString() ?? '-'),
                       subtitle: widget.type == PosInventoryDocumentType.transfer
                           ? Text(
-                              'Diterima ${_compactNumber(row['received_qty'] ?? 0)} • Sisa ${_compactNumber(((row['qty'] as num?)?.toDouble() ?? 0) - ((row['received_qty'] as num?)?.toDouble() ?? 0))}',
+                              'Diterima ${_compactNumber(row['received_qty'] ?? 0)} • Diselesaikan ${_compactNumber(row['resolved_qty'] ?? 0)} • Sisa ${_compactNumber((transferNumber(row['qty']) - transferNumber(row['received_qty'] ?? 0) - transferNumber(row['resolved_qty'] ?? 0)).clamp(0, double.infinity))}',
                             )
                           : isScrap
                           ? Text(
@@ -1999,6 +2235,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (widget.type ==
+                                    PosInventoryDocumentType.opname)
+                                  Text(
+                                    opnameLocationLabel(row['lokasi'] as Map?),
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                 Text(
                                   'Sistem: $system • Selisih: ${row['selisih'] ?? 0}',
                                 ),
@@ -2035,6 +2277,17 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     }),
                   ),
                 ],
+                if (widget.type == PosInventoryDocumentType.transfer)
+                  PosTransferDetails(
+                    document: item,
+                    canReceive: widget.canReceiveTransfer,
+                    canDecide: _can('approve'),
+                    actorId: context
+                        .read<AppLockCubit>()
+                        .state
+                        .activeEmployeeId,
+                    onAction: (action) => Navigator.pop(context, action),
+                  ),
               ],
             ),
           ),
@@ -2103,7 +2356,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         style: InventoryActionStyle.outlined(),
         onPressed: () => onAction(action),
         icon: Icon(_actionIcon(action)),
-        label: Text(_actionLabel(action)),
+        label: Text(
+          widget.type == PosInventoryDocumentType.transfer && action == 'post'
+              ? 'Kirim transfer'
+              : _actionLabel(action),
+        ),
       );
     }).toList();
   }
@@ -2125,6 +2382,16 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       canViewPurchasePayments: widget.permissions['view_payables'] == true,
       purchaseHasPayable: item['payable_status'] != null,
     );
+    if (widget.type == PosInventoryDocumentType.transfer) {
+      if (transferMaps(
+        item['discrepancies'],
+      ).any((r) => ['pending', 'approved'].contains(r['status']))) {
+        actions.remove('cancel');
+      }
+      if (transferRemainingRows(item).isEmpty) {
+        actions.remove('receive_transfer');
+      }
+    }
     if (widget.type == PosInventoryDocumentType.scrap) {
       final submittedBy = item['diajukan_oleh'];
       final submittedById = submittedBy is Map
@@ -2207,6 +2474,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     Map<String, dynamic> item,
     String action,
   ) async {
+    if (widget.type == PosInventoryDocumentType.transfer) {
+      if (action == 'edit') {
+        await _openEditor(item);
+        return;
+      }
+      await _advancedTransferAction(item, action);
+      return;
+    }
     if (const {
       'send_purchase',
       'acknowledge_purchase',
@@ -2915,10 +3190,7 @@ String _money(dynamic value) => NumberFormat.currency(
   decimalDigits: 0,
 ).format((value as num?) ?? num.tryParse(value?.toString() ?? '') ?? 0);
 String _date(dynamic value) {
-  final parsed = DateTime.tryParse(value?.toString() ?? '');
-  return parsed == null
-      ? (value?.toString() ?? '-')
-      : DateFormat('dd MMM yyyy', 'id_ID').format(parsed.toLocal());
+  return inventoryDocumentDate(value);
 }
 
 String _statusLabel(String value) => switch (value) {

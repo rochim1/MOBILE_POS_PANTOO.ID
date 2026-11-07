@@ -86,3 +86,7 @@ class DeleteReturn extends PosReturnEvent {
 }
 
 class ClearReturnForm extends PosReturnEvent {}
+
+class RecoverReturnDraft extends PosReturnEvent {
+  const RecoverReturnDraft();
+}

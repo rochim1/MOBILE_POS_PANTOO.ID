@@ -7,13 +7,14 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 import 'package:path/path.dart';
 import '../../../core/database/database_platform_initializer.dart';
+import 'pos_store_cache.dart';
 
 class PosLocalDatabase {
   static final PosLocalDatabase instance = PosLocalDatabase._init();
   static Database? _database;
   static Future<Database>? _databaseFuture;
   static const _databaseKeyName = 'pos_database_key_v1';
-  static const _schemaVersion = 21;
+  static const _schemaVersion = 23;
   static const _secureStorage = FlutterSecureStorage();
 
   PosLocalDatabase._init();
@@ -366,6 +367,14 @@ SELECT id, name, role FROM employees
         'ALTER TABLE offline_transactions ADD COLUMN next_retry_at TEXT',
       );
     }
+    if (oldVersion < 22) {
+      await db.execute(
+        'ALTER TABLE offline_transactions ADD COLUMN resolution_note TEXT',
+      );
+    }
+    if (oldVersion < 23) {
+      await upgradePosStoreMetadata(db);
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -419,6 +428,8 @@ CREATE TABLE stores (
   phone $textType,
   branchName $textType
   ,branchId $textType
+  ,code TEXT NOT NULL DEFAULT ""
+  ,shiftMode TEXT NOT NULL DEFAULT ""
 )
 ''');
 
@@ -444,6 +455,7 @@ CREATE TABLE offline_transactions (
   ,client_transaction_id TEXT NOT NULL DEFAULT ''
   ,server_response TEXT
   ,resolution TEXT
+  ,resolution_note TEXT
   ,resolved_at TEXT
   ,client_snapshot TEXT
   ,next_retry_at TEXT

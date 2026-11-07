@@ -1,3 +1,5 @@
+import 'pos_transfer_queries.dart';
+
 class PosInventoryQueries {
   static const purchaseAdvanceWorkspace = r'''
     query GetPOSPurchaseAdvanceWorkspace($search:String,$pagination:pagination) {
@@ -141,34 +143,35 @@ class PosInventoryQueries {
     }
   ''';
 
-  static const opnames = r'''
-    query GetAllInventoryOpnames($filter: InventoryOpnameFilter, $page: Int, $limit: Int) {
-      GetAllInventoryOpnames(filter: $filter, page: $page, limit: $limit) {
+  static const opnameFields = r'''
+    _id no_opname tanggal_opname status catatan alasan_penolakan
+    approval_required_level approval_current_level approval_history_id my_pending_approval
+    approval_logs { action level note by at }
+    lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama }
+    items {
+      _id inventaris_id stock_balance_id snapshot_updated_at
+      lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama }
+      kode_inventaris nama_inventaris qty_system qty_fisik selisih unit catatan_item
+      sku barcode
+      unit_conversions { unit factor }
+      qty_unbatched_system qty_unbatched_fisik
+      batch_counts { batch_id no_batch tanggal_kadaluarsa qty_system qty_fisik }
+      unit_breakdown { unit input_qty factor }
+    }
+  ''';
+  static const opnameDetail =
+      '''query GetOneInventoryOpname(\$id:ID!){ GetOneInventoryOpname(id:\$id){$opnameFields}}''';
+  static const opnames =
+      '''
+    query GetAllInventoryOpnames(\$filter: InventoryOpnameFilter, \$page: Int, \$limit: Int) {
+      GetAllInventoryOpnames(filter: \$filter, page: \$page, limit: \$limit) {
         total page limit
-        data {
-          _id no_opname tanggal_opname status catatan alasan_penolakan
-          approval_required_level approval_current_level approval_history_id my_pending_approval
-          approval_logs { action level note by at }
-          lokasi { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama }
-          items {
-            _id inventaris_id stock_balance_id snapshot_updated_at
-            kode_inventaris nama_inventaris qty_system qty_fisik selisih unit catatan_item
-            batch_counts { no_batch tanggal_kadaluarsa qty_system qty_fisik }
-            unit_breakdown { unit input_qty factor }
-          }
-        }
+        data {$opnameFields}
       }
     }
   ''';
 
-  static const transfers = r'''
-    query GetAllInventoryTransfers($filter: InventoryTransferFilter, $page: Int, $limit: Int) {
-      GetAllInventoryTransfers(filter: $filter, page: $page, limit: $limit) {
-        total page limit
-        data { _id no_transfer tanggal_transfer status catatan approval_history_id my_pending_approval total_biaya journal_status journal_error cancel_journal_status cancel_journal_error biaya_transfer { jenis_biaya deskripsi nominal akun_beban akun_beban_nama } biaya_mode biaya_alokasi dari { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } ke { cabang_id cabang_nama gedung_kode gedung_nama ruangan_kode ruangan_nama rak_nama } items { _id inventaris_id kode_inventaris nama_inventaris qty received_qty unit } }
-      }
-    }
-  ''';
+  static const transfers = PosTransferQueries.list;
 
   static const scraps = r'''
     query GetAllInventoryScraps($filter: ScrapFilterInput, $pagination: PaginationInput) {
@@ -519,9 +522,9 @@ class PosInventoryQueries {
   ''';
 
   static const createOpname =
-      r'''mutation CreateInventoryOpname($input: CreateInventoryOpnameInput!) { CreateInventoryOpname(input: $input) { _id no_opname status } }''';
+      '''mutation CreateInventoryOpname(\$input: CreateInventoryOpnameInput!) { CreateInventoryOpname(input: \$input) {$opnameFields}}''';
   static const updateOpname =
-      r'''mutation UpdateInventoryOpname($id: ID!, $input: UpdateInventoryOpnameInput!) { UpdateInventoryOpname(id: $id, input: $input) { _id no_opname status } }''';
+      '''mutation UpdateInventoryOpname(\$id: ID!, \$input: UpdateInventoryOpnameInput!) { UpdateInventoryOpname(id: \$id, input: \$input) {$opnameFields}}''';
   static const submitOpname =
       r'''mutation SubmitInventoryOpname($id: ID!) { SubmitInventoryOpname(id: $id) { _id no_opname status } }''';
   static const approveOpname =

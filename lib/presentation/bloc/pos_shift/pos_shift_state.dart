@@ -15,27 +15,36 @@ class PosShiftLoaded extends PosShiftState {
   final Map<String, dynamic>? activeShift;
   final List<Map<String, dynamic>> shiftHistory;
   final bool isLoadingHistory;
+  final String? notice;
 
   const PosShiftLoaded({
     this.activeShift,
     this.shiftHistory = const [],
     this.isLoadingHistory = false,
+    this.notice,
   });
 
   PosShiftLoaded copyWith({
     Map<String, dynamic>? activeShift,
     List<Map<String, dynamic>>? shiftHistory,
     bool? isLoadingHistory,
+    String? notice,
   }) {
     return PosShiftLoaded(
       activeShift: activeShift ?? this.activeShift,
       shiftHistory: shiftHistory ?? this.shiftHistory,
       isLoadingHistory: isLoadingHistory ?? this.isLoadingHistory,
+      notice: notice ?? this.notice,
     );
   }
 
   @override
-  List<Object?> get props => [activeShift, shiftHistory, isLoadingHistory];
+  List<Object?> get props => [
+    activeShift,
+    shiftHistory,
+    isLoadingHistory,
+    notice,
+  ];
 }
 
 class PosShiftActionSuccess extends PosShiftState {

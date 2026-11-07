@@ -22,6 +22,9 @@ class PosStock extends Equatable {
   final String? stockBalanceId;
   final int locationCount;
   final bool requiresBatchAdjustment;
+  final bool mandatoryBatch;
+  final bool requiresSerial;
+  final String valuationMethod;
 
   bool get canRestockDirectly =>
       tracksStock &&
@@ -31,6 +34,12 @@ class PosStock extends Equatable {
   bool get needsRestock =>
       canRestockDirectly &&
       (stok <= 0 || stok <= (titikReorder > 0 ? titikReorder : stokMinimum));
+
+  bool needsBatchCountAt(Map<String, dynamic> balance) =>
+      mandatoryBatch ||
+      (balance['batches'] as List? ?? const []).whereType<Map>().any(
+        (batch) => (double.tryParse(batch['qty']?.toString() ?? '') ?? 0) > 0,
+      );
 
   const PosStock({
     required this.id,
@@ -54,6 +63,9 @@ class PosStock extends Equatable {
     this.stockBalanceId,
     this.locationCount = 0,
     this.requiresBatchAdjustment = false,
+    this.mandatoryBatch = false,
+    this.requiresSerial = false,
+    this.valuationMethod = 'average',
   });
 
   factory PosStock.fromJson(Map<String, dynamic> json) {
@@ -89,6 +101,9 @@ class PosStock extends Equatable {
       locationCount:
           int.tryParse(json['location_count']?.toString() ?? '0') ?? 0,
       requiresBatchAdjustment: json['requires_batch_adjustment'] == true,
+      mandatoryBatch: json['wajib_batch_number'] == true,
+      requiresSerial: json['wajib_serial_number'] == true,
+      valuationMethod: json['valuation_method']?.toString() ?? 'average',
     );
   }
 
@@ -115,6 +130,9 @@ class PosStock extends Equatable {
       'stock_balance_id': stockBalanceId,
       'location_count': locationCount,
       'requires_batch_adjustment': requiresBatchAdjustment,
+      'wajib_batch_number': mandatoryBatch,
+      'wajib_serial_number': requiresSerial,
+      'valuation_method': valuationMethod,
     };
   }
 
@@ -141,6 +159,9 @@ class PosStock extends Equatable {
     stockBalanceId,
     locationCount,
     requiresBatchAdjustment,
+    mandatoryBatch,
+    requiresSerial,
+    valuationMethod,
   ];
 }
 

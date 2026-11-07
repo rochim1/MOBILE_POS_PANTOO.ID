@@ -122,6 +122,8 @@ class PosQueries {
           view_transactions
           view_reports
           view_returns
+          view_receivables
+          collect_receivables
           create_returns
           submit_returns
           approve_returns
@@ -377,8 +379,8 @@ class PosQueries {
   ''';
 
   static const String getMyActiveKasirShift = r'''
-    query GetMyActiveKasirShift($toko_id: ID, $operatorToken: String) {
-      GetMyActiveKasirShift(toko_id: $toko_id, operator_session_token: $operatorToken) {
+    query GetMyActiveKasirShift($toko_id: ID, $operatorToken: String, $includeOtherOutlets: Boolean = false) {
+      GetMyActiveKasirShift(toko_id: $toko_id, operator_session_token: $operatorToken, include_other_outlets: $includeOtherOutlets) {
         _id
         toko_id
         kasir_user_id
@@ -390,6 +392,7 @@ class PosQueries {
         total_penjualan
         total_tunai
         total_non_tunai
+        cash_refund_total
         petty_cash_in
         petty_cash_out
         status

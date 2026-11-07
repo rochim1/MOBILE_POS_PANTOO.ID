@@ -8,6 +8,7 @@ import '../../../domain/models/hold_order.dart';
 import '../../../domain/models/pos_order.dart';
 import '../../../domain/models/pos_customer.dart';
 import '../../../domain/models/pos_product.dart';
+import '../../../domain/services/pos_shift_sync.dart';
 import '../../../core/network/offline_network_failure.dart';
 import '../../../core/utils/logger.dart';
 
@@ -53,6 +54,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository posRepository;
   int _requestedDashboardDays = 7;
   String? _loadedOperatorId;
+  String? _loadedTerminalUserId;
+  int _loadVersion = 0;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
@@ -241,26 +244,59 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   Future<void> _onLoadPosData(LoadPosData event, Emitter<PosState> emit) async {
+    final request = ++_loadVersion;
     final operatorId = posRepository.activeOperatorId;
-    if (_loadedOperatorId != operatorId) {
+    final terminalUserId = posRepository.terminalUserId;
+    final previousStoreId = state.checkoutStore?.id;
+    bool isCurrent() =>
+        request == _loadVersion &&
+        operatorId == posRepository.activeOperatorId &&
+        terminalUserId == posRepository.terminalUserId;
+    if (_loadedOperatorId != operatorId ||
+        _loadedTerminalUserId != terminalUserId) {
       // Keep a locked terminal's previous operator data out of the next
       // operator's cart, dashboard, permissions, and offline history.
       _loadedOperatorId = operatorId;
+      _loadedTerminalUserId = terminalUserId;
       emit(PosState(status: PosStatus.loading, isGridView: state.isGridView));
     } else {
-      emit(state.copyWith(status: PosStatus.loading));
+      emit(
+        state.copyWith(status: PosStatus.loading, checkoutSyncFailed: false),
+      );
     }
     try {
-      final (runtimeConfig, stores, fetchedShift) = await (
-        posRepository.getRuntimeConfig(),
-        posRepository.getStores(),
-        posRepository.getActiveShift(),
-      ).wait;
-      // Satu kasir hanya boleh memiliki satu shift terbuka lintas toko.
-      final activeShift = stores.isNotEmpty ? fetchedShift : null;
+      final runtimeConfig = await posRepository.getRuntimeConfig();
+      if (!isCurrent()) return;
+      // Navigation authorization is independently useful to approvers/Finance.
+      // A store/shift failure must block checkout, not erase permitted modules.
+      emit(
+        state.copyWith(runtimeConfig: runtimeConfig, status: PosStatus.loading),
+      );
+      final stores = await posRepository.getStores();
+      if (!isCurrent()) return;
       final permissions =
           runtimeConfig['permissions'] as Map<String, dynamic>? ??
           const <String, dynamic>{};
+      final activeShift = permissions['view_shifts'] == true
+          ? await discoverCheckoutShift(
+              stores: stores,
+              runtimeConfig: runtimeConfig,
+              operatorId: operatorId,
+              terminalUserId: terminalUserId,
+              preferredStoreId: previousStoreId,
+              readShift: posRepository.getActiveShiftForStore,
+              isCurrent: isCurrent,
+            )
+          : null;
+      if (!isCurrent()) return;
+      if (state.cart.isNotEmpty &&
+          previousStoreId != null &&
+          activeShift != null &&
+          previousStoreId != activeShift['toko_id']?.toString()) {
+        throw StateError(
+          'Shift aktif berada di toko lain. Keranjang tidak dipindahkan. Kosongkan keranjang untuk menyelaraskan toko.',
+        );
+      }
       final canOperateWithoutShift =
           runtimeConfig['allow_out_of_shift'] == true;
       final customers =
@@ -272,6 +308,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           activeShift == null || permissions['view_transactions'] != true
           ? (items: <PosOrder>[], hasMore: false)
           : await posRepository.getOrdersPage();
+      if (!isCurrent()) return;
       final orders = ordersPage.items;
       final activeStore = PosState(
         stores: stores,
@@ -307,8 +344,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         ),
       );
       final products =
-          permissions['view_products'] == true ||
-              permissions['use_cashier'] == true
+          // POS stock is scoped to a verified active shift. Do not turn a
+          // correctly denied pre-shift catalog read into a shift-sync failure.
+          (activeShift != null || canOperateWithoutShift) &&
+              (permissions['view_products'] == true ||
+                  permissions['use_cashier'] == true)
           ? await posRepository.getProducts(branchId: activeStore.branchId)
           : <PosProduct>[];
       final favoriteProductIds = products.isNotEmpty
@@ -321,6 +361,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
               shiftId: activeShift['_id']?.toString() ?? '',
             )
           : <HoldOrder>[];
+      if (!isCurrent()) return;
 
       emit(
         state.copyWith(
@@ -352,10 +393,15 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       // Also load dashboard data
       add(LoadDashboardData(days: _requestedDashboardDays));
     } catch (e) {
+      if (!isCurrent()) return;
       emit(
         state.copyWith(
           status: PosStatus.failure,
-          errorMessage: 'Gagal memuat data master',
+          clearActiveShift: true,
+          checkoutSyncFailed: true,
+          errorMessage: e is StateError
+              ? e.message.toString()
+              : 'Data toko dan shift belum dapat diperiksa. Periksa koneksi atau PIN, lalu coba lagi.',
         ),
       );
     }

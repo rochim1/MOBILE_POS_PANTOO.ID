@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
 import '../../../domain/repositories/pos_inventory_repository.dart';
+import '../../../domain/models/pos_opname.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
@@ -14,6 +15,8 @@ import '../../bloc/pos/pos_bloc.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'utils/pos_inventory_barcode_match.dart';
 import 'utils/pos_purchase_amount.dart';
+import 'widgets/pos_opname_batch_fields.dart';
+import 'pos_transfer_editor_page.dart';
 
 class PosInventoryEditorPage extends StatefulWidget {
   final PosInventoryDocumentType type;
@@ -24,6 +27,7 @@ class PosInventoryEditorPage extends StatefulWidget {
   final String? initialDestinationId;
   final bool displayReplenishment;
   final bool inModal;
+  final PosOpnameTarget? opnameTarget;
   const PosInventoryEditorPage({
     super.key,
     required this.type,
@@ -34,6 +38,7 @@ class PosInventoryEditorPage extends StatefulWidget {
     this.initialDestinationId,
     this.displayReplenishment = false,
     this.inModal = false,
+    this.opnameTarget,
   });
 
   @override
@@ -88,10 +93,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   late DateTime _scrapDate;
   String _incidentLocation = 'gudang';
   bool _loading = true;
+  Map<String, dynamic>? _opnameDraft;
+  String? _opnameLoadError;
   bool _showPurchaseAdvanced = false;
   int _purchaseStep = 0;
 
-  bool get _editing => widget.existing != null;
+  Map<String, dynamic>? get _document => _opnameDraft ?? widget.existing;
+  bool get _editing => _document != null;
+  bool get _opnameScopeLocked => _editing || widget.opnameTarget != null;
   bool get _usesLocation => widget.type != PosInventoryDocumentType.purchase;
   bool get _hasValidPurchaseDestination =>
       _deliveryAddress.trim().isNotEmpty && _deliveryWarehouseId.isNotEmpty;
@@ -127,6 +136,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _buildingCode = existingLocation?['gedung_kode']?.toString() ?? '';
     _roomCode = existingLocation?['ruangan_kode']?.toString() ?? '';
     _rackName = existingLocation?['rak_nama']?.toString() ?? '';
+    if (widget.opnameTarget case final target?) {
+      _sourceId = target.location['cabang_id']?.toString() ?? '';
+      _buildingCode = target.location['gedung_kode']?.toString() ?? '';
+      _roomCode = target.location['ruangan_kode']?.toString() ?? '';
+      _rackName = target.location['rak_nama']?.toString() ?? '';
+    }
     _purchaseDate =
         DateTime.tryParse(widget.existing?['tanggal_po']?.toString() ?? '') ??
         DateTime.now();
@@ -232,7 +247,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _incidentLocation =
         widget.existing?['lokasi_kejadian']?.toString() ?? 'gudang';
     _showPurchaseAdvanced = _editing;
-    _load();
+    if (widget.type != PosInventoryDocumentType.transfer) _load();
   }
 
   String? _existingScrapLocationId() {
@@ -270,6 +285,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   }
 
   Future<void> _load() async {
+    if (widget.type == PosInventoryDocumentType.opname) {
+      await _loadOpname();
+      return;
+    }
     final result = await _repository.getLookups(
       purchaseOnly: widget.type == PosInventoryDocumentType.purchase,
     );
@@ -383,6 +402,78 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _loadOpname() async {
+    final generation = ++_locationLoadGeneration;
+    setState(() {
+      _loading = true;
+      _opnameLoadError = null;
+    });
+    if (_document?['_id'] case final String id when id.isNotEmpty) {
+      final result = await _repository.getOpname(id);
+      if (!mounted || generation != _locationLoadGeneration) return;
+      result.fold((failure) => _opnameLoadError = failure.message, (document) {
+        if (!['draft', 'rejected'].contains(document['status'])) {
+          _opnameLoadError =
+              'Opname sudah berubah status. Kembali dan muat ulang daftar.';
+          return;
+        }
+        _adoptOpname(document);
+      });
+    } else if (widget.opnameTarget case final target?) {
+      _lookups = _opnameLookups([
+        {
+          '_id': target.location['cabang_id'],
+          'nama_cabang': target.location['cabang_nama'],
+        },
+      ]);
+    } else {
+      final result = await _repository.getWarehouses();
+      if (!mounted || generation != _locationLoadGeneration) return;
+      result.fold((failure) => _opnameLoadError = failure.message, (rows) {
+        _lookups = _opnameLookups(rows);
+        if (_sourceId.isNotEmpty &&
+            !rows.any((r) => r['_id']?.toString() == _sourceId)) {
+          _sourceId = '';
+        }
+      });
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  PosInventoryLookups _opnameLookups(List<Map<String, dynamic>> warehouses) =>
+      PosInventoryLookups(
+        suppliers: const [],
+        warehouses: warehouses,
+        activeWarehouseId: _sourceId,
+        inventoryItems: const [],
+        scrapReasons: const [],
+        scrapIncidentTypes: const [],
+        scrapOccurrenceLocations: const [],
+        purchaseReturnReasons: const [],
+        purchaseReturnMethods: const [],
+      );
+
+  void _adoptOpname(Map<String, dynamic> document) {
+    _opnameDraft = document;
+    final location = Map<String, dynamic>.from(
+      document['lokasi'] as Map? ?? const {},
+    );
+    _sourceId = location['cabang_id']?.toString() ?? '';
+    _buildingCode = location['gedung_kode']?.toString() ?? '';
+    _roomCode = location['ruangan_kode']?.toString() ?? '';
+    _rackName = location['rak_nama']?.toString() ?? '';
+    _opnameDate =
+        DateTime.tryParse(document['tanggal_opname']?.toString() ?? '') ??
+        _opnameDate;
+    _notes.text = document['catatan']?.toString() ?? '';
+    _lookups = _opnameLookups([
+      {'_id': _sourceId, 'nama_cabang': location['cabang_nama']},
+    ]);
+    _selected.clear();
+    _restoreExisting();
+    _catalog = opnameScanCatalog(_selected.values);
+  }
+
   Future<void> _loadLocationItems(
     String warehouseId, {
     bool restoreExisting = false,
@@ -413,8 +504,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   }
 
   void _restoreExisting() {
-    final oldItems = widget.existing?['items'] as List? ?? const [];
-    for (final raw in oldItems) {
+    final oldItems = _document?['items'] as List? ?? const [];
+    for (final (index, raw) in oldItems.indexed) {
       final old = Map<String, dynamic>.from(raw as Map);
       final id = old['inventaris_id']?.toString() ?? '';
       if (id.isEmpty) continue;
@@ -437,9 +528,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             .toList(),
       };
       if (widget.type == PosInventoryDocumentType.opname) {
+        restored.addAll(editableOpnameRow(old));
         _prepareOpnameUnits(restored, old);
       }
-      _selected[id] = restored;
+      _selected[widget.type == PosInventoryDocumentType.opname
+              ? opnameRowKey(old, index)
+              : id] =
+          restored;
     }
   }
 
@@ -457,6 +552,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     }
     final saved = <String, double>{};
     for (final raw in (persisted['unit_breakdown'] as List? ?? const [])) {
+      if (raw is Map) {
+        final unit = raw['unit']?.toString() ?? '';
+        final factor = opnameNumber(raw['factor']);
+        if (unit.isNotEmpty && factor.isFinite && factor > 0) {
+          factors.putIfAbsent(unit, () => factor);
+        }
+      }
       if (raw is! Map) continue;
       final unit = raw['unit']?.toString() ?? '';
       saved[unit] = (raw['input_qty'] as num?)?.toDouble() ?? 0;
@@ -820,7 +922,35 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     }
     final found = matches.single;
     final id = (found['inventaris_id'] ?? found['_id']).toString();
-    final selected = _selected[id];
+    final candidates = _selected.values
+        .where((row) => row['inventaris_id']?.toString() == id)
+        .toList();
+    Map<String, dynamic>? selected = candidates.length == 1
+        ? candidates.single
+        : null;
+    if (candidates.length > 1) {
+      selected = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Pilih rak yang sedang dihitung')),
+              for (final row in candidates)
+                ListTile(
+                  title: Text(opnameLocationLabel(row['lokasi'] as Map?)),
+                  subtitle: Text(
+                    'Sistem ${_numberText(row['qty_system'])} ${row['unit'] ?? ''}',
+                  ),
+                  onTap: () => Navigator.pop(sheetContext, row),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (!mounted) return 'Sesi opname sudah ditutup.';
     if (selected == null) {
       return 'Barang tidak termasuk snapshot opname.';
     }
@@ -881,6 +1011,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         )
         .toList();
     if (batches.isNotEmpty) {
+      var draft = {...item, 'batch_counts': batches};
       final formKey = GlobalKey<FormState>();
       final applied = await showModalBottomSheet<bool>(
         context: context,
@@ -901,8 +1032,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  const Text('Masukkan jumlah fisik untuk setiap batch.'),
+                  Text(opnameLocationLabel(item['lokasi'] as Map?)),
                   const SizedBox(height: 12),
                   Flexible(
                     child: Form(
@@ -911,43 +1041,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         padding: EdgeInsets.only(
                           bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final batch in batches) ...[
-                              TextFormField(
-                                initialValue: _numberText(batch['qty_fisik']),
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: InputDecoration(
-                                  labelText:
-                                      batch['no_batch']?.toString() ?? 'Batch',
-                                  helperText:
-                                      'Sistem ${_numberText(batch['qty_system'])}${(batch['tanggal_kadaluarsa']?.toString() ?? '').isEmpty ? '' : ' • Exp ${batch['tanggal_kadaluarsa']}'}',
-                                  border: const OutlineInputBorder(),
-                                ),
-                                validator: (value) {
-                                  final qty = double.tryParse(
-                                    (value ?? '').replaceAll(',', '.'),
-                                  );
-                                  return qty == null || !qty.isFinite || qty < 0
-                                      ? 'Isi jumlah fisik yang valid'
-                                      : null;
-                                },
-                                onChanged: (value) {
-                                  final qty = double.tryParse(
-                                    value.replaceAll(',', '.'),
-                                  );
-                                  if (qty != null && qty.isFinite && qty >= 0) {
-                                    batch['qty_fisik'] = qty;
-                                  }
-                                },
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ],
+                        child: StatefulBuilder(
+                          builder: (context, update) => PosOpnameBatchFields(
+                            item: draft,
+                            onChanged: (next) => update(() => draft = next),
+                          ),
                         ),
                       ),
                     ),
@@ -967,16 +1065,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           ),
         ),
       );
-      if (mounted && applied == true) {
-        setState(() {
-          item['batch_counts'] = batches;
-          item['input_qty'] = batches.fold<double>(
-            0,
-            (sum, batch) =>
-                sum + ((batch['qty_fisik'] as num?)?.toDouble() ?? 0),
-          );
-        });
-      }
+      if (mounted && applied == true) setState(() => item.addAll(draft));
       return mounted && applied == true;
     }
     final controller = TextEditingController(
@@ -1043,6 +1132,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   }
 
   Future<void> _save() async {
+    if (_loading) return;
+    if (widget.type == PosInventoryDocumentType.opname &&
+        _opnameLoadError != null) {
+      AppToast.error(context, _opnameLoadError!);
+      return;
+    }
     if (widget.type == PosInventoryDocumentType.purchase &&
         _supplierId.isEmpty) {
       AppToast.error(context, 'Pilih supplier');
@@ -1154,6 +1249,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       return;
     }
     if (widget.type == PosInventoryDocumentType.opname) {
+      final validation = validateOpnameRows(_selected.values);
+      if (validation != null) {
+        AppToast.error(context, validation);
+        return;
+      }
       final withoutReason = _selected.values
           .cast<Map<String, dynamic>?>()
           .firstWhere((item) {
@@ -1162,7 +1262,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 (item?['qty'] as num?)?.toDouble() ??
                 0;
             final physical = (item?['input_qty'] as num?)?.toDouble() ?? system;
-            return (physical - system).abs() > 0.000001 &&
+            return ((physical - system).abs() > 0.000001 ||
+                    (item != null && opnameHasDifference(item))) &&
                 (item?['catatan_item']?.toString().trim().length ?? 0) < 3;
           }, orElse: () => null);
       if (withoutReason != null) {
@@ -1340,60 +1441,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             .toList(),
       },
       PosInventoryDocumentType.opname => {
+        if (!_editing && widget.opnameTarget != null) ...{
+          'inventaris_id': widget.opnameTarget!.inventoryId,
+          'stock_balance_id': widget.opnameTarget!.balanceId,
+        },
         'tanggal_opname': _dateValue(_opnameDate),
         'lokasi': _opnameLocationInput(source),
         'catatan': _notes.text.trim(),
-        if (widget.existing?['biaya_transfer'] != null)
-          'biaya_transfer': widget.existing?['biaya_transfer'],
-        if (widget.existing?['biaya_mode'] != null)
-          'biaya_mode': widget.existing?['biaya_mode'],
-        if (widget.existing?['biaya_alokasi'] != null)
-          'biaya_alokasi': widget.existing?['biaya_alokasi'],
-        if (_editing)
-          'items': _selected.values
-              .map(
-                (item) => {
-                  'inventaris_id': item['inventaris_id'],
-                  'qty_system': item['qty_system'] ?? item['qty'] ?? 0,
-                  'qty_fisik': item['input_qty'],
-                  'nama_inventaris': item['nama_inventaris'],
-                  'kode_inventaris': item['kode_inventaris'],
-                  'unit': item['base_unit'] ?? item['unit'],
-                  if (item['use_conversion'] == true)
-                    'unit_breakdown':
-                        (item['available_units'] as List? ?? const [])
-                            .whereType<Map>()
-                            .where(
-                              (row) =>
-                                  ((row['input_qty'] as num?)?.toDouble() ??
-                                      0) >
-                                  0,
-                            )
-                            .map(
-                              (row) => {
-                                'unit': row['unit'],
-                                'input_qty': row['input_qty'],
-                                'factor': row['factor'],
-                              },
-                            )
-                            .toList(),
-                  if ((item['batch_counts'] as List? ?? const []).isNotEmpty)
-                    'batch_counts': (item['batch_counts'] as List)
-                        .whereType<Map>()
-                        .map(
-                          (batch) => {
-                            'no_batch': batch['no_batch'],
-                            'tanggal_kadaluarsa': batch['tanggal_kadaluarsa'],
-                            'qty_system': batch['qty_system'],
-                            'qty_fisik': batch['qty_fisik'],
-                          },
-                        )
-                        .toList(),
-                  if ((item['catatan_item']?.toString() ?? '').isNotEmpty)
-                    'catatan_item': item['catatan_item'],
-                },
-              )
-              .toList(),
+        if (_editing) 'items': _selected.values.map(opnameCountInput).toList(),
       },
       PosInventoryDocumentType.transfer => {
         'tanggal_transfer': _today,
@@ -1439,7 +1494,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     final result = await _repository.saveDocument(
       type: widget.type,
       input: input,
-      id: widget.existing?['_id']?.toString(),
+      id: _document?['_id']?.toString(),
     );
     if (!mounted) return;
     result.fold(
@@ -1447,7 +1502,27 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         AppToast.error(context, failure.message);
         setState(() => _loading = false);
       },
-      (_) {
+      (saved) {
+        if (widget.type == PosInventoryDocumentType.opname && !_editing) {
+          if (saved is! Map ||
+              saved['_id'] == null ||
+              saved['items'] is! List) {
+            _opnameLoadError =
+                'Snapshot belum diterima lengkap. Kembali dan muat ulang daftar sebelum mencoba lagi.';
+            setState(() => _loading = false);
+            AppToast.error(context, _opnameLoadError!);
+            return;
+          }
+          setState(() {
+            _adoptOpname(Map<String, dynamic>.from(saved));
+            _loading = false;
+          });
+          AppToast.success(
+            context,
+            'Snapshot siap. Isi fisik, simpan, lalu submit untuk persetujuan. Stok belum berubah.',
+          );
+          return;
+        }
         AppToast.success(
           context,
           _editing ? 'Dokumen berhasil diperbarui' : 'Draft berhasil dibuat',
@@ -1493,6 +1568,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   };
 
   Map<String, dynamic> _opnameLocationInput(Map<String, dynamic> warehouse) {
+    if (_editing) {
+      return opnameLocationInput(_document?['lokasi'] as Map? ?? const {});
+    }
+    if (widget.opnameTarget case final target?) {
+      return opnameLocationInput(target.location);
+    }
     final building = _buildings.cast<Map?>().firstWhere(
       (row) => row?['kode_gedung']?.toString() == _buildingCode,
       orElse: () => null,
@@ -3176,36 +3257,47 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     child: Text(_dateValue(_opnameDate)),
                   ),
                 );
-                final location = DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _sourceId.isEmpty ? null : _sourceId,
-                  decoration: const InputDecoration(
-                    labelText: 'Cabang / lokasi stok *',
-                    prefixIcon: Icon(Icons.warehouse_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: (_lookups?.warehouses ?? const [])
-                      .map(
-                        (item) => DropdownMenuItem(
-                          value: item['_id'].toString(),
-                          child: Text(item['nama_cabang'].toString()),
+                final location = _opnameScopeLocked
+                    ? InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Lokasi snapshot (terkunci)',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          '${widget.opnameTarget?.name ?? ''}\n${opnameLocationLabel((_document?['lokasi'] as Map?) ?? widget.opnameTarget?.location)}'
+                              .trim(),
                         ),
                       )
-                      .toList(),
-                  onChanged: _editing
-                      ? null
-                      : (value) {
-                          final id = value ?? '';
-                          setState(() {
-                            _sourceId = id;
-                            _buildingCode = '';
-                            _roomCode = '';
-                            _rackName = '';
-                            _selected.clear();
-                          });
-                          if (id.isNotEmpty) _loadLocationItems(id);
-                        },
-                );
+                    : DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _sourceId.isEmpty ? null : _sourceId,
+                        decoration: const InputDecoration(
+                          labelText: 'Cabang / lokasi stok *',
+                          prefixIcon: Icon(Icons.warehouse_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: (_lookups?.warehouses ?? const [])
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item['_id'].toString(),
+                                child: Text(item['nama_cabang'].toString()),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _editing
+                            ? null
+                            : (value) {
+                                final id = value ?? '';
+                                setState(() {
+                                  _sourceId = id;
+                                  _buildingCode = '';
+                                  _roomCode = '';
+                                  _rackName = '';
+                                  _selected.clear();
+                                });
+                                if (id.isNotEmpty) _loadLocationItems(id);
+                              },
+                      );
                 final fields = [date, location];
                 return wide
                     ? Row(
@@ -3228,6 +3320,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             const SizedBox(height: 12),
             LayoutBuilder(
               builder: (context, constraints) {
+                if (_opnameScopeLocked) return const SizedBox.shrink();
                 final fields = <Widget>[
                   DropdownButtonFormField<String>(
                     isExpanded: true,
@@ -3343,7 +3436,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Saat dibuat, sistem otomatis mengambil snapshot seluruh saldo di lokasi terpilih. Buka kembali draft untuk mengisi hasil hitung fisik, konversi satuan, dan alasan selisih.',
+                      'Saat dibuat, sistem otomatis mengambil snapshot saldo terpilih. Isi hasil hitung fisik, konversi satuan, dan alasan selisih di form ini. Stok baru berubah setelah persetujuan dan posting.',
                     ),
                   ),
                 ],
@@ -3370,6 +3463,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.type == PosInventoryDocumentType.transfer) {
+      return PosTransferEditorPage(
+        existing: widget.existing,
+        initialSourceId: widget.initialSourceId,
+        initialDestinationId: widget.initialDestinationId,
+        initialInventoryId: widget.initialInventoryId,
+        initialQuantity: widget.initialQuantity,
+        displayReplenishment: widget.displayReplenishment,
+      );
+    }
     // Keep the guided purchase flow on phones, tablets, and the current app
     // preview width; only wide desktop layouts use the single-page form.
     final isMobile = MediaQuery.sizeOf(context).width < 1280;
@@ -3511,6 +3614,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             ),
                           if (widget.type == PosInventoryDocumentType.opname)
                             _buildOpnameSetupCard(),
+                          if (widget.type == PosInventoryDocumentType.opname &&
+                              _opnameLoadError != null)
+                            Column(
+                              children: [
+                                Text(
+                                  _opnameLoadError!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                                TextButton(
+                                  onPressed: _loadOpname,
+                                  child: const Text('Coba lagi'),
+                                ),
+                              ],
+                            ),
                           if (widget.type ==
                               PosInventoryDocumentType.transfer) ...[
                             const SizedBox(height: 12),
@@ -3751,6 +3868,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               ..._selected.entries.map((entry) {
                                 final item = entry.value;
                                 return Card(
+                                  key: ValueKey(entry.key),
                                   child: Padding(
                                     padding: const EdgeInsets.all(12),
                                     child: Column(
@@ -3793,6 +3911,18 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             ),
                                           ),
                                           const SizedBox(height: 8),
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              opnameLocationLabel(
+                                                item['lokasi'] as Map?,
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black54,
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                         if (widget.type ==
                                                 PosInventoryDocumentType
@@ -3800,73 +3930,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             (item['batch_counts'] as List? ??
                                                     const [])
                                                 .isNotEmpty)
-                                          ...((item['batch_counts'] as List).whereType<Map>().map((
-                                            batch,
-                                          ) {
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 8,
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      '${batch['no_batch']}\nSistem ${_numberText(batch['qty_system'])}${(batch['tanggal_kadaluarsa']?.toString() ?? '').isEmpty ? '' : ' • Exp ${batch['tanggal_kadaluarsa']}'}',
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: 120,
-                                                    child: TextFormField(
-                                                      initialValue: _numberText(
-                                                        batch['qty_fisik'],
-                                                      ),
-                                                      keyboardType:
-                                                          const TextInputType.numberWithOptions(
-                                                            decimal: true,
-                                                          ),
-                                                      decoration:
-                                                          const InputDecoration(
-                                                            labelText: 'Fisik',
-                                                            border:
-                                                                OutlineInputBorder(),
-                                                          ),
-                                                      onChanged: (value) {
-                                                        batch['qty_fisik'] =
-                                                            double.tryParse(
-                                                              value.replaceAll(
-                                                                ',',
-                                                                '.',
-                                                              ),
-                                                            ) ??
-                                                            double.nan;
-                                                        item['input_qty'] =
-                                                            (item['batch_counts']
-                                                                    as List)
-                                                                .whereType<
-                                                                  Map
-                                                                >()
-                                                                .fold<double>(
-                                                                  0,
-                                                                  (
-                                                                    sum,
-                                                                    current,
-                                                                  ) =>
-                                                                      sum +
-                                                                      ((current['qty_fisik']
-                                                                                  as num?)
-                                                                              ?.toDouble() ??
-                                                                          0),
-                                                                );
-                                                      },
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          })),
+                                          PosOpnameBatchFields(
+                                            item: item,
+                                            onChanged: (next) => setState(
+                                              () => item.addAll(next),
+                                            ),
+                                          ),
                                         if (!(widget.type ==
                                                 PosInventoryDocumentType
                                                     .opname &&
@@ -3886,6 +3955,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             children: [
                                               Expanded(
                                                 child: TextFormField(
+                                                  key:
+                                                      item['use_conversion'] ==
+                                                          true
+                                                      ? ValueKey(
+                                                          'converted:${item['input_qty']}',
+                                                        )
+                                                      : null,
                                                   readOnly:
                                                       widget.type ==
                                                           PosInventoryDocumentType
@@ -4391,7 +4467,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                     ? 'Simpan Perubahan'
                                     : widget.type ==
                                           PosInventoryDocumentType.opname
-                                    ? 'Buat Opname'
+                                    ? widget.opnameTarget != null
+                                          ? 'Mulai hitung barang ini'
+                                          : 'Buat Opname'
                                     : 'Simpan Draft',
                               ),
                             ),

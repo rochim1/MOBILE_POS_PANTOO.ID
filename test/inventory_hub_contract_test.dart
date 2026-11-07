@@ -119,7 +119,7 @@ void main() {
         'lib/presentation/pages/pos/pos_inventory_editor_page.dart',
       ).readAsStringSync().replaceAll('\r\n', '\n');
       expect(source, contains('_opnameLocationInput'));
-      expect(source, contains("if (_editing)\n          'items'"));
+      expect(source, matches(RegExp(r"if \(_editing\)\s+'items'")));
       expect(source, contains("'unit_breakdown'"));
       expect(source, contains('Hitung dengan konversi'));
       expect(source, contains('sistem otomatis mengambil snapshot'));

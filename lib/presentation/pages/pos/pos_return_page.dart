@@ -10,6 +10,7 @@ import '../../bloc/pos_return/pos_return_state.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_ui.dart';
+import '../../widgets/pos_return_draft_recovery.dart';
 import 'pos_add_return_page.dart';
 import 'package:intl/intl.dart';
 
@@ -77,6 +78,7 @@ class _PosReturnViewState extends State<PosReturnView> {
       color: AppColors.bgPrimary,
       child: Column(
         children: [
+          PosReturnDraftRecovery(canRecover: _can('create_returns')),
           // Filter section
           Container(
             padding: EdgeInsets.all(compact ? 12 : 16),
@@ -134,7 +136,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                     items: const [
                       DropdownMenuItem(value: '', child: Text('Semua Status')),
                       DropdownMenuItem(value: 'draft', child: Text('Draft')),
-                      DropdownMenuItem(value: 'pending', child: Text('Menunggu persetujuan')),
+                      DropdownMenuItem(
+                        value: 'pending',
+                        child: Text('Menunggu persetujuan'),
+                      ),
                       DropdownMenuItem(
                         value: 'approved',
                         child: Text('Approved'),
@@ -158,7 +163,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                 final addButton = SizedBox(
                   height: compact ? 40 : 48,
                   child: ElevatedButton.icon(
-                      onPressed: _openAddReturn,
+                    onPressed: _openAddReturn,
                     icon: const Icon(Icons.add),
                     label: const Text('Tambah Retur'),
                   ),
@@ -210,6 +215,21 @@ class _PosReturnViewState extends State<PosReturnView> {
                 }
 
                 if (state.returns.isEmpty) {
+                  if (state.status == PosReturnStatus.failure) {
+                    return PosEmptyState(
+                      icon: Icons.cloud_off_outlined,
+                      title: 'Daftar retur belum termuat',
+                      message:
+                          'Jangan ulangi refund sebelum status retur terkonfirmasi. ${state.errorMessage}',
+                      actionLabel: 'Coba lagi',
+                      onAction: () => context.read<PosReturnBloc>().add(
+                        LoadReturns(
+                          search: _searchController.text.trim(),
+                          status: _selectedStatus,
+                        ),
+                      ),
+                    );
+                  }
                   return const PosEmptyState(
                     icon: Icons.assignment_return_outlined,
                     title: 'Belum ada retur',
@@ -289,7 +309,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     const Text(
-                                      'Total Refund',
+                                      'Nilai Retur (neto)',
                                       style: TextStyle(
                                         color: Colors.grey,
                                         fontSize: 12,
@@ -308,6 +328,14 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 ),
                               ],
                             ),
+                            if (status == 'completed' &&
+                                item['sales_invoice_id'] != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Piutang berkurang ${_formatCurrency(item['ar_credit_amount'] ?? 0)} · Refund ${_formatCurrency(item['refund_amount'] ?? 0)} · Saldo kredit ${_formatCurrency(item['customer_credit_amount'] ?? 0)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
                             if (status == 'draft' ||
                                 status == 'pending' ||
                                 status == 'approved') ...[
@@ -315,27 +343,31 @@ class _PosReturnViewState extends State<PosReturnView> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  if (status == 'draft' && _can('submit_returns'))
+                                  if (status == 'draft' &&
+                                      _can('submit_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
                                         title: 'Ajukan retur?',
                                         message:
                                             'Retur ${item['no_retur'] ?? ''} akan menunggu persetujuan supervisor.',
                                         confirmLabel: 'Ajukan',
-                                        onConfirmed: () => context
-                                            .read<PosReturnBloc>()
-                                            .add(SubmitReturnDraft(item['_id'])),
+                                        onConfirmed: () =>
+                                            context.read<PosReturnBloc>().add(
+                                              SubmitReturnDraft(item['_id']),
+                                            ),
                                       ),
                                       child: const Text(
                                         'Ajukan',
                                         style: TextStyle(color: AppColors.info),
                                       ),
                                     ),
-                                  if (status == 'pending' && _can('approve_returns'))
+                                  if (status == 'pending' &&
+                                      _can('approve_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
                                         title: 'Setujui retur?',
-                                        message: 'Retur ${item['no_retur'] ?? ''} akan siap diproses.',
+                                        message:
+                                            'Retur ${item['no_retur'] ?? ''} akan siap diproses.',
                                         confirmLabel: 'Setujui',
                                         onConfirmed: () => context
                                             .read<PosReturnBloc>()
@@ -343,9 +375,12 @@ class _PosReturnViewState extends State<PosReturnView> {
                                       ),
                                       child: const Text('Setujui'),
                                     ),
-                                  if (status == 'draft' && _can('submit_returns') && _can('delete_returns'))
+                                  if (status == 'draft' &&
+                                      _can('submit_returns') &&
+                                      _can('delete_returns'))
                                     const SizedBox(width: 8),
-                                  if (status == 'draft' && _can('delete_returns'))
+                                  if (status == 'draft' &&
+                                      _can('delete_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
                                         title: 'Hapus draft retur?',
@@ -364,17 +399,24 @@ class _PosReturnViewState extends State<PosReturnView> {
                                         ),
                                       ),
                                     ),
-                                  if (status == 'approved' && _can('process_returns'))
+                                  if (status == 'approved' &&
+                                      _can('process_returns'))
                                     ElevatedButton(
-                                      onPressed: () => _confirmAction(
-                                        title: 'Proses retur?',
-                                        message:
-                                            'Refund dan pergerakan stok akan dijalankan sesuai detail retur.',
-                                        confirmLabel: 'Proses Retur',
-                                        onConfirmed: () => context
-                                            .read<PosReturnBloc>()
-                                            .add(ProcessReturn(item['_id'])),
-                                      ),
+                                      onPressed:
+                                          state.status ==
+                                              PosReturnStatus.loading
+                                          ? null
+                                          : () => _confirmAction(
+                                              title: 'Proses retur?',
+                                              message:
+                                                  'Refund dan pergerakan stok akan dijalankan sesuai detail retur.',
+                                              confirmLabel: 'Proses Retur',
+                                              onConfirmed: () => context
+                                                  .read<PosReturnBloc>()
+                                                  .add(
+                                                    ProcessReturn(item['_id']),
+                                                  ),
+                                            ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.success,
                                         shape: RoundedRectangleBorder(
@@ -383,10 +425,22 @@ class _PosReturnViewState extends State<PosReturnView> {
                                           ),
                                         ),
                                       ),
-                                      child: const Text(
-                                        'Proses',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
+                                      child:
+                                          state.status ==
+                                              PosReturnStatus.loading
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Proses',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                     ),
                                 ],
                               ),
@@ -407,6 +461,14 @@ class _PosReturnViewState extends State<PosReturnView> {
 
   Future<void> _openAddReturn() async {
     final bloc = context.read<PosReturnBloc>();
+    if (bloc.state.pendingDraft != null ||
+        bloc.state.pendingDraftError.isNotEmpty) {
+      AppToast.error(
+        context,
+        'Pulihkan bukti draft retur yang belum terkonfirmasi terlebih dahulu.',
+      );
+      return;
+    }
     bloc.add(ClearReturnForm());
     final result = await showDialog<bool>(
       context: context,

@@ -10,6 +10,8 @@ class PosReturnState extends Equatable {
   final List<Map<String, dynamic>> returns;
   final Map<String, dynamic>? searchResult;
   final List<Map<String, dynamic>> returnItems;
+  final Map<String, dynamic>? pendingDraft;
+  final String pendingDraftError;
 
   const PosReturnState({
     this.status = PosReturnStatus.initial,
@@ -17,6 +19,8 @@ class PosReturnState extends Equatable {
     this.returns = const [],
     this.searchResult,
     this.returnItems = const [],
+    this.pendingDraft,
+    this.pendingDraftError = '',
   });
 
   PosReturnState copyWith({
@@ -25,6 +29,8 @@ class PosReturnState extends Equatable {
     List<Map<String, dynamic>>? returns,
     Object? searchResult = _unchangedSearchResult,
     List<Map<String, dynamic>>? returnItems,
+    Object? pendingDraft = _unchangedSearchResult,
+    String? pendingDraftError,
   }) {
     return PosReturnState(
       status: status ?? this.status,
@@ -34,6 +40,10 @@ class PosReturnState extends Equatable {
           ? this.searchResult
           : searchResult as Map<String, dynamic>?,
       returnItems: returnItems ?? this.returnItems,
+      pendingDraft: identical(pendingDraft, _unchangedSearchResult)
+          ? this.pendingDraft
+          : pendingDraft as Map<String, dynamic>?,
+      pendingDraftError: pendingDraftError ?? this.pendingDraftError,
     );
   }
 
@@ -44,5 +54,7 @@ class PosReturnState extends Equatable {
     returns,
     searchResult,
     returnItems,
+    pendingDraft,
+    pendingDraftError,
   ];
 }

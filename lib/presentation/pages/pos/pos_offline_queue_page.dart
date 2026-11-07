@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/app_toast.dart';
@@ -10,6 +11,39 @@ import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import '../../../core/network/pos_operator_identity.dart';
 import '../../../domain/repositories/pos_repository.dart';
+import '../../bloc/lock/lock_cubit.dart';
+
+Future<String?> showPosOfflineOperatorVerification(BuildContext context) async {
+  // Let TextField own its controller until the route exit animation finishes.
+  // The caller may rebuild immediately after Navigator.pop completes.
+  var enteredPin = '';
+  return showDialog<String>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Verifikasi kasir asal'),
+      content: TextField(
+        onChanged: (value) => enteredPin = value,
+        obscureText: true,
+        keyboardType: TextInputType.number,
+        maxLength: 6,
+        decoration: const InputDecoration(
+          labelText: 'PIN kasir pembuat transaksi',
+          helperText: 'Memerlukan verifikasi online.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, enteredPin),
+          child: const Text('Verifikasi & kirim'),
+        ),
+      ],
+    ),
+  );
+}
 
 class PosOfflineQueuePage extends StatefulWidget {
   const PosOfflineQueuePage({super.key});
@@ -83,34 +117,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       );
       return;
     }
-    final controller = TextEditingController();
-    final pin = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Verifikasi kasir asal'),
-        content: TextField(
-          controller: controller,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(
-            labelText: 'PIN kasir pembuat transaksi',
-            helperText: 'Memerlukan verifikasi online.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Verifikasi & kirim'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
+    final pin = await showPosOfflineOperatorVerification(context);
     if (!mounted || pin == null || pin.isEmpty) return;
     setState(() => _loading = true);
     final result = await sl<PosRepository>().verifyPOSUserPin(userId, pin);
@@ -132,8 +139,18 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           );
           return;
         }
+        final lock = context.read<AppLockCubit>();
+        final originalToken = lock.state.operatorSessionToken;
+        final renewedCurrent = lock.acceptVerifiedOperatorSession(token);
         _syncService.setOperatorSessionToken(token);
-        await _syncService.retryTransaction(transaction['id'] as int);
+        try {
+          await _syncService.retryTransaction(transaction['id'] as int);
+        } finally {
+          // Verifying another cashier's queue is not an operator switch.
+          if (!renewedCurrent) {
+            _syncService.setOperatorSessionToken(originalToken);
+          }
+        }
       },
     );
     await _load();
@@ -643,37 +660,67 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   Future<void> _rejectAfterReview(Map<String, dynamic> transaction) async {
     final isOrder = transaction['operation_kind']?.toString() == 'create_order';
     final wasRejected = transaction['status']?.toString() == 'rejected';
+    var reconciliationNote = '';
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          wasRejected
-              ? 'Selesaikan transaksi ditolak?'
-              : 'Tolak transaksi lokal?',
-        ),
-        content: Text(
-          isOrder
-              ? 'Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.'
-              : 'Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Kembali'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateDialog) => AlertDialog(
+          scrollable: true,
+          title: Text(
+            wasRejected
+                ? 'Selesaikan transaksi ditolak?'
+                : 'Tolak transaksi lokal?',
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Tolak'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isOrder
+                    ? 'Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.'
+                    : 'Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                minLines: 2,
+                maxLines: 4,
+                maxLength: 500,
+                decoration: const InputDecoration(
+                  labelText: 'Hasil rekonsiliasi / nomor bukti',
+                ),
+                onChanged: (value) =>
+                    updateDialog(() => reconciliationNote = value),
+              ),
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Kembali'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              onPressed: reconciliationNote.trim().length < 5
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: const Text('Tolak'),
+            ),
+          ],
+        ),
       ),
     );
+    final reason = reconciliationNote.trim();
     if (confirmed != true) return;
     await _runQueueMutation(
       () => wasRejected
-          ? _syncService.resolveRejectedTransaction(transaction['id'] as int)
-          : _syncService.rejectTransaction(transaction['id'] as int),
+          ? _syncService.resolveRejectedTransaction(
+              transaction['id'] as int,
+              reason: reason,
+            )
+          : _syncService.rejectTransaction(
+              transaction['id'] as int,
+              reason: reason,
+            ),
     );
   }
 

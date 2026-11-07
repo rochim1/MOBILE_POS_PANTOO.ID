@@ -8,11 +8,13 @@ import '../../core/error/error_handler.dart';
 import '../../core/network/graphql_client_provider.dart';
 import '../../core/network/offline_network_failure.dart';
 import '../../core/network/pos_operator_identity.dart';
+import '../../core/network/pos_return_draft_request_store.dart';
 import '../../core/database/database_platform_initializer.dart';
 import '../../core/utils/logger.dart';
 import '../../data/graphql/pos_queries.dart';
 import '../../data/graphql/pos_return_queries.dart';
 import '../../data/datasources/local/pos_local_database.dart';
+import '../../data/datasources/local/pos_store_cache.dart';
 import '../../data/datasources/local/pos_catalog_filter.dart';
 import '../../data/datasources/local/pos_offline_pin_store.dart';
 import '../../data/datasources/local/pos_offline_read_store.dart';
@@ -44,6 +46,7 @@ class PosRepository {
   final SharedPreferences _prefs;
   String _operatorSessionToken = '';
   bool _syncingFavorites = false;
+  bool _savingReturnDraft = false;
   static const _offlineReadStore = PosOfflineReadStore();
 
   PosRepository(this._clientProvider, this._prefs);
@@ -54,6 +57,7 @@ class PosRepository {
   }
 
   String get activeOperatorId => operatorIdFromToken(_operatorSessionToken);
+  String get terminalUserId => _prefs.getString('user_id') ?? '';
 
   String? get _favoritePreferenceKey {
     final tenant = _prefs.getString('instansi_id')?.trim() ?? '';
@@ -157,6 +161,8 @@ class PosRepository {
       'view_transactions': false,
       'view_reports': false,
       'view_returns': false,
+      'view_receivables': false,
+      'collect_receivables': false,
       'create_returns': false,
       'submit_returns': false,
       'approve_returns': false,
@@ -1224,6 +1230,12 @@ class PosRepository {
             )
           : <Map<String, Object?>>[];
       if (result.isEmpty && filter == null) {
+        if (await _offlineReadStore.hasUnresolvedTransactionsForBranch(
+          tenantId: _prefs.getString('instansi_id') ?? '',
+          branchId: branchId,
+        )) {
+          return const [];
+        }
         final saved = await _offlineReadStore.read(targetKey);
         final products = (saved?.data['products'] as List? ?? const [])
             .whereType<Map>()
@@ -1301,15 +1313,12 @@ class PosRepository {
       }
       final db = await PosLocalDatabase.instance.database;
       await db.transaction((txn) async {
-        if (await _offlineReadStore.hasUnresolvedTransactionsForBranch(
-          tenantId: _prefs.getString('instansi_id') ?? '',
-          branchId: branchId,
-          executor: txn,
-        )) {
-          // The server may not have seen every queued sale yet. Replacing the
-          // local table here would restore already-consumed offline stock.
-          return;
-        }
+        final hasUnresolved = await _offlineReadStore
+            .hasUnresolvedTransactionsForBranch(
+              tenantId: _prefs.getString('instansi_id') ?? '',
+              branchId: branchId,
+              executor: txn,
+            );
         final batch = txn.batch();
         final activeRows = await txn.query(
           'read_snapshots',
@@ -1320,29 +1329,67 @@ class PosRepository {
         final activePayload = activeRows.isEmpty
             ? null
             : jsonDecode(activeRows.first['payload'] as String) as Map;
+        // Preserve the exact stock scope while an older offline sale is
+        // unresolved. Never replace already-consumed stock, but unrelated new
+        // products in this same scope must still become available offline.
+        if (hasUnresolved &&
+            activePayload?['catalog_key'] != _productSnapshotKey(branchId)) {
+          return;
+        }
+        final pending = hasUnresolved
+            ? await txn.query(
+                'offline_transactions',
+                columns: ['payload'],
+                where:
+                    "instansi_id = ? AND (status IS NULL OR status NOT IN ('synced','rejected') OR (status = 'rejected' AND (resolution IS NULL OR resolution != 'rejected_by_operator')))",
+                whereArgs: [_prefs.getString('instansi_id') ?? ''],
+              )
+            : const <Map<String, Object?>>[];
+        final pendingPayloads = <String>[];
+        for (final row in pending) {
+          final raw = row['payload']?.toString() ?? '';
+          try {
+            if (jsonDecode(raw) is! Map) return;
+          } catch (_) {
+            return;
+          }
+          pendingPayloads.add(raw);
+        }
         // A page is a partial snapshot. Merge within the same tenant/user/store
         // catalog instead of deleting products cached from other pages.
         if (activePayload?['catalog_key'] != _productSnapshotKey(branchId)) {
           batch.delete('products');
         }
         for (var product in products) {
-          batch.insert('products', {
-            'product_json': jsonEncode(product.toJson()),
-            'id': product.id,
-            'code': product.code,
-            'name': product.name,
-            'category': product.category,
-            'product_type': product.productType,
-            'promo_eligible': product.promoEligible ? 1 : 0,
-            'tracks_stock': product.tracksStock ? 1 : 0,
-            'price': product.price,
-            'stock': product.stock,
-            'sku': product.sku,
-            'barcode': product.barcode,
-            'image_url': product.imageUrl,
-            'base_unit': product.saleUnit,
-            'unit_conversions': jsonEncode(product.unitConversions),
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
+          if (hasUnresolved &&
+              pendingPayloads.any(
+                (raw) => raw.contains(jsonEncode(product.id)),
+              )) {
+            continue;
+          }
+          batch.insert(
+            'products',
+            {
+              'product_json': jsonEncode(product.toJson()),
+              'id': product.id,
+              'code': product.code,
+              'name': product.name,
+              'category': product.category,
+              'product_type': product.productType,
+              'promo_eligible': product.promoEligible ? 1 : 0,
+              'tracks_stock': product.tracksStock ? 1 : 0,
+              'price': product.price,
+              'stock': product.stock,
+              'sku': product.sku,
+              'barcode': product.barcode,
+              'image_url': product.imageUrl,
+              'base_unit': product.saleUnit,
+              'unit_conversions': jsonEncode(product.unitConversions),
+            },
+            conflictAlgorithm: hasUnresolved
+                ? ConflictAlgorithm.ignore
+                : ConflictAlgorithm.replace,
+          );
         }
         final cachedAt = DateTime.now().toUtc().toIso8601String();
         batch.insert('read_snapshots', {
@@ -1731,21 +1778,7 @@ class PosRepository {
   Future<List<PosStore>> _getLocalStores() async {
     try {
       final db = await PosLocalDatabase.instance.database;
-      final result = await db.query('stores');
-      return result
-          .map(
-            (e) => PosStore(
-              id: e['id'] as String,
-              name: e['name'] as String,
-              code: e['id'] as String,
-              status: e['status'] as String,
-              address: e['address'] as String,
-              phone: e['phone'] as String,
-              branchName: e['branchName'] as String,
-              branchId: e['branchId'] as String? ?? '',
-            ),
-          )
-          .toList();
+      return PosStoreCache.read(db);
     } catch (e) {
       return [];
     }
@@ -1754,21 +1787,14 @@ class PosRepository {
   Future<void> _saveStoresToLocal(List<PosStore> stores) async {
     try {
       final db = await PosLocalDatabase.instance.database;
-      final batch = db.batch();
-      batch.delete('stores');
-      for (var store in stores) {
-        batch.insert('stores', {
-          'id': store.id,
-          'name': store.name,
-          'status': store.status,
-          'address': store.address,
-          'phone': store.phone,
-          'branchName': store.branchName,
-          'branchId': store.branchId,
-        });
-      }
-      await batch.commit(noResult: true);
-    } catch (_) {}
+      await PosStoreCache.save(db, stores);
+    } catch (error, stackTrace) {
+      appLogger.w(
+        'Cache toko belum diperbarui; mode shift offline mungkin belum siap.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<({List<PosOrder> items, bool hasMore})> getOrdersPage({
@@ -1901,22 +1927,50 @@ class PosRepository {
   Future<List<PosOrder>> getOrders() async => (await getOrdersPage()).items;
 
   Future<Map<String, dynamic>?> getActiveShift([String? tokoId]) async {
+    return _loadActiveShift(tokoId: tokoId);
+  }
+
+  Future<Map<String, dynamic>?> getActiveShiftForStore(String tokoId) async {
+    return _loadActiveShift(tokoId: tokoId, includeOtherOutlets: true);
+  }
+
+  Future<Map<String, dynamic>?> _loadActiveShift({
+    String? tokoId,
+    bool includeOtherOutlets = false,
+  }) async {
+    final token = _operatorSessionToken;
+    final snapshotKey = _shiftSnapshotKey;
+    void ensureCurrentSession() {
+      if (token != _operatorSessionToken || snapshotKey != _shiftSnapshotKey) {
+        throw StateError('Sesi kasir berubah. Periksa shift kembali.');
+      }
+    }
+
+    Future<Map<String, dynamic>?> cachedShift() async {
+      ensureCurrentSession();
+      final cached = await _readCachedActiveShift(
+        includeOtherOutlets ? null : tokoId,
+      );
+      ensureCurrentSession();
+      return cached;
+    }
+
     if (supportsOfflineDatabase && await _hasNoNetwork()) {
-      return _readCachedActiveShift(tokoId);
+      return cachedShift();
     }
     try {
       final QueryOptions options = QueryOptions(
         document: gql(PosQueries.getMyActiveKasirShift),
         variables: {
           if (tokoId != null && tokoId.trim().isNotEmpty) 'toko_id': tokoId,
-          'operatorToken': _operatorSessionToken.isEmpty
-              ? null
-              : _operatorSessionToken,
+          'includeOtherOutlets': includeOtherOutlets,
+          'operatorToken': token.isEmpty ? null : token,
         },
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
       final QueryResult result = await _queryOfflineReadable(options);
+      ensureCurrentSession();
 
       if (result.hasException) throw result.exception!;
       final raw = result.data?['GetMyActiveKasirShift'];
@@ -1925,9 +1979,14 @@ class PosRepository {
           operatorIdFromToken(_operatorSessionToken).isNotEmpty) {
         try {
           if (shift == null) {
-            await _offlineReadStore.remove(_shiftSnapshotKey);
+            final previous = await _offlineReadStore.read(snapshotKey);
+            if (includeOtherOutlets ||
+                tokoId == null ||
+                previous?.data['toko_id'] == tokoId) {
+              await _offlineReadStore.remove(snapshotKey);
+            }
           } else {
-            await _offlineReadStore.save(_shiftSnapshotKey, shift);
+            await _offlineReadStore.save(snapshotKey, shift);
           }
         } catch (error, stackTrace) {
           appLogger.w(
@@ -1937,11 +1996,12 @@ class PosRepository {
           );
         }
       }
+      ensureCurrentSession();
       return shift;
     } catch (e) {
       appLogger.e('Gagal memuat shift kasir aktif', error: e);
       if (supportsOfflineDatabase && isOfflineReadFailure(e)) {
-        return _readCachedActiveShift(tokoId);
+        return cachedShift();
       }
       rethrow;
     }
@@ -3147,25 +3207,68 @@ class PosRepository {
     }
   }
 
+  String get _returnDraftScope {
+    final parts = [
+      _clientProvider.endpointUrl,
+      _prefs.getString('instansi_id') ?? '',
+      terminalUserId,
+      activeOperatorId,
+    ];
+    if (parts.any((part) => part.trim().isEmpty)) {
+      throw StateError(
+        'Masuk PIN kasir terlebih dahulu untuk menyimpan atau memulihkan retur.',
+      );
+    }
+    return jsonEncode(parts);
+  }
+
+  Map<String, dynamic>? pendingReturnDraft() =>
+      PosReturnDraftRequestStore(_prefs, _returnDraftScope).load();
+
   Future<Either<Failure, bool>> createSalesReturn(
-    Map<String, dynamic> payload,
+    Map<String, dynamic>? payload,
   ) async {
+    if (_savingReturnDraft) {
+      return const Left(ServerFailure('Simpan draft retur masih berlangsung.'));
+    }
+    _savingReturnDraft = true;
     try {
+      final scope = _returnDraftScope;
+      final store = PosReturnDraftRequestStore(_prefs, scope);
+      final frozen = await store.begin(payload);
+      if (_returnDraftScope != scope) {
+        throw StateError('Operator berubah. Muat ulang halaman retur.');
+      }
       final MutationOptions options = MutationOptions(
         document: gql(PosReturnQueries.createSalesReturn),
-        variables: {'input': payload},
+        variables: {'input': frozen},
       );
       final QueryResult result = await _clientProvider.client.mutate(options);
 
-      if (result.data != null && result.data!['CreateSalesReturn'] != null) {
-        return const Right(true);
-      }
       if (result.hasException) {
+        if (result.exception!.graphqlErrors.any(
+          (error) => error.extensions?['return_draft_write_rejected'] == true,
+        )) {
+          await store.acknowledge(frozen['client_request_id'] as String);
+        }
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      return const Left(ServerFailure('Gagal membuat draf retur'));
+      if (_returnDraftScope != scope) {
+        throw StateError('Operator berubah. Pulihkan menggunakan kasir asal.');
+      }
+      if (result.data?['CreateSalesReturn']?['_id'] != null) {
+        await store.acknowledge(frozen['client_request_id'] as String);
+        return const Right(true);
+      }
+      return const Left(
+        ServerFailure(
+          'Simpan belum terkonfirmasi. Gunakan Pulihkan draft retur; jangan buat pengganti.',
+        ),
+      );
     } catch (e) {
       return Left(AppErrorHandler.handle(e));
+    } finally {
+      _savingReturnDraft = false;
     }
   }
 
@@ -3217,16 +3320,49 @@ class PosRepository {
       );
       final QueryResult result = await _clientProvider.client.mutate(options);
 
-      if (result.data != null && result.data!['ProcessSalesReturn'] != null) {
+      if (!result.hasException &&
+          result.data?['ProcessSalesReturn']?['_id'] == id &&
+          result.data?['ProcessSalesReturn']?['status'] == 'completed') {
         return const Right(true);
       }
       if (result.hasException) {
+        if (isOfflineReadFailure(result.exception!)) {
+          return _recoverProcessedReturn(id);
+        }
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      return const Left(ServerFailure('Gagal memproses retur'));
+      return _recoverProcessedReturn(id);
     } catch (e) {
+      if (isOfflineReadFailure(e)) return _recoverProcessedReturn(id);
       return Left(AppErrorHandler.handle(e));
     }
+  }
+
+  Future<Either<Failure, bool>> _recoverProcessedReturn(String id) async {
+    // A lost mutation response is not a rejected refund. Confirm using a
+    // fresh, authorized read of the same ID, never another money mutation.
+    try {
+      final result = await _clientProvider.client.query(
+        QueryOptions(
+          document: gql(PosReturnQueries.getOneSalesReturn),
+          variables: {'_id': id},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      final canonical = result.data?['GetOneSalesReturn'];
+      if (!result.hasException &&
+          canonical?['_id'] == id &&
+          canonical?['status'] == 'completed') {
+        return const Right(true);
+      }
+    } catch (_) {
+      /* Keep the result uncertain when confirmation is unavailable. */
+    }
+    return const Left(
+      ServerFailure(
+        'Hasil refund belum terkonfirmasi. Jangan keluarkan uang lagi. Periksa status retur saat koneksi tersedia.',
+      ),
+    );
   }
 
   Future<Either<Failure, bool>> deleteSalesReturn(String id) async {

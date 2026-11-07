@@ -43,6 +43,9 @@ class _PosCashierEntryButtonState extends State<PosCashierEntryButton> {
 
   @override
   Widget build(BuildContext context) => FloatingActionButton.small(
+    // This shell action remains visible beside nested pages with their own FAB.
+    // It switches tabs, so no shared-element flight is needed.
+    heroTag: null,
     backgroundColor: AppColors.primary,
     foregroundColor: Colors.white,
     shape: const CircleBorder(),

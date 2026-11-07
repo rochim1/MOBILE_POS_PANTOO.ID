@@ -25,52 +25,67 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
   }
 
   Future<void> _openShift(BuildContext context, String tokoId) async {
+    if (_isLoading || tokoId.isEmpty) return;
     final amount = parseRupiah(_amountController.text);
+    if (!amount.isFinite || amount < 0) return;
     setState(() => _isLoading = true);
 
     final repo = sl<PosRepository>();
-    Map<String, dynamic>? existingShift;
+    final operatorId = repo.activeOperatorId;
+    final terminalUserId = repo.terminalUserId;
     try {
-      existingShift = await repo.getActiveShift();
-    } catch (_) {
-      // Mutation tetap menjadi sumber kebenaran terakhir ketika preflight
-      // gagal karena jaringan; errornya akan diterjemahkan oleh repository.
-    }
-    if (existingShift != null) {
-      if (!mounted || !context.mounted) return;
+      final existingShift = await repo.getActiveShiftForStore(tokoId);
+      if (operatorId != repo.activeOperatorId ||
+          terminalUserId != repo.terminalUserId) {
+        throw StateError('Operator berubah. Periksa shift kembali.');
+      }
+      if (existingShift != null) {
+        if (!mounted || !context.mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Shift aktif ditemukan dan ditampilkan kembali.'),
+          ),
+        );
+        context.read<PosBloc>().add(LoadPosData());
+        return;
+      }
+      final result = await repo.openShift(tokoId, amount);
+
+      if (!mounted) return;
       setState(() => _isLoading = false);
+
+      if (!context.mounted) return;
+      result.fold(
+        (failure) => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message))),
+        (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shift berhasil dibuka')),
+          );
+          context.read<PosBloc>().add(LoadPosData());
+        },
+      );
+    } catch (_) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Shift aktif ditemukan dan ditampilkan kembali.'),
+          content: Text(
+            'Shift belum dapat diperiksa. Periksa koneksi atau PIN, lalu coba lagi.',
+          ),
         ),
       );
-      context.read<PosBloc>().add(LoadPosData());
-      return;
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-    final result = await repo.openShift(tokoId, amount);
-
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (!context.mounted) return;
-    result.fold(
-      (failure) => ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failure.message))),
-      (_) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Shift berhasil dibuka')));
-        context.read<PosBloc>().add(LoadPosData());
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<PosBloc, PosState>(
       builder: (context, state) {
-        final tokoId = state.stores.isNotEmpty ? state.stores.first.id : '';
+        final tokoId = state.checkoutStore?.id ?? '';
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -129,7 +144,10 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
-                          onPressed: _isLoading
+                          onPressed:
+                              _isLoading ||
+                                  tokoId.isEmpty ||
+                                  state.status != PosStatus.success
                               ? null
                               : () => _openShift(context, tokoId),
                           style: ElevatedButton.styleFrom(
