@@ -1,0 +1,2690 @@
+[
+  {
+    "key": "pos3f03891fda02",
+    "source": "\nBatch {arg1}",
+    "id": "\nBatch {arg1}",
+    "en": "\nBatch {arg1}"
+  },
+  {
+    "key": "pos79a590570387",
+    "source": "\nBiaya aktual: {arg1}",
+    "id": "\nBiaya aktual: {arg1}",
+    "en": "\nActual cost: {arg1}"
+  },
+  {
+    "key": "pos0c9675bd9841",
+    "source": "\nJurnal asal gagal: {arg1}",
+    "id": "\nJurnal asal gagal: {arg1}",
+    "en": "\nOriginal journal entry failed: {arg1}"
+  },
+  {
+    "key": "pos8cff67795cb5",
+    "source": "\nJurnal pembatalan gagal: {arg1}",
+    "id": "\nJurnal pembatalan gagal: {arg1}",
+    "en": "\nReversal journal entry failed: {arg1}"
+  },
+  {
+    "key": "posa350f080167b",
+    "source": "\nOleh {arg1}",
+    "id": "\nOleh {arg1}",
+    "en": "\nBy {arg1}"
+  },
+  {
+    "key": "pos661046b05cc9",
+    "source": "   Catatan: {arg1}",
+    "id": "   Catatan: {arg1}",
+    "en": "   Notes: {arg1}"
+  },
+  {
+    "key": "pos1234901f1561",
+    "source": "   {arg1} {arg2} x {arg3}",
+    "id": "   {arg1} {arg2} x {arg3}",
+    "en": "   {arg1} {arg2} x {arg3}"
+  },
+  {
+    "key": "posde5e5ed2b7ae",
+    "source": "  •  {arg1}",
+    "id": "  •  {arg1}",
+    "en": "  •  {arg1}"
+  },
+  {
+    "key": "pos94fb179f2344",
+    "source": " (HTTP {arg1})",
+    "id": " (HTTP {arg1})",
+    "en": " (HTTP {arg1})"
+  },
+  {
+    "key": "posc9744dc328f8",
+    "source": " · Batch {arg1}",
+    "id": " · Batch {arg1}",
+    "en": " · Batch {arg1}"
+  },
+  {
+    "key": "pos9bf490502e78",
+    "source": " · Deposit {arg1} ({arg2})",
+    "id": " · Deposit {arg1} ({arg2})",
+    "en": " · Deposit {arg1} ({arg2})"
+  },
+  {
+    "key": "posb34c43522da4",
+    "source": " · SJ {arg1}",
+    "id": " · SJ {arg1}",
+    "en": " · Delivery note {arg1}"
+  },
+  {
+    "key": "posc5d767f22ec6",
+    "source": " · {arg1}",
+    "id": " · {arg1}",
+    "en": " · {arg1}"
+  },
+  {
+    "key": "pos97ed94c3c5d4",
+    "source": " · {arg1} hari",
+    "id": " · {arg1} hari",
+    "en": " · {arg1} days"
+  },
+  {
+    "key": "pos7b27157c8a92",
+    "source": " • Batch {arg1}",
+    "id": " • Batch {arg1}",
+    "en": " • Batch {arg1}"
+  },
+  {
+    "key": "posf5cb1d63d91e",
+    "source": " • estimasi kapasitas {arg1} {arg2}",
+    "id": " • estimasi kapasitas {arg1} {arg2}",
+    "en": " • estimated capacity {arg1} {arg2}"
+  },
+  {
+    "key": "posd1ebf6ed0dad",
+    "source": " • tertua {arg1}",
+    "id": " • tertua {arg1}",
+    "en": " • oldest {arg1}"
+  },
+  {
+    "key": "posd672f388af0f",
+    "source": " • {arg1}",
+    "id": " • {arg1}",
+    "en": " • {arg1}"
+  },
+  {
+    "key": "posb7e0b518ea55",
+    "source": " • {arg1} perlu ditinjau",
+    "id": " • {arg1} perlu ditinjau",
+    "en": " • {arg1} require review"
+  },
+  {
+    "key": "pos4f22066d96ef",
+    "source": "(Maks {arg1})",
+    "id": "(Maks {arg1})",
+    "en": "(Max {arg1})"
+  },
+  {
+    "key": "pos732cde583b07",
+    "source": "1 x {arg1}",
+    "id": "1 x {arg1}",
+    "en": "1 x {arg1}"
+  },
+  {
+    "key": "pos87d507a0208a",
+    "source": "1 {arg1} = {arg2} {arg3}",
+    "id": "1 {arg1} = {arg2} {arg3}",
+    "en": "1 {arg1} = {arg2} {arg3}"
+  },
+  {
+    "key": "pos178f405d8376",
+    "source": "2 x {arg1}",
+    "id": "2 x {arg1}",
+    "en": "2 x {arg1}"
+  },
+  {
+    "key": "pos5e6481728b57",
+    "source": "@ Rp {arg1}",
+    "id": "@ Rp {arg1}",
+    "en": "@ Rp {arg1}"
+  },
+  {
+    "key": "posca97584f1ff6",
+    "source": "Aksi inventori tidak didukung: {arg1}/{arg2}",
+    "id": "Aksi inventori tidak didukung: {arg1}/{arg2}",
+    "en": "Unsupported inventory action: {arg1}/{arg2}"
+  },
+  {
+    "key": "pos7e9ed032cc32",
+    "source": "Alamat: {arg1}",
+    "id": "Alamat: {arg1}",
+    "en": "Address: {arg1}"
+  },
+  {
+    "key": "pos61cebd1cf6b2",
+    "source": "Alasan penolakan: {arg1}",
+    "id": "Alasan penolakan: {arg1}",
+    "en": "Rejection reason: {arg1}"
+  },
+  {
+    "key": "posae638041fd8e",
+    "source": "Alasan selisih: {arg1}",
+    "id": "Alasan selisih: {arg1}",
+    "en": "Discrepancy reason: {arg1}"
+  },
+  {
+    "key": "posb8a08ba6e258",
+    "source": "Alasan: {arg1}",
+    "id": "Alasan: {arg1}",
+    "en": "Reason: {arg1}"
+  },
+  {
+    "key": "posc2901f09b11d",
+    "source": "Apakah Anda yakin ingin menghapus \"{arg1}\"?",
+    "id": "Apakah Anda yakin ingin menghapus \"{arg1}\"?",
+    "en": "Are you sure you want to delete \"{arg1}\"?"
+  },
+  {
+    "key": "pos4a7f70cd767e",
+    "source": "Apakah Anda yakin ingin menghapus produk \"{arg1}\"?",
+    "id": "Apakah Anda yakin ingin menghapus produk \"{arg1}\"?",
+    "en": "Are you sure you want to delete product \"{arg1}\"?"
+  },
+  {
+    "key": "posf8ddd141364d",
+    "source": "Apakah Anda yakin ingin menghapus promo \"{arg1}\" ({arg2})?",
+    "id": "Apakah Anda yakin ingin menghapus promo \"{arg1}\" ({arg2})?",
+    "en": "Are you sure you want to delete promotion \"{arg1}\" ({arg2})?"
+  },
+  {
+    "key": "pos57cdcf19a10a",
+    "source": "Asal: {arg1}\nTujuan: {arg2}",
+    "id": "Asal: {arg1}\nTujuan: {arg2}",
+    "en": "Source: {arg1}\nDestination: {arg2}"
+  },
+  {
+    "key": "pos720eb19e66de",
+    "source": "Bagikan struk {arg1}",
+    "id": "Bagikan struk {arg1}",
+    "en": "Share receipt {arg1}"
+  },
+  {
+    "key": "pos6385c5b0e840",
+    "source": "Barcode {arg1} tidak ditemukan",
+    "id": "Barcode {arg1} tidak ditemukan",
+    "en": "Barcode {arg1} not found"
+  },
+  {
+    "key": "pos49b67ac0c655",
+    "source": "Barcode · {arg1}",
+    "id": "Barcode · {arg1}",
+    "en": "Barcode · {arg1}"
+  },
+  {
+    "key": "pos0c1674e894ea",
+    "source": "Baru ({arg1})",
+    "id": "Baru ({arg1})",
+    "en": "New ({arg1})"
+  },
+  {
+    "key": "pos345a2afe9fe7",
+    "source": "Batalkan {arg1}?",
+    "id": "Batalkan {arg1}?",
+    "en": "Cancel {arg1}?"
+  },
+  {
+    "key": "poscd4516ba1708",
+    "source": "Batas dengan toleransi {arg1}%: {arg2} {arg3}",
+    "id": "Batas dengan toleransi {arg1}%: {arg2} {arg3}",
+    "en": "Limit with {arg1}% tolerance: {arg2} {arg3}"
+  },
+  {
+    "key": "pos6f9650674671",
+    "source": "Batch {arg1}",
+    "id": "Batch {arg1}",
+    "en": "Batch {arg1}"
+  },
+  {
+    "key": "posf45b61e66113",
+    "source": "Batch {arg1} · {arg2}",
+    "id": "Batch {arg1} · {arg2}",
+    "en": "Batch {arg1} · {arg2}"
+  },
+  {
+    "key": "posa2f8e389c7e3",
+    "source": "Batch {arg1} · {arg2} · {arg3}",
+    "id": "Batch {arg1} · {arg2} · {arg3}",
+    "en": "Batch {arg1} · {arg2} · {arg3}"
+  },
+  {
+    "key": "pos08ea63214a56",
+    "source": "Batch {arg1} • {arg2} {arg3} • {arg4}",
+    "id": "Batch {arg1} • {arg2} {arg3} • {arg4}",
+    "en": "Batch {arg1} • {arg2} {arg3} • {arg4}"
+  },
+  {
+    "key": "pos19c47f48a246",
+    "source": "Batch: {arg1} · {arg2}",
+    "id": "Batch: {arg1} · {arg2}",
+    "en": "Batch: {arg1} · {arg2}"
+  },
+  {
+    "key": "posc5a29ff60a03",
+    "source": "Bayar: {arg1}",
+    "id": "Bayar: {arg1}",
+    "en": "Payment: {arg1}"
+  },
+  {
+    "key": "posde300b92dea3",
+    "source": "Beralih ke {arg1}... (Mock)",
+    "id": "Beralih ke {arg1}... (Mock)",
+    "en": "Switching to {arg1}... (Mock)"
+  },
+  {
+    "key": "pos7c7180cb6f69",
+    "source": "Berat/jumlah harus sama dengan jumlah layanan di keranjang ({arg1}).",
+    "id": "Berat/jumlah harus sama dengan jumlah layanan di keranjang ({arg1}).",
+    "en": "Weight/quantity must match the service quantity in the cart ({arg1})."
+  },
+  {
+    "key": "pose8182cdba6ee",
+    "source": "Biaya aktual {arg1}",
+    "id": "Biaya aktual {arg1}",
+    "en": "Actual cost {arg1}"
+  },
+  {
+    "key": "pos4ba07f7ac271",
+    "source": "Biaya transfer Rp{arg1} · {arg2} / {arg3}",
+    "id": "Biaya transfer Rp{arg1} · {arg2} / {arg3}",
+    "en": "Transfer cost Rp{arg1} · {arg2} / {arg3}"
+  },
+  {
+    "key": "pos685b57405ff1",
+    "source": "Bukti kehilangan: {arg1}",
+    "id": "Bukti kehilangan: {arg1}",
+    "en": "Proof of loss: {arg1}"
+  },
+  {
+    "key": "pos424b98aa8546",
+    "source": "Cabang pembayar: {arg1}",
+    "id": "Cabang pembayar: {arg1}",
+    "en": "Paying branch: {arg1}"
+  },
+  {
+    "key": "pos58c6df885eda",
+    "source": "Cabang: {arg1}",
+    "id": "Cabang: {arg1}",
+    "en": "Branch: {arg1}"
+  },
+  {
+    "key": "posb0bf84cc5839",
+    "source": "Catatan: {arg1}",
+    "id": "Catatan: {arg1}",
+    "en": "Notes: {arg1}"
+  },
+  {
+    "key": "pos9715ac503203",
+    "source": "Catatan: {arg1}\n",
+    "id": "Catatan: {arg1}\n",
+    "en": "Notes: {arg1}\n"
+  },
+  {
+    "key": "pos49724ddf398a",
+    "source": "Channel: {arg1}",
+    "id": "Channel: {arg1}",
+    "en": "Channel: {arg1}"
+  },
+  {
+    "key": "poseb9c086c8b8f",
+    "source": "Coba lagi dalam {arg1} detik",
+    "id": "Coba lagi dalam {arg1} detik",
+    "en": "Retry in {arg1} seconds"
+  },
+  {
+    "key": "pose9eafafbbdc8",
+    "source": "DIBATALKAN · {arg1}{arg2}{arg3}",
+    "id": "DIBATALKAN · {arg1}{arg2}{arg3}",
+    "en": "CANCELLED · {arg1}{arg2}{arg3}"
+  },
+  {
+    "key": "pos5ffbf6ce4162",
+    "source": "Daftar PO gagal dimuat: {arg1}",
+    "id": "Daftar PO gagal dimuat: {arg1}",
+    "en": "Could not load PO list: {arg1}"
+  },
+  {
+    "key": "pos184f17ad7f06",
+    "source": "Data terakhir disimpan {arg1}/{arg2} {arg3}:{arg4}",
+    "id": "Data terakhir disimpan {arg1}/{arg2} {arg3}:{arg4}",
+    "en": "Data last saved {arg1}/{arg2} {arg3}:{arg4}"
+  },
+  {
+    "key": "pos644f622b51e8",
+    "source": "Data tersimpan · {arg1} · Belum real-time",
+    "id": "Data tersimpan · {arg1} · Belum real-time",
+    "en": "Saved data · {arg1} · Not real-time"
+  },
+  {
+    "key": "pos849b319bd7c1",
+    "source": "Detail {arg1} #{arg2}",
+    "id": "Detail {arg1} #{arg2}",
+    "en": "{arg1} details #{arg2}"
+  },
+  {
+    "key": "pos39807fd70afd",
+    "source": "Dibayar {arg1} · Dialokasikan {arg2} · Saldo {arg3}",
+    "id": "Dibayar {arg1} · Dialokasikan {arg2} · Saldo {arg3}",
+    "en": "Paid {arg1} · Allocated {arg2} · Balance {arg3}"
+  },
+  {
+    "key": "pos74663425a1fa",
+    "source": "Dibuat ({arg1})",
+    "id": "Dibuat ({arg1})",
+    "en": "Created ({arg1})"
+  },
+  {
+    "key": "pos8e461e69d307",
+    "source": "Dibuka {arg1}",
+    "id": "Dibuka {arg1}",
+    "en": "Opened {arg1}"
+  },
+  {
+    "key": "pos2edf59b130d4",
+    "source": "Dikirim {arg1} {arg2} · Diterima {arg3} · Diselesaikan {arg4}",
+    "id": "Dikirim {arg1} {arg2} · Diterima {arg3} · Diselesaikan {arg4}",
+    "en": "Dispatched {arg1} {arg2} · Received {arg3} · Resolved {arg4}"
+  },
+  {
+    "key": "pos2885c22e700d",
+    "source": "Dipesan {arg1} pukul {arg2} · {arg3}",
+    "id": "Dipesan {arg1} pukul {arg2} · {arg3}",
+    "en": "Ordered {arg1} at {arg2} · {arg3}"
+  },
+  {
+    "key": "posfc674fc6d98d",
+    "source": "Dipesan {arg1} · Sudah diterima {arg2} · Sisa {arg3} {arg4}",
+    "id": "Dipesan {arg1} · Sudah diterima {arg2} · Sisa {arg3} {arg4}",
+    "en": "Ordered {arg1} · Received {arg2} · Remaining {arg3} {arg4}"
+  },
+  {
+    "key": "posd20c0326fffe",
+    "source": "Diskon    -{arg1}",
+    "id": "Diskon    -{arg1}",
+    "en": "Discount    -{arg1}"
+  },
+  {
+    "key": "pos6757573250bc",
+    "source": "Diskon: -{arg1}\n",
+    "id": "Diskon: -{arg1}\n",
+    "en": "Discount: -{arg1}\n"
+  },
+  {
+    "key": "pos79b4aaf15d61",
+    "source": "Diskon: {arg1}",
+    "id": "Diskon: {arg1}",
+    "en": "Discount: {arg1}"
+  },
+  {
+    "key": "pos6cbe2ba54793",
+    "source": "Diterima    {arg1}",
+    "id": "Diterima    {arg1}",
+    "en": "Received    {arg1}"
+  },
+  {
+    "key": "pos4c2897c3151f",
+    "source": "Diterima sekarang ({arg1})",
+    "id": "Diterima sekarang ({arg1})",
+    "en": "Receive now ({arg1})"
+  },
+  {
+    "key": "pos17d47a833e6d",
+    "source": "Diterima {arg1} • Diselesaikan {arg2} • Sisa {arg3}",
+    "id": "Diterima {arg1} • Diselesaikan {arg2} • Sisa {arg3}",
+    "en": "Received {arg1} • Resolved {arg2} • Remaining {arg3}"
+  },
+  {
+    "key": "pos6565140ed733",
+    "source": "Ditolak: {arg1}",
+    "id": "Ditolak: {arg1}",
+    "en": "Rejected: {arg1}"
+  },
+  {
+    "key": "posa8f1911e24f6",
+    "source": "Dokumen ini dicetak dari sistem pada {arg1}.",
+    "id": "Dokumen ini dicetak dari sistem pada {arg1}.",
+    "en": "This document was printed from the system on {arg1}."
+  },
+  {
+    "key": "posf4aa85a645e9",
+    "source": "Draft biaya tersimpan, tetapi belum diterapkan: {arg1}. Periksa di Inventory > Landed Cost.",
+    "id": "Draft biaya tersimpan, tetapi belum diterapkan: {arg1}. Periksa di Inventory > Landed Cost.",
+    "en": "Cost draft saved but not applied: {arg1}. Check Inventory > Landed Cost."
+  },
+  {
+    "key": "pos32665db570e5",
+    "source": "Draft tersimpan, tetapi gagal dikirim: {arg1}",
+    "id": "Draft tersimpan, tetapi gagal dikirim: {arg1}",
+    "en": "Draft saved but submission failed: {arg1}"
+  },
+  {
+    "key": "pos8b42dadfb112",
+    "source": "Draft {arg1} akan dihapus dan tidak dapat diproses.",
+    "id": "Draft {arg1} akan dihapus dan tidak dapat diproses.",
+    "en": "Draft {arg1} will be deleted and cannot be processed."
+  },
+  {
+    "key": "pos4502e01c7a52",
+    "source": "Email verifikasi telah dikirim ke {arg1}. Verifikasi akun terlebih dahulu, lalu masuk untuk menyiapkan POS Anda.",
+    "id": "Email verifikasi telah dikirim ke {arg1}. Verifikasi akun terlebih dahulu, lalu masuk untuk menyiapkan POS Anda.",
+    "en": "Verification email sent to {arg1}. Verify your account first, then sign in to set up your POS."
+  },
+  {
+    "key": "pos917facb520d6",
+    "source": "Estimasi margin: Rp {arg1} ({arg2}%)",
+    "id": "Estimasi margin: Rp {arg1} ({arg2}%)",
+    "en": "Estimated margin: Rp {arg1} ({arg2}%)"
+  },
+  {
+    "key": "pos1d39c9ee7007",
+    "source": "Faktur Penjualan ({arg1})",
+    "id": "Faktur Penjualan ({arg1})",
+    "en": "Sales Invoices ({arg1})"
+  },
+  {
+    "key": "poscd472b2621dc",
+    "source": "Filter aktif: {arg1}",
+    "id": "Filter aktif: {arg1}",
+    "en": "Active filters: {arg1}"
+  },
+  {
+    "key": "pos73ff67cc0d8e",
+    "source": "Fisik batch {arg1} · {arg2}",
+    "id": "Fisik batch {arg1} · {arg2}",
+    "en": "Physical batch {arg1} · {arg2}"
+  },
+  {
+    "key": "posb181ba4478da",
+    "source": "Fisik {arg1} · Pembukuan {arg2}",
+    "id": "Fisik {arg1} · Pembukuan {arg2}",
+    "en": "Physical {arg1} · Book {arg2}"
+  },
+  {
+    "key": "posb3eb03dd1e68",
+    "source": "Fisik {arg1} · dialokasikan {arg2}",
+    "id": "Fisik {arg1} · dialokasikan {arg2}",
+    "en": "Physical {arg1} · allocated {arg2}"
+  },
+  {
+    "key": "pos09d0570c7e41",
+    "source": "Format respons API tidak valid (HTTP {arg1}). Silakan coba lagi atau hubungi admin.",
+    "id": "Format respons API tidak valid (HTTP {arg1}). Silakan coba lagi atau hubungi admin.",
+    "en": "Invalid API response format (HTTP {arg1}). Try again or contact an administrator."
+  },
+  {
+    "key": "posb4e271dca4dd",
+    "source": "Gagal membuka gambar: {arg1}",
+    "id": "Gagal membuka gambar: {arg1}",
+    "en": "Could not open image: {arg1}"
+  },
+  {
+    "key": "pos1b53e9ce9719",
+    "source": "Gagal memuat konversi satuan: {arg1}",
+    "id": "Gagal memuat konversi satuan: {arg1}",
+    "en": "Could not load unit conversions: {arg1}"
+  },
+  {
+    "key": "posc2b7886b6824",
+    "source": "Gagal menyiapkan PO: {arg1}",
+    "id": "Gagal menyiapkan PO: {arg1}",
+    "en": "Could not prepare PO: {arg1}"
+  },
+  {
+    "key": "pos7fac25ce1b1f",
+    "source": "Gedung {arg1}",
+    "id": "Gedung {arg1}",
+    "en": "Building {arg1}"
+  },
+  {
+    "key": "pos786a448f1a32",
+    "source": "Gedung: {arg1}",
+    "id": "Gedung: {arg1}",
+    "en": "Building: {arg1}"
+  },
+  {
+    "key": "posca170b43672a",
+    "source": "HPP komposisi Rp {arg1}{arg2}",
+    "id": "HPP komposisi Rp {arg1}{arg2}",
+    "en": "Composition cost Rp {arg1}{arg2}"
+  },
+  {
+    "key": "pos4d0803eab0a2",
+    "source": "Halaman {arg1}",
+    "id": "Halaman {arg1}",
+    "en": "Page {arg1}"
+  },
+  {
+    "key": "pos61f7b0c13f15",
+    "source": "Halaman {arg1} / {arg2}",
+    "id": "Halaman {arg1} / {arg2}",
+    "en": "Page {arg1} / {arg2}"
+  },
+  {
+    "key": "posea3f79a3c91b",
+    "source": "Halaman {arg1} dari {arg2}",
+    "id": "Halaman {arg1} dari {arg2}",
+    "en": "Page {arg1} of {arg2}"
+  },
+  {
+    "key": "pos6a42159c5abb",
+    "source": "Halaman {arg1} · {arg2} kategori",
+    "id": "Halaman {arg1} · {arg2} kategori",
+    "en": "Page {arg1} · {arg2} categories"
+  },
+  {
+    "key": "pos189db84b3f7d",
+    "source": "Halaman {arg1} · {arg2} komponen",
+    "id": "Halaman {arg1} · {arg2} komponen",
+    "en": "Page {arg1} · {arg2} components"
+  },
+  {
+    "key": "posad518ced7c3d",
+    "source": "Halaman {arg1} · {arg2} permintaan",
+    "id": "Halaman {arg1} · {arg2} permintaan",
+    "en": "Page {arg1} · {arg2} requests"
+  },
+  {
+    "key": "posd628bb3772f8",
+    "source": "Halaman {arg1} · {arg2} pesanan",
+    "id": "Halaman {arg1} · {arg2} pesanan",
+    "en": "Page {arg1} · {arg2} orders"
+  },
+  {
+    "key": "posd56e0c97a9f6",
+    "source": "Halaman {arg1} · {arg2} pilihan",
+    "id": "Halaman {arg1} · {arg2} pilihan",
+    "en": "Page {arg1} · {arg2} options"
+  },
+  {
+    "key": "posddeedb7fc620",
+    "source": "Halaman {arg1} · {arg2} produk",
+    "id": "Halaman {arg1} · {arg2} produk",
+    "en": "Page {arg1} · {arg2} products"
+  },
+  {
+    "key": "pos49f816b08de3",
+    "source": "Halo, {arg1} 👋",
+    "id": "Halo, {arg1} 👋",
+    "en": "Hello, {arg1} 👋"
+  },
+  {
+    "key": "posb45b8e526f3f",
+    "source": "Hapus {arg1} dari favorit",
+    "id": "Hapus {arg1} dari favorit",
+    "en": "Remove {arg1} from favorites"
+  },
+  {
+    "key": "posba0f270a2974",
+    "source": "Harga {arg1}",
+    "id": "Harga {arg1}",
+    "en": "Price {arg1}"
+  },
+  {
+    "key": "pos67bae1d899bf",
+    "source": "Identitas pembeli tidak dapat dimuat: {arg1}",
+    "id": "Identitas pembeli tidak dapat dimuat: {arg1}",
+    "en": "Could not load buyer identity: {arg1}"
+  },
+  {
+    "key": "pos498daa89ff78",
+    "source": "Invoice server: {arg1}. Periksa nilai transaksi, harga, dan kas fisik sebelum menandai pemeriksaan selesai. Jangan kirim ulang sebagai transaksi baru.",
+    "id": "Invoice server: {arg1}. Periksa nilai transaksi, harga, dan kas fisik sebelum menandai pemeriksaan selesai. Jangan kirim ulang sebagai transaksi baru.",
+    "en": "Server invoice: {arg1}. Check transaction values, prices, and physical cash before marking the review complete. Do not resend as a new transaction."
+  },
+  {
+    "key": "pos3818e7b1db75",
+    "source": "Invoice {arg1}",
+    "id": "Invoice {arg1}",
+    "en": "Invoice {arg1}"
+  },
+  {
+    "key": "pos4def2db5b18e",
+    "source": "Invoice {arg1} berhasil dibayar",
+    "id": "Invoice {arg1} berhasil dibayar",
+    "en": "Invoice {arg1} paid"
+  },
+  {
+    "key": "pos3a368a74f5da",
+    "source": "Invoice {arg1}. Pulihkan isian yang sudah dikirim sebelum membuat retur lain. Ini tidak mengajukan atau membayar refund.",
+    "id": "Invoice {arg1}. Pulihkan isian yang sudah dikirim sebelum membuat retur lain. Ini tidak mengajukan atau membayar refund.",
+    "en": "Invoice {arg1}. Restore the submitted entries before creating another return. This does not request or pay a refund."
+  },
+  {
+    "key": "posee94ad7e244c",
+    "source": "Invoice: {arg1}",
+    "id": "Invoice: {arg1}",
+    "en": "Invoice: {arg1}"
+  },
+  {
+    "key": "pos42d67456c6c0",
+    "source": "Isi alasan selisih {arg1} minimal 3 karakter",
+    "id": "Isi alasan selisih {arg1} minimal 3 karakter",
+    "en": "Enter a reason for {arg1} discrepancy, at least 3 characters"
+  },
+  {
+    "key": "pos9fec2fcbc391",
+    "source": "Isi alasan selisih {arg1} minimal 3 karakter.",
+    "id": "Isi alasan selisih {arg1} minimal 3 karakter.",
+    "en": "Enter a reason for {arg1} discrepancy, at least 3 characters."
+  },
+  {
+    "key": "posd06dba4cee38",
+    "source": "Isi jumlah 0 sampai {arg1}",
+    "id": "Isi jumlah 0 sampai {arg1}",
+    "en": "Enter a quantity from 0 to {arg1}"
+  },
+  {
+    "key": "pos87d6dcc5b9dd",
+    "source": "Isi jumlah per kemasan. Sistem menghitung total dalam {arg1}.",
+    "id": "Isi jumlah per kemasan. Sistem menghitung total dalam {arg1}.",
+    "en": "Enter the quantity per package. The system calculates the total in {arg1}."
+  },
+  {
+    "key": "posbfa60931a0a5",
+    "source": "Jadwal: {arg1}",
+    "id": "Jadwal: {arg1}",
+    "en": "Schedule: {arg1}"
+  },
+  {
+    "key": "pos4a5790de1739",
+    "source": "Jangan ulangi refund sebelum status retur terkonfirmasi. {arg1}",
+    "id": "Jangan ulangi refund sebelum status retur terkonfirmasi. {arg1}",
+    "en": "Do not repeat the refund until the return status is confirmed. {arg1}"
+  },
+  {
+    "key": "pos0c8620dab460",
+    "source": "Jatuh tempo: {arg1}",
+    "id": "Jatuh tempo: {arg1}",
+    "en": "Due: {arg1}"
+  },
+  {
+    "key": "pos60e3a1766a6e",
+    "source": "Jenis operasi antrean tidak dikenal: {arg1}",
+    "id": "Jenis operasi antrean tidak dikenal: {arg1}",
+    "en": "Unknown queued operation type: {arg1}"
+  },
+  {
+    "key": "pos351aef710752",
+    "source": "Jenis pesanan: {arg1}",
+    "id": "Jenis pesanan: {arg1}",
+    "en": "Order type: {arg1}"
+  },
+  {
+    "key": "pos8109832b1b60",
+    "source": "Jumlah ({arg1})",
+    "id": "Jumlah ({arg1})",
+    "en": "Quantity ({arg1})"
+  },
+  {
+    "key": "posfd2ad4755705",
+    "source": "Jumlah harus 0 sampai {arg1} {arg2}.",
+    "id": "Jumlah harus 0 sampai {arg1} {arg2}.",
+    "en": "Quantity must be 0 to {arg1} {arg2}."
+  },
+  {
+    "key": "posfb4a0df20901",
+    "source": "Jumlah hasil recycle {arg1} harus 0–{arg2}",
+    "id": "Jumlah hasil recycle {arg1} harus 0–{arg2}",
+    "en": "Recycled quantity for {arg1} must be 0–{arg2}"
+  },
+  {
+    "key": "pos2a8779efd3b6",
+    "source": "Jumlah hilang {arg1} melebihi saldo batch",
+    "id": "Jumlah hilang {arg1} melebihi saldo batch",
+    "en": "Lost quantity for {arg1} exceeds the batch balance"
+  },
+  {
+    "key": "posda44a8c5e2db",
+    "source": "Jumlah melebihi sisa hutang ({arg1}).",
+    "id": "Jumlah melebihi sisa hutang ({arg1}).",
+    "en": "Amount exceeds the outstanding payable ({arg1})."
+  },
+  {
+    "key": "pos0933c14b6cfc",
+    "source": "Jumlah melebihi sisa termin ({arg1}).",
+    "id": "Jumlah melebihi sisa termin ({arg1}).",
+    "en": "Amount exceeds the remaining installment ({arg1})."
+  },
+  {
+    "key": "pos981fefc1e33c",
+    "source": "Jumlah retur ({arg1})",
+    "id": "Jumlah retur ({arg1})",
+    "en": "Return quantity ({arg1})"
+  },
+  {
+    "key": "posfed87456b577",
+    "source": "Jumlah {arg1}",
+    "id": "Jumlah {arg1}",
+    "en": "Quantity {arg1}"
+  },
+  {
+    "key": "pos5b84c2d40d4c",
+    "source": "Jumlah {arg1} diperbarui.",
+    "id": "Jumlah {arg1} diperbarui.",
+    "en": "Quantity for {arg1} updated."
+  },
+  {
+    "key": "pos7ee454b3f2c2",
+    "source": "Jumlah {arg1} harus lebih dari 0 dan maksimal {arg2} {arg3}",
+    "id": "Jumlah {arg1} harus lebih dari 0 dan maksimal {arg2} {arg3}",
+    "en": "Quantity for {arg1} must be greater than 0 and at most {arg2} {arg3}"
+  },
+  {
+    "key": "pos0502434efde2",
+    "source": "Jumlah {arg1} maksimal {arg2} {arg3}",
+    "id": "Jumlah {arg1} maksimal {arg2} {arg3}",
+    "en": "Maximum quantity for {arg1} is {arg2} {arg3}"
+  },
+  {
+    "key": "posad42a01ae2c6",
+    "source": "Jumlah {arg1} melebihi stok lokasi ({arg2} {arg3})",
+    "id": "Jumlah {arg1} melebihi stok lokasi ({arg2} {arg3})",
+    "en": "Quantity for {arg1} exceeds location stock ({arg2} {arg3})"
+  },
+  {
+    "key": "posd73d69d726dc",
+    "source": "Jurnal belum selesai: {arg1}",
+    "id": "Jurnal belum selesai: {arg1}",
+    "en": "Journal entry incomplete: {arg1}"
+  },
+  {
+    "key": "pos4c593ad5f42d",
+    "source": "Jurnal gagal: {arg1}",
+    "id": "Jurnal gagal: {arg1}",
+    "en": "Journal entry failed: {arg1}"
+  },
+  {
+    "key": "posa1928b385d2d",
+    "source": "Jurnal pembatalan belum selesai: {arg1}",
+    "id": "Jurnal pembatalan belum selesai: {arg1}",
+    "en": "Reversal journal entry incomplete: {arg1}"
+  },
+  {
+    "key": "pose627ba45da07",
+    "source": "Jurnal: {arg1}{arg2}",
+    "id": "Jurnal: {arg1}{arg2}",
+    "en": "Journal entry: {arg1}{arg2}"
+  },
+  {
+    "key": "pos50275ce55359",
+    "source": "Kapasitas: {arg1} Orang",
+    "id": "Kapasitas: {arg1} Orang",
+    "en": "Capacity: {arg1} People"
+  },
+  {
+    "key": "posf4f1e83621da",
+    "source": "Kapasitas: {arg1} kursi{arg2}",
+    "id": "Kapasitas: {arg1} kursi{arg2}",
+    "en": "Capacity: {arg1} seats{arg2}"
+  },
+  {
+    "key": "pos9b789015b765",
+    "source": "Karantina: {arg1}",
+    "id": "Karantina: {arg1}",
+    "en": "Quarantine: {arg1}"
+  },
+  {
+    "key": "pos3e08d3d71a70",
+    "source": "Kas {arg1} berhasil dicatat!",
+    "id": "Kas {arg1} berhasil dicatat!",
+    "en": "Cash {arg1} recorded!"
+  },
+  {
+    "key": "posf9195de99c01",
+    "source": "Kasir ({arg1})",
+    "id": "Kasir ({arg1})",
+    "en": "Cashier ({arg1})"
+  },
+  {
+    "key": "pos354df62f6aa3",
+    "source": "Kasir: {arg1}",
+    "id": "Kasir: {arg1}",
+    "en": "Cashier: {arg1}"
+  },
+  {
+    "key": "pos5ca6d211882e",
+    "source": "Kasir: {arg1}\n",
+    "id": "Kasir: {arg1}\n",
+    "en": "Cashier: {arg1}\n"
+  },
+  {
+    "key": "pos93a6ccae326e",
+    "source": "Kategori: {arg1}",
+    "id": "Kategori: {arg1}",
+    "en": "Category: {arg1}"
+  },
+  {
+    "key": "pos40b1639b7bb2",
+    "source": "Keluhan: {arg1}",
+    "id": "Keluhan: {arg1}",
+    "en": "Complaint: {arg1}"
+  },
+  {
+    "key": "pos9346d428aef7",
+    "source": "Kembalian    {arg1}",
+    "id": "Kembalian    {arg1}",
+    "en": "Change    {arg1}"
+  },
+  {
+    "key": "posfbcfa461b741",
+    "source": "Kembalian: {arg1}\n",
+    "id": "Kembalian: {arg1}\n",
+    "en": "Change: {arg1}\n"
+  },
+  {
+    "key": "posd11b0955d522",
+    "source": "Kendaraan: {arg1}",
+    "id": "Kendaraan: {arg1}",
+    "en": "Vehicle: {arg1}"
+  },
+  {
+    "key": "pos735eff437800",
+    "source": "Keputusan: {arg1}",
+    "id": "Keputusan: {arg1}",
+    "en": "Decision: {arg1}"
+  },
+  {
+    "key": "pos541eb83e5a0c",
+    "source": "Keranjang ({arg1})",
+    "id": "Keranjang ({arg1})",
+    "en": "Cart ({arg1})"
+  },
+  {
+    "key": "posc3ea0cd9a924",
+    "source": "Kirim: {arg1}",
+    "id": "Kirim: {arg1}",
+    "en": "Dispatch: {arg1}"
+  },
+  {
+    "key": "pos844214a54fe7",
+    "source": "Kode inventaris · {arg1}",
+    "id": "Kode inventaris · {arg1}",
+    "en": "Inventory code · {arg1}"
+  },
+  {
+    "key": "pos5d8a179eb068",
+    "source": "Kode promo    {arg1}",
+    "id": "Kode promo    {arg1}",
+    "en": "Promo code    {arg1}"
+  },
+  {
+    "key": "pos3ef623db628c",
+    "source": "Kondisi: {arg1}",
+    "id": "Kondisi: {arg1}",
+    "en": "Condition: {arg1}"
+  },
+  {
+    "key": "pos2eda82c2246c",
+    "source": "Koneksi terputus. Menghubungkan ulang ({arg1}/3)…",
+    "id": "Koneksi terputus. Menghubungkan ulang ({arg1}/3)…",
+    "en": "Connection lost. Reconnecting ({arg1}/3)…"
+  },
+  {
+    "key": "pos18a9e21cb58b",
+    "source": "Konfirmasi {arg1}",
+    "id": "Konfirmasi {arg1}",
+    "en": "Confirm {arg1}"
+  },
+  {
+    "key": "pos2befc83ee9ee",
+    "source": "Konversi tersimpan: {arg1}",
+    "id": "Konversi tersimpan: {arg1}",
+    "en": "Saved conversions: {arg1}"
+  },
+  {
+    "key": "posa006c9daadf0",
+    "source": "Konversi: 1 {arg1} = {arg2} {arg3}",
+    "id": "Konversi: 1 {arg1} = {arg2} {arg3}",
+    "en": "Conversion: 1 {arg1} = {arg2} {arg3}"
+  },
+  {
+    "key": "pos886f4075bfac",
+    "source": "Koreksi darurat {arg1}",
+    "id": "Koreksi darurat {arg1}",
+    "en": "Emergency correction {arg1}"
+  },
+  {
+    "key": "pos366edac1e231",
+    "source": "Label Barcode {arg1}",
+    "id": "Label Barcode {arg1}",
+    "en": "Barcode Label {arg1}"
+  },
+  {
+    "key": "pos58df45e9d2a1",
+    "source": "Label terkirim: {arg1}/{arg2}",
+    "id": "Label terkirim: {arg1}/{arg2}",
+    "en": "Labels sent: {arg1}/{arg2}"
+  },
+  {
+    "key": "posd56f5ea7493b",
+    "source": "Label {arg1}",
+    "id": "Label {arg1}",
+    "en": "Label {arg1}"
+  },
+  {
+    "key": "pos20c79e7542df",
+    "source": "Langkah 6 · {arg1}",
+    "id": "Langkah 6 · {arg1}",
+    "en": "Step 6 · {arg1}"
+  },
+  {
+    "key": "pos73c8c1400ddb",
+    "source": "Langkah {arg1}",
+    "id": "Langkah {arg1}",
+    "en": "Step {arg1}"
+  },
+  {
+    "key": "pos2c4c63238b07",
+    "source": "Langkah {arg1} · {arg2}",
+    "id": "Langkah {arg1} · {arg2}",
+    "en": "Step {arg1} · {arg2}"
+  },
+  {
+    "key": "pos3c6acbdc6172",
+    "source": "Lepas voucher {arg1}",
+    "id": "Lepas voucher {arg1}",
+    "en": "Remove voucher {arg1}"
+  },
+  {
+    "key": "posb3c012f547d2",
+    "source": "Level {arg1}",
+    "id": "Level {arg1}",
+    "en": "Level {arg1}"
+  },
+  {
+    "key": "pos2843f97128cf",
+    "source": "Lokasi stok {arg1}",
+    "id": "Lokasi stok {arg1}",
+    "en": "Stock location {arg1}"
+  },
+  {
+    "key": "pos86d285bf18f2",
+    "source": "Lokasi: {arg1}",
+    "id": "Lokasi: {arg1}",
+    "en": "Location: {arg1}"
+  },
+  {
+    "key": "pos27801602c212",
+    "source": "Maksimum tersisa {arg1}",
+    "id": "Maksimum tersisa {arg1}",
+    "en": "Maximum remaining {arg1}"
+  },
+  {
+    "key": "pos17bfd9a177d7",
+    "source": "Matching: {arg1} · Jatuh tempo: {arg2}\nOutstanding: {arg3}",
+    "id": "Matching: {arg1} · Jatuh tempo: {arg2}\nOutstanding: {arg3}",
+    "en": "Matching: {arg1} · Due: {arg2}\nOutstanding: {arg3}"
+  },
+  {
+    "key": "posfa22ff918702",
+    "source": "Meja \"{arg1}\" berhasil diperbarui",
+    "id": "Meja \"{arg1}\" berhasil diperbarui",
+    "en": "Table \"{arg1}\" updated"
+  },
+  {
+    "key": "poscef4c604164c",
+    "source": "Meja \"{arg1}\" berhasil ditambahkan",
+    "id": "Meja \"{arg1}\" berhasil ditambahkan",
+    "en": "Table \"{arg1}\" added"
+  },
+  {
+    "key": "pos29db2f117897",
+    "source": "Meja {arg1}",
+    "id": "Meja {arg1}",
+    "en": "Table {arg1}"
+  },
+  {
+    "key": "posc617cc586a0c",
+    "source": "Meja · {arg1}",
+    "id": "Meja · {arg1}",
+    "en": "Table · {arg1}"
+  },
+  {
+    "key": "posa71587490499",
+    "source": "Mencatat penerimaan mutasi {arg1}...",
+    "id": "Mencatat penerimaan mutasi {arg1}...",
+    "en": "Recording receipt for transfer {arg1}..."
+  },
+  {
+    "key": "posbffaaa8b679c",
+    "source": "Mengajukan PO {arg1}...",
+    "id": "Mengajukan PO {arg1}...",
+    "en": "Submitting PO {arg1}..."
+  },
+  {
+    "key": "pos7ff57871e031",
+    "source": "Mengulangi jurnal {arg1}...",
+    "id": "Mengulangi jurnal {arg1}...",
+    "en": "Retrying journal entry {arg1}..."
+  },
+  {
+    "key": "pos37949a5da433",
+    "source": "Metode pembayaran: {arg1}",
+    "id": "Metode pembayaran: {arg1}",
+    "en": "Payment method: {arg1}"
+  },
+  {
+    "key": "posc1ee701a402d",
+    "source": "Metode: {arg1}",
+    "id": "Metode: {arg1}",
+    "en": "Method: {arg1}"
+  },
+  {
+    "key": "posb0b20c64aae6",
+    "source": "Metode: {arg1} · Termin: {arg2}{arg3}",
+    "id": "Metode: {arg1} · Termin: {arg2}{arg3}",
+    "en": "Method: {arg1} · Installment: {arg2}{arg3}"
+  },
+  {
+    "key": "pos2642c8d7b316",
+    "source": "Min. belanja {arg1}",
+    "id": "Min. belanja {arg1}",
+    "en": "Min. purchase {arg1}"
+  },
+  {
+    "key": "pos9e159b1c2295",
+    "source": "Minimum transaksi tunai {arg1}. Pilih metode lain atau tambah transaksi.",
+    "id": "Minimum transaksi tunai {arg1}. Pilih metode lain atau tambah transaksi.",
+    "en": "Minimum cash transaction {arg1}. Choose another method or increase the transaction amount."
+  },
+  {
+    "key": "pos543e961a6128",
+    "source": "Minimum {arg1}",
+    "id": "Minimum {arg1}",
+    "en": "Minimum {arg1}"
+  },
+  {
+    "key": "posbdc2845195b0",
+    "source": "Model: {arg1}",
+    "id": "Model: {arg1}",
+    "en": "Model: {arg1}"
+  },
+  {
+    "key": "pos3bcc4a44a905",
+    "source": "Muat lagi ({arg1}/{arg2})",
+    "id": "Muat lagi ({arg1}/{arg2})",
+    "en": "Load more ({arg1}/{arg2})"
+  },
+  {
+    "key": "posec83af4cb31d",
+    "source": "No PO: {arg1}",
+    "id": "No PO: {arg1}",
+    "en": "PO No: {arg1}"
+  },
+  {
+    "key": "posded34ba7cec1",
+    "source": "No: {arg1}",
+    "id": "No: {arg1}",
+    "en": "No: {arg1}"
+  },
+  {
+    "key": "pos75918812dfbd",
+    "source": "Nominal (maks. Rp{arg1})",
+    "id": "Nominal (maks. Rp{arg1})",
+    "en": "Amount (max. Rp{arg1})"
+  },
+  {
+    "key": "pos7596519ab293",
+    "source": "Nominal harus lebih dari nol dan tidak melebihi {arg1}.",
+    "id": "Nominal harus lebih dari nol dan tidak melebihi {arg1}.",
+    "en": "Amount must be greater than zero and cannot exceed {arg1}."
+  },
+  {
+    "key": "posfe43073929cf",
+    "source": "Nomor batch dan tanggal kedaluwarsa {arg1} harus diisi bersamaan",
+    "id": "Nomor batch dan tanggal kedaluwarsa {arg1} harus diisi bersamaan",
+    "en": "Batch number and expiry date for {arg1} must both be filled in"
+  },
+  {
+    "key": "poscc7d32a39de7",
+    "source": "Nomor batch dan tanggal kedaluwarsa {arg1} wajib diisi",
+    "id": "Nomor batch dan tanggal kedaluwarsa {arg1} wajib diisi",
+    "en": "Batch number and expiry date for {arg1} are required"
+  },
+  {
+    "key": "pos810ac1454f9b",
+    "source": "Nomor pesanan server: {arg1}. Periksa item, total, dan meja sebelum menandai pemeriksaan selesai. Jangan buat pesanan baru untuk menggantikannya.",
+    "id": "Nomor pesanan server: {arg1}. Periksa item, total, dan meja sebelum menandai pemeriksaan selesai. Jangan buat pesanan baru untuk menggantikannya.",
+    "en": "Server order number: {arg1}. Check items, total, and table before marking the review complete. Do not create a replacement order."
+  },
+  {
+    "key": "posfd312a360b1e",
+    "source": "Oleh {arg1}{arg2}",
+    "id": "Oleh {arg1}{arg2}",
+    "en": "By {arg1}{arg2}"
+  },
+  {
+    "key": "posf749a4f6a690",
+    "source": "Operator aktif: {arg1}",
+    "id": "Operator aktif: {arg1}",
+    "en": "Active operator: {arg1}"
+  },
+  {
+    "key": "pos46179ba2b7f3",
+    "source": "Order Online ({arg1})",
+    "id": "Order Online ({arg1})",
+    "en": "Online Orders ({arg1})"
+  },
+  {
+    "key": "posb3f4a442d275",
+    "source": "Outlet tersimpan ({arg1})",
+    "id": "Outlet tersimpan ({arg1})",
+    "en": "Saved outlet ({arg1})"
+  },
+  {
+    "key": "pos8c29bd885f11",
+    "source": "Outlet: {arg1}",
+    "id": "Outlet: {arg1}",
+    "en": "Outlet: {arg1}"
+  },
+  {
+    "key": "pos8005cfd2ce83",
+    "source": "PERINGATAN: Barang kedaluwarsa dijual dengan otorisasi. Alasan: {arg1}",
+    "id": "PERINGATAN: Barang kedaluwarsa dijual dengan otorisasi. Alasan: {arg1}",
+    "en": "WARNING: Expired goods sold with authorization. Reason: {arg1}"
+  },
+  {
+    "key": "posc67d91cca2be",
+    "source": "PIN terkunci sementara. Coba lagi setelah {arg1}.",
+    "id": "PIN terkunci sementara. Coba lagi setelah {arg1}.",
+    "en": "PIN temporarily locked. Try again after {arg1}."
+  },
+  {
+    "key": "pos696aa1b34ef8",
+    "source": "PO belum dapat diperbarui: {arg1}",
+    "id": "PO belum dapat diperbarui: {arg1}",
+    "en": "Could not update PO: {arg1}"
+  },
+  {
+    "key": "pos4a59442df598",
+    "source": "PO halaman {arg1}",
+    "id": "PO halaman {arg1}",
+    "en": "PO page {arg1}"
+  },
+  {
+    "key": "pos62e8e1dd4504",
+    "source": "PO terbuka belum dapat diperiksa: {arg1}",
+    "id": "PO terbuka belum dapat diperiksa: {arg1}",
+    "en": "Could not check open POs: {arg1}"
+  },
+  {
+    "key": "pos5c04fa38f710",
+    "source": "PO: {arg1}",
+    "id": "PO: {arg1}",
+    "en": "PO: {arg1}"
+  },
+  {
+    "key": "posa8e0e5d00653",
+    "source": "POS Mobile ({arg1})",
+    "id": "POS Mobile ({arg1})",
+    "en": "POS Mobile ({arg1})"
+  },
+  {
+    "key": "posc53479dd68b9",
+    "source": "PPN ({arg1}%)",
+    "id": "PPN ({arg1}%)",
+    "en": "VAT ({arg1}%)"
+  },
+  {
+    "key": "pos62e104d5b8c0",
+    "source": "Pajak    {arg1}",
+    "id": "Pajak    {arg1}",
+    "en": "Tax    {arg1}"
+  },
+  {
+    "key": "pose8576d8afa6c",
+    "source": "Pelanggan: {arg1}",
+    "id": "Pelanggan: {arg1}",
+    "en": "Customer: {arg1}"
+  },
+  {
+    "key": "pos0a36262b25f5",
+    "source": "Pelanggan: {arg1}\n",
+    "id": "Pelanggan: {arg1}\n",
+    "en": "Customer: {arg1}\n"
+  },
+  {
+    "key": "pos5f2c9e5e92b4",
+    "source": "Pemakaian: {arg1}/{arg2}",
+    "id": "Pemakaian: {arg1}/{arg2}",
+    "en": "Usage: {arg1}/{arg2}"
+  },
+  {
+    "key": "pos26eb6e9694bd",
+    "source": "Pembayaran PO {arg1}",
+    "id": "Pembayaran PO {arg1}",
+    "en": "PO payment {arg1}"
+  },
+  {
+    "key": "pos47ced915a77a",
+    "source": "Pembayaran {arg1} akan dibalik di jurnal dan dihitung kembali sebagai hutang.",
+    "id": "Pembayaran {arg1} akan dibalik di jurnal dan dihitung kembali sebagai hutang.",
+    "en": "Payment {arg1} will be reversed in the journal and restored as a payable."
+  },
+  {
+    "key": "pos0e93e26fcc3b",
+    "source": "Pembayaran: {arg1}",
+    "id": "Pembayaran: {arg1}",
+    "en": "Payment: {arg1}"
+  },
+  {
+    "key": "pose6d93ee48cd5",
+    "source": "Pemesan meminta menjadi pelanggan dengan nomor {arg1}. Konfirmasi lalu pilih profil yang ada atau tambah pelanggan baru.",
+    "id": "Pemesan meminta menjadi pelanggan dengan nomor {arg1}. Konfirmasi lalu pilih profil yang ada atau tambah pelanggan baru.",
+    "en": "The requester wants to become a customer using number {arg1}. Confirm, then select an existing profile or add a new customer."
+  },
+  {
+    "key": "posa21c3b378169",
+    "source": "Penanggung jawab: {arg1} · Proyek: {arg2}",
+    "id": "Penanggung jawab: {arg1} · Proyek: {arg2}",
+    "en": "Responsible party: {arg1} · Project: {arg2}"
+  },
+  {
+    "key": "pos14401dca7861",
+    "source": "Pendapatan {arg1}",
+    "id": "Pendapatan {arg1}",
+    "en": "Revenue {arg1}"
+  },
+  {
+    "key": "pos063e03843503",
+    "source": "Penjualan {arg1} Terakhir",
+    "id": "Penjualan {arg1} Terakhir",
+    "en": "Sales for the Last {arg1}"
+  },
+  {
+    "key": "pos57915034b172",
+    "source": "Penyelesaian: {arg1}",
+    "id": "Penyelesaian: {arg1}",
+    "en": "Resolution: {arg1}"
+  },
+  {
+    "key": "pos7d60a10a7702",
+    "source": "Percobaan sinkron: {arg1}",
+    "id": "Percobaan sinkron: {arg1}",
+    "en": "Sync attempts: {arg1}"
+  },
+  {
+    "key": "pos919294430196",
+    "source": "Percobaan: {arg1}",
+    "id": "Percobaan: {arg1}",
+    "en": "Attempts: {arg1}"
+  },
+  {
+    "key": "posa67275acc90a",
+    "source": "Perluas {arg1}",
+    "id": "Perluas {arg1}",
+    "en": "Expand {arg1}"
+  },
+  {
+    "key": "posb11d7ad2d4ac",
+    "source": "Persetujuan {arg1} • aturan terkunci setelah diajukan",
+    "id": "Persetujuan {arg1} • aturan terkunci setelah diajukan",
+    "en": "Approval {arg1} • rules locked after submission"
+  },
+  {
+    "key": "pos3b0f37c81a64",
+    "source": "Persetujuan {arg1}/{arg2}",
+    "id": "Persetujuan {arg1}/{arg2}",
+    "en": "Approval {arg1}/{arg2}"
+  },
+  {
+    "key": "pos0bff6b4c25ac",
+    "source": "Pesan dari {arg1} di {arg2}: {arg3}",
+    "id": "Pesan dari {arg1} di {arg2}: {arg3}",
+    "en": "Message from {arg1} at {arg2}: {arg3}"
+  },
+  {
+    "key": "posf86f87a78d52",
+    "source": "Pesanan Meja {arg1}",
+    "id": "Pesanan Meja {arg1}",
+    "en": "Table {arg1} Order"
+  },
+  {
+    "key": "pos3b458bf929ac",
+    "source": "Pesanan akan dicatat pada meja {arg1}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.",
+    "id": "Pesanan akan dicatat pada meja {arg1}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.",
+    "en": "The order will be recorded at table {arg1}. The table is marked occupied and its bill can be resumed from Active Orders & Tables."
+  },
+  {
+    "key": "pos6fe4c911e4d5",
+    "source": "Pesanan meja {arg1} berhasil disimpan.",
+    "id": "Pesanan meja {arg1} berhasil disimpan.",
+    "en": "Order for table {arg1} saved."
+  },
+  {
+    "key": "pose27a8b678805",
+    "source": "Pesanan {arg1}",
+    "id": "Pesanan {arg1}",
+    "en": "Order {arg1}"
+  },
+  {
+    "key": "posbe4e656f20d1",
+    "source": "Pesanan {arg1} belum dibayar. Stok yang dipesan akan dilepas.",
+    "id": "Pesanan {arg1} belum dibayar. Stok yang dipesan akan dilepas.",
+    "en": "Order {arg1} is unpaid. Reserved stock will be released."
+  },
+  {
+    "key": "posc8b050cf8ef3",
+    "source": "Pesanan {arg1} berhasil diperbarui.",
+    "id": "Pesanan {arg1} berhasil diperbarui.",
+    "en": "Order {arg1} updated."
+  },
+  {
+    "key": "posf970ac5a216e",
+    "source": "Pesanan {arg1} tersedia di Pesanan dan Riwayat Transaksi.",
+    "id": "Pesanan {arg1} tersedia di Pesanan dan Riwayat Transaksi.",
+    "en": "Order {arg1} is available in Orders and Transaction History."
+  },
+  {
+    "key": "posbf7cbf6e7df0",
+    "source": "Pesanan {arg1} tersimpan di meja {arg2}.",
+    "id": "Pesanan {arg1} tersimpan di meja {arg2}.",
+    "en": "Order {arg1} saved at table {arg2}."
+  },
+  {
+    "key": "pos9518606db839",
+    "source": "Pilih batch {arg1}",
+    "id": "Pilih batch {arg1}",
+    "en": "Select batch {arg1}"
+  },
+  {
+    "key": "pos28da64abd533",
+    "source": "Pilih informasi yang paling penting untuk operasional {arg1}.",
+    "id": "Pilih informasi yang paling penting untuk operasional {arg1}.",
+    "en": "Choose the most important information for {arg1} operations."
+  },
+  {
+    "key": "pos42aa2abf5ad3",
+    "source": "Pilih {arg1}",
+    "id": "Pilih {arg1}",
+    "en": "Select {arg1}"
+  },
+  {
+    "key": "pos1d6fd1683a30",
+    "source": "Piutang berkurang {arg1} · Refund {arg2} · Saldo kredit {arg3}",
+    "id": "Piutang berkurang {arg1} · Refund {arg2} · Saldo kredit {arg3}",
+    "en": "Receivables reduced {arg1} · Refund {arg2} · Credit balance {arg3}"
+  },
+  {
+    "key": "pos647182c03196",
+    "source": "Profil inventory: {arg1}. Stok, pembelian, opname, mutasi, barang terbuang, dan retur tersedia sesuai izin akun.",
+    "id": "Profil inventory: {arg1}. Stok, pembelian, opname, mutasi, barang terbuang, dan retur tersedia sesuai izin akun.",
+    "en": "Inventory profile: {arg1}. Stock, purchases, stocktake, transfers, waste, and returns are available according to account permissions."
+  },
+  {
+    "key": "pos7dfa2cce27c1",
+    "source": "Proforma: {arg1}",
+    "id": "Proforma: {arg1}",
+    "en": "Pro forma: {arg1}"
+  },
+  {
+    "key": "pos5f0e590eb67a",
+    "source": "Promo    -{arg1}",
+    "id": "Promo    -{arg1}",
+    "en": "Promotion    -{arg1}"
+  },
+  {
+    "key": "pos33d2c3ae1407",
+    "source": "Promo \"{arg1}\" berhasil dibuat",
+    "id": "Promo \"{arg1}\" berhasil dibuat",
+    "en": "Promotion \"{arg1}\" created"
+  },
+  {
+    "key": "posf923a5377f98",
+    "source": "Promo \"{arg1}\" berhasil diupdate",
+    "id": "Promo \"{arg1}\" berhasil diupdate",
+    "en": "Promotion \"{arg1}\" updated"
+  },
+  {
+    "key": "pos2a3d9ec5d50a",
+    "source": "Promo \"{arg1}\" berhasil {arg2}",
+    "id": "Promo \"{arg1}\" berhasil {arg2}",
+    "en": "Promotion \"{arg1}\" successfully {arg2}"
+  },
+  {
+    "key": "posc4171a22051c",
+    "source": "Pulihkan bukti {arg1}",
+    "id": "Pulihkan bukti {arg1}",
+    "en": "Restore proof {arg1}"
+  },
+  {
+    "key": "pos133f8123ec8d",
+    "source": "QR meja {arg1}",
+    "id": "QR meja {arg1}",
+    "en": "Table QR {arg1}"
+  },
+  {
+    "key": "pos8c5a30764897",
+    "source": "QR {arg1}",
+    "id": "QR {arg1}",
+    "en": "QR {arg1}"
+  },
+  {
+    "key": "posbc47f5da0ae0",
+    "source": "Qty Asal: {arg1} {arg2}",
+    "id": "Qty Asal: {arg1} {arg2}",
+    "en": "Original Qty: {arg1} {arg2}"
+  },
+  {
+    "key": "posad54407447b0",
+    "source": "Rak {arg1}",
+    "id": "Rak {arg1}",
+    "en": "Rack {arg1}"
+  },
+  {
+    "key": "pos1af981c59b08",
+    "source": "Rak: {arg1}",
+    "id": "Rak: {arg1}",
+    "en": "Rack: {arg1}"
+  },
+  {
+    "key": "posc4042d7f65c7",
+    "source": "Recycle {arg1} • ",
+    "id": "Recycle {arg1} • ",
+    "en": "Recycled {arg1} • "
+  },
+  {
+    "key": "pos96b044b6e7c2",
+    "source": "Referensi: {arg1}",
+    "id": "Referensi: {arg1}",
+    "en": "Reference: {arg1}"
+  },
+  {
+    "key": "posea21c3d7a950",
+    "source": "Referensi: {arg1}\n",
+    "id": "Referensi: {arg1}\n",
+    "en": "Reference: {arg1}\n"
+  },
+  {
+    "key": "posd88b4d30bc43",
+    "source": "Rekening: {arg1}",
+    "id": "Rekening: {arg1}",
+    "en": "Account: {arg1}"
+  },
+  {
+    "key": "pos72f4ddb26760",
+    "source": "Request API gagal (HTTP {arg1}) tanpa pesan kesalahan.",
+    "id": "Request API gagal (HTTP {arg1}) tanpa pesan kesalahan.",
+    "en": "API request failed (HTTP {arg1}) without an error message."
+  },
+  {
+    "key": "posbcd5593f5bcc",
+    "source": "Request belum dikirim karena gagal disimpan di perangkat: {arg1}",
+    "id": "Request belum dikirim karena gagal disimpan di perangkat: {arg1}",
+    "en": "Request not sent because it could not be saved on the device: {arg1}"
+  },
+  {
+    "key": "pos849ad4d3801b",
+    "source": "Request gagal (HTTP {arg1})",
+    "id": "Request gagal (HTTP {arg1})",
+    "en": "Request failed (HTTP {arg1})"
+  },
+  {
+    "key": "pos039cdeadaabb",
+    "source": "Reservasi · {arg1}",
+    "id": "Reservasi · {arg1}",
+    "en": "Reservation · {arg1}"
+  },
+  {
+    "key": "pos48c3ba336d52",
+    "source": "Respons server: {arg1}",
+    "id": "Respons server: {arg1}",
+    "en": "Server response: {arg1}"
+  },
+  {
+    "key": "posb17d3b472148",
+    "source": "Retry otomatis: {arg1}",
+    "id": "Retry otomatis: {arg1}",
+    "en": "Automatic retry: {arg1}"
+  },
+  {
+    "key": "pos27df11542691",
+    "source": "Retur {arg1} akan menunggu persetujuan supervisor.",
+    "id": "Retur {arg1} akan menunggu persetujuan supervisor.",
+    "en": "Return {arg1} will await supervisor approval."
+  },
+  {
+    "key": "pos45799a85e9a2",
+    "source": "Retur {arg1} akan siap diproses.",
+    "id": "Retur {arg1} akan siap diproses.",
+    "en": "Return {arg1} will be ready to process."
+  },
+  {
+    "key": "pos8e1dc55435c2",
+    "source": "Rincian lokasi gagal dimuat: {arg1}",
+    "id": "Rincian lokasi gagal dimuat: {arg1}",
+    "en": "Could not load location details: {arg1}"
+  },
+  {
+    "key": "pos29a28ea5e03e",
+    "source": "Ringkasan performa POS untuk {arg1}.",
+    "id": "Ringkasan performa POS untuk {arg1}.",
+    "en": "POS performance summary for {arg1}."
+  },
+  {
+    "key": "pos065a9e21d49d",
+    "source": "Riwayat GRN belum dapat diperbarui: {arg1}",
+    "id": "Riwayat GRN belum dapat diperbarui: {arg1}",
+    "en": "Could not update GRN history: {arg1}"
+  },
+  {
+    "key": "pos78bff8e79d25",
+    "source": "Riwayat penerimaan ({arg1})",
+    "id": "Riwayat penerimaan ({arg1})",
+    "en": "Receiving history ({arg1})"
+  },
+  {
+    "key": "pos44a6903141ee",
+    "source": "Riwayat penerimaan gagal dimuat: {arg1}",
+    "id": "Riwayat penerimaan gagal dimuat: {arg1}",
+    "en": "Could not load receiving history: {arg1}"
+  },
+  {
+    "key": "pos70272f418def",
+    "source": "Rp {arg1}",
+    "id": "Rp {arg1}",
+    "en": "Rp {arg1}"
+  },
+  {
+    "key": "pos0435fa2b2918",
+    "source": "Rp{arg1}",
+    "id": "Rp{arg1}",
+    "en": "Rp{arg1}"
+  },
+  {
+    "key": "pos9a295c412a94",
+    "source": "Ruangan {arg1}",
+    "id": "Ruangan {arg1}",
+    "en": "Room {arg1}"
+  },
+  {
+    "key": "pos085e03d813e0",
+    "source": "Ruangan: {arg1}",
+    "id": "Ruangan: {arg1}",
+    "en": "Room: {arg1}"
+  },
+  {
+    "key": "pos2d721657d7fb",
+    "source": "SJ {arg1}",
+    "id": "SJ {arg1}",
+    "en": "Delivery note {arg1}"
+  },
+  {
+    "key": "pos19aa65c6a13e",
+    "source": "SKU · {arg1}",
+    "id": "SKU · {arg1}",
+    "en": "SKU · {arg1}"
+  },
+  {
+    "key": "posee769816dc3e",
+    "source": "SKU: {arg1}",
+    "id": "SKU: {arg1}",
+    "en": "SKU: {arg1}"
+  },
+  {
+    "key": "posa8bae00d81f1",
+    "source": "SKU: {arg1} • Stok {arg2}",
+    "id": "SKU: {arg1} • Stok {arg2}",
+    "en": "SKU: {arg1} • Stock {arg2}"
+  },
+  {
+    "key": "pos31737f83ebbc",
+    "source": "STATUS: {arg1}",
+    "id": "STATUS: {arg1}",
+    "en": "STATUS: {arg1}"
+  },
+  {
+    "key": "poscb93757b9cc2",
+    "source": "Saldo lokasi saat ini: {arg1} {arg2}",
+    "id": "Saldo lokasi saat ini: {arg1} {arg2}",
+    "en": "Current location balance: {arg1} {arg2}"
+  },
+  {
+    "key": "pos21462b1cd3e9",
+    "source": "Saldo lokasi: {arg1} → {arg2}  •  Jumlah {arg3}",
+    "id": "Saldo lokasi: {arg1} → {arg2}  •  Jumlah {arg3}",
+    "en": "Location balance: {arg1} → {arg2}  •  Quantity {arg3}"
+  },
+  {
+    "key": "posf35e7016437f",
+    "source": "Segmen: {arg1}",
+    "id": "Segmen: {arg1}",
+    "en": "Segment: {arg1}"
+  },
+  {
+    "key": "pos5ab6295dbc59",
+    "source": "Semua ({arg1})",
+    "id": "Semua ({arg1})",
+    "en": "All ({arg1})"
+  },
+  {
+    "key": "pos2520218913bd",
+    "source": "Seri {arg1}",
+    "id": "Seri {arg1}",
+    "en": "Serial {arg1}"
+  },
+  {
+    "key": "pos78308eaba248",
+    "source": "Seri: {arg1}",
+    "id": "Seri: {arg1}",
+    "en": "Serial: {arg1}"
+  },
+  {
+    "key": "pos4983e9639596",
+    "source": "Serial number {arg1} wajib diisi",
+    "id": "Serial number {arg1} wajib diisi",
+    "en": "Serial number for {arg1} is required"
+  },
+  {
+    "key": "pos440545e7a2a5",
+    "source": "Server mengembalikan respons non-JSON (HTTP {arg1}).",
+    "id": "Server mengembalikan respons non-JSON (HTTP {arg1}).",
+    "en": "Server returned a non-JSON response (HTTP {arg1})."
+  },
+  {
+    "key": "posee023ea50beb",
+    "source": "Server sedang bermasalah (HTTP {arg1}). Silakan coba lagi.",
+    "id": "Server sedang bermasalah (HTTP {arg1}). Silakan coba lagi.",
+    "en": "Server error (HTTP {arg1}). Please try again."
+  },
+  {
+    "key": "posdabd37d4fec2",
+    "source": "Shift masih aktif di {arg1}",
+    "id": "Shift masih aktif di {arg1}",
+    "en": "Shift still active at {arg1}"
+  },
+  {
+    "key": "pos98c99bd51ac2",
+    "source": "Shift: {arg1}",
+    "id": "Shift: {arg1}",
+    "en": "Shift: {arg1}"
+  },
+  {
+    "key": "pos948945f10e42",
+    "source": "Shift: {arg1}\n",
+    "id": "Shift: {arg1}\n",
+    "en": "Shift: {arg1}\n"
+  },
+  {
+    "key": "posd100bfb67f19",
+    "source": "Siap ({arg1})",
+    "id": "Siap ({arg1})",
+    "en": "Ready ({arg1})"
+  },
+  {
+    "key": "pos9475d97d7968",
+    "source": "Sisa PO: {arg1}",
+    "id": "Sisa PO: {arg1}",
+    "en": "PO remainder: {arg1}"
+  },
+  {
+    "key": "posf7452c021e4b",
+    "source": "Sisa tersedia {arg1} {arg2}",
+    "id": "Sisa tersedia {arg1} {arg2}",
+    "en": "Available remainder {arg1} {arg2}"
+  },
+  {
+    "key": "posb83023605a49",
+    "source": "Sisa {arg1}",
+    "id": "Sisa {arg1}",
+    "en": "Remaining {arg1}"
+  },
+  {
+    "key": "pos6aba9ab9eb0a",
+    "source": "Sistem {arg1} {arg2}",
+    "id": "Sistem {arg1} {arg2}",
+    "en": "System {arg1} {arg2}"
+  },
+  {
+    "key": "posafb095f644ad",
+    "source": "Sistem {arg1}; dihitung terpisah.",
+    "id": "Sistem {arg1}; dihitung terpisah.",
+    "en": "System {arg1}; counted separately."
+  },
+  {
+    "key": "pos3f737224c118",
+    "source": "Sistem: {arg1} • Selisih: {arg2}",
+    "id": "Sistem: {arg1} • Selisih: {arg2}",
+    "en": "System: {arg1} • Difference: {arg2}"
+  },
+  {
+    "key": "pos3ee0e530bdfb",
+    "source": "Status cetak Bluetooth tidak pasti. Periksa kertas printer sebelum mengulang. {arg1}",
+    "id": "Status cetak Bluetooth tidak pasti. Periksa kertas printer sebelum mengulang. {arg1}",
+    "en": "Bluetooth print status uncertain. Check the printer paper before retrying. {arg1}"
+  },
+  {
+    "key": "pos5e6e850d331f",
+    "source": "Status cetak tidak pasti pada printer terminal. Periksa hasil cetak sebelum mengulang. {arg1}",
+    "id": "Status cetak tidak pasti pada printer terminal. Periksa hasil cetak sebelum mengulang. {arg1}",
+    "en": "Terminal printer status uncertain. Check the printout before retrying. {arg1}"
+  },
+  {
+    "key": "pos09b1e41db353",
+    "source": "Status cetak tidak pasti. Periksa hasil cetak sebelum mengulang. {arg1}",
+    "id": "Status cetak tidak pasti. Periksa hasil cetak sebelum mengulang. {arg1}",
+    "en": "Print status uncertain. Check the printout before retrying. {arg1}"
+  },
+  {
+    "key": "pos09cf25171d0b",
+    "source": "Status sinkronisasi: {arg1}",
+    "id": "Status sinkronisasi: {arg1}",
+    "en": "Sync status: {arg1}"
+  },
+  {
+    "key": "pos52fb707d5447",
+    "source": "Status: {arg1}",
+    "id": "Status: {arg1}",
+    "en": "Status: {arg1}"
+  },
+  {
+    "key": "posd3f7af1f6d12",
+    "source": "Status: {arg1} · {arg2}",
+    "id": "Status: {arg1} · {arg2}",
+    "en": "Status: {arg1} · {arg2}"
+  },
+  {
+    "key": "posdf3a8d32e918",
+    "source": "Stok dikembalikan, tetapi jurnal pembatalan gagal: {arg1}",
+    "id": "Stok dikembalikan, tetapi jurnal pembatalan gagal: {arg1}",
+    "en": "Stock returned, but reversal journal entry failed: {arg1}"
+  },
+  {
+    "key": "pos882f6d381755",
+    "source": "Stok lokal {arg1} tidak mencukupi. Periksa stok saat online.",
+    "id": "Stok lokal {arg1} tidak mencukupi. Periksa stok saat online.",
+    "en": "Insufficient local stock for {arg1}. Check stock while online."
+  },
+  {
+    "key": "posee3f877ea456",
+    "source": "Stok sistem: {arg1}",
+    "id": "Stok sistem: {arg1}",
+    "en": "System stock: {arg1}"
+  },
+  {
+    "key": "pos2de86e144e10",
+    "source": "Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: {arg1}",
+    "id": "Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: {arg1}",
+    "en": "Stock has been returned, but check the reversal journal entry: {arg1}"
+  },
+  {
+    "key": "pos39e38f288da4",
+    "source": "Stok sudah diproses, tetapi jurnal biaya perlu diperiksa: {arg1}",
+    "id": "Stok sudah diproses, tetapi jurnal biaya perlu diperiksa: {arg1}",
+    "en": "Stock has been processed, but check the cost journal entry: {arg1}"
+  },
+  {
+    "key": "pos01eebd959af3",
+    "source": "Stok sudah diproses, tetapi jurnal perlu diperiksa: {arg1}",
+    "id": "Stok sudah diproses, tetapi jurnal perlu diperiksa: {arg1}",
+    "en": "Stock has been processed, but check the journal entry: {arg1}"
+  },
+  {
+    "key": "posa8ad9c0dfe6e",
+    "source": "Stok sudah diterima, tetapi jurnal perlu diperiksa: {arg1}",
+    "id": "Stok sudah diterima, tetapi jurnal perlu diperiksa: {arg1}",
+    "en": "Stock has been received, but check the journal entry: {arg1}"
+  },
+  {
+    "key": "pos0f3c48a06258",
+    "source": "Stok {arg1}",
+    "id": "Stok {arg1}",
+    "en": "Stock {arg1}"
+  },
+  {
+    "key": "posfb314505e100",
+    "source": "Stok {arg1} habis",
+    "id": "Stok {arg1} habis",
+    "en": "{arg1} is out of stock"
+  },
+  {
+    "key": "posda4c6efa512d",
+    "source": "Stok {arg1} tidak mencukupi",
+    "id": "Stok {arg1} tidak mencukupi",
+    "en": "Insufficient stock for {arg1}"
+  },
+  {
+    "key": "posb84bbc8a4359",
+    "source": "Stok {arg1} tidak mencukupi untuk satuan {arg2}",
+    "id": "Stok {arg1} tidak mencukupi untuk satuan {arg2}",
+    "en": "Insufficient stock for {arg1} in unit {arg2}"
+  },
+  {
+    "key": "pos1552d665f55b",
+    "source": "Struk transaksi {arg1} dari Pantoo POS.",
+    "id": "Struk transaksi {arg1} dari Pantoo POS.",
+    "en": "Transaction receipt {arg1} from Pantoo POS."
+  },
+  {
+    "key": "posb8805613da76",
+    "source": "Struk {arg1}",
+    "id": "Struk {arg1}",
+    "en": "Receipt {arg1}"
+  },
+  {
+    "key": "pos4301300bea4d",
+    "source": "Struk {arg1}\n{arg2}{arg3}{arg4}{arg5}{arg6}{arg7}\n{arg8}\n\nSubtotal: {arg9}\n{arg10}Total: {arg11}\nPembayaran: {arg12}\nDibayar: {arg13}\n{arg14}{arg15}Terima kasih.",
+    "id": "Struk {arg1}\n{arg2}{arg3}{arg4}{arg5}{arg6}{arg7}\n{arg8}\n\nSubtotal: {arg9}\n{arg10}Total: {arg11}\nPembayaran: {arg12}\nDibayar: {arg13}\n{arg14}{arg15}Terima kasih.",
+    "en": "Receipt {arg1}\n{arg2}{arg3}{arg4}{arg5}{arg6}{arg7}\n{arg8}\n\nSubtotal: {arg9}\n{arg10}Total: {arg11}\nPayment: {arg12}\nPaid: {arg13}\n{arg14}{arg15}Thank you."
+  },
+  {
+    "key": "poseb08b632f2d5",
+    "source": "Subtotal    {arg1}",
+    "id": "Subtotal    {arg1}",
+    "en": "Subtotal    {arg1}"
+  },
+  {
+    "key": "pos7eef271ab44c",
+    "source": "Subtotal  Rp {arg1}",
+    "id": "Subtotal  Rp {arg1}",
+    "en": "Subtotal  Rp {arg1}"
+  },
+  {
+    "key": "pos31dc38aa1f0a",
+    "source": "Supplier: {arg1}",
+    "id": "Supplier: {arg1}",
+    "en": "Supplier: {arg1}"
+  },
+  {
+    "key": "pose887e1053f93",
+    "source": "Supplier: {arg1}\nCabang: {arg2}\nTotal: {arg3}\n\n",
+    "id": "Supplier: {arg1}\nCabang: {arg2}\nTotal: {arg3}\n\n",
+    "en": "Supplier: {arg1}\nBranch: {arg2}\nTotal: {arg3}\n\n"
+  },
+  {
+    "key": "posf584192c76e1",
+    "source": "TOTAL    {arg1}",
+    "id": "TOTAL    {arg1}",
+    "en": "TOTAL    {arg1}"
+  },
+  {
+    "key": "pos60cb53587d72",
+    "source": "Tag: {arg1}",
+    "id": "Tag: {arg1}",
+    "en": "Tag: {arg1}"
+  },
+  {
+    "key": "pos1a57bf89a651",
+    "source": "Tagihan {arg1}",
+    "id": "Tagihan {arg1}",
+    "en": "Bill {arg1}"
+  },
+  {
+    "key": "pos56c80ff62e6d",
+    "source": "Tambah {arg1}",
+    "id": "Tambah {arg1}",
+    "en": "Add {arg1}"
+  },
+  {
+    "key": "posee8ce59373ea",
+    "source": "Tambah {arg1} ke keranjang",
+    "id": "Tambah {arg1} ke keranjang",
+    "en": "Add {arg1} to cart"
+  },
+  {
+    "key": "pos954c7b7880aa",
+    "source": "Tambahkan {arg1} ke favorit",
+    "id": "Tambahkan {arg1} ke favorit",
+    "en": "Add {arg1} to favorites"
+  },
+  {
+    "key": "pos69d6ab263540",
+    "source": "Tanggal PO: {arg1}",
+    "id": "Tanggal PO: {arg1}",
+    "en": "PO date: {arg1}"
+  },
+  {
+    "key": "pos5415cb31728d",
+    "source": "Tanggal fisik tidak boleh sebelum pengiriman {arg1}.",
+    "id": "Tanggal fisik tidak boleh sebelum pengiriman {arg1}.",
+    "en": "Physical date cannot be before dispatch on {arg1}."
+  },
+  {
+    "key": "pos3d3dc9c404be",
+    "source": "Tanggal kedaluwarsa {arg1} tidak boleh sebelum tanggal penerimaan",
+    "id": "Tanggal kedaluwarsa {arg1} tidak boleh sebelum tanggal penerimaan",
+    "en": "Expiry date for {arg1} cannot be before the receipt date"
+  },
+  {
+    "key": "posdb30b8965c81",
+    "source": "Tanggal kedaluwarsa {arg1} tidak valid",
+    "id": "Tanggal kedaluwarsa {arg1} tidak valid",
+    "en": "Invalid expiry date for {arg1}"
+  },
+  {
+    "key": "pos67ec666ad538",
+    "source": "Tanggal pembukuan mendahului perpindahan/penyelesaian sebelumnya ({arg1}).",
+    "id": "Tanggal pembukuan mendahului perpindahan/penyelesaian sebelumnya ({arg1}).",
+    "en": "Posting date is before the previous movement/resolution ({arg1})."
+  },
+  {
+    "key": "pos54ec6781af4f",
+    "source": "Tanggal: {arg1}",
+    "id": "Tanggal: {arg1}",
+    "en": "Date: {arg1}"
+  },
+  {
+    "key": "pos4d67ce5fd380",
+    "source": "Teknisi / staf: {arg1}",
+    "id": "Teknisi / staf: {arg1}",
+    "en": "Technician / staff: {arg1}"
+  },
+  {
+    "key": "posdd94a4d861f7",
+    "source": "Terapkan ({arg1})",
+    "id": "Terapkan ({arg1})",
+    "en": "Apply ({arg1})"
+  },
+  {
+    "key": "posfd9cce7e760d",
+    "source": "Terima {arg1}",
+    "id": "Terima {arg1}",
+    "en": "Receive {arg1}"
+  },
+  {
+    "key": "posb4fffbba8098",
+    "source": "Termin {arg1} · sisa {arg2}",
+    "id": "Termin {arg1} · sisa {arg2}",
+    "en": "Installment {arg1} · remaining {arg2}"
+  },
+  {
+    "key": "pos513371e1f08c",
+    "source": "Termin {arg1}: {arg2} / {arg3}",
+    "id": "Termin {arg1}: {arg2} / {arg3}",
+    "en": "Installment {arg1}: {arg2} / {arg3}"
+  },
+  {
+    "key": "posaed34e9e9854",
+    "source": "Termin: {arg1}",
+    "id": "Termin: {arg1}",
+    "en": "Installment: {arg1}"
+  },
+  {
+    "key": "pos355bebfd5205",
+    "source": "Tersedia {arg1} {arg2}",
+    "id": "Tersedia {arg1} {arg2}",
+    "en": "Available {arg1} {arg2}"
+  },
+  {
+    "key": "pos6551fa1c3fd7",
+    "source": "Tersedia: {arg1} {arg2} • {arg3}",
+    "id": "Tersedia: {arg1} {arg2} • {arg3}",
+    "en": "Available: {arg1} {arg2} • {arg3}"
+  },
+  {
+    "key": "pos0a10d64b8683",
+    "source": "Tipe pemenuhan: {arg1}",
+    "id": "Tipe pemenuhan: {arg1}",
+    "en": "Fulfillment type: {arg1}"
+  },
+  {
+    "key": "pos25b5fa1d18b0",
+    "source": "Toko: {arg1}",
+    "id": "Toko: {arg1}",
+    "en": "Store: {arg1}"
+  },
+  {
+    "key": "posd6f7fd5de931",
+    "source": "Total fisik: {arg1} {arg2}",
+    "id": "Total fisik: {arg1} {arg2}",
+    "en": "Physical total: {arg1} {arg2}"
+  },
+  {
+    "key": "posbd45ba0ddb67",
+    "source": "Total {arg1} Produk",
+    "id": "Total {arg1} Produk",
+    "en": "Total {arg1} Products"
+  },
+  {
+    "key": "pos708b9937b7f6",
+    "source": "Total {arg1} · Dibayar {arg2}\nKredit {arg3} · Sisa {arg4}",
+    "id": "Total {arg1} · Dibayar {arg2}\nKredit {arg3} · Sisa {arg4}",
+    "en": "Total {arg1} · Paid {arg2}\nCredit {arg3} · Outstanding {arg4}"
+  },
+  {
+    "key": "pos1b58713d0d0e",
+    "source": "Total: Rp {arg1}",
+    "id": "Total: Rp {arg1}",
+    "en": "Total: Rp {arg1}"
+  },
+  {
+    "key": "pos596318639b9f",
+    "source": "Total: {arg1}",
+    "id": "Total: {arg1}",
+    "en": "Total: {arg1}"
+  },
+  {
+    "key": "posb9fb0286e5f6",
+    "source": "Transaksi {arg1}",
+    "id": "Transaksi {arg1}",
+    "en": "Transaction {arg1}"
+  },
+  {
+    "key": "pos1a266eba7d88",
+    "source": "Transit: {arg1}",
+    "id": "Transit: {arg1}",
+    "en": "Transit: {arg1}"
+  },
+  {
+    "key": "pos6c74f030d8e7",
+    "source": "Untuk dapur: {arg1}",
+    "id": "Untuk dapur: {arg1}",
+    "en": "For kitchen: {arg1}"
+  },
+  {
+    "key": "posb6b3d93e8479",
+    "source": "Upload gambar gagal (HTTP {arg1})",
+    "id": "Upload gambar gagal (HTTP {arg1})",
+    "en": "Image upload failed (HTTP {arg1})"
+  },
+  {
+    "key": "pos5851f7728c66",
+    "source": "Upload gambar gagal: respons server bukan JSON (HTTP {arg1}).",
+    "id": "Upload gambar gagal: respons server bukan JSON (HTTP {arg1}).",
+    "en": "Image upload failed: server response is not JSON (HTTP {arg1})."
+  },
+  {
+    "key": "pos50e3560c32e9",
+    "source": "Usulan tambahan: {arg1} {arg2}.",
+    "id": "Usulan tambahan: {arg1} {arg2}.",
+    "en": "Suggested addition: {arg1} {arg2}."
+  },
+  {
+    "key": "posd42481239233",
+    "source": "Verifikasi migrasi database gagal pada {arg1}",
+    "id": "Verifikasi migrasi database gagal pada {arg1}",
+    "en": "Database migration verification failed at {arg1}"
+  },
+  {
+    "key": "pos759eb33e6286",
+    "source": "Voucher dilepas. Total baru {arg1}. Tinjau sebelum bayar.",
+    "id": "Voucher dilepas. Total baru {arg1}. Tinjau sebelum bayar.",
+    "en": "Voucher removed. New total {arg1}. Review before payment."
+  },
+  {
+    "key": "pos05d7f4d6cf47",
+    "source": "Voucher {arg1} akan dilepas. Total tagihan dihitung ulang oleh server dan perlu ditinjau sebelum pembayaran.",
+    "id": "Voucher {arg1} akan dilepas. Total tagihan dihitung ulang oleh server dan perlu ditinjau sebelum pembayaran.",
+    "en": "Voucher {arg1} will be removed. The server recalculates the bill total; review it before payment."
+  },
+  {
+    "key": "pos13585ecae7e3",
+    "source": "Waktu Buka: {arg1}",
+    "id": "Waktu Buka: {arg1}",
+    "en": "Opening time: {arg1}"
+  },
+  {
+    "key": "posee16580f1d1c",
+    "source": "Waktu: {arg1}",
+    "id": "Waktu: {arg1}",
+    "en": "Time: {arg1}"
+  },
+  {
+    "key": "posadd23ff79c19",
+    "source": "aktual {arg1}",
+    "id": "aktual {arg1}",
+    "en": "actual {arg1}"
+  },
+  {
+    "key": "pos4fb0953658c9",
+    "source": "user …{arg1}",
+    "id": "user …{arg1}",
+    "en": "user …{arg1}"
+  },
+  {
+    "key": "posf8d9cba5e651",
+    "source": "{arg1}\n\nTransaksi otomatis dicatat atas kasir yang membuka shift aktif.",
+    "id": "{arg1}\n\nTransaksi otomatis dicatat atas kasir yang membuka shift aktif.",
+    "en": "{arg1}\n\nTransactions are automatically recorded under the cashier who opened the active shift."
+  },
+  {
+    "key": "pos36e433c66faa",
+    "source": "{arg1}\nJatuh tempo: {arg2}",
+    "id": "{arg1}\nJatuh tempo: {arg2}",
+    "en": "{arg1}\nDue: {arg2}"
+  },
+  {
+    "key": "pos4865be94ff66",
+    "source": "{arg1}\nJika hasil belum pasti, muat ulang dokumen sebelum mengulang.",
+    "id": "{arg1}\nJika hasil belum pasti, muat ulang dokumen sebelum mengulang.",
+    "en": "{arg1}\nIf the result is uncertain, reload the document before retrying."
+  },
+  {
+    "key": "posb682cdaf8e17",
+    "source": "{arg1}\nJika koneksi terputus, periksa daftar sebelum membuat transfer baru.",
+    "id": "{arg1}\nJika koneksi terputus, periksa daftar sebelum membuat transfer baru.",
+    "en": "{arg1}\nIf disconnected, check the list before creating a new transfer."
+  },
+  {
+    "key": "poseca045b64da0",
+    "source": "{arg1}\nMuat ulang status sebelum mengulang jika koneksi terputus.",
+    "id": "{arg1}\nMuat ulang status sebelum mengulang jika koneksi terputus.",
+    "en": "{arg1}\nReload status before retrying if disconnected."
+  },
+  {
+    "key": "pos9a3af49b041e",
+    "source": "{arg1}\nSaldo tersedia {arg2} {arg3}",
+    "id": "{arg1}\nSaldo tersedia {arg2} {arg3}",
+    "en": "{arg1}\nAvailable balance {arg2} {arg3}"
+  },
+  {
+    "key": "posf7f7c59d6a0a",
+    "source": "{arg1}\n{arg2} {arg3} × Rp {arg4}",
+    "id": "{arg1}\n{arg2} {arg3} × Rp {arg4}",
+    "en": "{arg1}\n{arg2} {arg3} × Rp {arg4}"
+  },
+  {
+    "key": "posb572718edb66",
+    "source": "{arg1} (default)",
+    "id": "{arg1} (default)",
+    "en": "{arg1} (default)"
+  },
+  {
+    "key": "pos05de1a67c3af",
+    "source": "{arg1} Data terakhir tetap ditampilkan.",
+    "id": "{arg1} Data terakhir tetap ditampilkan.",
+    "en": "{arg1} The latest data is still shown."
+  },
+  {
+    "key": "pos3c0064b85206",
+    "source": "{arg1} Draft tetap tersimpan dan belum mengubah stok/kas.",
+    "id": "{arg1} Draft tetap tersimpan dan belum mengubah stok/kas.",
+    "en": "{arg1} The draft remains saved; stock/cash is unchanged."
+  },
+  {
+    "key": "posf286f4675572",
+    "source": "{arg1} Hari",
+    "id": "{arg1} Hari",
+    "en": "{arg1} Days"
+  },
+  {
+    "key": "posce59266da29b",
+    "source": "{arg1} Periksa hasil fisik sebelum mencoba lagi.",
+    "id": "{arg1} Periksa hasil fisik sebelum mencoba lagi.",
+    "en": "{arg1} Check the physical result before retrying."
+  },
+  {
+    "key": "pos784f6f055869",
+    "source": "{arg1} batch aktif",
+    "id": "{arg1} batch aktif",
+    "en": "{arg1} active batches"
+  },
+  {
+    "key": "pos3a95104b1217",
+    "source": "{arg1} batch tercatat",
+    "id": "{arg1} batch tercatat",
+    "en": "{arg1} recorded batches"
+  },
+  {
+    "key": "pos9074e3322f20",
+    "source": "{arg1} dari {arg2}",
+    "id": "{arg1} dari {arg2}",
+    "en": "{arg1} of {arg2}"
+  },
+  {
+    "key": "pos078a5eb9fa64",
+    "source": "{arg1} dari {arg2} baris sudah diproses • periksa sisa tiap barang",
+    "id": "{arg1} dari {arg2} baris sudah diproses • periksa sisa tiap barang",
+    "en": "{arg1} of {arg2} lines processed • check each item's remainder"
+  },
+  {
+    "key": "posf627ed309787",
+    "source": "{arg1} dari {arg2} langkah selesai",
+    "id": "{arg1} dari {arg2} langkah selesai",
+    "en": "{arg1} of {arg2} steps complete"
+  },
+  {
+    "key": "pos8270fbc798d5",
+    "source": "{arg1} dihapus dari keranjang",
+    "id": "{arg1} dihapus dari keranjang",
+    "en": "{arg1} removed from cart"
+  },
+  {
+    "key": "posa6d0a58ea7de",
+    "source": "{arg1} dipilih",
+    "id": "{arg1} dipilih",
+    "en": "{arg1} selected"
+  },
+  {
+    "key": "pos2f1e6a806cc7",
+    "source": "{arg1} ditambahkan",
+    "id": "{arg1} ditambahkan",
+    "en": "{arg1} added"
+  },
+  {
+    "key": "pos602c13c1eeea",
+    "source": "{arg1} ditambahkan ke keranjang",
+    "id": "{arg1} ditambahkan ke keranjang",
+    "en": "{arg1} added to cart"
+  },
+  {
+    "key": "pos5e64822cb742",
+    "source": "{arg1} diterima",
+    "id": "{arg1} diterima",
+    "en": "{arg1} received"
+  },
+  {
+    "key": "posc9d3ba9c4543",
+    "source": "{arg1} hanya dapat dihapus jika belum dipakai outlet dan belum memiliki saldo inventaris.",
+    "id": "{arg1} hanya dapat dihapus jika belum dipakai outlet dan belum memiliki saldo inventaris.",
+    "en": "{arg1} can only be deleted if no outlet uses it and it has no inventory balance."
+  },
+  {
+    "key": "pos07ffbaeefbeb",
+    "source": "{arg1} hari",
+    "id": "{arg1} hari",
+    "en": "{arg1} days"
+  },
+  {
+    "key": "pos8d46fa4132ae",
+    "source": "{arg1} hari tercatat",
+    "id": "{arg1} hari tercatat",
+    "en": "{arg1} days recorded"
+  },
+  {
+    "key": "posc96f7e9303ef",
+    "source": "{arg1} hari {arg2} jam",
+    "id": "{arg1} hari {arg2} jam",
+    "en": "{arg1} days {arg2} hours"
+  },
+  {
+    "key": "pos0b3c91d7acb1",
+    "source": "{arg1} hasil fisik",
+    "id": "{arg1} hasil fisik",
+    "en": "{arg1} physical results"
+  },
+  {
+    "key": "pos89bd7b74615c",
+    "source": "{arg1} item",
+    "id": "{arg1} item",
+    "en": "{arg1} item"
+  },
+  {
+    "key": "posf6026f00f33e",
+    "source": "{arg1} item · {arg2}",
+    "id": "{arg1} item · {arg2}",
+    "en": "{arg1} item · {arg2}"
+  },
+  {
+    "key": "posc7eeba1af189",
+    "source": "{arg1} item • {arg2}",
+    "id": "{arg1} item • {arg2}",
+    "en": "{arg1} item • {arg2}"
+  },
+  {
+    "key": "poscc814c436aaa",
+    "source": "{arg1} jam",
+    "id": "{arg1} jam",
+    "en": "{arg1} hours"
+  },
+  {
+    "key": "posa6aae0f32863",
+    "source": "{arg1} jam {arg2} menit",
+    "id": "{arg1} jam {arg2} menit",
+    "en": "{arg1} hours {arg2} minutes"
+  },
+  {
+    "key": "posd3db39ddbb57",
+    "source": "{arg1} jenis barang",
+    "id": "{arg1} jenis barang",
+    "en": "{arg1} item types"
+  },
+  {
+    "key": "posb77962af8721",
+    "source": "{arg1} jenis barang akan menambah stok di {arg2}.\n\n{arg3}\n\nPastikan jumlah, batch, dan lokasi sudah benar.",
+    "id": "{arg1} jenis barang akan menambah stok di {arg2}.\n\n{arg3}\n\nPastikan jumlah, batch, dan lokasi sudah benar.",
+    "en": "{arg1} item types will increase stock at {arg2}.\n\n{arg3}\n\nCheck that quantities, batches, and locations are correct."
+  },
+  {
+    "key": "pos005ed817deab",
+    "source": "{arg1} jenis barang tersisa · {arg2}",
+    "id": "{arg1} jenis barang tersisa · {arg2}",
+    "en": "{arg1} remaining item types · {arg2}"
+  },
+  {
+    "key": "pos77cc5f06183a",
+    "source": "{arg1} jenis barang · {arg2}",
+    "id": "{arg1} jenis barang · {arg2}",
+    "en": "{arg1} item types · {arg2}"
+  },
+  {
+    "key": "pos2b5b18eb7e33",
+    "source": "{arg1} kerugian bersih",
+    "id": "{arg1} kerugian bersih",
+    "en": "{arg1} net loss"
+  },
+  {
+    "key": "pos96c96d35cf4e",
+    "source": "{arg1} kg · {arg2}",
+    "id": "{arg1} kg · {arg2}",
+    "en": "{arg1} kg · {arg2}"
+  },
+  {
+    "key": "posd8b7f9fcbdae",
+    "source": "{arg1} komponen dipilih",
+    "id": "{arg1} komponen dipilih",
+    "en": "{arg1} components selected"
+  },
+  {
+    "key": "posc92e889b21e0",
+    "source": "{arg1} kursi",
+    "id": "{arg1} kursi",
+    "en": "{arg1} seats"
+  },
+  {
+    "key": "pos2e58e983605b",
+    "source": "{arg1} lokal #{arg2}",
+    "id": "{arg1} lokal #{arg2}",
+    "en": "{arg1} local #{arg2}"
+  },
+  {
+    "key": "poscd596d982fc7",
+    "source": "{arg1} lokasi",
+    "id": "{arg1} lokasi",
+    "en": "{arg1} locations"
+  },
+  {
+    "key": "pos3ddbca1be993",
+    "source": "{arg1} masih memiliki {arg2} {arg3} dalam PO yang belum diterima. {arg4} Periksa PO yang ada sebelum membuat pesanan baru.",
+    "id": "{arg1} masih memiliki {arg2} {arg3} dalam PO yang belum diterima. {arg4} Periksa PO yang ada sebelum membuat pesanan baru.",
+    "en": "{arg1} still has {arg2} {arg3} on unreceived POs. {arg4} Review existing POs before creating a new order."
+  },
+  {
+    "key": "posc0c6484282fd",
+    "source": "{arg1} menit",
+    "id": "{arg1} menit",
+    "en": "{arg1} minutes"
+  },
+  {
+    "key": "pos1903b0face48",
+    "source": "{arg1} mnt",
+    "id": "{arg1} mnt",
+    "en": "{arg1} min"
+  },
+  {
+    "key": "posa8b15dbf49a2",
+    "source": "{arg1} operator pada periode ini",
+    "id": "{arg1} operator pada periode ini",
+    "en": "{arg1} operators in this period"
+  },
+  {
+    "key": "posc1d0cd74f8ec",
+    "source": "{arg1} pesanan tersimpan",
+    "id": "{arg1} pesanan tersimpan",
+    "en": "{arg1} saved orders"
+  },
+  {
+    "key": "poscda259d82b9a",
+    "source": "{arg1} produk kosong atau mencapai batas pesan ulang.",
+    "id": "{arg1} produk kosong atau mencapai batas pesan ulang.",
+    "en": "{arg1} products are out of stock or at their reorder point."
+  },
+  {
+    "key": "pos9511cddc9569",
+    "source": "{arg1} produk/layanan siap dijual.",
+    "id": "{arg1} produk/layanan siap dijual.",
+    "en": "{arg1} products/services ready for sale."
+  },
+  {
+    "key": "pos7d4d5958fa9e",
+    "source": "{arg1} saldo lokasi • {arg2} jenis barang",
+    "id": "{arg1} saldo lokasi • {arg2} jenis barang",
+    "en": "{arg1} location balances • {arg2} item types"
+  },
+  {
+    "key": "posef655d18b036",
+    "source": "{arg1} stok sistem",
+    "id": "{arg1} stok sistem",
+    "en": "{arg1} system stock"
+  },
+  {
+    "key": "pos4f29bd492330",
+    "source": "{arg1} sudah digunakan",
+    "id": "{arg1} sudah digunakan",
+    "en": "{arg1} already used"
+  },
+  {
+    "key": "pos9e2b35272c32",
+    "source": "{arg1} tamu{arg2}",
+    "id": "{arg1} tamu{arg2}",
+    "en": "{arg1} guests{arg2}"
+  },
+  {
+    "key": "pos67fdbcba215b",
+    "source": "{arg1} terjual",
+    "id": "{arg1} terjual",
+    "en": "{arg1} sold"
+  },
+  {
+    "key": "pose9a226455937",
+    "source": "{arg1} tersedia",
+    "id": "{arg1} tersedia",
+    "en": "{arg1} available"
+  },
+  {
+    "key": "pos0137b35ee82f",
+    "source": "{arg1} tidak tersedia",
+    "id": "{arg1} tidak tersedia",
+    "en": "{arg1} unavailable"
+  },
+  {
+    "key": "pos1c13a6636001",
+    "source": "{arg1} toko aktif terhubung ke lokasi penjualan.",
+    "id": "{arg1} toko aktif terhubung ke lokasi penjualan.",
+    "en": "{arg1} active stores linked to sales locations."
+  },
+  {
+    "key": "pos30453377460d",
+    "source": "{arg1} total jumlah",
+    "id": "{arg1} total jumlah",
+    "en": "{arg1} total quantity"
+  },
+  {
+    "key": "pos3badc0263682",
+    "source": "{arg1} transaksi",
+    "id": "{arg1} transaksi",
+    "en": "{arg1} transactions"
+  },
+  {
+    "key": "posb9af015b5b3c",
+    "source": "{arg1} transaksi belum selesai{arg2}{arg3}",
+    "id": "{arg1} transaksi belum selesai{arg2}{arg3}",
+    "en": "{arg1} unfinished transactions{arg2}{arg3}"
+  },
+  {
+    "key": "posac37abdf6133",
+    "source": "{arg1} transaksi dipilih",
+    "id": "{arg1} transaksi dipilih",
+    "en": "{arg1} transactions selected"
+  },
+  {
+    "key": "pose215c398e32f",
+    "source": "{arg1} transaksi ditolak dimasukkan kembali ke antrean",
+    "id": "{arg1} transaksi ditolak dimasukkan kembali ke antrean",
+    "en": "{arg1} rejected transactions returned to the queue"
+  },
+  {
+    "key": "pos2b8d8622ab16",
+    "source": "{arg1} transaksi lokal belum selesai disinkronkan. Ketuk untuk melihat antrean dan konflik.",
+    "id": "{arg1} transaksi lokal belum selesai disinkronkan. Ketuk untuk melihat antrean dan konflik.",
+    "en": "{arg1} local transactions are not fully synced. Tap to view the queue and conflicts."
+  },
+  {
+    "key": "pos452e3bc76740",
+    "source": "{arg1} transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi sinkronisasi tertunda sampai akun instansi ini login kembali.",
+    "id": "{arg1} transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi sinkronisasi tertunda sampai akun instansi ini login kembali.",
+    "en": "{arg1} offline sales transactions are incomplete. Data remains on this device, but sync is deferred until this organization's account signs in again."
+  },
+  {
+    "key": "pos509814bee562",
+    "source": "{arg1} transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi tidak dapat disinkronkan sampai akun instansi ini login kembali.",
+    "id": "{arg1} transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi tidak dapat disinkronkan sampai akun instansi ini login kembali.",
+    "en": "{arg1} offline sales transactions are incomplete. Data remains on this device, but cannot sync until this organization's account signs in again."
+  },
+  {
+    "key": "posc86080cde078",
+    "source": "{arg1} transaksi · Rata-rata {arg2}",
+    "id": "{arg1} transaksi · Rata-rata {arg2}",
+    "en": "{arg1} transactions · Average {arg2}"
+  },
+  {
+    "key": "pos971fbc291672",
+    "source": "{arg1} trx",
+    "id": "{arg1} trx",
+    "en": "{arg1} txns"
+  },
+  {
+    "key": "pos256020cc43aa",
+    "source": "{arg1} unit · {arg2}",
+    "id": "{arg1} unit · {arg2}",
+    "en": "{arg1} unit · {arg2}"
+  },
+  {
+    "key": "pos83c794c3c247",
+    "source": "{arg1} wajib diisi dan maksimal 10 MB",
+    "id": "{arg1} wajib diisi dan maksimal 10 MB",
+    "en": "{arg1} is required and must not exceed 10 MB"
+  },
+  {
+    "key": "pose02d08abae0b",
+    "source": "{arg1} warehouse/lokasi penjualan aktif tersedia.",
+    "id": "{arg1} warehouse/lokasi penjualan aktif tersedia.",
+    "en": "{arg1} active warehouses/sales locations available."
+  },
+  {
+    "key": "pos5dfc7705f747",
+    "source": "{arg1} {arg2} dari {arg3} label telah dikirim. Periksa hasil fisik sebelum mengulang; batch terakhir mungkin sudah tercetak.",
+    "id": "{arg1} {arg2} dari {arg3} label telah dikirim. Periksa hasil fisik sebelum mengulang; batch terakhir mungkin sudah tercetak.",
+    "en": "{arg1} {arg2} of {arg3} labels sent. Check the physical output before retrying; the last batch may already be printed."
+  },
+  {
+    "key": "pos8e2e32f18621",
+    "source": "{arg1} {arg2} tersedia",
+    "id": "{arg1} {arg2} tersedia",
+    "en": "{arg1} {arg2} available"
+  },
+  {
+    "key": "posb4fb1c3b1411",
+    "source": "{arg1} · Coba lagi",
+    "id": "{arg1} · Coba lagi",
+    "en": "{arg1} · Try again"
+  },
+  {
+    "key": "pos0bdde42d626d",
+    "source": "{arg1} · Stok {arg2}",
+    "id": "{arg1} · Stok {arg2}",
+    "en": "{arg1} · Stock {arg2}"
+  },
+  {
+    "key": "pos2f893bcc6344",
+    "source": "{arg1} · sisa {arg2} {arg3}",
+    "id": "{arg1} · sisa {arg2} {arg3}",
+    "en": "{arg1} · remaining {arg2} {arg3}"
+  },
+  {
+    "key": "posd4d98a649594",
+    "source": "{arg1} · {arg2} invoice",
+    "id": "{arg1} · {arg2} invoice",
+    "en": "{arg1} · {arg2} invoice"
+  },
+  {
+    "key": "posdf24f5ec1143",
+    "source": "{arg1} · {arg2} item",
+    "id": "{arg1} · {arg2} item",
+    "en": "{arg1} · {arg2} item"
+  },
+  {
+    "key": "posa6e5135e1c96",
+    "source": "{arg1} · {arg2} produk",
+    "id": "{arg1} · {arg2} produk",
+    "en": "{arg1} · {arg2} products"
+  },
+  {
+    "key": "pos6e9f8acab9e7",
+    "source": "{arg1} · {arg2}. Konfirmasi nomor, lalu pilih atau tambah pelanggan saat pembayaran.",
+    "id": "{arg1} · {arg2}. Konfirmasi nomor, lalu pilih atau tambah pelanggan saat pembayaran.",
+    "en": "{arg1} · {arg2}. Confirm the number, then select or add a customer at payment."
+  },
+  {
+    "key": "posd94b4f688664",
+    "source": "{arg1} • Sistem {arg2} {arg3}",
+    "id": "{arg1} • Sistem {arg2} {arg3}",
+    "en": "{arg1} • System {arg2} {arg3}"
+  },
+  {
+    "key": "pos41d9f9c2727c",
+    "source": "{arg1} • Stok {arg2}",
+    "id": "{arg1} • Stok {arg2}",
+    "en": "{arg1} • Stock {arg2}"
+  },
+  {
+    "key": "posd3e4f6b9f3d9",
+    "source": "{arg1} • Stok {arg2} {arg3}",
+    "id": "{arg1} • Stok {arg2} {arg3}",
+    "en": "{arg1} • Stock {arg2} {arg3}"
+  },
+  {
+    "key": "posbc5439bf7220",
+    "source": "{arg1} • {arg2} tersedia",
+    "id": "{arg1} • {arg2} tersedia",
+    "en": "{arg1} • {arg2} available"
+  },
+  {
+    "key": "pos984dd212a7c5",
+    "source": "{arg1}% diterima",
+    "id": "{arg1}% diterima",
+    "en": "{arg1}% received"
+  },
+  {
+    "key": "pos69b46e44cb84",
+    "source": "{arg1}. Data bukan pembaruan langsung.",
+    "id": "{arg1}. Data bukan pembaruan langsung.",
+    "en": "{arg1}. Data is not a live update."
+  },
+  {
+    "key": "pos5a750eacdedd",
+    "source": "{arg1}Dokumen akan disetujui untuk melanjutkan proses inventori.",
+    "id": "{arg1}Dokumen akan disetujui untuk melanjutkan proses inventori.",
+    "en": "{arg1}The document will be approved to continue inventory processing."
+  },
+  {
+    "key": "pos4aff662939ed",
+    "source": "{arg1}Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.",
+    "id": "{arg1}Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.",
+    "en": "{arg1}The document will be rejected and must be corrected before reprocessing."
+  },
+  {
+    "key": "pos60620fd8af23",
+    "source": "{arg1}PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.",
+    "id": "{arg1}PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.",
+    "en": "{arg1}The PO will be submitted for approval. Check the purchase value and destination."
+  },
+  {
+    "key": "pos3b16fedb59a0",
+    "source": "{arg1}j {arg2}m",
+    "id": "{arg1}j {arg2}m",
+    "en": "{arg1}h {arg2}m"
+  },
+  {
+    "key": "posecae7016438c",
+    "source": "{arg1}{arg2}\n{arg3}Hilang {arg4}",
+    "id": "{arg1}{arg2}\n{arg3}Hilang {arg4}",
+    "en": "{arg1}{arg2}\n{arg3}Lost {arg4}"
+  },
+  {
+    "key": "posdf19d6c3808e",
+    "source": "{arg1}{arg2} selisih",
+    "id": "{arg1}{arg2} selisih",
+    "en": "{arg1}{arg2} discrepancy"
+  },
+  {
+    "key": "pos04f490437f3e",
+    "source": "• {arg1}: {arg2} {arg3} · HPP Rp {arg4}",
+    "id": "• {arg1}: {arg2} {arg3} · HPP Rp {arg4}",
+    "en": "• {arg1}: {arg2} {arg3} · Cost Rp {arg4}"
+  }
+]

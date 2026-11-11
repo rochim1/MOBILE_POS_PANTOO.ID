@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/pos_return/pos_return_bloc.dart';
@@ -27,7 +28,7 @@ class PosReturnDraftRecovery extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const PosText(
                   'Simpan draft retur belum terkonfirmasi',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
@@ -35,7 +36,7 @@ class PosReturnDraftRecovery extends StatelessWidget {
                 Text(
                   state.pendingDraftError.isNotEmpty
                       ? state.pendingDraftError
-                      : 'Invoice ${state.pendingDraft?['sumber_no'] ?? state.pendingDraft?['sumber_id']}. Pulihkan isian yang sudah dikirim sebelum membuat retur lain. Ini tidak mengajukan atau membayar refund.',
+                      : posLocale(context).pos3a368a74f5da((state.pendingDraft?['sumber_no'] ?? state.pendingDraft?['sumber_id']).toString()),
                 ),
                 if (canRecover &&
                     state.pendingDraft != null &&
@@ -56,7 +57,7 @@ class PosReturnDraftRecovery extends StatelessWidget {
                             )
                           : const Icon(Icons.restore),
                       label: Text(
-                        busy ? 'Memastikan draft...' : 'Pulihkan draft retur',
+                        busy ? ('Memastikan draft...').tr(context) : ('Pulihkan draft retur').tr(context),
                       ),
                     ),
                   ),

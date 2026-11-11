@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,7 +13,7 @@ Future<void> openPantooLegalUrl(BuildContext context, String url) async {
   );
   if (!opened && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Halaman legal tidak dapat dibuka.')),
+      const SnackBar(content: PosText('Halaman legal tidak dapat dibuka.')),
     );
   }
 }
@@ -61,15 +62,15 @@ class _PantooLegalLinksState extends State<PantooLegalLinks> {
         style: style,
         children: [
           if (widget.includePrefix)
-            const TextSpan(text: 'Dengan melanjutkan, Anda menyetujui\n'),
+             TextSpan(text: ('Dengan melanjutkan, Anda menyetujui\n').tr(context)),
           TextSpan(
-            text: 'Kebijakan Privasi',
+            text: ('Kebijakan Privasi').tr(context),
             style: linkStyle,
             recognizer: _privacyRecognizer,
           ),
-          const TextSpan(text: '   dan   '),
+           TextSpan(text: ('   dan   ').tr(context)),
           TextSpan(
-            text: 'Ketentuan Layanan',
+            text: ('Ketentuan Layanan').tr(context),
             style: linkStyle,
             recognizer: _termsRecognizer,
           ),

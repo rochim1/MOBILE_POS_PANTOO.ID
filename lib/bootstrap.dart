@@ -1,3 +1,5 @@
+import 'l10n/app_language_controller.dart';
+import 'core/notifications/pos_push_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -18,6 +20,8 @@ Future<void> bootstrap(
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID');
+  await initializeDateFormatting('en');
+  await AppLanguageController.instance.load();
   initializePlatformDatabase();
 
   FlutterError.onError = (details) {
@@ -35,6 +39,7 @@ Future<void> bootstrap(
   await dotenv.load(fileName: ".env");
 
   await initLocator(flavor);
+  await sl<PosPushService>().initialize();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

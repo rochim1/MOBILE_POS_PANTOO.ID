@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -44,9 +45,9 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
       resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Tambah Retur',
-          subtitle: 'Pilih invoice dan item',
+        title:  PosAppBarTitle(
+          title: ('Tambah Retur').tr(context),
+          subtitle: ('Pilih invoice dan item').tr(context),
         ),
       ),
       bottomNavigationBar: BlocConsumer<PosReturnBloc, PosReturnState>(
@@ -116,7 +117,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                 child: state.status == PosReturnStatus.loading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        pending ? 'Pulihkan draft retur' : 'Simpan Draft Retur',
+                        pending ? ('Pulihkan draft retur').tr(context) : ('Simpan Draft Retur').tr(context),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -155,7 +156,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        const PosText(
                           'Cari Invoice',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -169,7 +170,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                               child: TextField(
                                 controller: _invoiceController,
                                 decoration: InputDecoration(
-                                  hintText: 'Masukkan No. Invoice...',
+                                  hintText: ('Masukkan No. Invoice...').tr(context),
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                   ),
@@ -198,7 +199,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text('Cari'),
+                              child: const PosText('Cari'),
                             ),
                           ],
                         ),
@@ -239,7 +240,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Invoice: ${trx['invoice']}',
+                                  posLocale(context).posee94ad7e244c((trx['invoice']).toString()),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -247,11 +248,11 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Pelanggan: ${trx['pelanggan'] ?? 'Umum'}',
+                                  posLocale(context).pose8576d8afa6c((trx['pelanggan'] ?? 'Umum').toString()),
                                   style: TextStyle(color: Colors.grey.shade700),
                                 ),
                                 Text(
-                                  'Total: ${_formatCurrency(trx['total'] ?? 0)}',
+                                  posLocale(context).pos596318639b9f((_formatCurrency(trx['total'] ?? 0)).toString()),
                                   style: TextStyle(color: Colors.grey.shade700),
                                 ),
                               ],
@@ -260,7 +261,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                           const SizedBox(height: 16),
 
                           // Item Selection
-                          const Text(
+                          const PosText(
                             'Pilih Item Diretur:',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -301,7 +302,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                           ),
                                         ),
                                         Text(
-                                          'Qty Asal: ${item['qty_original']} ${item['unit']}',
+                                          posLocale(context).posbc47f5da0ae0((item['qty_original']).toString(), (item['unit']).toString()),
                                         ),
                                       ],
                                     ),
@@ -314,7 +315,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
+                                                const PosText(
                                                   'Qty Retur',
                                                   style: TextStyle(
                                                     fontSize: 12,
@@ -360,7 +361,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
+                                                const PosText(
                                                   'Kondisi',
                                                   style: TextStyle(
                                                     fontSize: 12,
@@ -378,23 +379,23 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                                   items: const [
                                                     DropdownMenuItem(
                                                       value: 'baik',
-                                                      child: Text('Baik'),
+                                                      child: PosText('Baik'),
                                                     ),
                                                     DropdownMenuItem(
                                                       value: 'rusak_ringan',
-                                                      child: Text(
+                                                      child: PosText(
                                                         'Rusak Ringan',
                                                       ),
                                                     ),
                                                     DropdownMenuItem(
                                                       value: 'rusak_berat',
-                                                      child: Text(
+                                                      child: PosText(
                                                         'Rusak Berat',
                                                       ),
                                                     ),
                                                     DropdownMenuItem(
                                                       value: 'tidak_layak',
-                                                      child: Text(
+                                                      child: PosText(
                                                         'Tidak Layak',
                                                       ),
                                                     ),
@@ -442,7 +443,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                                     );
                                                   },
                                           ),
-                                          const Text('Kembalikan ke Stok'),
+                                          const PosText('Kembalikan ke Stok'),
                                         ],
                                       ),
                                     ],
@@ -462,7 +463,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                const PosText(
                                   'Detail Retur',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
@@ -470,7 +471,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                const Text('Alasan Retur'),
+                                const PosText('Alasan Retur'),
                                 const SizedBox(height: 4),
                                 DropdownButtonFormField<String>(
                                   initialValue: _alasan,
@@ -485,37 +486,37 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                   items: const [
                                     DropdownMenuItem(
                                       value: 'cacat',
-                                      child: Text('Cacat Produksi'),
+                                      child: PosText('Cacat Produksi'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'tidak_sesuai',
-                                      child: Text('Tidak Sesuai Pesanan'),
+                                      child: PosText('Tidak Sesuai Pesanan'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'rusak_pengiriman',
-                                      child: Text('Rusak Pengiriman'),
+                                      child: PosText('Rusak Pengiriman'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'batal_beli',
-                                      child: Text('Batal Beli'),
+                                      child: PosText('Batal Beli'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'kualitas',
-                                      child: Text('Kualitas Buruk'),
+                                      child: PosText('Kualitas Buruk'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'lainnya',
-                                      child: Text('Lainnya'),
+                                      child: PosText('Lainnya'),
                                     ),
                                   ],
                                   onChanged: (val) =>
                                       setState(() => _alasan = val ?? 'cacat'),
                                 ),
                                 const SizedBox(height: 12),
-                                const Text(
+                                const PosText(
                                   'Metode untuk bagian yang sudah dibayar',
                                 ),
-                                const Text(
+                                const PosText(
                                   'Retur mengurangi piutang terlebih dahulu. Hanya selisih yang sudah dibayar dikembalikan. Tunai memakai akun kas 1001; transfer akun bank 1002 di Finance.',
                                   style: TextStyle(
                                     fontSize: 12,
@@ -542,18 +543,18 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                   items: [
                                     DropdownMenuItem(
                                       value: 'tunai',
-                                      child: Text('Tunai'),
+                                      child: PosText('Tunai'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'transfer',
-                                      child: Text('Transfer Bank'),
+                                      child: PosText('Transfer Bank'),
                                     ),
                                     if (state
                                             .searchResult?['sales_invoice_id'] !=
                                         null)
                                       const DropdownMenuItem(
                                         value: 'kredit_store',
-                                        child: Text('Saldo Kredit Pelanggan'),
+                                        child: PosText('Saldo Kredit Pelanggan'),
                                       ),
                                   ],
                                   onChanged: (val) => setState(
@@ -561,7 +562,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                const Text('Catatan Tambahan'),
+                                const PosText('Catatan Tambahan'),
                                 const SizedBox(height: 4),
                                 TextField(
                                   controller: _catatanController,

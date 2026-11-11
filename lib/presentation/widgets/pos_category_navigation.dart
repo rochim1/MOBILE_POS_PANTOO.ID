@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/_core.dart';
@@ -59,7 +60,7 @@ class _PosCategorySidebarState<T> extends State<PosCategorySidebar<T>> {
             child: !_showExpandedContent
                 ? Center(
                     child: IconButton(
-                      tooltip: 'Perluas ${widget.title.toLowerCase()}',
+                      tooltip: posLocale(context).posa67275acc90a((widget.title.toLowerCase()).toString()),
                       onPressed: _toggle,
                       icon: const Icon(Icons.chevron_right_rounded),
                     ),
@@ -70,14 +71,14 @@ class _PosCategorySidebarState<T> extends State<PosCategorySidebar<T>> {
                       children: [
                         Expanded(
                           child: Text(
-                            widget.title,
+                            widget.title.tr(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Ciutkan menjadi ikon',
+                          tooltip: ('Ciutkan menjadi ikon').tr(context),
                           onPressed: _toggle,
                           icon: const Icon(Icons.chevron_left_rounded),
                         ),
@@ -99,7 +100,7 @@ class _PosCategorySidebarState<T> extends State<PosCategorySidebar<T>> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 14, 12, 5),
                   child: Text(
-                    item.group!.toUpperCase(),
+                    item.group!.tr(context).toUpperCase(),
                     style: const TextStyle(
                       color: Colors.black54,
                       fontSize: 10,
@@ -111,7 +112,7 @@ class _PosCategorySidebarState<T> extends State<PosCategorySidebar<T>> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 child: Tooltip(
-                  message: !_showExpandedContent ? item.label : '',
+                  message: !_showExpandedContent ? (item.label).tr(context) : '',
                   child: Material(
                     color: widget.selected == item.value
                         ? AppColors.primary.withValues(alpha: .09)
@@ -138,7 +139,7 @@ class _PosCategorySidebarState<T> extends State<PosCategorySidebar<T>> {
                             if (_showExpandedContent) ...[
                               const SizedBox(width: 16),
                               Expanded(
-                                child: Text(
+                                child: PosText(
                                   item.label,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -165,7 +166,7 @@ class _PosCategorySidebarState<T> extends State<PosCategorySidebar<T>> {
           if (_showExpandedContent && widget.footer != null)
             Padding(
               padding: const EdgeInsets.all(18),
-              child: Text(
+              child: PosText(
                 widget.footer!,
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
@@ -213,7 +214,7 @@ class PosCategoryDropdown<T> extends StatelessWidget {
       isExpanded: true,
       isDense: compact,
       decoration: InputDecoration(
-        labelText: label,
+        labelText: (label).tr(context),
         prefixIcon: Icon(Icons.list_alt_outlined, size: compact ? 18 : 24),
         prefixIconConstraints: compact
             ? const BoxConstraints(minWidth: 38, minHeight: 40)
@@ -234,7 +235,7 @@ class PosCategoryDropdown<T> extends StatelessWidget {
                   Icon(item.icon, size: compact ? 17 : 18),
                   SizedBox(width: compact ? 8 : 10),
                   Expanded(
-                    child: Text(
+                    child: PosText(
                       item.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

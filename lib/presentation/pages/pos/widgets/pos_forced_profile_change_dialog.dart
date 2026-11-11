@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 /// Keeps form state alive until the dialog's exit transition has finished.
@@ -31,7 +32,7 @@ class _PosForcedProfileChangeDialogState
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Profil masih digunakan operasional'),
+    title: const PosText('Profil masih digunakan operasional'),
     content: SizedBox(
       width: 520,
       child: SingleChildScrollView(
@@ -39,18 +40,18 @@ class _PosForcedProfileChangeDialogState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.message),
+            PosText(widget.message),
             const SizedBox(height: 10),
-            const Text(
+            const PosText(
               'Pesanan lama tetap memakai snapshot-nya. Profil baru berlaku untuk transaksi berikutnya. Periksa kembali fitur meja, layanan, pelanggan, dan tipe pemenuhan.',
             ),
             const SizedBox(height: 14),
             TextFormField(
               maxLines: 3,
               onChanged: (value) => _reason = value,
-              decoration: const InputDecoration(
-                labelText: 'Alasan perubahan paksa',
-                hintText: 'Minimal 10 karakter',
+              decoration:  InputDecoration(
+                labelText: ('Alasan perubahan paksa').tr(context),
+                hintText: ('Minimal 10 karakter').tr(context),
               ),
             ),
             CheckboxListTile(
@@ -58,13 +59,13 @@ class _PosForcedProfileChangeDialogState
               value: _acknowledged,
               onChanged: (value) =>
                   setState(() => _acknowledged = value == true),
-              title: const Text(
+              title: const PosText(
                 'Saya memahami operasional aktif tidak ikut diubah.',
               ),
               controlAffinity: ListTileControlAffinity.leading,
             ),
             if (_validation != null)
-              Text(
+              PosText(
                 _validation!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
@@ -75,9 +76,9 @@ class _PosForcedProfileChangeDialogState
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Batal'),
+        child: const PosText('Batal'),
       ),
-      FilledButton(onPressed: _confirm, child: const Text('Paksa lanjutkan')),
+      FilledButton(onPressed: _confirm, child: const PosText('Paksa lanjutkan')),
     ],
   );
 }

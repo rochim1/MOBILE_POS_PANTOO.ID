@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'legal_links.dart';
@@ -37,16 +38,17 @@ class _GoogleRegistrationDetailsState extends State<GoogleRegistrationDetails> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
+            PosText(
               'Lengkapi akun Pantoo',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
+            const PosText(
               'Nama dan email menggunakan akun Google Anda. Tambahkan nomor telepon untuk melanjutkan.',
             ),
             const SizedBox(height: 20),
             TextFormField(
+errorBuilder: posValidationError,
               controller: _phone,
               keyboardType: TextInputType.phone,
               autofillHints: const [AutofillHints.telephoneNumberNational],
@@ -54,21 +56,21 @@ class _GoogleRegistrationDetailsState extends State<GoogleRegistrationDetails> {
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(15),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Nomor telepon',
-                hintText: '08xxxxxxxxxx',
+              decoration:  InputDecoration(
+                labelText: ('Nomor telepon').tr(context),
+                hintText: ('08xxxxxxxxxx').tr(context),
               ),
               validator: (value) =>
                   RegExp(r'^\d{8,15}$').hasMatch(value?.trim() ?? '')
                   ? null
-                  : 'Masukkan nomor telepon 8–15 digit.',
+                  : ('Masukkan nomor telepon 8–15 digit.').tr(context),
             ),
             const SizedBox(height: 12),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               value: _consent,
-              title: const Text(
+              title: const PosText(
                 'Saya menyetujui Kebijakan Privasi dan Ketentuan Layanan Pantoo.',
               ),
               onChanged: (value) => setState(() {
@@ -81,16 +83,16 @@ class _GoogleRegistrationDetailsState extends State<GoogleRegistrationDetails> {
                 TextButton(
                   onPressed: () =>
                       openPantooLegalUrl(context, pantooPrivacyUrl),
-                  child: const Text('Kebijakan Privasi'),
+                  child: const PosText('Kebijakan Privasi'),
                 ),
                 TextButton(
                   onPressed: () => openPantooLegalUrl(context, pantooTermsUrl),
-                  child: const Text('Ketentuan Layanan'),
+                  child: const PosText('Ketentuan Layanan'),
                 ),
               ],
             ),
             if (_showConsentError)
-              Text(
+              PosText(
                 'Persetujuan diperlukan untuk membuat akun.',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
@@ -103,7 +105,7 @@ class _GoogleRegistrationDetailsState extends State<GoogleRegistrationDetails> {
                   Navigator.pop(context, _phone.text.trim());
                 }
               },
-              child: const Text('Buat akun dan lanjutkan'),
+              child: const PosText('Buat akun dan lanjutkan'),
             ),
           ],
         ),

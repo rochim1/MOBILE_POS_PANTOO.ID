@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -93,7 +94,7 @@ class AppToast {
                   Icon(icon, color: color, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
+                    child: PosText(
                       message,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -106,7 +107,7 @@ class AppToast {
                   ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    tooltip: 'Tutup',
+                    tooltip: ('Tutup').tr(context),
                     onPressed: _dismiss,
                     icon: Icon(Icons.close, color: color, size: 18),
                   ),

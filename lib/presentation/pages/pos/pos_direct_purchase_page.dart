@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -240,12 +241,12 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
+          PosText(
             'Pembelian Langsung',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 4),
-          Text(
+          PosText(
             'Untuk pembelian kecil yang langsung dibayar. Pengiriman PO, Vendor Bill, dan utang tidak dibuat.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -253,7 +254,7 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Fitur belum diaktifkan oleh Finance tenant.'),
+                child: PosText('Fitur belum diaktifkan oleh Finance tenant.'),
               ),
             ),
           if (policy['enabled'] == true && widget.canCreate)
@@ -264,12 +265,12 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
                   children: [
                     TextField(
                       controller: _supplier,
-                      decoration: const InputDecoration(labelText: 'Supplier'),
+                      decoration:  InputDecoration(labelText: ('Supplier').tr(context)),
                     ),
                     TextField(
                       controller: _description,
-                      decoration: const InputDecoration(
-                        labelText: 'Deskripsi pembelian',
+                      decoration:  InputDecoration(
+                        labelText: ('Deskripsi pembelian').tr(context),
                       ),
                     ),
                     TextField(
@@ -278,13 +279,13 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText:
-                            'Nominal (maks. Rp${policy['amount_limit'] ?? 0})',
+                            posLocale(context).pos75918812dfbd((policy['amount_limit'] ?? 0).toString()),
                       ),
                     ),
                     DropdownButtonFormField<String>(
                       initialValue: _bankId.isEmpty ? null : _bankId,
-                      decoration: const InputDecoration(
-                        labelText: 'Sumber dana',
+                      decoration:  InputDecoration(
+                        labelText: ('Sumber dana').tr(context),
                       ),
                       items: banks
                           .map(
@@ -300,8 +301,8 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
                     ),
                     DropdownButtonFormField<String>(
                       initialValue: _expenseCode.isEmpty ? null : _expenseCode,
-                      decoration: const InputDecoration(
-                        labelText: 'Akun beban',
+                      decoration:  InputDecoration(
+                        labelText: ('Akun beban').tr(context),
                       ),
                       items: accounts
                           .map(
@@ -316,8 +317,8 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
                     if (categories.isNotEmpty)
                       DropdownButtonFormField<String>(
                         initialValue: categoryValue,
-                        decoration: const InputDecoration(
-                          labelText: 'Kategori',
+                        decoration:  InputDecoration(
+                          labelText: ('Kategori').tr(context),
                         ),
                         items: categories
                             .map(
@@ -332,22 +333,22 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
                       leading: const Icon(Icons.receipt_long_outlined),
                       title: Text(
                         _receipt.text.isEmpty
-                            ? 'Tambahkan foto nota'
-                            : 'Bukti nota sudah diunggah',
+                            ? ('Tambahkan foto nota').tr(context)
+                            : ('Bukti nota sudah diunggah').tr(context),
                       ),
-                      subtitle: Text('Status sinkronisasi: $_syncStatus'),
+                      subtitle: Text(posLocale(context).pos09cf25171d0b((_syncStatus).toString())),
                       trailing: OutlinedButton(
                         onPressed: _saving || _syncStatus == 'uploading'
                             ? null
                             : _pickAndUploadReceipt,
                         child: Text(
-                          _receipt.text.isEmpty ? 'Pilih foto' : 'Ganti',
+                          _receipt.text.isEmpty ? ('Pilih foto').tr(context) : ('Ganti').tr(context),
                         ),
                       ),
                     ),
                     TextField(
                       controller: _note,
-                      decoration: const InputDecoration(labelText: 'Catatan'),
+                      decoration:  InputDecoration(labelText: ('Catatan').tr(context)),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -364,14 +365,14 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
                                       'Draft disimpan lokal; belum mengubah stok/kas.',
                                     );
                                   },
-                            child: const Text('Simpan draft'),
+                            child: const PosText('Simpan draft'),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: FilledButton(
                             onPressed: _saving ? null : _submit,
-                            child: Text(_saving ? 'Mengirim…' : 'Ajukan'),
+                            child: Text(_saving ? ('Mengirim…').tr(context) : ('Ajukan').tr(context)),
                           ),
                         ),
                       ],
@@ -381,18 +382,18 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
               ),
             ),
           const SizedBox(height: 12),
-          Text('Riwayat', style: Theme.of(context).textTheme.titleMedium),
+          PosText('Riwayat', style: Theme.of(context).textTheme.titleMedium),
           if (rows.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
-              child: Text('Belum ada Pembelian Langsung.'),
+              child: PosText('Belum ada Pembelian Langsung.'),
             ),
           ...rows.map(
             (row) => ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text('${row['number']} · ${row['supplier_name']}'),
               subtitle: Text('${row['date']} · ${row['status']}'),
-              trailing: Text('Rp${row['total_amount'] ?? 0}'),
+              trailing: Text(posLocale(context).pos0435fa2b2918((row['total_amount'] ?? 0).toString())),
             ),
           ),
         ],

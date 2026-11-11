@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'auth_state.dart';
 import '../../../domain/repositories/auth_repository.dart';
@@ -6,8 +7,9 @@ import '../../../core/error/failures.dart';
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository authRepository;
   bool _googleInFlight = false;
+  final Future<void> Function()? beforeLogout;
 
-  AuthCubit({required this.authRepository})
+  AuthCubit({required this.authRepository, this.beforeLogout})
     : super(const AuthState.checkingSession());
 
   Future<void> checkSession() async {
@@ -81,14 +83,26 @@ class AuthCubit extends Cubit<AuthState> {
     // Keep the current intro/register route mounted for the consent sheet.
     // The Google button owns progress until the server accepts this identity.
     _googleInFlight = true;
-    final result = await authRepository
-        .loginWithGoogle(token, phone: phone, consent: consent)
-        .whenComplete(() => _googleInFlight = false);
-    if (isClosed) return null;
-    return result.fold((failure) => failure, (name) {
-      emit(AuthState.authenticated(username: name));
-      return null;
-    });
+    try {
+      final result = await authRepository
+          .loginWithGoogle(token, phone: phone, consent: consent)
+          .timeout(const Duration(seconds: 30));
+      if (isClosed) return null;
+      return result.fold((failure) => failure, (name) {
+        emit(AuthState.authenticated(username: name));
+        return null;
+      });
+    } on TimeoutException {
+      return const ServerFailure(
+        'Login Google terlalu lama. Periksa koneksi lalu coba lagi.',
+      );
+    } catch (_) {
+      return const ServerFailure(
+        'Login Google belum berhasil. Silakan coba lagi.',
+      );
+    } finally {
+      _googleInFlight = false;
+    }
   }
 
   void clearCaptcha() {
@@ -99,6 +113,9 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> logout() async {
     try {
+      try {
+        await beforeLogout?.call();
+      } catch (_) {}
       await authRepository.logout();
     } finally {
       if (!isClosed) emit(const AuthState.unauthenticated());

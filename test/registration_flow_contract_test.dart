@@ -27,7 +27,11 @@ void main() {
       contains('if (instansiId == null || instansiId.isEmpty)'),
     );
     expect(onboarding, contains('const BusinessSetupPage()'));
-    expect(app, contains('if (needsWorkspace)'));
+    expect(app, contains('finishPosLoginNavigation('));
+    expect(app, contains('needsWorkspace: needsWorkspace'));
+    final navigation = File('lib/core/auth/pos_login_navigation.dart').readAsStringSync();
+    expect(navigation, contains('if (!needsWorkspace && enabled)'));
+    expect(navigation, contains('resetLock();'));
     expect(app, contains('context.read<AppLockCubit>().reset()'));
   });
 

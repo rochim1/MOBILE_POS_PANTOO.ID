@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 class FeatureItem extends StatelessWidget {
@@ -33,7 +34,7 @@ class FeatureItem extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              PosText(
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -42,7 +43,7 @@ class FeatureItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
+              PosText(
                 subtitle,
                 style: const TextStyle(fontSize: 14, color: Colors.black54),
               ),

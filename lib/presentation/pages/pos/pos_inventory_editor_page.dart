@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -605,13 +606,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             child: Row(
               children: [
                 const Expanded(
-                  child: Text(
+                  child: PosText(
                     'Pilih barang',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Tutup',
+                  tooltip: ('Tutup').tr(pickerContext),
                   onPressed: () => Navigator.pop(pickerContext),
                   icon: const Icon(Icons.close),
                 ),
@@ -621,9 +622,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         TextField(
           controller: search,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Cari barang',
-            hintText: 'Nama atau kode barang',
+          decoration:  InputDecoration(
+            labelText: ('Cari barang').tr(pickerContext),
+            hintText: ('Nama atau kode barang').tr(pickerContext),
             prefixIcon: Icon(Icons.search),
             floatingLabelBehavior: FloatingLabelBehavior.always,
           ),
@@ -690,7 +691,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       enabled: !_selected.containsKey(id),
                       title: Text(item['nama_inventaris']?.toString() ?? '-'),
                       subtitle: Text(
-                        '${item['kode_inventaris'] ?? '-'} • Stok ${item['qty'] ?? item['stok'] ?? '-'} ${item['unit'] ?? ''}',
+                        posLocale(pickerContext).posd3e4f6b9f3d9((item['kode_inventaris'] ?? '-').toString(), (item['qty'] ?? item['stok'] ?? '-').toString(), (item['unit'] ?? '').toString()),
                       ),
                       onTap: () => Navigator.pop(pickerContext, item),
                     );
@@ -723,7 +724,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 width: 520,
                 height: 540,
                 contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                title: const Text('Pilih barang'),
+                title: const PosText('Pilih barang'),
                 content: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: pickerContent(pickerContext, update, mobile: false),
@@ -731,7 +732,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Tutup'),
+                    child: const PosText('Tutup'),
                   ),
                 ],
               ),
@@ -839,7 +840,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       balance = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Pilih sumber stok'),
+          title: const PosText('Pilih sumber stok'),
           content: SizedBox(
             width: 520,
             height: 360,
@@ -851,7 +852,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 return ListTile(
                   title: Text(_balanceLocationLabel(candidate)),
                   subtitle: Text(
-                    'Tersedia ${_numberText(candidate['qty'])} ${item['unit'] ?? ''}',
+                    posLocale(dialogContext).pos355bebfd5205((_numberText(candidate['qty'])).toString(), (item['unit'] ?? '').toString()),
                   ),
                   onTap: () => Navigator.pop(dialogContext, candidate),
                 );
@@ -861,7 +862,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
           ],
         ),
@@ -898,7 +899,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             .map((value) => value?.toString().trim() ?? '')
             .where((value) => value.isNotEmpty)
             .toList();
-    return parts.isEmpty ? 'Lokasi stok' : parts.join(' / ');
+    return parts.isEmpty ? 'Lokasi stok'.tr(context) : parts.join(' / ');
   }
 
   Future<void> _scanOpnameBarcode() async {
@@ -936,12 +937,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           child: ListView(
             shrinkWrap: true,
             children: [
-              const ListTile(title: Text('Pilih rak yang sedang dihitung')),
+              const ListTile(title: PosText('Pilih rak yang sedang dihitung')),
               for (final row in candidates)
                 ListTile(
-                  title: Text(opnameLocationLabel(row['lokasi'] as Map?)),
+                  title: PosText(opnameLocationLabel(row['lokasi'] as Map?)),
                   subtitle: Text(
-                    'Sistem ${_numberText(row['qty_system'])} ${row['unit'] ?? ''}',
+                    posLocale(sheetContext).pos6aba9ab9eb0a((_numberText(row['qty_system'])).toString(), (row['unit'] ?? '').toString()),
                   ),
                   onTap: () => Navigator.pop(sheetContext, row),
                 ),
@@ -1026,13 +1027,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    item['nama_inventaris']?.toString() ?? 'Hitung per batch',
+                    item['nama_inventaris']?.toString() ?? ('Hitung per batch').tr(sheetContext),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  Text(opnameLocationLabel(item['lokasi'] as Map?)),
+                  PosText(opnameLocationLabel(item['lokasi'] as Map?)),
                   const SizedBox(height: 12),
                   Flexible(
                     child: Form(
@@ -1057,7 +1058,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         Navigator.pop(sheetContext, true);
                       }
                     },
-                    child: const Text('Terapkan'),
+                    child: const PosText('Terapkan'),
                   ),
                 ],
               ),
@@ -1075,24 +1076,25 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     final value = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(item['nama_inventaris']?.toString() ?? 'Jumlah fisik'),
+        title: Text(item['nama_inventaris']?.toString() ?? ('Jumlah fisik').tr(dialogContext)),
         content: Form(
           key: formKey,
           child: TextFormField(
+errorBuilder: posValidationError,
             controller: controller,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'Jumlah fisik',
+              labelText: ('Jumlah fisik').tr(dialogContext),
               suffixText: item['unit']?.toString(),
               helperText:
-                  'Stok sistem: ${_numberText(item['qty_system'] ?? item['qty'])}',
+                  posLocale(dialogContext).posee3f877ea456((_numberText(item['qty_system'] ?? item['qty'])).toString()),
               border: const OutlineInputBorder(),
             ),
             validator: (raw) {
               final qty = double.tryParse((raw ?? '').replaceAll(',', '.'));
               return qty == null || !qty.isFinite || qty < 0
-                  ? 'Isi jumlah fisik yang valid'
+                  ? ('Isi jumlah fisik yang valid').tr(dialogContext)
                   : null;
             },
             onFieldSubmitted: (_) {
@@ -1108,7 +1110,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () {
@@ -1119,7 +1121,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 );
               }
             },
-            child: const Text('Terapkan'),
+            child: const PosText('Terapkan'),
           ),
         ],
       ),
@@ -1711,10 +1713,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
 
   Widget _buildPurchaseTabs() => PosFullWidthTabs(
     height: 58,
-    tabs: const [
-      PosFullWidthTab(icon: Icons.description_outlined, label: 'Info'),
-      PosFullWidthTab(icon: Icons.inventory_2_outlined, label: 'Barang'),
-      PosFullWidthTab(icon: Icons.fact_check_outlined, label: 'Tinjau'),
+    tabs:  [
+      PosFullWidthTab(icon: Icons.description_outlined, label: ('Info').tr(context)),
+      PosFullWidthTab(icon: Icons.inventory_2_outlined, label: ('Barang').tr(context)),
+      PosFullWidthTab(icon: Icons.fact_check_outlined, label: ('Tinjau').tr(context)),
     ],
     selectedIndex: _purchaseStep,
     onSelected: _selectPurchaseStep,
@@ -1731,18 +1733,18 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const PosText(
             'Ringkasan pembelian',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          _PurchaseSummaryRowText(label: 'Supplier', value: _supplierName),
+          _PurchaseSummaryRowText(label: ('Supplier').tr(context), value: _supplierName),
           _PurchaseSummaryRowText(
-            label: 'Tanggal',
+            label: ('Tanggal').tr(context),
             value: _dateValue(_purchaseDate),
           ),
           _PurchaseSummaryRowText(
-            label: 'Kirim ke',
+            label: ('Kirim ke').tr(context),
             value: _deliveryAddressMode == 'warehouse'
                 ? (_warehouse(
                         _deliveryWarehouseId,
@@ -1750,10 +1752,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       'Gudang')
                 : 'Alamat manual',
           ),
-          _PurchaseSummaryRowText(label: 'Alamat', value: _deliveryAddress),
+          _PurchaseSummaryRowText(label: ('Alamat').tr(context), value: _deliveryAddress),
           if (_deliveryDate != null)
             _PurchaseSummaryRowText(
-              label: 'Pengiriman',
+              label: ('Pengiriman').tr(context),
               value: _dateValue(_deliveryDate!),
             ),
           const Divider(height: 20),
@@ -1767,13 +1769,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${item['nama_inventaris'] ?? '-'}\n$quantity $unit × Rp ${_PurchaseSummaryRow._currency((item['input_price'] as num?)?.toDouble() ?? 0)}',
+                      posLocale(context).posf7f7c59d6a0a((item['nama_inventaris'] ?? '-').toString(), (quantity).toString(), (unit).toString(), (_PurchaseSummaryRow._currency((item['input_price'] as num?)?.toDouble() ?? 0)).toString()),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Rp ${_PurchaseSummaryRow._currency(_purchaseLineTotal(item))}',
+                    posLocale(context).pos70272f418def((_PurchaseSummaryRow._currency(_purchaseLineTotal(item))).toString()),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -1800,7 +1802,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             Expanded(
               child: _DeliveryAddressModeOption(
                 icon: Icons.warehouse_outlined,
-                label: 'Pilih gudang',
+                label: ('Pilih gudang').tr(context),
                 selected: _deliveryAddressMode == 'warehouse',
                 onTap: () => setState(() {
                   _deliveryAddressMode = 'warehouse';
@@ -1818,7 +1820,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             Expanded(
               child: _DeliveryAddressModeOption(
                 icon: Icons.edit_outlined,
-                label: 'Tulis manual',
+                label: ('Tulis manual').tr(context),
                 selected: _deliveryAddressMode == 'manual',
                 onTap: () => setState(() {
                   _deliveryAddressMode = 'manual';
@@ -1834,8 +1836,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             ? null
             : _deliveryWarehouseId,
         isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Lokasi stok penerimaan PO *',
+        decoration:  InputDecoration(
+          labelText: ('Lokasi stok penerimaan PO *').tr(context),
           border: OutlineInputBorder(),
         ),
         items: _purchaseDeliveryLocations
@@ -1874,7 +1876,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       if (_purchaseDeliveryLocations.isEmpty)
         const Padding(
           padding: EdgeInsets.only(top: 6),
-          child: Text(
+          child: PosText(
             'Belum ada lokasi penerimaan aktif. Siapkan gudang sebelum membuat PO.',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
@@ -1890,10 +1892,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           maxLines: 2,
           decoration: InputDecoration(
             labelText: _deliveryAddressMode == 'warehouse'
-                ? 'Alamat gudang *'
-                : 'Alamat pengiriman *',
+                ? ('Alamat gudang *').tr(context)
+                : ('Alamat pengiriman *').tr(context),
             helperText: _deliveryAddressMode == 'warehouse'
-                ? 'Alamat gudang bisa disesuaikan untuk pengiriman ini.'
+                ? ('Alamat gudang bisa disesuaikan untuk pengiriman ini.').tr(context)
                 : null,
             border: const OutlineInputBorder(),
           ),
@@ -1961,12 +1963,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 children: [
                   const Icon(Icons.inventory_2_outlined, color: Colors.black45),
                   const SizedBox(height: 8),
-                  const Text('Belum ada barang di Purchase Order'),
+                  const PosText('Belum ada barang di Purchase Order'),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: _chooseItem,
                     icon: const Icon(Icons.add),
-                    label: const Text('Tambah barang'),
+                    label: const PosText('Tambah barang'),
                   ),
                 ],
               ),
@@ -2005,7 +2007,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             ),
                           ),
                           IconButton(
-                            tooltip: 'Hapus barang',
+                            tooltip: ('Hapus barang').tr(context),
                             onPressed: () =>
                                 setState(() => _selected.remove(entry.key)),
                             icon: const Icon(Icons.close),
@@ -2025,7 +2027,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                     decimal: true,
                                   ),
                               decoration: fieldDecoration.copyWith(
-                                labelText: 'Jumlah',
+                                labelText: ('Jumlah').tr(context),
                               ),
                               onChanged: (value) => setState(
                                 () => item['input_qty'] =
@@ -2044,7 +2046,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                   item['unit']?.toString() ?? units.first,
                               isExpanded: true,
                               decoration: fieldDecoration.copyWith(
-                                labelText: 'Satuan',
+                                labelText: ('Satuan').tr(context),
                               ),
                               items: units
                                   .map(
@@ -2077,7 +2079,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                           decimal: true,
                         ),
                         decoration: fieldDecoration.copyWith(
-                          labelText: 'Harga beli per satuan',
+                          labelText: ('Harga beli per satuan').tr(context),
                         ),
                         onChanged: (value) => setState(
                           () => item['input_price'] = parseRupiahAmount(value),
@@ -2088,7 +2090,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         child: Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            'Subtotal  Rp ${_PurchaseSummaryRow._currency(_purchaseLineTotal(item))}',
+                            posLocale(context).pos7eef271ab44c((_PurchaseSummaryRow._currency(_purchaseLineTotal(item))).toString()),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -2096,7 +2098,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       ExpansionTile(
                         tilePadding: EdgeInsets.zero,
                         childrenPadding: const EdgeInsets.only(bottom: 12),
-                        title: const Text(
+                        title: const PosText(
                           'Diskon dan catatan (opsional)',
                           style: TextStyle(fontSize: 13),
                         ),
@@ -2110,16 +2112,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                   ),
                                   initialValue: discountType,
                                   decoration: fieldDecoration.copyWith(
-                                    labelText: 'Jenis diskon',
+                                    labelText: ('Jenis diskon').tr(context),
                                   ),
                                   items: const [
                                     DropdownMenuItem(
                                       value: 'persen',
-                                      child: Text('Persen'),
+                                      child: PosText('Persen'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'fixed',
-                                      child: Text('Nominal'),
+                                      child: PosText('Nominal'),
                                     ),
                                   ],
                                   onChanged: (value) => setState(
@@ -2154,8 +2156,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                       ),
                                   decoration: fieldDecoration.copyWith(
                                     labelText: discountType == 'fixed'
-                                        ? 'Nominal'
-                                        : 'Diskon (%)',
+                                        ? ('Nominal').tr(context)
+                                        : ('Diskon (%)').tr(context),
                                   ),
                                   onChanged: (value) => setState(
                                     () => item['diskon_item'] =
@@ -2176,7 +2178,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             initialValue:
                                 item['catatan_item']?.toString() ?? '',
                             decoration: fieldDecoration.copyWith(
-                              labelText: 'Catatan barang (opsional)',
+                              labelText: ('Catatan barang (opsional)').tr(context),
                             ),
                             onChanged: (value) => item['catatan_item'] = value,
                           ),
@@ -2212,7 +2214,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           if (_selected.isNotEmpty && MediaQuery.sizeOf(context).width < 800)
             const Padding(
               padding: EdgeInsets.fromLTRB(12, 10, 12, 0),
-              child: Text(
+              child: PosText(
                 'Geser tabel ke samping untuk mengisi kolom lainnya.',
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
@@ -2233,20 +2235,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               ),
               showBottomBorder: true,
               columns: const [
-                DataColumn(label: SizedBox(width: 170, child: Text('Barang'))),
+                DataColumn(label: SizedBox(width: 170, child: PosText('Barang'))),
                 DataColumn(
-                  label: SizedBox(width: 190, child: Text('Sumber stok')),
+                  label: SizedBox(width: 190, child: PosText('Sumber stok')),
                 ),
-                DataColumn(label: SizedBox(width: 90, child: Text('Tersedia'))),
-                DataColumn(label: SizedBox(width: 80, child: Text('Jumlah'))),
-                DataColumn(label: SizedBox(width: 150, child: Text('Batch'))),
+                DataColumn(label: SizedBox(width: 90, child: PosText('Tersedia'))),
+                DataColumn(label: SizedBox(width: 80, child: PosText('Jumlah'))),
+                DataColumn(label: SizedBox(width: 150, child: PosText('Batch'))),
                 DataColumn(
-                  label: SizedBox(width: 155, child: Text('Tindakan')),
+                  label: SizedBox(width: 155, child: PosText('Tindakan')),
                 ),
                 DataColumn(
-                  label: SizedBox(width: 90, child: Text('Didaur ulang')),
+                  label: SizedBox(width: 90, child: PosText('Didaur ulang')),
                 ),
-                DataColumn(label: SizedBox(width: 160, child: Text('Catatan'))),
+                DataColumn(label: SizedBox(width: 160, child: PosText('Catatan'))),
                 DataColumn(label: SizedBox(width: 48)),
               ],
               rows: _selected.entries.map((entry) {
@@ -2301,7 +2303,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         width: 190,
                         child: Text(
                           source.isEmpty
-                              ? 'Lokasi stok tidak tercatat'
+                              ? ('Lokasi stok tidak tercatat').tr(context)
                               : source,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
@@ -2342,7 +2344,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         child: batches.isEmpty
                             ? Text(
                                 batchNumber.isEmpty
-                                    ? 'Tanpa batch'
+                                    ? ('Tanpa batch').tr(context)
                                     : batchNumber,
                               )
                             : DropdownButtonFormField<String>(
@@ -2350,7 +2352,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                 initialValue: batchValue,
                                 isExpanded: true,
                                 decoration: fieldDecoration.copyWith(
-                                  hintText: 'Pilih batch',
+                                  hintText: ('Pilih batch').tr(context),
                                 ),
                                 items: batches
                                     .map(
@@ -2381,11 +2383,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                           items: const [
                             DropdownMenuItem(
                               value: 'kurangi_stok',
-                              child: Text('Buang stok'),
+                              child: PosText('Buang stok'),
                             ),
                             DropdownMenuItem(
                               value: 'recycle',
-                              child: Text('Daur ulang'),
+                              child: PosText('Daur ulang'),
                             ),
                           ],
                           onChanged: (value) => setState(() {
@@ -2426,7 +2428,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                           key: ValueKey('scrap-note-${entry.key}'),
                           initialValue: item['catatan_item']?.toString() ?? '',
                           decoration: fieldDecoration.copyWith(
-                            hintText: 'Opsional',
+                            hintText: ('Opsional').tr(context),
                           ),
                           onChanged: (value) => item['catatan_item'] = value,
                         ),
@@ -2434,7 +2436,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     ),
                     DataCell(
                       IconButton(
-                        tooltip: 'Hapus barang',
+                        tooltip: ('Hapus barang').tr(context),
                         onPressed: () =>
                             setState(() => _selected.remove(entry.key)),
                         icon: const Icon(Icons.close),
@@ -2458,13 +2460,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     color: Color(0xFF7B8B99),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  const PosText(
                     'Belum ada barang terbuang',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  const PosText(
                     'Pilih barang dari stok lokasi untuk mulai mengisi tabel.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: Colors.black54),
@@ -2473,7 +2475,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   OutlinedButton.icon(
                     onPressed: _catalog.isEmpty ? null : _chooseItem,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Tambah barang'),
+                    label: const PosText('Tambah barang'),
                   ),
                 ],
               ),
@@ -2500,13 +2502,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     },
     child: InputDecorator(
       decoration: InputDecoration(
-        labelText: label,
+        labelText: (label).tr(context),
         prefixIcon: const Icon(Icons.calendar_today_outlined),
         border: const OutlineInputBorder(),
       ),
       child: Text(
         value == null
-            ? (optional ? 'Belum ditentukan' : '-')
+            ? (optional ? ('Belum ditentukan').tr(context) : '-')
             : _dateValue(value),
       ),
     ),
@@ -2555,7 +2557,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              PosText(
                 'Informasi pembelian',
                 style: Theme.of(
                   context,
@@ -2569,21 +2571,21 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   onTap: _chooseSupplier,
                   initialValue: _supplierName,
                   decoration: InputDecoration(
-                    labelText: 'Supplier *',
-                    hintText: 'Cari atau tambah supplier',
+                    labelText: ('Supplier *').tr(context),
+                    hintText: ('Cari atau tambah supplier').tr(context),
                     prefixIcon: const Icon(Icons.local_shipping_outlined),
                     suffixIcon: const Icon(Icons.search),
                     border: const OutlineInputBorder(),
                   ),
                 ),
                 _purchaseDateField(
-                  label: 'Tanggal pembelian *',
+                  label: ('Tanggal pembelian *').tr(context),
                   value: _purchaseDate,
                   onChanged: (value) => setState(() => _purchaseDate = value),
                 ),
                 if (!isMobile)
                   _purchaseDateField(
-                    label: 'Tanggal pengiriman',
+                    label: ('Tanggal pengiriman').tr(context),
                     value: _deliveryDate,
                     optional: true,
                     onChanged: (value) => setState(() => _deliveryDate = value),
@@ -2592,7 +2594,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               if (isMobile) ...[
                 const SizedBox(height: 12),
                 _purchaseDateField(
-                  label: 'Tanggal pengiriman',
+                  label: ('Tanggal pengiriman').tr(context),
                   value: _deliveryDate,
                   optional: true,
                   onChanged: (value) => setState(() => _deliveryDate = value),
@@ -2601,7 +2603,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               const SizedBox(height: 12),
               responsive([
                 _purchaseDateField(
-                  label: 'Estimasi tanggal tiba',
+                  label: ('Estimasi tanggal tiba').tr(context),
                   value: _estimatedArrivalDate,
                   optional: true,
                   onChanged: (value) =>
@@ -2609,16 +2611,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 ),
                 TextFormField(
                   initialValue: _supplierContact,
-                  decoration: const InputDecoration(
-                    labelText: 'Kontak tujuan supplier',
-                    hintText: 'Email atau nomor WhatsApp',
+                  decoration:  InputDecoration(
+                    labelText: ('Kontak tujuan supplier').tr(context),
+                    hintText: ('Email atau nomor WhatsApp').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   onChanged: (value) => _supplierContact = value,
                 ),
               ]),
               const SizedBox(height: 12),
-              const Text(
+              const PosText(
                 'Alamat pengiriman',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
@@ -2634,13 +2636,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 ),
                 label: Text(
                   _showPurchaseAdvanced
-                      ? 'Sembunyikan opsi lanjutan'
-                      : 'Opsi lain: pembayaran, diskon & biaya',
+                      ? ('Sembunyikan opsi lanjutan').tr(context)
+                      : ('Opsi lain: pembayaran, diskon & biaya').tr(context),
                 ),
               ),
               if (_showPurchaseAdvanced) ...[
                 const SizedBox(height: 12),
-                Text(
+                PosText(
                   'Kesepakatan pembayaran dan prioritas',
                   style: Theme.of(
                     context,
@@ -2650,22 +2652,22 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 responsive([
                   DropdownButtonFormField<String>(
                     initialValue: _paymentMethod,
-                    decoration: const InputDecoration(
-                      labelText: 'Metode pembayaran',
+                    decoration:  InputDecoration(
+                      labelText: ('Metode pembayaran').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: 'bank_transfer',
-                        child: Text('Transfer bank'),
+                        child: PosText('Transfer bank'),
                       ),
-                      DropdownMenuItem(value: 'cash', child: Text('Tunai')),
+                      DropdownMenuItem(value: 'cash', child: PosText('Tunai')),
                       DropdownMenuItem(
                         value: 'virtual_account',
-                        child: Text('Virtual account'),
+                        child: PosText('Virtual account'),
                       ),
-                      DropdownMenuItem(value: 'giro', child: Text('Giro')),
-                      DropdownMenuItem(value: 'other', child: Text('Lainnya')),
+                      DropdownMenuItem(value: 'giro', child: PosText('Giro')),
+                      DropdownMenuItem(value: 'other', child: PosText('Lainnya')),
                     ],
                     onChanged: (value) => setState(
                       () => _paymentMethod = value ?? 'bank_transfer',
@@ -2673,20 +2675,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: _paymentTerms,
-                    decoration: const InputDecoration(
-                      labelText: 'Termin pembayaran',
+                    decoration:  InputDecoration(
+                      labelText: ('Termin pembayaran').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: 'tunai',
-                        child: Text('Jatuh tempo segera'),
+                        child: PosText('Jatuh tempo segera'),
                       ),
                       DropdownMenuItem(
                         value: 'saat_penerimaan',
-                        child: Text('Saat diterima'),
+                        child: PosText('Saat diterima'),
                       ),
-                      DropdownMenuItem(value: 'kredit', child: Text('Kredit')),
+                      DropdownMenuItem(value: 'kredit', child: PosText('Kredit')),
                     ],
                     onChanged: (value) => setState(() {
                       _paymentTerms = value ?? 'tunai';
@@ -2698,16 +2700,16 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: _priority,
-                    decoration: const InputDecoration(
-                      labelText: 'Prioritas',
+                    decoration:  InputDecoration(
+                      labelText: ('Prioritas').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'normal', child: Text('Normal')),
-                      DropdownMenuItem(value: 'low', child: Text('Segera')),
+                      DropdownMenuItem(value: 'normal', child: PosText('Normal')),
+                      DropdownMenuItem(value: 'low', child: PosText('Segera')),
                       DropdownMenuItem(
                         value: 'urgent',
-                        child: Text('Mendesak'),
+                        child: PosText('Mendesak'),
                       ),
                     ],
                     onChanged: (value) =>
@@ -2716,14 +2718,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 ]),
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
-                  child: Text(
+                  child: PosText(
                     'Informasi ini menjadi acuan Finance. Mengisi PO tidak membentuk hutang atau mencatat pembayaran.',
                     style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ),
                 if (_paymentTerms == 'saat_penerimaan') ...[
                   const SizedBox(height: 8),
-                  const Text(
+                  const PosText(
                     'Jatuh tempo mengikuti tanggal penerimaan. Penerimaan hanya mencatat stok dan GRNI; hutang terbentuk setelah invoice diposting Finance.',
                     style: TextStyle(color: Colors.black54, fontSize: 12),
                   ),
@@ -2733,18 +2735,18 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   responsive([
                     DropdownButtonFormField<String>(
                       initialValue: _creditType,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipe kredit',
+                      decoration:  InputDecoration(
+                        labelText: ('Tipe kredit').tr(context),
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'net30', child: Text('Net 30')),
-                        DropdownMenuItem(value: 'net45', child: Text('Net 45')),
-                        DropdownMenuItem(value: 'net60', child: Text('Net 60')),
-                        DropdownMenuItem(value: 'net90', child: Text('Net 90')),
+                        DropdownMenuItem(value: 'net30', child: PosText('Net 30')),
+                        DropdownMenuItem(value: 'net45', child: PosText('Net 45')),
+                        DropdownMenuItem(value: 'net60', child: PosText('Net 60')),
+                        DropdownMenuItem(value: 'net90', child: PosText('Net 90')),
                         DropdownMenuItem(
                           value: 'termin',
-                          child: Text('Termin'),
+                          child: PosText('Termin'),
                         ),
                       ],
                       onChanged: (value) => setState(() {
@@ -2772,8 +2774,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: _creditType == 'termin'
-                            ? 'Jumlah termin (2–12)'
-                            : 'Jatuh tempo (hari)',
+                            ? ('Jumlah termin (2–12)').tr(context)
+                            : ('Jatuh tempo (hari)').tr(context),
                         border: const OutlineInputBorder(),
                       ),
                       onChanged: (value) {
@@ -2788,7 +2790,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       },
                     ),
                     _purchaseDateField(
-                      label: 'Tanggal jatuh tempo',
+                      label: ('Tanggal jatuh tempo').tr(context),
                       value: _dueDate,
                       optional: true,
                       onChanged: (value) => setState(() => _dueDate = value),
@@ -2799,26 +2801,26 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 responsive([
                   DropdownButtonFormField<String>(
                     initialValue: _dueDateBasis,
-                    decoration: const InputDecoration(
-                      labelText: 'Dasar jatuh tempo',
+                    decoration:  InputDecoration(
+                      labelText: ('Dasar jatuh tempo').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: 'invoice_date',
-                        child: Text('Tanggal invoice supplier'),
+                        child: PosText('Tanggal invoice supplier'),
                       ),
                       DropdownMenuItem(
                         value: 'receiving_date',
-                        child: Text('Tanggal penerimaan'),
+                        child: PosText('Tanggal penerimaan'),
                       ),
                       DropdownMenuItem(
                         value: 'po_date',
-                        child: Text('Tanggal PO'),
+                        child: PosText('Tanggal PO'),
                       ),
                       DropdownMenuItem(
                         value: 'fixed_date',
-                        child: Text('Tanggal tetap'),
+                        child: PosText('Tanggal tetap'),
                       ),
                     ],
                     onChanged: _paymentTerms == 'kredit'
@@ -2834,9 +2836,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Uang muka yang disepakati',
-                      helperText: 'Rencana saja; pembayaran dilakukan Finance',
+                    decoration:  InputDecoration(
+                      labelText: ('Uang muka yang disepakati').tr(context),
+                      helperText: ('Rencana saja; pembayaran dilakukan Finance').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (value) =>
@@ -2845,15 +2847,15 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   TextFormField(
                     initialValue: _paymentTermNote,
                     maxLength: 500,
-                    decoration: const InputDecoration(
-                      labelText: 'Catatan termin',
+                    decoration:  InputDecoration(
+                      labelText: ('Catatan termin').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (value) => _paymentTermNote = value,
                   ),
                 ]),
                 const SizedBox(height: 18),
-                Text(
+                PosText(
                   'Diskon, pajak, dan biaya',
                   style: Theme.of(
                     context,
@@ -2863,13 +2865,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 responsive([
                   DropdownButtonFormField<String>(
                     initialValue: _discountType,
-                    decoration: const InputDecoration(
-                      labelText: 'Jenis diskon',
+                    decoration:  InputDecoration(
+                      labelText: ('Jenis diskon').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'persen', child: Text('Persen')),
-                      DropdownMenuItem(value: 'fixed', child: Text('Nominal')),
+                      DropdownMenuItem(value: 'persen', child: PosText('Persen')),
+                      DropdownMenuItem(value: 'fixed', child: PosText('Nominal')),
                     ],
                     onChanged: (value) =>
                         setState(() => _discountType = value ?? 'persen'),
@@ -2887,8 +2889,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     ),
                     decoration: InputDecoration(
                       labelText: _discountType == 'fixed'
-                          ? 'Diskon nominal'
-                          : 'Diskon (%)',
+                          ? ('Diskon nominal').tr(context)
+                          : ('Diskon (%)').tr(context),
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: (value) => setState(() {
@@ -2908,8 +2910,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText: 'PPN (%)',
-                      helperText: _supplierIsPkp ? 'Supplier PKP' : 'Manual',
+                      labelText: ('PPN (%)').tr(context),
+                      helperText: _supplierIsPkp ? ('Supplier PKP').tr(context) : ('Manual').tr(context),
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: (value) => setState(() {
@@ -2923,8 +2925,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 const SizedBox(height: 12),
                 Text(
                   _vendorBillPurchase
-                      ? 'Estimasi biaya tidak menambah tagihan atau nilai stok. Catat biaya aktual saat penerimaan atau lewat landed cost.'
-                      : 'Biaya tambahan mengikuti alur PO lama.',
+                      ? ('Estimasi biaya tidak menambah tagihan atau nilai stok. Catat biaya aktual saat penerimaan atau lewat landed cost.').tr(context)
+                      : ('Biaya tambahan mengikuti alur PO lama.').tr(context),
                 ),
                 if (_vendorBillPurchase)
                   Align(
@@ -2938,7 +2940,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         }),
                       ),
                       icon: const Icon(Icons.add),
-                      label: const Text('Tambah estimasi'),
+                      label: const PosText('Tambah estimasi'),
                     ),
                   ),
                 if (_additionalCosts.isNotEmpty) ...[
@@ -2947,8 +2949,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       Expanded(
                         child: Text(
                           _vendorBillPurchase
-                              ? 'Estimasi biaya'
-                              : 'Biaya PO lama',
+                              ? ('Estimasi biaya').tr(context)
+                              : ('Biaya PO lama').tr(context),
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -2959,33 +2961,33 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     Widget feeTypeField() => DropdownButtonFormField<String>(
                       initialValue: row['jenis_biaya']?.toString() ?? 'lainnya',
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Jenis biaya',
+                      decoration:  InputDecoration(
+                        labelText: ('Jenis biaya').tr(context),
                         border: OutlineInputBorder(),
                       ),
                       items: const [
                         DropdownMenuItem(
                           value: 'ongkir',
-                          child: Text(
+                          child: PosText(
                             'Ongkos kirim',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'handling',
-                          child: Text('Handling'),
+                          child: PosText('Handling'),
                         ),
                         DropdownMenuItem(
                           value: 'asuransi',
-                          child: Text('Asuransi'),
+                          child: PosText('Asuransi'),
                         ),
                         DropdownMenuItem(
                           value: 'bea_cukai',
-                          child: Text('Bea cukai'),
+                          child: PosText('Bea cukai'),
                         ),
                         DropdownMenuItem(
                           value: 'lainnya',
-                          child: Text('Lainnya'),
+                          child: PosText('Lainnya'),
                         ),
                       ],
                       onChanged: (value) =>
@@ -2993,8 +2995,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     );
                     Widget descriptionField() => TextFormField(
                       initialValue: row['deskripsi']?.toString() ?? '',
-                      decoration: const InputDecoration(
-                        labelText: 'Deskripsi',
+                      decoration:  InputDecoration(
+                        labelText: ('Deskripsi').tr(context),
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) => row['deskripsi'] = value,
@@ -3009,8 +3011,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
-                        labelText: 'Nominal',
+                      decoration:  InputDecoration(
+                        labelText: ('Nominal').tr(context),
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) => setState(
@@ -3018,7 +3020,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       ),
                     );
                     Widget removeButton() => IconButton(
-                      tooltip: 'Hapus biaya',
+                      tooltip: ('Hapus biaya').tr(context),
                       onPressed: () =>
                           setState(() => _additionalCosts.removeAt(entry.key)),
                       icon: const Icon(Icons.delete_outline),
@@ -3064,18 +3066,18 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     responsive([
                       DropdownButtonFormField<String>(
                         initialValue: _costMode,
-                        decoration: const InputDecoration(
-                          labelText: 'Perlakuan biaya',
+                        decoration:  InputDecoration(
+                          labelText: ('Perlakuan biaya').tr(context),
                           border: OutlineInputBorder(),
                         ),
                         items: const [
                           DropdownMenuItem(
                             value: 'expense',
-                            child: Text('Beban langsung'),
+                            child: PosText('Beban langsung'),
                           ),
                           DropdownMenuItem(
                             value: 'landed_cost',
-                            child: Text('Tambahkan ke nilai persediaan'),
+                            child: PosText('Tambahkan ke nilai persediaan'),
                           ),
                         ],
                         onChanged: (value) =>
@@ -3083,18 +3085,18 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       ),
                       DropdownButtonFormField<String>(
                         initialValue: _costAllocation,
-                        decoration: const InputDecoration(
-                          labelText: 'Alokasi biaya',
+                        decoration:  InputDecoration(
+                          labelText: ('Alokasi biaya').tr(context),
                           border: OutlineInputBorder(),
                         ),
                         items: const [
                           DropdownMenuItem(
                             value: 'per_nilai',
-                            child: Text('Berdasarkan nilai'),
+                            child: PosText('Berdasarkan nilai'),
                           ),
                           DropdownMenuItem(
                             value: 'per_qty',
-                            child: Text('Berdasarkan jumlah'),
+                            child: PosText('Berdasarkan jumlah'),
                           ),
                         ],
                         onChanged: (value) => setState(
@@ -3140,7 +3142,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               }
             }),
             icon: Icon(enabled ? Icons.close : Icons.swap_horiz),
-            label: Text(enabled ? 'Tutup konversi' : 'Hitung dengan konversi'),
+            label: Text(enabled ? ('Tutup konversi').tr(context) : ('Hitung dengan konversi').tr(context)),
           ),
         ),
         if (enabled)
@@ -3158,13 +3160,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const PosText(
                   'Konversi satuan fisik',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Isi jumlah per kemasan. Sistem menghitung total dalam $baseUnit.',
+                  posLocale(context).pos87d6dcc5b9dd((baseUnit).toString()),
                   style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 const SizedBox(height: 10),
@@ -3178,10 +3180,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        labelText: 'Jumlah ${row['unit']}',
+                        labelText: posLocale(context).posfed87456b577((row['unit']).toString()),
                         helperText: factor == 1
-                            ? 'Satuan dasar'
-                            : '1 ${row['unit']} = ${_numberText(factor)} $baseUnit',
+                            ? ('Satuan dasar').tr(context)
+                            : posLocale(context).pos87d507a0208a((row['unit']).toString(), (_numberText(factor)).toString(), (baseUnit).toString()),
                         border: const OutlineInputBorder(),
                       ),
                       onChanged: (value) => setState(() {
@@ -3194,7 +3196,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   );
                 }),
                 Text(
-                  'Total fisik: ${_numberText(item['input_qty'])} $baseUnit',
+                  posLocale(context).posd6f7fd5de931((_numberText(item['input_qty'])).toString(), (baseUnit).toString()),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ],
@@ -3218,7 +3220,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _editing ? 'Informasi & lokasi opname' : 'Buat opname baru',
+              _editing ? ('Informasi & lokasi opname').tr(context) : ('Buat opname baru').tr(context),
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -3226,8 +3228,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             const SizedBox(height: 4),
             Text(
               _editing
-                  ? 'Perbarui informasi dokumen dan hasil penghitungan stok.'
-                  : 'Pilih lokasi yang akan dihitung. Saldo akan dipotret otomatis.',
+                  ? ('Perbarui informasi dokumen dan hasil penghitungan stok.').tr(context)
+                  : ('Pilih lokasi yang akan dihitung. Saldo akan dipotret otomatis.').tr(context),
               style: const TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 16),
@@ -3249,8 +3251,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     }
                   },
                   child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Tanggal opname *',
+                    decoration:  InputDecoration(
+                      labelText: ('Tanggal opname *').tr(context),
                       prefixIcon: Icon(Icons.calendar_today_outlined),
                       border: OutlineInputBorder(),
                     ),
@@ -3259,8 +3261,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 );
                 final location = _opnameScopeLocked
                     ? InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Lokasi snapshot (terkunci)',
+                        decoration:  InputDecoration(
+                          labelText: ('Lokasi snapshot (terkunci)').tr(context),
                           border: OutlineInputBorder(),
                         ),
                         child: Text(
@@ -3271,8 +3273,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     : DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _sourceId.isEmpty ? null : _sourceId,
-                        decoration: const InputDecoration(
-                          labelText: 'Cabang / lokasi stok *',
+                        decoration:  InputDecoration(
+                          labelText: ('Cabang / lokasi stok *').tr(context),
                           prefixIcon: Icon(Icons.warehouse_outlined),
                           border: OutlineInputBorder(),
                         ),
@@ -3325,8 +3327,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: _buildingCode.isEmpty ? null : _buildingCode,
-                    decoration: const InputDecoration(
-                      labelText: 'Gedung (opsional)',
+                    decoration:  InputDecoration(
+                      labelText: ('Gedung (opsional)').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _buildings
@@ -3350,8 +3352,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: _roomCode.isEmpty ? null : _roomCode,
-                    decoration: const InputDecoration(
-                      labelText: 'Ruangan (opsional)',
+                    decoration:  InputDecoration(
+                      labelText: ('Ruangan (opsional)').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _rooms
@@ -3374,8 +3376,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: _rackName.isEmpty ? null : _rackName,
-                    decoration: const InputDecoration(
-                      labelText: 'Rak (opsional)',
+                    decoration:  InputDecoration(
+                      labelText: ('Rak (opsional)').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _racks
@@ -3415,9 +3417,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             TextField(
               controller: _notes,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Tujuan / catatan opname',
-                hintText: 'Contoh: opname bulanan atau audit gudang',
+              decoration:  InputDecoration(
+                labelText: ('Tujuan / catatan opname').tr(context),
+                hintText: ('Contoh: opname bulanan atau audit gudang').tr(context),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -3435,7 +3437,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   Icon(Icons.info_outline, color: Color(0xFF3E6F8E)),
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text(
+                    child: PosText(
                       'Saat dibuat, sistem otomatis mengambil snapshot saldo terpilih. Isi hasil hitung fisik, konversi satuan, dan alasan selisih di form ini. Stok baru berubah setelah persetujuan dan posting.',
                     ),
                   ),
@@ -3486,15 +3488,15 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       appBar: AppBar(
         title: Text(
           widget.displayReplenishment
-              ? 'Isi Rak Display'
-              : '${_editing ? 'Ubah' : 'Tambah'} ${_title(widget.type)}',
+              ? ('Isi Rak Display').tr(context)
+              : '${_editing ? ('Ubah').tr(context) : ('Tambah').tr(context)} ${_title(widget.type)}',
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         leading: widget.inModal
             ? IconButton(
                 icon: const Icon(Icons.close),
-                tooltip: 'Tutup',
+                tooltip: ('Tutup').tr(context),
                 onPressed: () => Navigator.pop(context),
               )
             : null,
@@ -3515,7 +3517,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          const PosText(
                             'Total faktur',
                             style: TextStyle(
                               fontSize: 12,
@@ -3523,7 +3525,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             ),
                           ),
                           Text(
-                            'Rp ${_PurchaseSummaryRow._currency(_purchaseGrandTotal)}',
+                            posLocale(context).pos70272f418def((_PurchaseSummaryRow._currency(_purchaseGrandTotal)).toString()),
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -3546,12 +3548,12 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       ),
                       label: Text(
                         _purchaseStep == 0
-                            ? 'Lanjut'
+                            ? ('Lanjut').tr(context)
                             : _purchaseStep == 1
-                            ? 'Tinjau'
+                            ? ('Tinjau').tr(context)
                             : _editing
-                            ? 'Simpan'
-                            : 'Simpan draft',
+                            ? ('Simpan').tr(context)
+                            : ('Simpan draft').tr(context),
                       ),
                     ),
                   ],
@@ -3589,8 +3591,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               initialValue: _sourceId.isEmpty
                                   ? null
                                   : _sourceId,
-                              decoration: const InputDecoration(
-                                labelText: 'Lokasi sumber',
+                              decoration:  InputDecoration(
+                                labelText: ('Lokasi sumber').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                               items: (_lookups?.warehouses ?? const [])
@@ -3618,13 +3620,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               _opnameLoadError != null)
                             Column(
                               children: [
-                                Text(
+                                PosText(
                                   _opnameLoadError!,
                                   style: const TextStyle(color: Colors.red),
                                 ),
                                 TextButton(
                                   onPressed: _loadOpname,
-                                  child: const Text('Coba lagi'),
+                                  child: const PosText('Coba lagi'),
                                 ),
                               ],
                             ),
@@ -3636,8 +3638,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               initialValue: _destinationId.isEmpty
                                   ? null
                                   : _destinationId,
-                              decoration: const InputDecoration(
-                                labelText: 'Lokasi tujuan',
+                              decoration:  InputDecoration(
+                                labelText: ('Lokasi tujuan').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                               items: (_lookups?.warehouses ?? const [])
@@ -3676,8 +3678,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                 }
                               },
                               child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Tanggal kejadian',
+                                decoration:  InputDecoration(
+                                  labelText: ('Tanggal kejadian').tr(context),
                                   prefixIcon: Icon(
                                     Icons.calendar_today_outlined,
                                   ),
@@ -3690,8 +3692,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             DropdownButtonFormField<String>(
                               isExpanded: true,
                               initialValue: _scrapReason,
-                              decoration: const InputDecoration(
-                                labelText: 'Alasan barang terbuang',
+                              decoration:  InputDecoration(
+                                labelText: ('Alasan barang terbuang').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                               items: (_lookups?.scrapReasons ?? const [])
@@ -3720,8 +3722,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
                               initialValue: _incidentLocation,
-                              decoration: const InputDecoration(
-                                labelText: 'Lokasi kejadian',
+                              decoration:  InputDecoration(
+                                labelText: ('Lokasi kejadian').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                               items:
@@ -3743,8 +3745,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             const SizedBox(height: 12),
                             TextField(
                               controller: _reasonDetail,
-                              decoration: const InputDecoration(
-                                labelText: 'Detail alasan / kronologi',
+                              decoration:  InputDecoration(
+                                labelText: ('Detail alasan / kronologi').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                             ),
@@ -3755,7 +3757,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                 color: AppColors.warning.withValues(alpha: .09),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text(
+                              child: const PosText(
                                 'Saldo belum berkurang saat draft dibuat. Stok dan jurnal kerugian baru diproses setelah dokumen disetujui.',
                               ),
                             ),
@@ -3768,7 +3770,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             Row(
                               children: [
                                 const Expanded(
-                                  child: Text(
+                                  child: PosText(
                                     'Daftar barang',
                                     style: TextStyle(
                                       fontSize: 17,
@@ -3783,7 +3785,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                         ? null
                                         : _scanOpnameBarcode,
                                     icon: const Icon(Icons.qr_code_scanner),
-                                    label: const Text('Scan'),
+                                    label: const PosText('Scan'),
                                   )
                                 else if (widget.type ==
                                     PosInventoryDocumentType.scrap)
@@ -3795,14 +3797,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             ? null
                                             : _scanScrapBarcode,
                                         icon: const Icon(Icons.qr_code_scanner),
-                                        label: const Text('Scan'),
+                                        label: const PosText('Scan'),
                                       ),
                                       FilledButton.icon(
                                         onPressed: _catalog.isEmpty
                                             ? null
                                             : _chooseItem,
                                         icon: const Icon(Icons.add),
-                                        label: const Text('Tambah'),
+                                        label: const PosText('Tambah'),
                                       ),
                                     ],
                                   )
@@ -3816,14 +3818,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             ? null
                                             : _scanTransferBarcode,
                                         icon: const Icon(Icons.qr_code_scanner),
-                                        label: const Text('Scan'),
+                                        label: const PosText('Scan'),
                                       ),
                                       OutlinedButton.icon(
                                         onPressed: _catalog.isEmpty
                                             ? null
                                             : _chooseItem,
                                         icon: const Icon(Icons.add),
-                                        label: const Text('Tambah'),
+                                        label: const PosText('Tambah'),
                                       ),
                                     ],
                                   )
@@ -3831,7 +3833,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                   OutlinedButton.icon(
                                     onPressed: _chooseItem,
                                     icon: const Icon(Icons.add),
-                                    label: const Text('Tambah barang'),
+                                    label: const PosText('Tambah barang'),
                                   ),
                               ],
                             ),
@@ -3839,7 +3841,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                     PosInventoryDocumentType.purchase &&
                                 widget.initialInventoryId != null) ...[
                               const SizedBox(height: 6),
-                              const Text(
+                              const PosText(
                                 'Jumlah usulan mempertimbangkan stok dan PO terbuka. Periksa kembali kebutuhan, harga, dan supplier sebelum menyimpan PO.',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -3854,7 +3856,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 32),
                                 child: Center(
-                                  child: Text('Belum ada barang dipilih'),
+                                  child: PosText('Belum ada barang dipilih'),
                                 ),
                               ),
                             if (widget.type ==
@@ -3903,7 +3905,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              '${item['kode_inventaris'] ?? '-'} • Sistem ${_numberText(item['qty_system'] ?? item['qty'])} ${item['unit'] ?? ''}',
+                                              posLocale(context).posd94b4f688664((item['kode_inventaris'] ?? '-').toString(), (_numberText(item['qty_system'] ?? item['qty'])).toString(), (item['unit'] ?? '').toString()),
                                               style: const TextStyle(
                                                 color: Colors.black54,
                                                 fontSize: 12,
@@ -3913,7 +3915,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                           const SizedBox(height: 8),
                                           Align(
                                             alignment: Alignment.centerLeft,
-                                            child: Text(
+                                            child: PosText(
                                               opnameLocationLabel(
                                                 item['lokasi'] as Map?,
                                               ),
@@ -3980,8 +3982,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                         widget.type ==
                                                             PosInventoryDocumentType
                                                                 .opname
-                                                        ? 'Jumlah fisik'
-                                                        : 'Jumlah (${item['unit'] ?? ''})',
+                                                        ? ('Jumlah fisik').tr(context)
+                                                        : posLocale(context).pos8109832b1b60((item['unit'] ?? '').toString()),
                                                     border:
                                                         const OutlineInputBorder(),
                                                   ),
@@ -4017,9 +4019,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                     keyboardType:
                                                         TextInputType.number,
                                                     decoration:
-                                                        const InputDecoration(
+                                                         InputDecoration(
                                                           labelText:
-                                                              'Harga beli',
+                                                              ('Harga beli').tr(context),
                                                           border:
                                                               OutlineInputBorder(),
                                                         ),
@@ -4051,9 +4053,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                         item,
                                                       ).first,
                                                   decoration:
-                                                      const InputDecoration(
+                                                       InputDecoration(
                                                         labelText:
-                                                            'Satuan pembelian',
+                                                            ('Satuan pembelian').tr(context),
                                                         border:
                                                             OutlineInputBorder(),
                                                       ),
@@ -4078,20 +4080,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                           ?.toString() ??
                                                       'persen',
                                                   decoration:
-                                                      const InputDecoration(
+                                                       InputDecoration(
                                                         labelText:
-                                                            'Jenis diskon item',
+                                                            ('Jenis diskon item').tr(context),
                                                         border:
                                                             OutlineInputBorder(),
                                                       ),
                                                   items: const [
                                                     DropdownMenuItem(
                                                       value: 'persen',
-                                                      child: Text('Persen'),
+                                                      child: PosText('Persen'),
                                                     ),
                                                     DropdownMenuItem(
                                                       value: 'fixed',
-                                                      child: Text('Nominal'),
+                                                      child: PosText('Nominal'),
                                                     ),
                                                   ],
                                                   onChanged: (value) => setState(
@@ -4129,9 +4131,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                         decimal: true,
                                                       ),
                                                   decoration:
-                                                      const InputDecoration(
+                                                       InputDecoration(
                                                         labelText:
-                                                            'Diskon item',
+                                                            ('Diskon item').tr(context),
                                                         border:
                                                             OutlineInputBorder(),
                                                       ),
@@ -4194,8 +4196,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                 item['catatan_item']
                                                     ?.toString() ??
                                                 '',
-                                            decoration: const InputDecoration(
-                                              labelText: 'Catatan item',
+                                            decoration:  InputDecoration(
+                                              labelText: ('Catatan item').tr(context),
                                               border: OutlineInputBorder(),
                                             ),
                                             onChanged: (value) =>
@@ -4208,7 +4210,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              '${_balanceLocationLabel(Map<String, dynamic>.from(item['selected_balance'] as Map? ?? const {}))}\nSaldo tersedia ${_numberText(item['available_qty'] ?? item['qty'])} ${item['unit'] ?? ''}',
+                                              posLocale(context).pos9a3af49b041e((_balanceLocationLabel(Map<String, dynamic>.from(item['selected_balance'] as Map? ?? const {}))).toString(), (_numberText(item['available_qty'] ?? item['qty'])).toString(), (item['unit'] ?? '').toString()),
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.black54,
@@ -4228,8 +4230,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                       .isEmpty
                                                   ? null
                                                   : item['no_batch'].toString(),
-                                              decoration: const InputDecoration(
-                                                labelText: 'Batch sumber *',
+                                              decoration:  InputDecoration(
+                                                labelText: ('Batch sumber *').tr(context),
                                                 border: OutlineInputBorder(),
                                               ),
                                               items: (item['batch_options'] as List)
@@ -4241,7 +4243,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                       value: batch['no_batch']
                                                           .toString(),
                                                       child: Text(
-                                                        '${batch['no_batch']} • ${_numberText(batch['qty'])} tersedia',
+                                                        posLocale(context).posbc5439bf7220((batch['no_batch']).toString(), (_numberText(batch['qty'])).toString()),
                                                       ),
                                                     ),
                                                   )
@@ -4257,20 +4259,20 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             initialValue:
                                                 item['tindakan']?.toString() ??
                                                 'kurangi_stok',
-                                            decoration: const InputDecoration(
-                                              labelText: 'Tindakan stok',
+                                            decoration:  InputDecoration(
+                                              labelText: ('Tindakan stok').tr(context),
                                               border: OutlineInputBorder(),
                                             ),
                                             items: const [
                                               DropdownMenuItem(
                                                 value: 'kurangi_stok',
-                                                child: Text(
+                                                child: PosText(
                                                   'Buang / kurangi stok',
                                                 ),
                                               ),
                                               DropdownMenuItem(
                                                 value: 'recycle',
-                                                child: Text('Recycle sebagian'),
+                                                child: PosText('Recycle sebagian'),
                                               ),
                                             ],
                                             onChanged: (value) => setState(
@@ -4291,9 +4293,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                   ),
                                               decoration: InputDecoration(
                                                 labelText:
-                                                    'Jumlah berhasil direcycle',
+                                                    ('Jumlah berhasil direcycle').tr(context),
                                                 helperText:
-                                                    'Kerugian bersih = jumlah disposal dikurangi hasil recycle',
+                                                    ('Kerugian bersih = jumlah disposal dikurangi hasil recycle').tr(context),
                                                 suffixText: item['unit']
                                                     ?.toString(),
                                                 border:
@@ -4316,8 +4318,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                 item['catatan_item']
                                                     ?.toString() ??
                                                 '',
-                                            decoration: const InputDecoration(
-                                              labelText: 'Catatan barang',
+                                            decoration:  InputDecoration(
+                                              labelText: ('Catatan barang').tr(context),
                                               border: OutlineInputBorder(),
                                             ),
                                             onChanged: (value) =>
@@ -4337,10 +4339,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                       item['catatan_item']
                                                           ?.toString() ??
                                                       '',
-                                                  decoration: const InputDecoration(
-                                                    labelText: 'Alasan selisih',
+                                                  decoration:  InputDecoration(
+                                                    labelText: ('Alasan selisih').tr(context),
                                                     hintText:
-                                                        'Wajib diisi jika stok fisik berbeda',
+                                                        ('Wajib diisi jika stok fisik berbeda').tr(context),
                                                     border:
                                                         OutlineInputBorder(),
                                                   ),
@@ -4360,7 +4362,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                                       Icons.edit_outlined,
                                                       size: 17,
                                                     ),
-                                                    label: const Text(
+                                                    label: const PosText(
                                                       'Input hitung fisik',
                                                     ),
                                                   ),
@@ -4374,7 +4376,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                             padding: EdgeInsets.only(top: 2),
                                             child: Align(
                                               alignment: Alignment.centerLeft,
-                                              child: Text(
+                                              child: PosText(
                                                 'Alasan minimal 3 karakter diperlukan saat terdapat selisih.',
                                                 style: TextStyle(
                                                   fontSize: 11,
@@ -4408,33 +4410,33 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                                 child: Column(
                                   children: [
                                     _PurchaseSummaryRow(
-                                      label: 'Subtotal',
+                                      label: ('Subtotal').tr(context),
                                       value: _purchaseSubtotal,
                                     ),
                                     _PurchaseSummaryRow(
-                                      label: 'Diskon',
+                                      label: ('Diskon').tr(context),
                                       value: -_purchaseDiscount,
                                     ),
                                     _PurchaseSummaryRow(
-                                      label: 'PPN ($_ppnPercent%)',
+                                      label: posLocale(context).posc53479dd68b9((_ppnPercent).toString()),
                                       value: _purchaseTax,
                                     ),
                                     _PurchaseSummaryRow(
                                       label: _vendorBillPurchase
-                                          ? 'Estimasi biaya'
-                                          : 'Biaya tambahan',
+                                          ? ('Estimasi biaya').tr(context)
+                                          : ('Biaya tambahan').tr(context),
                                       value: _effectivePurchaseCost,
                                     ),
                                     const Divider(height: 20),
                                     _PurchaseSummaryRow(
-                                      label: 'Grand total',
+                                      label: ('Grand total').tr(context),
                                       value: _purchaseGrandTotal,
                                       emphasized: true,
                                     ),
                                     if (_vendorBillPurchase &&
                                         _effectivePurchaseCost > 0)
                                       _PurchaseSummaryRow(
-                                        label: 'Perkiraan kebutuhan dana',
+                                        label: ('Perkiraan kebutuhan dana').tr(context),
                                         value:
                                             _purchaseGrandTotal +
                                             _effectivePurchaseCost,
@@ -4452,8 +4454,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                             TextField(
                               controller: _notes,
                               maxLines: 3,
-                              decoration: const InputDecoration(
-                                labelText: 'Catatan',
+                              decoration:  InputDecoration(
+                                labelText: ('Catatan').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                             ),
@@ -4464,13 +4466,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                               icon: const Icon(Icons.save),
                               label: Text(
                                 _editing
-                                    ? 'Simpan Perubahan'
+                                    ? ('Simpan Perubahan').tr(context)
                                     : widget.type ==
                                           PosInventoryDocumentType.opname
                                     ? widget.opnameTarget != null
-                                          ? 'Mulai hitung barang ini'
-                                          : 'Buat Opname'
-                                    : 'Simpan Draft',
+                                          ? ('Mulai hitung barang ini').tr(context)
+                                          : ('Buat Opname').tr(context)
+                                    : ('Simpan Draft').tr(context),
                               ),
                             ),
                             const SizedBox(height: 28),
@@ -4534,7 +4536,7 @@ class _DeliveryAddressModeOption extends StatelessWidget {
                   ),
                   const SizedBox(width: 7),
                   Flexible(
-                    child: Text(
+                    child: PosText(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -4578,7 +4580,7 @@ class _PurchaseSummaryRowText extends StatelessWidget {
       children: [
         SizedBox(
           width: 92,
-          child: Text(label, style: const TextStyle(color: Colors.black54)),
+          child: PosText(label, style: const TextStyle(color: Colors.black54)),
         ),
         Expanded(child: Text(value)),
       ],
@@ -4602,7 +4604,7 @@ class _PurchaseSummaryRow extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(
+          child: PosText(
             label,
             style: TextStyle(
               fontWeight: emphasized ? FontWeight.w700 : FontWeight.w400,
@@ -4650,16 +4652,16 @@ class _PurchaseItemPickerTable extends StatelessWidget {
               color: const Color(0xFFF1F5F5),
               child: const Row(
                 children: [
-                  Expanded(child: Text('Barang / kode')),
-                  SizedBox(width: 100, child: Text('Stok')),
-                  SizedBox(width: 70, child: Text('Satuan')),
-                  SizedBox(width: 58, child: Text('Aksi')),
+                  Expanded(child: PosText('Barang / kode')),
+                  SizedBox(width: 100, child: PosText('Stok')),
+                  SizedBox(width: 70, child: PosText('Satuan')),
+                  SizedBox(width: 58, child: PosText('Aksi')),
                 ],
               ),
             ),
             if (items.isEmpty)
               const Expanded(
-                child: Center(child: Text('Barang tidak ditemukan')),
+                child: Center(child: PosText('Barang tidak ditemukan')),
               )
             else
               Expanded(
@@ -4727,7 +4729,7 @@ class _PurchaseItemPickerTable extends StatelessWidget {
                             SizedBox(
                               width: 58,
                               child: Text(
-                                disabled ? 'Dipilih' : 'Pilih',
+                                disabled ? ('Dipilih').tr(context) : ('Pilih').tr(context),
                                 style: TextStyle(
                                   color: disabled
                                       ? Colors.black45
@@ -4847,13 +4849,13 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
             12 + MediaQuery.viewInsetsOf(context).bottom,
           ),
           children: [
-            Text('Pilih supplier', style: theme.textTheme.titleMedium),
+            PosText('Pilih supplier', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
               onChanged: _onSearch,
-              decoration: const InputDecoration(
-                labelText: 'Cari nama, kode, atau telepon',
+              decoration:  InputDecoration(
+                labelText: ('Cari nama, kode, atau telepon').tr(context),
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -4863,12 +4865,12 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
             TextButton.icon(
               onPressed: () => setState(() => _showCreate = !_showCreate),
               icon: const Icon(Icons.add),
-              label: const Text('Tambah supplier cepat'),
+              label: const PosText('Tambah supplier cepat'),
             ),
             if (_showCreate)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
+                child: PosText(
                   'Memerlukan izin tambah supplier. Data pajak dan alamat dapat dilengkapi di web.',
                   style: theme.textTheme.bodySmall,
                 ),
@@ -4877,8 +4879,8 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
               TextField(
                 controller: _nameController,
                 maxLength: 120,
-                decoration: const InputDecoration(
-                  labelText: 'Nama supplier *',
+                decoration:  InputDecoration(
+                  labelText: ('Nama supplier *').tr(context),
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -4888,8 +4890,8 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 maxLength: 30,
-                decoration: const InputDecoration(
-                  labelText: 'Telepon (opsional)',
+                decoration:  InputDecoration(
+                  labelText: ('Telepon (opsional)').tr(context),
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -4899,7 +4901,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _saving ? null : _createSupplier,
-                  child: Text(_saving ? 'Menyimpan…' : 'Simpan & pilih'),
+                  child: Text(_saving ? ('Menyimpan…').tr(context) : ('Simpan & pilih').tr(context)),
                 ),
               ),
               const SizedBox(height: 8),
@@ -4908,7 +4910,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
             if (_error.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
+                child: PosText(
                   _error,
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
@@ -4916,7 +4918,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
             if (!_loading && _suppliers.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: Text('Supplier tidak ditemukan')),
+                child: Center(child: PosText('Supplier tidak ditemukan')),
               ),
             if (!_loading)
               for (final supplier in _suppliers)

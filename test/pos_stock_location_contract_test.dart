@@ -15,24 +15,24 @@ void main() {
       'lib/presentation/pages/pos/pos_stock_page.dart',
     ).readAsStringSync();
 
-    expect(source, contains("labelText: 'Warehouse / Lokasi'"));
+    expect(source, contains("labelText: ('Warehouse / Lokasi').tr(context)"));
     expect(source, contains('_showStockDetail(stock)'));
-    expect(source, contains("tooltip: 'Lihat detail'"));
+    expect(source, contains("tooltip: ('Lihat detail').tr(context)"));
     expect(source, contains('locationId: value'));
-    expect(source, contains("child: Text('Semua Cabang')"));
+    expect(source, contains("child: PosText('Semua Cabang')"));
     expect(source, contains("'Rincian saldo per lokasi'"));
     expect(source, contains('belum dirinci ke gedung/ruangan/rak'));
-    expect(source, contains('batch aktif'));
-    expect(source, contains("'Cabang: \${branch.isEmpty ? '-' : branch}'"));
+    expect(source, contains('pos784f6f055869((batches.length).toString())'));
+    expect(source, contains("pos58c6df885eda(branch.isEmpty ? '-' : branch)"));
     expect(
       source,
-      contains("'Gedung: \${building.isEmpty ? 'belum tercatat' : building}'"),
+      contains("pos786a448f1a32(building.isEmpty ? 'belum tercatat'.tr(context) : building)"),
     );
     expect(
       source,
-      contains("'Ruangan: \${room.isEmpty ? 'belum tercatat' : room}'"),
+      contains("pos085e03d813e0(room.isEmpty ? 'belum tercatat'.tr(context) : room)"),
     );
-    expect(source, contains("'Rak: \$rack'"));
+    expect(source, contains('pos1af981c59b08(rack)'));
   });
 
   test('koreksi langsung dibatasi sebagai darurat dan diarahkan ke opname', () {
@@ -50,9 +50,9 @@ void main() {
     );
     expect(stockSource, contains('getAdjustmentReasons'));
     expect(stockSource, isNot(contains("value: 'selisih_hitung'")));
-    expect(stockSource, contains("labelText: 'Referensi / tiket (opsional)'"));
+    expect(stockSource, contains("labelText: ('Referensi / tiket (opsional)').tr(context)"));
     expect(stockSource, contains('Sistem tetap membuat referensi internal.'));
-    expect(stockSource, contains("labelText: 'Keterangan *'"));
+    expect(stockSource, contains("labelText: ('Keterangan *').tr(context)"));
     expect(stockSource, contains('Buka Stock Opname'));
     expect(
       stockSource,

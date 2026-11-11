@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
   StreamSubscription<GoogleSignInAuthenticationEvent>? _events;
   bool _ready = false;
   bool _busy = false;
+  String _progress = 'Menyiapkan login Google…';
   String? _error;
 
   @override
@@ -48,10 +50,17 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
   }
 
   Future<void> _initialize() async {
-    if (mounted) setState(() => _error = null);
+    if (mounted) {
+      setState(() {
+        _ready = false;
+        _error = null;
+      });
+    }
     try {
-      await widget.prepareEndpoint?.call();
-      await GoogleIdentityService.initialize(GetIt.I<AuthRepository>());
+      await widget.prepareEndpoint?.call().timeout(const Duration(seconds: 15));
+      await GoogleIdentityService.initialize(
+        GetIt.I<AuthRepository>(),
+      ).timeout(const Duration(seconds: 20));
       if (!mounted) return;
       if (kIsWeb) {
         _events = GoogleSignIn.instance.authenticationEvents.listen(
@@ -90,24 +99,37 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
 
   void _setBusy(bool value) {
     if (!mounted) return;
-    setState(() => _busy = value);
+    setState(() {
+      _busy = value;
+      if (value) {
+        _error = null;
+        _progress = 'Menyiapkan login Google…';
+      }
+    });
     widget.onBusyChanged?.call(value);
   }
 
   void _showError(String message) {
+    if (!mounted) return;
+    setState(() => _error = message);
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(SnackBar(content: PosText(message)));
   }
 
   Future<void> _authenticate() async {
     if (_busy || !widget.enabled) return;
     _setBusy(true);
     try {
-      await widget.prepareEndpoint?.call();
-      await GoogleIdentityService.initialize(GetIt.I<AuthRepository>());
+      await widget.prepareEndpoint?.call().timeout(const Duration(seconds: 15));
+      await GoogleIdentityService.initialize(
+        GetIt.I<AuthRepository>(),
+      ).timeout(const Duration(seconds: 20));
       if (!mounted) return;
-      final account = await GoogleSignIn.instance.authenticate();
+      setState(() => _progress = 'Menunggu pilihan akun Google…');
+      final account = await GoogleSignIn.instance.authenticate().timeout(
+        const Duration(seconds: 90),
+      );
       if (mounted) await _login(account);
     } on GoogleSignInException catch (error) {
       if (mounted && error.code != GoogleSignInExceptionCode.canceled) {
@@ -128,7 +150,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
     if (_busy || !widget.enabled) return;
     _setBusy(true);
     try {
-      await widget.prepareEndpoint?.call();
+      await widget.prepareEndpoint?.call().timeout(const Duration(seconds: 15));
       if (!mounted) return;
       await _login(account);
     } catch (_) {
@@ -141,6 +163,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
   }
 
   Future<void> _login(GoogleSignInAccount account) async {
+    setState(() => _progress = 'Memverifikasi akun ke Pantoo POS…');
     final token = account.authentication.idToken;
     if (token == null || token.isEmpty) {
       _showError('Google belum memberikan verifikasi akun. Silakan coba lagi.');
@@ -156,6 +179,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
       if (failure != null) _showError(failure.message);
       return;
     }
+    setState(() => _progress = 'Lengkapi informasi akun untuk melanjutkan.');
     final phone = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -163,6 +187,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
       builder: (_) => const GoogleRegistrationDetails(),
     );
     if (!mounted || cubit.isClosed || phone == null) return;
+    setState(() => _progress = 'Menyelesaikan pendaftaran…');
     final registrationFailure = await cubit.loginGoogle(
       token,
       phone: phone,
@@ -208,19 +233,31 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
                 icon: const Icon(Icons.g_mobiledata),
                 label: Text(
                   _error == null
-                      ? 'Lanjutkan dengan Google'
-                      : 'Coba hubungkan Google',
+                      ? ('Lanjutkan dengan Google').tr(context)
+                      : ('Coba hubungkan Google').tr(context),
                 ),
               ),
-            if (_busy)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: LinearProgressIndicator(),
+            if (_busy || (!_ready && _error == null))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Column(
+                    children: [
+                      const LinearProgressIndicator(),
+                      const SizedBox(height: 8),
+                      Text(
+                        _busy ? _progress : ('Menyiapkan login Google…').tr(context),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(
+                child: PosText(
                   _error!,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -232,7 +269,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
                 Expanded(child: Divider()),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('atau dengan email'),
+                  child: PosText('atau dengan email'),
                 ),
                 Expanded(child: Divider()),
               ],

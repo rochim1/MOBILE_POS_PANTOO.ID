@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:intl/intl.dart';
 
 String inventoryDocumentDate(dynamic value) {
@@ -12,7 +13,7 @@ String inventoryDocumentDate(dynamic value) {
   }
   return parsed == null
       ? (raw.isEmpty ? '-' : raw)
-      : DateFormat('dd MMM yyyy', 'id_ID').format(parsed.toLocal());
+      : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(parsed.toLocal());
 }
 
 String opnameRowsSummary(Iterable<Map> rows) {

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import '../../../../domain/models/pos_order_detail.dart';
 
 class PosOrderWorkspacePolicy {
@@ -23,7 +24,7 @@ class PosOrderWorkspacePolicy {
         'use_appointments',
       ].any((key) => features[key] == true);
   String get title => features['use_tables'] == true
-      ? 'Pesanan & Meja'
+      ? ('Pesanan & Meja').trCurrent()
       : const {
               'laundry': 'Pesanan Laundry',
               'bengkel': 'Pekerjaan Bengkel',
@@ -58,62 +59,62 @@ class PosOrderWorkspacePolicy {
     final type = order?.orderType;
     final delivery = const ['delivery', 'online_delivery'].contains(type);
     return switch (status) {
-      'Baru' => isService ? 'Diterima' : 'Pesanan Baru',
+      'Baru' => isService ? ('Diterima').trCurrent() : ('Pesanan Baru').trCurrent(),
       'Diproses' =>
         isService
-            ? 'Dikerjakan'
+            ? ('Dikerjakan').trCurrent()
             : kitchen
-            ? 'Sedang Dibuat'
-            : 'Disiapkan',
+            ? ('Sedang Dibuat').trCurrent()
+            : ('Disiapkan').trCurrent(),
       'Siap' =>
         isService
-            ? 'Siap Diambil'
+            ? ('Siap Diambil').trCurrent()
             : delivery
-            ? 'Siap Dikirim'
+            ? ('Siap Dikirim').trCurrent()
             : kitchen
-            ? 'Siap Disajikan'
+            ? ('Siap Disajikan').trCurrent()
             : type != null
-            ? 'Siap Diambil'
-            : 'Siap Diambil / Dikirim',
+            ? ('Siap Diambil').trCurrent()
+            : ('Siap Diambil / Dikirim').trCurrent(),
       'Disajikan' =>
         delivery
-            ? 'Dikirim'
+            ? ('Dikirim').trCurrent()
             : kitchen && const ['dine_in', 'free_table'].contains(type)
-            ? 'Disajikan'
-            : 'Diserahkan',
-      'Selesai' => 'Selesai',
-      'Batal' => 'Dibatalkan',
+            ? ('Disajikan').trCurrent()
+            : ('Diserahkan').trCurrent(),
+      'Selesai' => ('Selesai').trCurrent(),
+      'Batal' => ('Dibatalkan').trCurrent(),
       _ => status,
     };
   }
 
   String actionLabel(String target, [PosOrderDetail? order]) {
-    if (order != null && isServiceOrder(order)) return 'Kelola layanan';
+    if (order != null && isServiceOrder(order)) return ('Kelola layanan').trCurrent();
     final delivery = const [
       'delivery',
       'online_delivery',
     ].contains(order?.orderType);
     return switch (target) {
-      'Diproses' => kitchen ? 'Mulai proses' : 'Siapkan pesanan',
+      'Diproses' => kitchen ? ('Mulai proses').trCurrent() : ('Siapkan pesanan').trCurrent(),
       'Siap' =>
         delivery
-            ? 'Tandai siap dikirim'
+            ? ('Tandai siap dikirim').trCurrent()
             : kitchen
-            ? 'Tandai siap disajikan'
-            : 'Tandai siap diambil',
+            ? ('Tandai siap disajikan').trCurrent()
+            : ('Tandai siap diambil').trCurrent(),
       'Disajikan' =>
         delivery
-            ? 'Konfirmasi sudah dikirim'
+            ? ('Konfirmasi sudah dikirim').trCurrent()
             : kitchen &&
                   const ['dine_in', 'free_table'].contains(order?.orderType)
-            ? 'Konfirmasi sudah disajikan'
-            : 'Konfirmasi sudah diserahkan',
+            ? ('Konfirmasi sudah disajikan').trCurrent()
+            : ('Konfirmasi sudah diserahkan').trCurrent(),
       _ =>
         delivery
-            ? 'Konfirmasi diterima pelanggan'
+            ? ('Konfirmasi diterima pelanggan').trCurrent()
             : order?.orderType == 'dine_in'
-            ? 'Tutup & kosongkan meja'
-            : 'Selesaikan pesanan',
+            ? ('Tutup & kosongkan meja').trCurrent()
+            : ('Selesaikan pesanan').trCurrent(),
     };
   }
 }

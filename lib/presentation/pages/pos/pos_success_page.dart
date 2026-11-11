@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -41,9 +42,9 @@ class PosSuccessPage extends StatelessWidget {
         backgroundColor: AppColors.primary,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const PosAppBarTitle(
-          title: 'Pembayaran Berhasil',
-          subtitle: 'Transaksi telah selesai diproses',
+        title: PosAppBarTitle(
+          title: ('Pembayaran Berhasil').tr(context),
+          subtitle: ('Transaksi telah selesai diproses').tr(context),
         ),
       ),
       body: SafeArea(
@@ -88,7 +89,7 @@ class PosSuccessPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        const PosText(
                           'Sukses!',
                           style: TextStyle(
                             fontSize: 24,
@@ -102,7 +103,7 @@ class PosSuccessPage extends StatelessWidget {
                         if (autoPrint && printerNotConfigured)
                           const Padding(
                             padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
-                            child: Text(
+                            child: PosText(
                               'Struk belum dicetak karena printer belum dipilih. Transaksi tetap berhasil; cetak dapat dilakukan nanti.',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: AppColors.warning),
@@ -116,7 +117,7 @@ class PosSuccessPage extends StatelessWidget {
                               _buildRow('Invoice', transaction.invoice),
                               const SizedBox(height: 16),
                               _buildRow(
-                                'Total Tagihan',
+                                ('Total Tagihan').tr(context),
                                 _currency(transaction.total),
                               ),
                               const SizedBox(height: 16),
@@ -137,7 +138,7 @@ class PosSuccessPage extends StatelessWidget {
                               ),
                               if (transaction.pendingSync) ...[
                                 const SizedBox(height: 16),
-                                const Text(
+                                const PosText(
                                   'Menunggu sinkronisasi server',
                                   style: TextStyle(color: AppColors.warning),
                                 ),
@@ -161,7 +162,7 @@ class PosSuccessPage extends StatelessWidget {
                                         color: AppColors.primary,
                                         size: 18,
                                       ),
-                                      label: const Text(
+                                      label: const PosText(
                                         'Bagikan Struk',
                                         style: TextStyle(
                                           color: AppColors.primary,
@@ -211,7 +212,7 @@ class PosSuccessPage extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: const PosText(
                                     'Selesai',
                                     style: TextStyle(
                                       color: Colors.white,
@@ -239,14 +240,21 @@ class PosSuccessPage extends StatelessWidget {
   Widget _buildRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 16, color: Colors.black87),
+        Expanded(
+          child: PosText(
+            label,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
         ),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, color: Colors.black87),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
         ),
       ],
     );
@@ -259,24 +267,24 @@ class PosSuccessPage extends StatelessWidget {
   ).format(value);
 
   String get _receiptText =>
-      'Struk ${transaction.invoice}\n'
+      '${'Struk ${transaction.invoice}'.trCurrent()}\n'
       '${transaction.storeName.isEmpty ? '' : '${transaction.storeName}\n'}'
-      '${transaction.cashierName.isEmpty ? '' : 'Kasir: ${transaction.cashierName}\n'}'
-      '${transaction.shiftReference.isEmpty ? '' : 'Shift: ${transaction.shiftReference}\n'}'
-      '${transaction.transactionReference.isEmpty ? '' : 'Referensi: ${transaction.transactionReference}\n'}'
-      '${transaction.customerName.isEmpty ? '' : 'Pelanggan: ${transaction.customerName}\n'}'
+      '${transaction.cashierName.isEmpty ? '' : '${'Kasir'.trCurrent()}: ${transaction.cashierName}\n'}'
+      '${transaction.shiftReference.isEmpty ? '' : '${'Shift'.trCurrent()}: ${transaction.shiftReference}\n'}'
+      '${transaction.transactionReference.isEmpty ? '' : '${'Referensi'.trCurrent()}: ${transaction.transactionReference}\n'}'
+      '${transaction.customerName.isEmpty ? '' : '${posCurrentLocale().receiptCustomerLabel}: ${transaction.customerName}\n'}'
       '${transaction.date.isEmpty ? '' : '${transaction.date}\n'}'
       '\n'
       '${transaction.items.map(_formatThermalItem).join('\n')}\n'
       '\n'
-      'Subtotal: ${_currency(transaction.subtotal)}\n'
-      '${transaction.discount > 0 ? 'Diskon: -${_currency(transaction.discount)}\n' : ''}'
-      'Total: ${_currency(transaction.total)}\n'
-      'Pembayaran: ${transaction.paymentMethod.toUpperCase()}\n'
-      'Dibayar: ${_currency(transaction.cashReceived)}\n'
-      '${transaction.change > 0 ? 'Kembalian: ${_currency(transaction.change)}\n' : ''}'
-      '${transaction.note.trim().isEmpty ? '' : 'Catatan: ${transaction.note}\n'}'
-      'Terima kasih.';
+      '${'Subtotal'.trCurrent()}: ${_currency(transaction.subtotal)}\n'
+      '${transaction.discount > 0 ? '${'Diskon'.trCurrent()}: -${_currency(transaction.discount)}\n' : ''}'
+      '${'Total'.trCurrent()}: ${_currency(transaction.total)}\n'
+      '${'Pembayaran'.trCurrent()}: ${transaction.paymentMethod.toUpperCase()}\n'
+      '${'Dibayar'.trCurrent()}: ${_currency(transaction.cashReceived)}\n'
+      '${transaction.change > 0 ? '${'Kembalian'.trCurrent()}: ${_currency(transaction.change)}\n' : ''}'
+      '${transaction.note.trim().isEmpty ? '' : '${'Catatan'.trCurrent()}: ${transaction.note}\n'}'
+      '${'Terima kasih.'.trCurrent()}';
 
   String _buildThermalReceiptText(PosReceiptPrintData printData) {
     final parsedDate = DateTime.tryParse(transaction.date)?.toLocal();
@@ -336,64 +344,67 @@ class PosSuccessPage extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Bagikan struk melalui',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              if (transaction.customerName.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  transaction.customerName,
-                  style: const TextStyle(color: Colors.black54),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const PosText(
+                  'Bagikan struk melalui',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                if (transaction.customerName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    transaction.customerName,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(
+                    Icons.image_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const PosText('Bagikan sebagai PNG'),
+                  subtitle: const PosText('Pilih WhatsApp atau aplikasi lain'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _shareReceiptFile(context, _ReceiptFileType.png);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.picture_as_pdf_outlined,
+                    color: AppColors.danger,
+                  ),
+                  title: const PosText('Bagikan sebagai PDF'),
+                  subtitle: const PosText('Cocok untuk arsip dan cetak ulang'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _shareReceiptFile(context, _ReceiptFileType.pdf);
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
+                  title: const PosText('WhatsApp sebagai teks'),
+                  subtitle: Text(
+                    transaction.customerPhone.isEmpty
+                        ? ('Masukkan nomor tujuan').tr(sheetContext)
+                        : transaction.customerPhone,
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _shareWhatsApp(context);
+                  },
                 ),
               ],
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(
-                  Icons.image_outlined,
-                  color: AppColors.primary,
-                ),
-                title: const Text('Bagikan sebagai PNG'),
-                subtitle: const Text('Pilih WhatsApp atau aplikasi lain'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _shareReceiptFile(context, _ReceiptFileType.png);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.picture_as_pdf_outlined,
-                  color: AppColors.danger,
-                ),
-                title: const Text('Bagikan sebagai PDF'),
-                subtitle: const Text('Cocok untuk arsip dan cetak ulang'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _shareReceiptFile(context, _ReceiptFileType.pdf);
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
-                title: const Text('WhatsApp sebagai teks'),
-                subtitle: Text(
-                  transaction.customerPhone.isEmpty
-                      ? 'Masukkan nomor tujuan'
-                      : transaction.customerPhone,
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _shareWhatsApp(context);
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -410,7 +421,7 @@ class PosSuccessPage extends StatelessWidget {
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
+        title: PosText(title),
         content: TextField(
           controller: controller,
           keyboardType: keyboardType,
@@ -420,12 +431,12 @@ class PosSuccessPage extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Lanjutkan'),
+            child: const PosText('Lanjutkan'),
           ),
         ],
       ),
@@ -437,7 +448,7 @@ class PosSuccessPage extends StatelessWidget {
   Future<void> _shareWhatsApp(BuildContext context) async {
     final rawPhone = await _requestDestination(
       context,
-      title: 'Nomor WhatsApp',
+      title: ('Nomor WhatsApp').tr(context),
       initialValue: transaction.customerPhone,
       keyboardType: TextInputType.phone,
     );
@@ -648,7 +659,7 @@ class _PrintReceiptButtonState extends State<_PrintReceiptButton> {
             )
           : const Icon(Icons.print, color: AppColors.primary, size: 18),
       label: Text(
-        _printing ? 'Mencetak…' : 'Cetak Struk',
+        _printing ? ('Mencetak…').tr(context) : ('Cetak Struk').tr(context),
         style: const TextStyle(color: AppColors.primary),
       ),
       style: OutlinedButton.styleFrom(
@@ -703,7 +714,7 @@ class _AutoPrintTriggerState extends State<_AutoPrintTrigger> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 10),
-          Text(
+          PosText(
             'Mencetak struk…',
             style: Theme.of(context).textTheme.bodyMedium,
           ),

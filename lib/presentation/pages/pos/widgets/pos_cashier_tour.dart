@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -170,17 +171,17 @@ Future<void> showInteractivePosCashierTour(
                                       Navigator.pop(dialogContext);
                                     }
                                   },
-                                  child: const Text('Lewati'),
+                                  child: const PosText('Lewati'),
                                 ),
                               ],
                             ),
-                            Text(
+                            PosText(
                               steps[index].title,
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(height: 6),
-                            Text(
+                            PosText(
                               steps[index].description,
                               style: const TextStyle(
                                 color: Colors.black54,
@@ -197,7 +198,7 @@ Future<void> showInteractivePosCashierTour(
                                 ),
                                 const SizedBox(width: 6),
                                 const Expanded(
-                                  child: Text(
+                                  child: PosText(
                                     'Ketuk area yang disorot untuk melanjutkan',
                                     style: TextStyle(
                                       fontSize: 12,

@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -74,18 +76,18 @@ class _LoginFormState extends State<LoginForm> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Dev: Custom Endpoint'),
+          title: const PosText('Dev: Custom Endpoint'),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              hintText: GraphQLClientProvider.developmentEndpoint,
-              labelText: 'GraphQL Endpoint',
+            decoration:  InputDecoration(
+              hintText: (GraphQLClientProvider.developmentEndpoint).tr(context),
+              labelText: ('GraphQL Endpoint').tr(context),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             TextButton(
               onPressed: () async {
@@ -100,14 +102,14 @@ class _LoginFormState extends State<LoginForm> {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
+                      content: PosText(
                         'Endpoint tersimpan. Mohon restart aplikasi/hot restart.',
                       ),
                     ),
                   );
                 }
               },
-              child: const Text('Simpan'),
+              child: const PosText('Simpan'),
             ),
           ],
         );
@@ -131,6 +133,7 @@ class _LoginFormState extends State<LoginForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Align(alignment: Alignment.centerRight, child: LanguagePicker()),
             Stack(
               alignment: Alignment.center,
               children: [
@@ -146,7 +149,7 @@ class _LoginFormState extends State<LoginForm> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
+                      PosText(
                         'Masuk ke POS Mobile',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineSmall
@@ -165,7 +168,7 @@ class _LoginFormState extends State<LoginForm> {
                         color: Colors.grey,
                       ),
                       onPressed: _showEndpointDialog,
-                      tooltip: 'Set API Endpoint',
+                      tooltip: ('Set API Endpoint').tr(context),
                     ),
                   ),
               ],
@@ -184,8 +187,9 @@ class _LoginFormState extends State<LoginForm> {
               child: Column(
                 children: [
                   TextFormField(
+errorBuilder: posValidationError,
                     controller: _usernameController,
-                    decoration: const InputDecoration(labelText: 'Username'),
+                    decoration:  InputDecoration(labelText: ('Username').tr(context)),
                     textInputAction: TextInputAction.next,
                     onChanged: (_) {
                       if (context.read<AuthCubit>().state.captcha != null) {
@@ -195,16 +199,17 @@ class _LoginFormState extends State<LoginForm> {
                     },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Username wajib diisi';
+                        return ('Username wajib diisi').tr(context);
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
+errorBuilder: posValidationError,
                     controller: _passwordController,
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: ('Password').tr(context),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -230,7 +235,7 @@ class _LoginFormState extends State<LoginForm> {
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Password wajib diisi';
+                        return ('Password wajib diisi').tr(context);
                       }
                       return null;
                     },
@@ -239,7 +244,7 @@ class _LoginFormState extends State<LoginForm> {
                     const SizedBox(height: 16),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
+                      child: PosText(
                         'Verifikasi CAPTCHA',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
@@ -250,18 +255,19 @@ class _LoginFormState extends State<LoginForm> {
                       width: 190,
                       height: 55,
                       fit: BoxFit.contain,
-                      semanticLabel: 'Kode CAPTCHA enam karakter',
-                      errorBuilder: (_, __, ___) => const Text(
+                      semanticLabel: ('Kode CAPTCHA enam karakter').tr(context),
+                      errorBuilder: (_, __, ___) => const PosText(
                         'Gambar CAPTCHA tidak dapat ditampilkan. Coba login kembali.',
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
+errorBuilder: posValidationError,
                       controller: _captchaController,
                       focusNode: _captchaFocusNode,
-                      decoration: const InputDecoration(
-                        labelText: 'Kode CAPTCHA',
-                        hintText: 'Ketik enam karakter pada gambar',
+                      decoration:  InputDecoration(
+                        labelText: ('Kode CAPTCHA').tr(context),
+                        hintText: ('Ketik enam karakter pada gambar').tr(context),
                       ),
                       autocorrect: false,
                       enableSuggestions: false,
@@ -271,7 +277,7 @@ class _LoginFormState extends State<LoginForm> {
                       validator: (value) {
                         if (state.captcha == null) return null;
                         if ((value?.trim().length ?? 0) != 6) {
-                          return 'Masukkan enam karakter CAPTCHA';
+                          return ('Masukkan enam karakter CAPTCHA').tr(context);
                         }
                         return null;
                       },
@@ -292,7 +298,7 @@ class _LoginFormState extends State<LoginForm> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Masuk'),
+                          : const PosText('Masuk'),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -302,7 +308,7 @@ class _LoginFormState extends State<LoginForm> {
                     spacing: 2,
                     runSpacing: 0,
                     children: [
-                      const Text('Belum punya akun?'),
+                      const PosText('Belum punya akun?'),
                       TextButton(
                         style: TextButton.styleFrom(
                           visualDensity: VisualDensity.compact,
@@ -316,7 +322,7 @@ class _LoginFormState extends State<LoginForm> {
                                   builder: (_) => const RegisterPage(),
                                 ),
                               ),
-                        child: const Text('Daftar sekarang'),
+                        child: const PosText('Daftar sekarang'),
                       ),
                     ],
                   ),
@@ -325,7 +331,7 @@ class _LoginFormState extends State<LoginForm> {
                       state.captcha == null) ...[
                     const SizedBox(height: 16),
                     Text(
-                      state.error ?? 'Login gagal.',
+                      state.error ?? ('Login gagal.').tr(context),
                       style: const TextStyle(color: AppColors.danger),
                       textAlign: TextAlign.center,
                     ),

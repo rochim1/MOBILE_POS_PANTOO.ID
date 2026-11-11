@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -100,8 +101,8 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                 child: TextField(
                   controller: _search,
                   onChanged: _onSearch,
-                  decoration: const InputDecoration(
-                    labelText: 'Cari warehouse',
+                  decoration:  InputDecoration(
+                    labelText: ('Cari warehouse').tr(context),
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -113,7 +114,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                   controlHeight: controlHeight,
                 ),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Tambah Warehouse'),
+                label: const PosText('Tambah Warehouse'),
               );
               if (constraints.maxWidth < 560) {
                 return Column(
@@ -154,7 +155,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
       if (item['is_receiving_location'] == true) 'Penerimaan',
       if (item['is_transfer_source'] == true) 'Sumber mutasi',
       if (item['is_transfer_destination'] == true) 'Tujuan mutasi',
-    ];
+    ].map((label) => label.tr(context)).toList();
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
@@ -163,13 +164,13 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
           child: const Icon(Icons.warehouse_outlined),
         ),
         title: Text(
-          item['nama_cabang']?.toString() ?? 'Warehouse',
+          item['nama_cabang']?.toString() ?? ('Warehouse').tr(context),
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
           '${item['branch_code'] ?? '-'} • ${_typeLabel(item['warehouse_type'])}\n'
           '${item['alamat_cabang'] ?? '-'}\n'
-          '${capabilities.isEmpty ? 'Belum ada capability' : capabilities.join(' • ')}',
+          '${capabilities.isEmpty ? ('Belum ada capability').tr(context) : capabilities.join(' • ')}',
         ),
         isThreeLine: true,
         trailing: widget.canUpdate || widget.canDelete
@@ -178,9 +179,9 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     value == 'edit' ? _openForm(item) : _confirmDelete(item),
                 itemBuilder: (_) => [
                   if (widget.canUpdate)
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    const PopupMenuItem(value: 'edit', child: PosText('Edit')),
                   if (widget.canDelete)
-                    const PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                    const PopupMenuItem(value: 'delete', child: PosText('Hapus')),
                 ],
               )
             : null,
@@ -189,13 +190,13 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
   }
 
   String _typeLabel(dynamic value) => switch (value?.toString()) {
-    'central' => 'Gudang pusat',
-    'branch' => 'Gudang cabang',
-    'store' => 'Gudang toko',
-    'display' => 'Area display',
-    'in_transit' => 'Dalam perjalanan',
-    'quarantine' => 'Karantina',
-    _ => 'Warehouse lainnya',
+    'central' => ('Gudang pusat').trCurrent(),
+    'branch' => ('Gudang cabang').trCurrent(),
+    'store' => ('Gudang toko').trCurrent(),
+    'display' => ('Area display').trCurrent(),
+    'in_transit' => ('Dalam perjalanan').trCurrent(),
+    'quarantine' => ('Karantina').trCurrent(),
+    _ => ('Warehouse lainnya').trCurrent(),
   };
 
   Future<void> _openForm(
@@ -256,27 +257,27 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                   totalStageCount: 5,
                   stages: [
                     PosSetupTourStage(
-                      title: 'Nama dan alamat lokasi',
+                      title: ('Nama dan alamat lokasi').tr(context),
                       description:
-                          'Isi identitas warehouse. Nama dan alamat wajib agar lokasi mudah dikenali.',
+                          ('Isi identitas warehouse. Nama dan alamat wajib agar lokasi mudah dikenali.').tr(context),
                       target: targets.warehouseName,
                     ),
                     PosSetupTourStage(
-                      title: 'Pilih tipe warehouse',
+                      title: ('Pilih tipe warehouse').tr(context),
                       description:
-                          'Pilih fungsi utama lokasi, misalnya gudang toko atau gudang pusat.',
+                          ('Pilih fungsi utama lokasi, misalnya gudang toko atau gudang pusat.').tr(context),
                       target: targets.warehouseType,
                     ),
                     PosSetupTourStage(
-                      title: 'Aktifkan lokasi penjualan',
+                      title: ('Aktifkan lokasi penjualan').tr(context),
                       description:
-                          'Aktifkan opsi ini agar warehouse dapat dihubungkan ke toko POS.',
+                          ('Aktifkan opsi ini agar warehouse dapat dihubungkan ke toko POS.').tr(context),
                       target: targets.warehouseSellable,
                     ),
                     PosSetupTourStage(
-                      title: 'Simpan warehouse',
+                      title: ('Simpan warehouse').tr(context),
                       description:
-                          'Setelah data wajib terisi, simpan. Status ringkasan akan diperbarui dari server.',
+                          ('Setelah data wajib terisi, simpan. Status ringkasan akan diperbarui dari server.').tr(context),
                       target: targets.warehouseSave,
                     ),
                   ],
@@ -295,7 +296,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      existing == null ? 'Tambah Warehouse' : 'Edit Warehouse',
+                      existing == null ? ('Tambah Warehouse').tr(context) : ('Edit Warehouse').tr(context),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
@@ -303,8 +304,8 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       key: widget.setupTourTargets?.warehouseName,
                       child: TextField(
                         controller: name,
-                        decoration: const InputDecoration(
-                          labelText: 'Nama warehouse *',
+                        decoration:  InputDecoration(
+                          labelText: ('Nama warehouse *').tr(context),
                         ),
                       ),
                     ),
@@ -312,54 +313,54 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     TextField(
                       controller: code,
                       textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Kode warehouse',
+                      decoration:  InputDecoration(
+                        labelText: ('Kode warehouse').tr(context),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: address,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Alamat *'),
+                      decoration:  InputDecoration(labelText: ('Alamat *').tr(context)),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: phone,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'Telepon'),
+                      decoration:  InputDecoration(labelText: ('Telepon').tr(context)),
                     ),
                     const SizedBox(height: 12),
                     Container(
                       key: widget.setupTourTargets?.warehouseType,
                       child: DropdownButtonFormField<String>(
                         initialValue: type,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipe warehouse',
+                        decoration:  InputDecoration(
+                          labelText: ('Tipe warehouse').tr(context),
                         ),
                         items: const [
                           DropdownMenuItem(
                             value: 'central',
-                            child: Text('Gudang pusat'),
+                            child: PosText('Gudang pusat'),
                           ),
                           DropdownMenuItem(
                             value: 'branch',
-                            child: Text('Gudang cabang'),
+                            child: PosText('Gudang cabang'),
                           ),
                           DropdownMenuItem(
                             value: 'store',
-                            child: Text('Gudang toko'),
+                            child: PosText('Gudang toko'),
                           ),
                           DropdownMenuItem(
                             value: 'display',
-                            child: Text('Area display'),
+                            child: PosText('Area display'),
                           ),
                           DropdownMenuItem(
                             value: 'quarantine',
-                            child: Text('Karantina'),
+                            child: PosText('Karantina'),
                           ),
                           DropdownMenuItem(
                             value: 'other',
-                            child: Text('Lainnya'),
+                            child: PosText('Lainnya'),
                           ),
                         ],
                         onChanged: (value) =>
@@ -371,12 +372,12 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       DropdownButtonFormField<String>(
                         initialValue: linkedOutletId.isEmpty ? '' : linkedOutletId,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Outlet POS terkait',
-                          helperText: 'Wajib untuk pemindahan stok gudang toko ↔ display.',
+                        decoration:  InputDecoration(
+                          labelText: ('Outlet POS terkait').tr(context),
+                          helperText: ('Wajib untuk pemindahan stok gudang toko ↔ display.').tr(context),
                         ),
                         items: [
-                          const DropdownMenuItem(value: '', child: Text('Belum ditautkan')),
+                          const DropdownMenuItem(value: '', child: PosText('Belum ditautkan')),
                           for (final outlet in outlets)
                             DropdownMenuItem(
                               value: outlet.id,
@@ -386,7 +387,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                               !outlets.any((outlet) => outlet.id == linkedOutletId))
                             DropdownMenuItem(
                               value: linkedOutletId,
-                              child: Text('Outlet tersimpan ($linkedOutletId)'),
+                              child: Text(posLocale(context).posb3f4a442d275((linkedOutletId).toString())),
                             ),
                         ],
                         onChanged: (value) =>
@@ -394,7 +395,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    Text(
+                    PosText(
                       'Capability operasional',
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
@@ -402,8 +403,8 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       key: widget.setupTourTargets?.warehouseSellable,
                       child: SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Lokasi penjualan'),
-                        subtitle: const Text(
+                        title: const PosText('Lokasi penjualan'),
+                        subtitle: const PosText(
                           'Stok dapat digunakan oleh kasir outlet',
                         ),
                         value: sellable,
@@ -413,21 +414,21 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Penerimaan barang'),
+                      title: const PosText('Penerimaan barang'),
                       value: receiving,
                       onChanged: (value) =>
                           setSheetState(() => receiving = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Sumber mutasi stok'),
+                      title: const PosText('Sumber mutasi stok'),
                       value: transferSource,
                       onChanged: (value) =>
                           setSheetState(() => transferSource = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Tujuan mutasi stok'),
+                      title: const PosText('Tujuan mutasi stok'),
                       value: transferDestination,
                       onChanged: (value) =>
                           setSheetState(() => transferDestination = value),
@@ -479,7 +480,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                                 },
                               );
                             },
-                      child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+                      child: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan').tr(context)),
                     ),
                   ],
                 ),
@@ -501,18 +502,18 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus warehouse?'),
+        title: const PosText('Hapus warehouse?'),
         content: Text(
-          '${item['nama_cabang']} hanya dapat dihapus jika belum dipakai outlet dan belum memiliki saldo inventaris.',
+          posLocale(context).posc9d3ba9c4543((item['nama_cabang']).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus'),
+            child: const PosText('Hapus'),
           ),
         ],
       ),

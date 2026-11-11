@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -111,15 +113,15 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                const PosText(
                   'Filter Retur Pembelian',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   initialValue: reason,
-                  decoration: const InputDecoration(
-                    labelText: 'Alasan retur',
+                  decoration:  InputDecoration(
+                    labelText: ('Alasan retur').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: _optionItems(_reasonOptions, includeAll: true),
@@ -129,8 +131,8 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: method,
-                  decoration: const InputDecoration(
-                    labelText: 'Penyelesaian',
+                  decoration:  InputDecoration(
+                    labelText: ('Penyelesaian').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: _optionItems(
@@ -146,7 +148,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                   children: [
                     Expanded(
                       child: _ReturnDateField(
-                        label: 'Dari tanggal',
+                        label: ('Dari tanggal').tr(context),
                         value: from,
                         onChanged: (value) => setSheetState(() => from = value),
                       ),
@@ -154,7 +156,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _ReturnDateField(
-                        label: 'Sampai tanggal',
+                        label: ('Sampai tanggal').tr(context),
                         value: to,
                         onChanged: (value) => setSheetState(() => to = value),
                       ),
@@ -171,12 +173,12 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                         from = null;
                         to = null;
                       }),
-                      child: const Text('Reset'),
+                      child: const PosText('Reset'),
                     ),
                     const Spacer(),
                     FilledButton(
                       onPressed: () => Navigator.pop(sheetContext, true),
-                      child: const Text('Terapkan'),
+                      child: const PosText('Terapkan'),
                     ),
                   ],
                 ),
@@ -244,6 +246,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     final permissions = Map<String, dynamic>.from(
       context.watch<PosBloc>().state.runtimeConfig['permissions'] as Map? ??
           const {},
@@ -267,8 +270,8 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: _search,
-                    decoration: const InputDecoration(
-                      labelText: 'Cari nomor retur / supplier',
+                    decoration:  InputDecoration(
+                      labelText: ('Cari nomor retur / supplier').tr(context),
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                     ),
@@ -279,28 +282,28 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     isDense: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
+                    decoration:  InputDecoration(
+                      labelText: ('Status').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: '', child: Text('Semua')),
-                      DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                      DropdownMenuItem(value: '', child: PosText('Semua')),
+                      DropdownMenuItem(value: 'draft', child: PosText('Draft')),
                       DropdownMenuItem(
                         value: 'pending_approval',
-                        child: Text('Menunggu'),
+                        child: PosText('Menunggu'),
                       ),
                       DropdownMenuItem(
                         value: 'approved',
-                        child: Text('Disetujui'),
+                        child: PosText('Disetujui'),
                       ),
                       DropdownMenuItem(
                         value: 'rejected',
-                        child: Text('Ditolak'),
+                        child: PosText('Ditolak'),
                       ),
                       DropdownMenuItem(
                         value: 'processed',
-                        child: Text('Diproses'),
+                        child: PosText('Diproses'),
                       ),
                     ],
                     onChanged: (value) {
@@ -315,7 +318,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     controlHeight: controlHeight,
                   ),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Retur ke Supplier'),
+                  label: const PosText('Retur ke Supplier'),
                 );
                 final hasFilter =
                     _reason.isNotEmpty ||
@@ -324,7 +327,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     _dateTo != null;
                 final filter = IconButton.filledTonal(
                   onPressed: _showFilters,
-                  tooltip: 'Filter retur',
+                  tooltip: ('Filter retur').tr(context),
                   style: InventoryActionStyle.filter(
                     controlHeight: controlHeight,
                   ),
@@ -385,7 +388,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                           color: Colors.black26,
                         ),
                         SizedBox(height: 12),
-                        Center(child: Text('Belum ada retur ke supplier')),
+                        Center(child: PosText('Belum ada retur ke supplier')),
                       ],
                     )
                   : ListView.separated(
@@ -439,7 +442,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                                   ],
                                 ),
                                 PopupMenuButton<String>(
-                                  tooltip: 'Aksi retur',
+                                  tooltip: ('Aksi retur').tr(context),
                                   onSelected: (action) async {
                                     if (action == 'detail') {
                                       await _openDetail(item['_id'].toString());
@@ -465,7 +468,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                                         leading: Icon(
                                           Icons.visibility_outlined,
                                         ),
-                                        title: Text('Detail & aksi'),
+                                        title: PosText('Detail & aksi'),
                                       ),
                                     ),
                                     PopupMenuItem(
@@ -473,7 +476,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                                       child: ListTile(
                                         dense: true,
                                         leading: Icon(Icons.copy_outlined),
-                                        title: Text('Salin nomor'),
+                                        title: PosText('Salin nomor'),
                                       ),
                                     ),
                                   ],
@@ -497,7 +500,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     onPressed: _page > 1 ? () => _load(page: _page - 1) : null,
                     icon: const Icon(Icons.chevron_left),
                   ),
-                  Text('Halaman $_page dari ${(_total / _limit).ceil()}'),
+                  Text(posLocale(context).posea3f79a3c91b((_page).toString(), ((_total / _limit).ceil()).toString())),
                   IconButton(
                     onPressed: _page * _limit < _total
                         ? () => _load(page: _page + 1)
@@ -829,13 +832,14 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
           widget.existing == null
-              ? 'Retur ke Supplier'
-              : 'Perbaiki Retur Pembelian',
+              ? ('Retur ke Supplier').tr(context)
+              : ('Perbaiki Retur Pembelian').tr(context),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -852,8 +856,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
             children: [
               Text(
                 widget.existing == null
-                    ? '1. Cari pembelian'
-                    : '1. Pembelian sumber',
+                    ? ('1. Cari pembelian').tr(context)
+                    : ('1. Pembelian sumber').tr(context),
                 style: _sectionStyle,
               ),
               const SizedBox(height: 8),
@@ -864,8 +868,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                       controller: _search,
                       enabled: widget.existing == null,
                       onSubmitted: (_) => _findPurchases(),
-                      decoration: const InputDecoration(
-                        labelText: 'Nomor PO / supplier',
+                      decoration:  InputDecoration(
+                        labelText: ('Nomor PO / supplier').tr(context),
                         prefixIcon: Icon(Icons.search),
                         border: OutlineInputBorder(),
                       ),
@@ -898,12 +902,12 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
               ],
               if (_purchase != null) ...[
                 const Divider(height: 28),
-                const Text('2. Lokasi dan barang', style: _sectionStyle),
+                const PosText('2. Lokasi dan barang', style: _sectionStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _group?['lokasi']?['label']?.toString(),
-                  decoration: const InputDecoration(
-                    labelText: 'Lokasi stok',
+                  decoration:  InputDecoration(
+                    labelText: ('Lokasi stok').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: _groups
@@ -927,7 +931,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   children: [
                     Expanded(
                       child: _ReturnDateField(
-                        label: 'Tanggal retur',
+                        label: ('Tanggal retur').tr(context),
                         value: _returnDate,
                         onChanged: (value) {
                           if (value != null) {
@@ -939,14 +943,14 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
                       onPressed: _scanItem,
-                      tooltip: 'Scan barcode barang',
+                      tooltip: ('Scan barcode barang').tr(context),
                       icon: const Icon(Icons.qr_code_scanner),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 if (_availableItems.isEmpty)
-                  const Text('Tidak ada barang yang masih dapat diretur.'),
+                  const PosText('Tidak ada barang yang masih dapat diretur.'),
                 ..._availableItems.map(
                   (item) => Card(
                     child: Padding(
@@ -960,7 +964,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                               item['nama_inventaris']?.toString() ?? '-',
                             ),
                             subtitle: Text(
-                              'Tersedia: ${item['available_qty']} ${item['unit']} • ${_money(item['harga_beli'])}',
+                              posLocale(context).pos6551fa1c3fd7((item['available_qty']).toString(), (item['unit']).toString(), (_money(item['harga_beli'])).toString()),
                             ),
                             onChanged: (value) => setState(
                               () => item['selected'] = value == true,
@@ -978,12 +982,12 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                                         decimal: true,
                                       ),
                                   decoration: InputDecoration(
-                                    labelText: 'Jumlah retur (${item['unit']})',
+                                    labelText: posLocale(context).pos981fefc1e33c((item['unit']).toString()),
                                     helperText:
                                         (item['no_batch']?.toString() ?? '')
                                             .isEmpty
-                                        ? 'Tanpa batch'
-                                        : 'Batch ${item['no_batch']}',
+                                        ? ('Tanpa batch').tr(context)
+                                        : posLocale(context).pos6f9650674671((item['no_batch']).toString()),
                                     border: const OutlineInputBorder(),
                                   ),
                                   onChanged: (value) {
@@ -998,8 +1002,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                                 TextFormField(
                                   initialValue:
                                       item['item_reason']?.toString() ?? '',
-                                  decoration: const InputDecoration(
-                                    labelText: 'Catatan/alasan barang',
+                                  decoration:  InputDecoration(
+                                    labelText: ('Catatan/alasan barang').tr(context),
                                     border: OutlineInputBorder(),
                                   ),
                                   onChanged: (value) =>
@@ -1013,15 +1017,15 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   ),
                 ),
                 const Divider(height: 28),
-                const Text('3. Alasan dan penyelesaian', style: _sectionStyle),
+                const PosText('3. Alasan dan penyelesaian', style: _sectionStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue:
                       _reasonOptions.any((item) => item['value'] == _reason)
                       ? _reason
                       : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Alasan retur',
+                  decoration:  InputDecoration(
+                    labelText: ('Alasan retur').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: _optionItems(_reasonOptions),
@@ -1034,8 +1038,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                       _methodOptions.any((item) => item['value'] == _method)
                       ? _method
                       : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Penyelesaian',
+                  decoration:  InputDecoration(
+                    labelText: ('Penyelesaian').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: _optionItems(_methodOptions),
@@ -1046,8 +1050,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                 TextField(
                   controller: _notes,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Catatan',
+                  decoration:  InputDecoration(
+                    labelText: ('Catatan').tr(context),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -1055,7 +1059,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _submitApproval,
-                    title: const Text('Langsung kirim untuk persetujuan'),
+                    title: const PosText('Langsung kirim untuk persetujuan'),
                     onChanged: (value) =>
                         setState(() => _submitApproval = value),
                   )
@@ -1063,8 +1067,8 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   const ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.info_outline),
-                    title: Text('Retur akan disimpan sebagai draft'),
-                    subtitle: Text(
+                    title: PosText('Retur akan disimpan sebagai draft'),
+                    subtitle: PosText(
                       'Akun ini tidak memiliki izin mengirim persetujuan.',
                     ),
                   ),
@@ -1073,7 +1077,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   onPressed: _loading ? null : _save,
                   icon: const Icon(Icons.save),
                   label: Text(
-                    _submitApproval ? 'Simpan & Kirim' : 'Simpan Draft',
+                    _submitApproval ? ('Simpan & Kirim').tr(context) : ('Simpan Draft').tr(context),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -1135,23 +1139,23 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Tolak retur'),
+          title: const PosText('Tolak retur'),
           content: TextField(
             controller: controller,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Alasan penolakan',
+            decoration:  InputDecoration(
+              labelText: ('Alasan penolakan').tr(context),
               border: OutlineInputBorder(),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Tolak'),
+              child: const PosText('Tolak'),
             ),
           ],
         ),
@@ -1165,24 +1169,24 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
         builder: (context) => AlertDialog(
           title: Text(
             action == 'process'
-                ? 'Proses retur?'
+                ? ('Proses retur?').tr(context)
                 : action == 'approve'
-                ? 'Setujui retur?'
-                : 'Kirim untuk persetujuan?',
+                ? ('Setujui retur?').tr(context)
+                : ('Kirim untuk persetujuan?').tr(context),
           ),
           content: Text(
             action == 'process'
-                ? 'Stok dan konsekuensi finansial akan diproses oleh server.'
-                : 'Pastikan data retur sudah benar.',
+                ? ('Stok dan konsekuensi finansial akan diproses oleh server.').tr(context)
+                : ('Pastikan data retur sudah benar.').tr(context),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Lanjutkan'),
+              child: const PosText('Lanjutkan'),
             ),
           ],
         ),
@@ -1216,20 +1220,20 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus retur pembelian?'),
+        title: const PosText('Hapus retur pembelian?'),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Alasan penghapusan'),
+          decoration:  InputDecoration(labelText: ('Alasan penghapusan').tr(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus'),
+            child: const PosText('Hapus'),
           ),
         ],
       ),
@@ -1272,13 +1276,14 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     final data = _data;
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {},
       child: Scaffold(
         appBar: AppBar(
-          title: Text(data?['no_return']?.toString() ?? 'Detail Retur'),
+          title: Text(data?['no_return']?.toString() ?? ('Detail Retur').tr(context)),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           leading: IconButton(
@@ -1289,7 +1294,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
         body: _loading && data == null
             ? const Center(child: CircularProgressIndicator())
             : data == null
-            ? const Center(child: Text('Data tidak ditemukan'))
+            ? const Center(child: PosText('Data tidak ditemukan'))
             : RefreshIndicator(
                 onRefresh: _load,
                 child: ListView(
@@ -1298,7 +1303,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                     if (_loading) ...[
                       const LinearProgressIndicator(minHeight: 3),
                       const SizedBox(height: 8),
-                      const Text('Memproses dan memperbarui retur...'),
+                      const PosText('Memproses dan memperbarui retur...'),
                       const SizedBox(height: 12),
                     ],
                     Card(
@@ -1322,25 +1327,25 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text('PO: ${data['no_po'] ?? '-'}'),
-                            Text('Tanggal: ${_date(data['tanggal_return'])}'),
+                            Text(posLocale(context).pos5c04fa38f710((data['no_po'] ?? '-').toString())),
+                            Text(posLocale(context).pos54ec6781af4f((_date(data['tanggal_return'])).toString())),
                             Text(
-                              'Lokasi: ${data['lokasi']?['label'] ?? data['lokasi_cabang_nama'] ?? '-'}',
+                              posLocale(context).pos86d285bf18f2((data['lokasi']?['label'] ?? data['lokasi_cabang_nama'] ?? '-').toString()),
                             ),
                             Text(
-                              'Alasan: ${data['return_reason_label'] ?? data['return_reason'] ?? '-'}',
+                              posLocale(context).posb8a08ba6e258((data['return_reason_label'] ?? data['return_reason'] ?? '-').toString()),
                             ),
                             Text(
-                              'Penyelesaian: ${data['return_method_label'] ?? data['return_method'] ?? '-'}',
+                              posLocale(context).pos57915034b172((data['return_method_label'] ?? data['return_method'] ?? '-').toString()),
                             ),
                             if ((data['catatan']?.toString() ?? '').isNotEmpty)
-                              Text('Catatan: ${data['catatan']}'),
+                              Text(posLocale(context).posb0bf84cc5839((data['catatan']).toString())),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Barang diretur', style: _sectionStyle),
+                    const PosText('Barang diretur', style: _sectionStyle),
                     ...(data['items'] as List? ?? const []).map((raw) {
                       final item = raw as Map;
                       return Card(
@@ -1350,7 +1355,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                           ),
                           subtitle: Text(
                             '${item['qty_return']} ${item['unit']} • ${_money(item['harga_beli'])}'
-                            '${(item['no_batch']?.toString() ?? '').isEmpty ? '' : '\nBatch ${item['no_batch']}'}'
+                            '${(item['no_batch']?.toString() ?? '').isEmpty ? '' : ('\nBatch ${item['no_batch']}').tr(context)}'
                             '${(item['alasan']?.toString() ?? '').isEmpty ? '' : '\n${item['alasan']}'}',
                           ),
                           trailing: Text(
@@ -1423,7 +1428,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : _editFullReturn,
           icon: const Icon(Icons.edit_outlined),
-          label: const Text('Ubah'),
+          label: const PosText('Ubah'),
         ),
       if ((status == 'draft' || status == 'rejected') &&
           can('submit_purchase_returns'))
@@ -1431,28 +1436,28 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('submit'),
           icon: const Icon(Icons.send),
-          label: const Text('Kirim Persetujuan'),
+          label: const PosText('Kirim Persetujuan'),
         ),
       if (status == 'pending_approval' && can('approve_purchase_returns'))
         OutlinedButton.icon(
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('approve'),
           icon: const Icon(Icons.check),
-          label: const Text('Setujui'),
+          label: const PosText('Setujui'),
         ),
       if (status == 'pending_approval' && can('reject_purchase_returns'))
         OutlinedButton.icon(
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('reject'),
           icon: const Icon(Icons.close),
-          label: const Text('Tolak'),
+          label: const PosText('Tolak'),
         ),
       if (status == 'approved' && can('process_purchase_returns'))
         OutlinedButton.icon(
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('process'),
           icon: const Icon(Icons.play_arrow),
-          label: const Text('Proses Retur'),
+          label: const PosText('Proses Retur'),
         ),
       if (['failed', 'pending'].contains(data['journal_status']) &&
           can('process_purchase_returns'))
@@ -1460,7 +1465,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : () => _action('retry'),
           icon: const Icon(Icons.refresh),
-          label: const Text('Coba Jurnal Lagi'),
+          label: const PosText('Coba Jurnal Lagi'),
         ),
       if ((status == 'draft' || status == 'rejected') &&
           can('delete_purchase_returns'))
@@ -1468,7 +1473,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: _loading ? null : _deleteReturn,
           icon: const Icon(Icons.delete_outline),
-          label: const Text('Hapus'),
+          label: const PosText('Hapus'),
         ),
     ];
   }
@@ -1484,7 +1489,7 @@ class _StatusChip extends StatelessWidget {
       color: _statusColor(status).withValues(alpha: .12),
       borderRadius: BorderRadius.circular(20),
     ),
-    child: Text(
+    child: PosText(
       _statusLabel(status),
       style: TextStyle(
         color: _statusColor(status),
@@ -1522,7 +1527,7 @@ class _ReturnTotalRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(
       children: [
-        Expanded(child: Text(label)),
+        Expanded(child: PosText(label)),
         Text(
           value,
           style: TextStyle(
@@ -1558,14 +1563,14 @@ class _ReturnDateField extends StatelessWidget {
     },
     child: InputDecorator(
       decoration: InputDecoration(
-        labelText: label,
+        labelText: (label).tr(context),
         prefixIcon: const Icon(Icons.calendar_today_outlined),
         border: const OutlineInputBorder(),
       ),
       child: Text(
         value == null
-            ? 'Semua'
-            : DateFormat('dd MMM yyyy', 'id_ID').format(value!),
+            ? ('Semua').tr(context)
+            : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(value!),
       ),
     ),
   );
@@ -1576,7 +1581,7 @@ List<DropdownMenuItem<String>> _optionItems(
   bool includeAll = false,
   String allLabel = 'Semua alasan',
 }) => [
-  if (includeAll) DropdownMenuItem(value: '', child: Text(allLabel)),
+  if (includeAll) DropdownMenuItem(value: '', child: PosText(allLabel)),
   ...options.map(
     (item) => DropdownMenuItem(
       value: item['value']?.toString(),
@@ -1596,7 +1601,7 @@ String _date(dynamic value) {
   final date = DateTime.tryParse(raw);
   return date == null
       ? raw
-      : DateFormat('dd MMM yyyy', 'id_ID').format(date.toLocal());
+      : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(date.toLocal());
 }
 
 Color _statusColor(String status) => switch (status) {

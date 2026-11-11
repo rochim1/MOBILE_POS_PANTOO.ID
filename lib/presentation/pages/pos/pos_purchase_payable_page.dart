@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/core/utils/rupiah_input_formatter.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -78,27 +79,27 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Kirim bukti invoice ke Finance'),
+            title: const PosText('Kirim bukti invoice ke Finance'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  const PosText(
                     'Bukti ini hanya menjadi submission. Mobile tidak membuat utang atau Vendor Bill.',
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: number,
-                    decoration: const InputDecoration(
-                      labelText: 'Nomor invoice (opsional)',
+                    decoration:  InputDecoration(
+                      labelText: ('Nomor invoice (opsional)').tr(dialogContext),
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: invoiceDate,
-                    decoration: const InputDecoration(
-                      labelText: 'Tanggal invoice (YYYY-MM-DD)',
+                    decoration:  InputDecoration(
+                      labelText: ('Tanggal invoice (YYYY-MM-DD)').tr(dialogContext),
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -107,8 +108,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                     controller: note,
                     maxLength: 1000,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Catatan untuk Finance',
+                    decoration:  InputDecoration(
+                      labelText: ('Catatan untuk Finance').tr(dialogContext),
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -118,7 +119,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Batal'),
+                child: const PosText('Batal'),
               ),
               FilledButton(
                 onPressed: () {
@@ -140,7 +141,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                   }
                   Navigator.pop(dialogContext, true);
                 },
-                child: const Text('Kirim'),
+                child: const PosText('Kirim'),
               ),
             ],
           ),
@@ -409,20 +410,20 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Pembayaran tercatat'),
-        content: const Text(
+        title: const PosText('Pembayaran tercatat'),
+        content: const PosText(
           'Bukti pencatatan pembayaran dapat dibuka kembali dari riwayat pembayaran.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Selesai'),
+            child: const PosText('Selesai'),
           ),
           if (paymentId.isNotEmpty)
             FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: const Text('Lihat bukti'),
+              label: const PosText('Lihat bukti'),
             ),
         ],
       ),
@@ -516,7 +517,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Bukti Pembayaran')),
+            appBar: AppBar(title: const PosText('Bukti Pembayaran')),
             body: PdfPreview(
               build: (_) async => previewBytes.freshBytes(),
               pdfFileName: 'Bukti-Pembayaran-$paymentId.pdf',
@@ -567,15 +568,15 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(isRetry ? 'Lanjutkan pembatalan' : 'Batalkan pembayaran?'),
+        title: Text(isRetry ? ('Lanjutkan pembatalan').tr(dialogContext) : ('Batalkan pembayaran?').tr(dialogContext)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               isRetry
-                  ? 'Pembatalan sebelumnya belum selesai. Coba lagi untuk menyelesaikan jurnal pembalik.'
-                  : 'Pembayaran ${_currency(payment['amount'])} akan dibalik di jurnal dan dihitung kembali sebagai hutang.',
+                  ? ('Pembatalan sebelumnya belum selesai. Coba lagi untuk menyelesaikan jurnal pembalik.').tr(dialogContext)
+                  : posLocale(dialogContext).pos47ced915a77a((_currency(payment['amount'])).toString()),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -583,8 +584,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
               readOnly: isRetry,
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Alasan pembatalan *',
+              decoration:  InputDecoration(
+                labelText: ('Alasan pembatalan *').tr(dialogContext),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -593,14 +594,14 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Kembali'),
+            child: const PosText('Kembali'),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () =>
                 Navigator.pop(dialogContext, reasonController.text.trim()),
             icon: Icon(isRetry ? Icons.refresh : Icons.cancel_outlined),
-            label: Text(isRetry ? 'Coba lagi' : 'Batalkan'),
+            label: Text(isRetry ? ('Coba lagi').tr(dialogContext) : ('Batalkan').tr(dialogContext)),
           ),
         ],
       ),
@@ -666,15 +667,15 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           color: Colors.white,
           child: ListTile(
             leading: IconButton(
-              tooltip: 'Kembali ke pembelian',
+              tooltip: ('Kembali ke pembelian').tr(context),
               onPressed: widget.onFinished,
               icon: const Icon(Icons.arrow_back),
             ),
             title: Text(
-              'Tagihan ${widget.purchase['no_po'] ?? 'Pembelian'}',
+              posLocale(context).pos1a57bf89a651((widget.purchase['no_po'] ?? 'Pembelian').toString()),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            subtitle: const Text('Finance · Tagihan supplier'),
+            subtitle: const PosText('Finance · Tagihan supplier'),
           ),
         ),
         const Divider(height: 1),
@@ -695,12 +696,12 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             color: Color(0xFF607D7B),
           ),
           const SizedBox(height: 12),
-          const Text(
+          const PosText(
             'Tagihan untuk PO ini belum tersedia.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
-          const Text(
+          const PosText(
             'Jika invoice fisik sudah diterima, kirim fotonya untuk diverifikasi Finance.',
             textAlign: TextAlign.center,
           ),
@@ -714,7 +715,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.add_a_photo_outlined),
-            label: const Text('Kirim foto invoice'),
+            label: const PosText('Kirim foto invoice'),
           ),
         ],
       ),
@@ -741,8 +742,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.add_a_photo_outlined),
-            title: const Text('Kirim bukti invoice lain'),
-            subtitle: const Text(
+            title: const PosText('Kirim bukti invoice lain'),
+            subtitle: const PosText(
               'Foto masuk antrean Finance dan tidak langsung membentuk utang.',
             ),
             trailing: _submittingEvidence
@@ -777,7 +778,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                     padding: EdgeInsets.only(top: 8),
                     child: Chip(
                       avatar: Icon(Icons.check_circle, size: 18),
-                      label: Text('Lunas'),
+                      label: PosText('Lunas'),
                     ),
                   ),
                 if (payableStatus == 'cancelled')
@@ -785,7 +786,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                     padding: EdgeInsets.only(top: 8),
                     child: Chip(
                       avatar: Icon(Icons.cancel_outlined, size: 18),
-                      label: Text('Hutang dibatalkan'),
+                      label: PosText('Hutang dibatalkan'),
                     ),
                   ),
                 _summaryRow(
@@ -799,7 +800,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
+        PosText(
           'Invoice supplier',
           style: Theme.of(context).textTheme.titleMedium,
         ),
@@ -808,10 +809,10 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.sync_problem_outlined),
-              title: const Text('Daftar invoice belum dapat dimuat'),
-              subtitle: Text(_vendorBillLoadError!),
+              title: const PosText('Daftar invoice belum dapat dimuat'),
+              subtitle: PosText(_vendorBillLoadError!),
               trailing: IconButton(
-                tooltip: 'Coba lagi',
+                tooltip: ('Coba lagi').tr(context),
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
               ),
@@ -821,8 +822,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           const Card(
             child: ListTile(
               leading: Icon(Icons.receipt_long_outlined),
-              title: Text('Belum ada Vendor Bill'),
-              subtitle: Text(
+              title: PosText('Belum ada Vendor Bill'),
+              subtitle: PosText(
                 'Invoice yang sudah diverifikasi Finance akan tampil di sini.',
               ),
             ),
@@ -834,7 +835,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             color: Color(0xFFFFF4D6),
             child: Padding(
               padding: EdgeInsets.all(14),
-              child: Text(
+              child: PosText(
                 'Pembayaran tersedia setelah penerimaan pertama dicatat.',
               ),
             ),
@@ -847,7 +848,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             color: Color(0xFFEAF3F2),
             child: Padding(
               padding: EdgeInsets.all(14),
-              child: Text(
+              child: PosText(
                 'Tagihan ini bersifat baca-saja di workspace PO. Kelola pembayaran di Finance Web.',
               ),
             ),
@@ -858,7 +859,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             widget.canRecordPayment &&
             (!_isTermin || _terms.isNotEmpty)) ...[
           const SizedBox(height: 8),
-          Text(
+          PosText(
             'Catat pembayaran',
             style: Theme.of(context).textTheme.titleMedium,
           ),
@@ -867,8 +868,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             DropdownButtonFormField<int>(
               isExpanded: true,
               initialValue: _terminNumber,
-              decoration: const InputDecoration(
-                labelText: 'Termin',
+              decoration:  InputDecoration(
+                labelText: ('Termin').tr(context),
                 border: OutlineInputBorder(),
               ),
               items: _terms.map((row) {
@@ -876,7 +877,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                 return DropdownMenuItem(
                   value: number,
                   child: Text(
-                    'Termin $number · sisa ${_currency(_termOutstanding(row))}',
+                    posLocale(context).posb4fffbba8098((number).toString(), (_currency(_termOutstanding(row))).toString()),
                   ),
                 );
               }).toList(),
@@ -890,8 +891,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             controller: _amountController,
             inputFormatters: const [RupiahInputFormatter(decimalDigits: 2)],
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Jumlah pembayaran *',
+            decoration:  InputDecoration(
+              labelText: ('Jumlah pembayaran *').tr(context),
               prefixText: 'Rp ',
               border: OutlineInputBorder(),
             ),
@@ -902,8 +903,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             initialValue: _paymentDate,
             readOnly: true,
             onTap: _choosePaymentDate,
-            decoration: const InputDecoration(
-              labelText: 'Tanggal pembayaran *',
+            decoration:  InputDecoration(
+              labelText: ('Tanggal pembayaran *').tr(context),
               suffixIcon: Icon(Icons.calendar_month_outlined),
               border: OutlineInputBorder(),
             ),
@@ -912,19 +913,19 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           DropdownButtonFormField<String>(
             isExpanded: true,
             initialValue: _method,
-            decoration: const InputDecoration(
-              labelText: 'Metode pembayaran',
+            decoration:  InputDecoration(
+              labelText: ('Metode pembayaran').tr(context),
               border: OutlineInputBorder(),
             ),
             items: [
               if (_banks.isNotEmpty)
                 const DropdownMenuItem(
                   value: 'transfer',
-                  child: Text('Transfer bank'),
+                  child: PosText('Transfer bank'),
                 ),
-              DropdownMenuItem(value: 'cash', child: Text('Tunai')),
-              DropdownMenuItem(value: 'giro', child: Text('Giro')),
-              DropdownMenuItem(value: 'cek', child: Text('Cek')),
+              DropdownMenuItem(value: 'cash', child: PosText('Tunai')),
+              DropdownMenuItem(value: 'giro', child: PosText('Giro')),
+              DropdownMenuItem(value: 'cek', child: PosText('Cek')),
             ],
             onChanged: (value) => setState(() {
               _method = value ?? (_banks.isNotEmpty ? 'transfer' : 'cash');
@@ -933,7 +934,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           ),
           if (!_bankAccountsAvailable && _bankLoadError != null) ...[
             const SizedBox(height: 8),
-            Text(
+            PosText(
               'Rekening bank tidak dapat dimuat. Pembayaran tunai atau giro tetap tersedia.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -943,8 +944,8 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             DropdownButtonFormField<String>(
               isExpanded: true,
               initialValue: _bankId.isEmpty ? null : _bankId,
-              decoration: const InputDecoration(
-                labelText: 'Rekening bank *',
+              decoration:  InputDecoration(
+                labelText: ('Rekening bank *').tr(context),
                 border: OutlineInputBorder(),
               ),
               items: _banks
@@ -963,16 +964,16 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
           const SizedBox(height: 10),
           TextField(
             controller: _referenceController,
-            decoration: const InputDecoration(
-              labelText: 'Nomor referensi (opsional)',
+            decoration:  InputDecoration(
+              labelText: ('Nomor referensi (opsional)').tr(context),
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _notesController,
-            decoration: const InputDecoration(
-              labelText: 'Catatan (opsional)',
+            decoration:  InputDecoration(
+              labelText: ('Catatan (opsional)').tr(context),
               border: OutlineInputBorder(),
             ),
           ),
@@ -987,13 +988,13 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.payments_outlined),
-            label: Text(_saving ? 'Menyimpan...' : 'Simpan pembayaran'),
+            label: Text(_saving ? ('Menyimpan...').tr(context) : ('Simpan pembayaran').tr(context)),
           ),
           if (_paymentDataStale)
             TextButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh),
-              label: const Text(
+              label: const PosText(
                 'Muat ulang tagihan sebelum pembayaran berikutnya',
               ),
             ),
@@ -1007,14 +1008,14 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
             color: Color(0xFFFFF4D6),
             child: Padding(
               padding: EdgeInsets.all(14),
-              child: Text(
+              child: PosText(
                 'Jadwal termin belum tersedia. Perbarui data PO atau hubungi admin sebelum mencatat pembayaran.',
               ),
             ),
           ),
         if (history.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text(
+          PosText(
             'Riwayat pembayaran',
             style: Theme.of(context).textTheme.titleMedium,
           ),
@@ -1031,10 +1032,10 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         .where((status) => status.isNotEmpty)
         .toSet();
     final matchLabel = itemStatuses.isEmpty
-        ? 'Belum dinilai'
+        ? 'Belum dinilai'.tr(context)
         : itemStatuses.length == 1
         ? itemStatuses.first
-        : 'Campuran';
+        : 'Campuran'.tr(context);
     final payable = bill['payable'] is Map
         ? Map<String, dynamic>.from(bill['payable'] as Map)
         : const <String, dynamic>{};
@@ -1042,12 +1043,11 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
       child: ListTile(
         title: Text(bill['supplier_invoice_number']?.toString() ?? '-'),
         subtitle: Text(
-          'Matching: $matchLabel · Jatuh tempo: ${bill['due_date'] ?? payable['due_date'] ?? '-'}\n'
-          'Outstanding: ${_currency(payable['outstanding_amount'] ?? bill['total_amount'])}',
+          posLocale(context).pos17bfd9a177d7((matchLabel).toString(), (bill['due_date'] ?? payable['due_date'] ?? '-').toString(), (_currency(payable['outstanding_amount'] ?? bill['total_amount'])).toString()),
         ),
         isThreeLine: true,
         trailing: Text(
-          bill['status']?.toString() ?? '-',
+          posStatusLabel(bill['status']?.toString() ?? '-', context),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -1059,7 +1059,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            Expanded(child: Text(label)),
+            Expanded(child: PosText(label)),
             Text(
               value,
               style: TextStyle(
@@ -1114,7 +1114,7 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               )
             : PopupMenuButton<String>(
-                tooltip: 'Opsi pembayaran',
+                tooltip: ('Opsi pembayaran').tr(context),
                 enabled:
                     _proofLoadingId == null &&
                     _cancelLoadingId == null &&
@@ -1134,23 +1134,23 @@ class _PosPurchasePayablePageState extends State<PosPurchasePayablePage> {
                 itemBuilder: (_) => [
                   const PopupMenuItem(
                     value: 'preview',
-                    child: Text('Pratinjau / Bagikan'),
+                    child: PosText('Pratinjau / Bagikan'),
                   ),
                   if (status == 'active')
                     const PopupMenuItem(
                       value: 'print',
-                      child: Text('Cetak A4 (dialog perangkat)'),
+                      child: PosText('Cetak A4 (dialog perangkat)'),
                     ),
                   if (status == 'active' && widget.canRecordPayment)
                     const PopupMenuItem(
                       value: 'cancel',
-                      child: Text('Batalkan pembayaran'),
+                      child: PosText('Batalkan pembayaran'),
                     ),
                   if (status == 'cancellation_pending' &&
                       widget.canRecordPayment)
                     const PopupMenuItem(
                       value: 'retry_cancel',
-                      child: Text('Lanjutkan pembatalan'),
+                      child: PosText('Lanjutkan pembatalan'),
                     ),
                 ],
                 icon: const Icon(Icons.more_vert),

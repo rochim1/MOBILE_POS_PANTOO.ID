@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -90,7 +91,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Cari No. Retur / Invoice...',
+                      hintText: ('Cari No. Retur / Invoice...').tr(context),
                       prefixIcon: const Icon(Icons.search),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -134,19 +135,19 @@ class _PosReturnViewState extends State<PosReturnView> {
                       ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: '', child: Text('Semua Status')),
-                      DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                      DropdownMenuItem(value: '', child: PosText('Semua Status')),
+                      DropdownMenuItem(value: 'draft', child: PosText('Draft')),
                       DropdownMenuItem(
                         value: 'pending',
-                        child: Text('Menunggu persetujuan'),
+                        child: PosText('Menunggu persetujuan'),
                       ),
                       DropdownMenuItem(
                         value: 'approved',
-                        child: Text('Approved'),
+                        child: PosText('Approved'),
                       ),
                       DropdownMenuItem(
                         value: 'completed',
-                        child: Text('Completed'),
+                        child: PosText('Completed'),
                       ),
                     ],
                     onChanged: (val) {
@@ -165,7 +166,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   child: ElevatedButton.icon(
                     onPressed: _openAddReturn,
                     icon: const Icon(Icons.add),
-                    label: const Text('Tambah Retur'),
+                    label: const PosText('Tambah Retur'),
                   ),
                 );
                 if (constraints.maxWidth >= 680) {
@@ -278,7 +279,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    status.toUpperCase(),
+                                    posStatusLabel(status.toString(), context).toUpperCase(),
                                     style: TextStyle(
                                       color: _getStatusColor(status),
                                       fontWeight: FontWeight.bold,
@@ -295,7 +296,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    const PosText(
                                       'Invoice Asal',
                                       style: TextStyle(
                                         color: Colors.grey,
@@ -308,7 +309,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    const Text(
+                                    const PosText(
                                       'Nilai Retur (neto)',
                                       style: TextStyle(
                                         color: Colors.grey,
@@ -332,7 +333,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 item['sales_invoice_id'] != null) ...[
                               const SizedBox(height: 8),
                               Text(
-                                'Piutang berkurang ${_formatCurrency(item['ar_credit_amount'] ?? 0)} · Refund ${_formatCurrency(item['refund_amount'] ?? 0)} · Saldo kredit ${_formatCurrency(item['customer_credit_amount'] ?? 0)}',
+                                posLocale(context).pos1d6fd1683a30((_formatCurrency(item['ar_credit_amount'] ?? 0)).toString(), (_formatCurrency(item['refund_amount'] ?? 0)).toString(), (_formatCurrency(item['customer_credit_amount'] ?? 0)).toString()),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ],
@@ -347,16 +348,16 @@ class _PosReturnViewState extends State<PosReturnView> {
                                       _can('submit_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
-                                        title: 'Ajukan retur?',
+                                        title: ('Ajukan retur?').tr(context),
                                         message:
                                             'Retur ${item['no_retur'] ?? ''} akan menunggu persetujuan supervisor.',
-                                        confirmLabel: 'Ajukan',
+                                        confirmLabel: ('Ajukan').tr(context),
                                         onConfirmed: () =>
                                             context.read<PosReturnBloc>().add(
                                               SubmitReturnDraft(item['_id']),
                                             ),
                                       ),
-                                      child: const Text(
+                                      child: const PosText(
                                         'Ajukan',
                                         style: TextStyle(color: AppColors.info),
                                       ),
@@ -365,15 +366,15 @@ class _PosReturnViewState extends State<PosReturnView> {
                                       _can('approve_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
-                                        title: 'Setujui retur?',
+                                        title: ('Setujui retur?').tr(context),
                                         message:
                                             'Retur ${item['no_retur'] ?? ''} akan siap diproses.',
-                                        confirmLabel: 'Setujui',
+                                        confirmLabel: ('Setujui').tr(context),
                                         onConfirmed: () => context
                                             .read<PosReturnBloc>()
                                             .add(ApproveReturn(item['_id'])),
                                       ),
-                                      child: const Text('Setujui'),
+                                      child: const PosText('Setujui'),
                                     ),
                                   if (status == 'draft' &&
                                       _can('submit_returns') &&
@@ -383,16 +384,16 @@ class _PosReturnViewState extends State<PosReturnView> {
                                       _can('delete_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
-                                        title: 'Hapus draft retur?',
+                                        title: ('Hapus draft retur?').tr(context),
                                         message:
                                             'Draft ${item['no_retur'] ?? ''} akan dihapus dan tidak dapat diproses.',
-                                        confirmLabel: 'Hapus',
+                                        confirmLabel: ('Hapus').tr(context),
                                         destructive: true,
                                         onConfirmed: () => context
                                             .read<PosReturnBloc>()
                                             .add(DeleteReturn(item['_id'])),
                                       ),
-                                      child: const Text(
+                                      child: const PosText(
                                         'Hapus',
                                         style: TextStyle(
                                           color: AppColors.danger,
@@ -407,10 +408,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                                               PosReturnStatus.loading
                                           ? null
                                           : () => _confirmAction(
-                                              title: 'Proses retur?',
+                                              title: ('Proses retur?').tr(context),
                                               message:
                                                   'Refund dan pergerakan stok akan dijalankan sesuai detail retur.',
-                                              confirmLabel: 'Proses Retur',
+                                              confirmLabel: ('Proses Retur').tr(context),
                                               onConfirmed: () => context
                                                   .read<PosReturnBloc>()
                                                   .add(
@@ -435,7 +436,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                                                 strokeWidth: 2,
                                               ),
                                             )
-                                          : const Text(
+                                          : const PosText(
                                               'Proses',
                                               style: TextStyle(
                                                 color: Colors.white,
@@ -505,19 +506,19 @@ class _PosReturnViewState extends State<PosReturnView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        title: PosText(title),
+        content: PosText(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             style: destructive
                 ? FilledButton.styleFrom(backgroundColor: AppColors.danger)
                 : null,
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmLabel),
+            child: PosText(confirmLabel),
           ),
         ],
       ),

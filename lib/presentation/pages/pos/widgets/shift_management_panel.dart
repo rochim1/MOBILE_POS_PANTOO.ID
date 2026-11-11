@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -44,7 +45,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Shift aktif ditemukan dan ditampilkan kembali.'),
+            content: PosText('Shift aktif ditemukan dan ditampilkan kembali.'),
           ),
         );
         context.read<PosBloc>().add(LoadPosData());
@@ -59,10 +60,10 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
       result.fold(
         (failure) => ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(failure.message))),
+        ).showSnackBar(SnackBar(content: PosText(failure.message))),
         (_) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Shift berhasil dibuka')),
+            const SnackBar(content: PosText('Shift berhasil dibuka')),
           );
           context.read<PosBloc>().add(LoadPosData());
         },
@@ -71,7 +72,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
+          content: PosText(
             'Shift belum dapat diperiksa. Periksa koneksi atau PIN, lalu coba lagi.',
           ),
         ),
@@ -115,7 +116,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        const PosText(
                           'Buka Shift Kasir',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -124,7 +125,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        PosText(
                           'Anda belum memiliki shift aktif di toko ini. Silakan masukkan uang modal awal untuk membuka shift.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey[600]),
@@ -135,7 +136,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                           keyboardType: TextInputType.number,
                           inputFormatters: const [RupiahInputFormatter()],
                           decoration: InputDecoration(
-                            labelText: 'Uang Modal Awal (Rp)',
+                            labelText: ('Uang Modal Awal (Rp)').tr(context),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -163,7 +164,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text('Buka Shift'),
+                              : const PosText('Buka Shift'),
                         ),
                       ],
                     ),

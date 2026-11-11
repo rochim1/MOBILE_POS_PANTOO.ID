@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 
@@ -10,7 +11,7 @@ class FeaturePlaceholderPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: PosText(title),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -25,7 +26,7 @@ class FeaturePlaceholderPage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Halaman $title',
+              posLocale(context).pos4d0803eab0a2((title).toString()),
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -33,7 +34,7 @@ class FeaturePlaceholderPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            const PosText(
               'Fitur ini sedang dalam tahap pengembangan.',
               style: TextStyle(fontSize: 16, color: Colors.black54),
               textAlign: TextAlign.center,
@@ -49,7 +50,7 @@ class FeaturePlaceholderPage extends StatelessWidget {
                   vertical: 12,
                 ),
               ),
-              child: const Text('Kembali'),
+              child: const PosText('Kembali'),
             ),
           ],
         ),

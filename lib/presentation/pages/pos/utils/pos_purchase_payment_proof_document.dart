@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
 
 import 'package:intl/intl.dart';
@@ -54,8 +55,8 @@ class PosPurchasePaymentProofDocument {
                 color: PdfColors.red100,
                 child: pw.Text(
                   status == 'cancelled'
-                      ? 'DIBATALKAN - BUKAN BUKTI PEMBAYARAN AKTIF'
-                      : 'PEMBATALAN DIPROSES - BUKAN BUKTI PEMBAYARAN AKTIF',
+              ? 'DIBATALKAN - BUKAN BUKTI PEMBAYARAN AKTIF'.trCurrent()
+              : 'PEMBATALAN DIPROSES - BUKAN BUKTI PEMBAYARAN AKTIF'.trCurrent(),
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(
                     color: PdfColors.red800,
@@ -100,7 +101,7 @@ class PosPurchasePaymentProofDocument {
             ),
             pw.SizedBox(height: 10),
             pw.Text(
-              'BUKTI PENCATATAN PEMBAYARAN',
+              ('BUKTI PENCATATAN PEMBAYARAN').trCurrent(),
               style: pw.TextStyle(
                 fontSize: 17,
                 color: PdfColors.teal800,
@@ -112,7 +113,7 @@ class PosPurchasePaymentProofDocument {
         ),
         build: (_) => [
           pw.Text(
-            'Dokumen ini dibuat oleh pihak pembeli dan bukan tanda terima yang diterbitkan supplier.',
+            ('Dokumen ini dibuat oleh pihak pembeli dan bukan tanda terima yang diterbitkan supplier.').trCurrent(),
             style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
           ),
           pw.SizedBox(height: 22),
@@ -156,7 +157,7 @@ class PosPurchasePaymentProofDocument {
             pw.SizedBox(height: 16),
             _line(
               'Status',
-              status == 'cancelled' ? 'DIBATALKAN' : 'PEMBATALAN DIPROSES',
+              status == 'cancelled' ? 'Dibatalkan'.trCurrent().toUpperCase() : 'PEMBATALAN DIPROSES'.trCurrent(),
               bold: true,
             ),
             if (_text(payment['cancellation_reason']).isNotEmpty)
@@ -168,7 +169,7 @@ class PosPurchasePaymentProofDocument {
         footer: (context) => pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Text(
-            'Halaman ${context.pageNumber} / ${context.pagesCount}',
+            posCurrentLocale().pos61f7b0c13f15((context.pageNumber).toString(), (context.pagesCount).toString()),
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
           ),
         ),
@@ -185,7 +186,7 @@ class PosPurchasePaymentProofDocument {
           children: [
             pw.SizedBox(
               width: 190,
-              child: pw.Text(label, style: const pw.TextStyle(fontSize: 10)),
+              child: pw.Text((label).trCurrent(), style: const pw.TextStyle(fontSize: 10)),
             ),
             pw.Expanded(
               child: pw.Text(

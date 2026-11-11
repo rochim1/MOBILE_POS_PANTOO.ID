@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
@@ -81,7 +82,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
         builder: (_) => PosKeyboardStableFormDialog(
           width: 520,
           height: 600,
-          title: const Text('Pilih PO dengan sisa kesepakatan DP'),
+          title: const PosText('Pilih PO dengan sisa kesepakatan DP'),
           content: PosPagedReferencePicker(
             placeholder: 'Cari nomor PO atau pemasok',
             loader: (search, page) async {
@@ -144,12 +145,12 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  const PosText(
                     'Ajukan pembayaran DP',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  const PosText(
                     'Permintaan ini tidak mengeluarkan uang. Finance tetap harus menyetujui dan membayar secara terpisah.',
                   ),
                   const SizedBox(height: 16),
@@ -158,9 +159,9 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     title: Text(
                       '${purchase!['no_po']} · ${purchase!['supplier_name']}',
                     ),
-                    subtitle: const Text('Purchase Order terpilih'),
+                    subtitle: const PosText('Purchase Order terpilih'),
                     trailing: IconButton(
-                      tooltip: 'Ganti PO',
+                      tooltip: ('Ganti PO').tr(context),
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () async {
                         final selected = await _pickPurchase();
@@ -180,8 +181,8 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     inputFormatters: const [RupiahInputFormatter()],
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: 'Nominal DP',
-                      helperText: 'Maksimum tersisa ${_money(remaining)}',
+                      labelText: ('Nominal DP').tr(context),
+                      helperText: posLocale(context).pos27801602c212((_money(remaining)).toString()),
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -191,9 +192,9 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     maxLength: 500,
                     minLines: 2,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Tujuan / keterangan',
-                      hintText: 'Contoh: DP sesuai proforma supplier',
+                    decoration:  InputDecoration(
+                      labelText: ('Tujuan / keterangan').tr(context),
+                      hintText: ('Contoh: DP sesuai proforma supplier').tr(context),
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -208,8 +209,8 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     icon: const Icon(Icons.attach_file, size: 18),
                     label: Text(
                       proforma == null
-                          ? 'Lampirkan proforma (opsional)'
-                          : 'Proforma: ${proforma!.name}',
+                          ? ('Lampirkan proforma (opsional)').tr(context)
+                          : posLocale(context).pos7dfa2cce27c1((proforma!.name).toString()),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -236,7 +237,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                       }
                       Navigator.pop(sheetContext, true);
                     },
-                    child: const Text('Kirim permintaan'),
+                    child: const PosText('Kirim permintaan'),
                   ),
                 ],
               ),
@@ -313,12 +314,12 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  PosText(
                     'Permintaan uang muka supplier',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                   SizedBox(height: 3),
-                  Text(
+                  PosText(
                     'Status pembayaran hanya dicatat oleh Finance.',
                     style: TextStyle(color: Colors.black54),
                   ),
@@ -332,14 +333,14 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     ? null
                     : _openRequestForm,
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Ajukan DP'),
+                label: const PosText('Ajukan DP'),
               ),
           ],
         ),
         const SizedBox(height: 14),
         TextField(
-          decoration: const InputDecoration(
-            labelText: 'Cari PO atau pemasok',
+          decoration:  InputDecoration(
+            labelText: ('Cari PO atau pemasok').tr(context),
             prefixIcon: Icon(Icons.search),
             border: OutlineInputBorder(),
           ),
@@ -358,7 +359,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              tooltip: 'Halaman sebelumnya',
+              tooltip: ('Halaman sebelumnya').tr(context),
               onPressed: !_loading && _page > 1
                   ? () => _load(page: _page - 1)
                   : null,
@@ -366,12 +367,12 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
             ),
             Flexible(
               child: Text(
-                'Halaman $_page · $_total permintaan',
+                posLocale(context).posad518ced7c3d((_page).toString(), (_total).toString()),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             IconButton(
-              tooltip: 'Halaman berikutnya',
+              tooltip: ('Halaman berikutnya').tr(context),
               onPressed: !_loading && _page * 20 < _total
                   ? () => _load(page: _page + 1)
                   : null,
@@ -390,7 +391,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
           const Card(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: Text('Belum ada permintaan DP.'),
+              child: PosText('Belum ada permintaan DP.'),
             ),
           )
         else
@@ -418,7 +419,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     const SizedBox(height: 3),
                     Text(row['supplier_name']?.toString() ?? '-'),
                     const Divider(height: 22),
-                    Text(_status(row['status']?.toString() ?? '-')),
+                    PosText(_status(row['status']?.toString() ?? '-')),
                     if ((row['purpose']?.toString() ?? '').isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -429,7 +430,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                     if ((row['proforma_url']?.toString() ?? '').isNotEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 6),
-                        child: Text(
+                        child: PosText(
                           'Proforma terlampir · hanya bukti pendukung, bukan Vendor Bill',
                           style: TextStyle(fontSize: 12),
                         ),
@@ -438,7 +439,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
-                          'Alasan penolakan: ${row['rejection_reason']}',
+                          posLocale(context).pos61cebd1cf6b2((row['rejection_reason']).toString()),
                           style: const TextStyle(color: Colors.redAccent),
                         ),
                       ),
@@ -446,7 +447,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
-                          'Dibayar ${_money(row['paid_amount'])} · Dialokasikan ${_money(row['allocated_amount'])} · Saldo ${_money(row['balance'])}',
+                          posLocale(context).pos39807fd70afd((_money(row['paid_amount'])).toString(), (_money(row['allocated_amount'])).toString(), (_money(row['balance'])).toString()),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),

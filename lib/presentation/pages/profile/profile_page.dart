@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,7 +18,8 @@ class ProfilePage extends StatelessWidget {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: const Text('Profil Pengguna'),
+        title: const PosText('Profil Pengguna'),
+        actions: const [LanguagePicker(), SizedBox(width: 8)],
         foregroundColor: Colors.black87,
       ),
       body: BlocBuilder<AuthCubit, AuthState>(
@@ -70,7 +73,7 @@ class ProfilePage extends StatelessWidget {
                       color: AppColors.successBackground,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: const PosText(
                       'Staff Kasir Aktif',
                       style: TextStyle(
                         color: AppColors.success,
@@ -84,8 +87,8 @@ class ProfilePage extends StatelessWidget {
                   // Info Cards
                   _buildProfileMenuItem(
                     icon: Icons.storefront,
-                    title: 'Cabang / Outlet',
-                    subtitle: 'Terhubung ke Outlet Utama',
+                    title: ('Cabang / Outlet').tr(context),
+                    subtitle: ('Terhubung ke Outlet Utama').tr(context),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -98,8 +101,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildProfileMenuItem(
                     icon: Icons.security,
-                    title: 'Ubah Kata Sandi',
-                    subtitle: 'Kelola keamanan akun',
+                    title: ('Ubah Kata Sandi').tr(context),
+                    subtitle: ('Kelola keamanan akun').tr(context),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -131,7 +134,7 @@ class ProfilePage extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.logout),
-                      label: const Text(
+                      label: const PosText(
                         'Keluar dari Aplikasi',
                         style: TextStyle(
                           fontSize: 16,
@@ -186,7 +189,7 @@ class ProfilePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  PosText(
                     title,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
@@ -194,7 +197,7 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  PosText(
                     subtitle,
                     style: const TextStyle(color: Colors.black54, fontSize: 12),
                   ),

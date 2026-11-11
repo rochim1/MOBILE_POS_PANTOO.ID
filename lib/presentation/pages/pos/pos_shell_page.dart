@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import '../../../core/notifications/pos_push_service.dart';
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -149,6 +151,8 @@ class _PosShellPageState extends State<PosShellPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadNavbarNotifications();
+        if (sl.isRegistered<PosPushService>())
+          unawaited(sl<PosPushService>().activate());
         _refreshOfflineQueueSummary();
         unawaited(sl<PosRepository>().syncPendingFavoriteProductIds());
       }
@@ -157,6 +161,8 @@ class _PosShellPageState extends State<PosShellPage>
       results,
     ) {
       if (!results.contains(ConnectivityResult.none)) {
+        if (sl.isRegistered<PosPushService>())
+          unawaited(sl<PosPushService>().activate());
         sl<SyncService>().syncOfflineTransactions().whenComplete(
           _refreshOfflineQueueSummary,
         );
@@ -215,7 +221,7 @@ class _PosShellPageState extends State<PosShellPage>
     final availableWidth = MediaQuery.sizeOf(context).width - 24;
     final popupWidth = availableWidth.clamp(240.0, 360.0);
     return PopupMenuButton<String>(
-      tooltip: 'Notifikasi',
+      tooltip: ('Notifikasi').tr(context),
       color: Colors.white,
       surfaceTintColor: Colors.white,
       elevation: 8,
@@ -250,12 +256,12 @@ class _PosShellPageState extends State<PosShellPage>
               Icon(Icons.notifications_outlined, color: AppColors.primary),
               SizedBox(width: 10),
               Expanded(
-                child: Text(
+                child: PosText(
                   'Notifikasi operasional',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ),
-              Text(
+              PosText(
                 'POS & Inventori',
                 style: TextStyle(fontSize: 11, color: Colors.black45),
               ),
@@ -266,7 +272,7 @@ class _PosShellPageState extends State<PosShellPage>
         if (_navbarNotifications.isEmpty)
           const PopupMenuItem<String>(
             enabled: false,
-            child: Text('Belum ada notifikasi baru'),
+            child: PosText('Belum ada notifikasi baru'),
           )
         else
           ..._navbarNotifications.take(5).map((item) {
@@ -299,7 +305,8 @@ class _PosShellPageState extends State<PosShellPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item['title']?.toString() ?? 'Notifikasi',
+                            item['title']?.toString() ??
+                                ('Notifikasi').tr(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -331,7 +338,7 @@ class _PosShellPageState extends State<PosShellPage>
           value: 'all',
           height: 48,
           child: Center(
-            child: Text(
+            child: PosText(
               'Selengkapnya',
               style: TextStyle(
                 color: AppColors.primary,
@@ -495,10 +502,11 @@ class _PosShellPageState extends State<PosShellPage>
         totalStageCount: stepNumber == 3 ? 8 : 4,
         stages: [
           (stepNumber == 3
-                  ? const PosSetupTourStage(
-                      title: 'Tambah produk baru',
+                  ? PosSetupTourStage(
+                      title: ('Tambah produk baru').tr(context),
                       description:
-                          'Ketuk Tambah Produk untuk membuka formulir dan mulai menyiapkan item yang akan dijual.',
+                          ('Ketuk Tambah Produk untuk membuka formulir dan mulai menyiapkan item yang akan dijual.')
+                              .tr(context),
                     )
                   : targetedStages.first)
               .withTarget(targets.first, onTargetTap: action),
@@ -514,9 +522,10 @@ class _PosShellPageState extends State<PosShellPage>
         totalStageCount: 4,
         stages: [
           PosSetupTourStage(
-            title: 'Buka pengelolaan PIN operator',
+            title: ('Buka pengelolaan PIN operator').tr(context),
             description:
-                'Kelola PIN karyawan dari Pengaturan POS tanpa mengunci sesi admin.',
+                ('Kelola PIN karyawan dari Pengaturan POS tanpa mengunci sesi admin.')
+                    .tr(context),
             target: _setupTourTargets.pinManage,
             onTargetTap: _pinManagementTourController.run,
           ),
@@ -648,7 +657,7 @@ class _PosShellPageState extends State<PosShellPage>
       )
     else
       const Center(
-        child: Text(
+        child: PosText(
           'Piutang hanya tersedia bagi operator yang memiliki izin Finance.',
         ),
       ),
@@ -699,7 +708,7 @@ class _PosShellPageState extends State<PosShellPage>
             final checking = snapshot.connectionState != ConnectionState.done;
             final unresolved = snapshot.data;
             return AlertDialog(
-              title: const Text('Konfirmasi Keluar'),
+              title: const PosText('Konfirmasi Keluar'),
               content: checking
                   ? const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -710,22 +719,28 @@ class _PosShellPageState extends State<PosShellPage>
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                         SizedBox(width: 12),
-                        Flexible(child: Text('Memeriksa antrean offline...')),
+                        Flexible(
+                          child: PosText('Memeriksa antrean offline...'),
+                        ),
                       ],
                     )
                   : Text(
                       unresolved == null
-                          ? 'Antrean transaksi offline tidak dapat diperiksa. Data yang tersimpan di perangkat akan disinkronkan setelah akun ini login kembali. Yakin ingin keluar?'
+                          ? ('Antrean transaksi offline tidak dapat diperiksa. Data yang tersimpan di perangkat akan disinkronkan setelah akun ini login kembali. Yakin ingin keluar?')
+                                .tr(dialogContext)
                           : unresolved > 0
-                          ? '$unresolved transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi sinkronisasi tertunda sampai akun instansi ini login kembali.'
-                          : 'Apakah Anda yakin ingin keluar dari aplikasi?',
+                          ? posLocale(
+                              dialogContext,
+                            ).pos452e3bc76740((unresolved).toString())
+                          : ('Apakah Anda yakin ingin keluar dari aplikasi?')
+                                .tr(dialogContext),
                     ),
               actions: [
                 TextButton(
                   onPressed: loggingOut
                       ? null
                       : () => Navigator.pop(dialogContext),
-                  child: const Text('Batal'),
+                  child: const PosText('Batal'),
                 ),
                 FilledButton(
                   onPressed: checking || loggingOut
@@ -739,7 +754,7 @@ class _PosShellPageState extends State<PosShellPage>
                             setDialogState(() => loggingOut = false);
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
                               const SnackBar(
-                                content: Text(
+                                content: PosText(
                                   'Gagal keluar dengan aman. Coba lagi.',
                                 ),
                               ),
@@ -767,7 +782,7 @@ class _PosShellPageState extends State<PosShellPage>
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Keluar'),
+                      : const PosText('Keluar'),
                 ),
               ],
             );
@@ -947,7 +962,7 @@ class _PosShellPageState extends State<PosShellPage>
                           ),
                           const SizedBox(width: 8),
                           const Expanded(
-                            child: Text(
+                            child: PosText(
                               'Setup POS belum selesai',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -958,7 +973,7 @@ class _PosShellPageState extends State<PosShellPage>
                             ),
                           ),
                           IconButton(
-                            tooltip: 'Lanjutkan setup',
+                            tooltip: ('Lanjutkan setup').tr(context),
                             visualDensity: VisualDensity.compact,
                             constraints: const BoxConstraints.tightFor(
                               width: 36,
@@ -978,14 +993,14 @@ class _PosShellPageState extends State<PosShellPage>
                           Icon(Icons.route_outlined, color: AppColors.warning),
                           const SizedBox(width: 10),
                           const Expanded(
-                            child: Text(
+                            child: PosText(
                               'Setup POS belum selesai. Simpan langkah ini, lalu kembali ke panduan.',
                               style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                           TextButton(
                             onPressed: () => _openSetupGuide(bannerContext),
-                            child: const Text('Ringkasan'),
+                            child: const PosText('Ringkasan'),
                           ),
                           const SizedBox(width: 4),
                           FilledButton.icon(
@@ -994,7 +1009,7 @@ class _PosShellPageState extends State<PosShellPage>
                               Icons.arrow_forward_rounded,
                               size: 17,
                             ),
-                            label: const Text('Selanjutnya'),
+                            label: const PosText('Selanjutnya'),
                           ),
                         ],
                       ),
@@ -1035,27 +1050,27 @@ class _PosShellPageState extends State<PosShellPage>
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Shortcut keyboard Pantoo POS'),
+        title: const PosText('Shortcut keyboard Pantoo POS'),
         content: const SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              PosText(
                 'Navigasi: Tab / Shift+Tab untuk berpindah, Enter atau Spasi untuk memilih.',
               ),
               SizedBox(height: 10),
-              Text('Alt+1 Dashboard · Alt+2 Kasir · Alt+3 Katalog'),
-              Text('Alt+4 Pesanan & Meja · Alt+5 Inventori · Alt+6 Riwayat'),
+              PosText('Alt+1 Dashboard · Alt+2 Kasir · Alt+3 Katalog'),
+              PosText('Alt+4 Pesanan & Meja · Alt+5 Inventori · Alt+6 Riwayat'),
               SizedBox(height: 10),
-              Text(
+              PosText(
                 'Kasir: F2 cari produk · F3 scan barcode · F4 bayar/simpan meja',
               ),
-              Text('F6 keranjang · F7 diskon · F8 simpan pesanan'),
-              Text('F9 pesanan tersimpan · F10 pengaturan penjualan'),
-              Text('Ctrl+Delete kosongkan keranjang · F1 tampilkan bantuan'),
+              PosText('F6 keranjang · F7 diskon · F8 simpan pesanan'),
+              PosText('F9 pesanan tersimpan · F10 pengaturan penjualan'),
+              PosText('Ctrl+Delete kosongkan keranjang · F1 tampilkan bantuan'),
               SizedBox(height: 10),
-              Text(
+              PosText(
                 'Shortcut halaman hanya tersedia jika operator mempunyai izin. Saat mengetik di formulir, shortcut navigasi tidak dijalankan.',
               ),
             ],
@@ -1064,7 +1079,7 @@ class _PosShellPageState extends State<PosShellPage>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Tutup'),
+            child: const PosText('Tutup'),
           ),
         ],
       ),
@@ -1175,7 +1190,7 @@ class _PosShellPageState extends State<PosShellPage>
                         leading: isMobile
                             ? (_selectedIndex >= 5
                                   ? IconButton(
-                                      tooltip: 'Kembali',
+                                      tooltip: ('Kembali').tr(context),
                                       icon: const Icon(Icons.arrow_back),
                                       onPressed: _backWithinMobileShell,
                                     )
@@ -1256,9 +1271,10 @@ class _PosShellPageState extends State<PosShellPage>
                                                     _posBloc
                                                         .state
                                                         .runtimeConfig,
-                                                  ).title
+                                                  ).title.tr(context)
                                                 : _destinations[_selectedIndex]
-                                                      .label,
+                                                      .label
+                                                      .tr(context),
                                             style:
                                                 const TextStyle(
                                                   color: Colors.white,
@@ -1346,7 +1362,7 @@ class _PosShellPageState extends State<PosShellPage>
                         actions: [
                           if (width >= 1200)
                             IconButton(
-                              tooltip: 'Shortcut keyboard (F1)',
+                              tooltip: ('Shortcut keyboard (F1)').tr(context),
                               icon: const Icon(
                                 Icons.keyboard_alt_outlined,
                                 color: Colors.white,
@@ -1361,8 +1377,8 @@ class _PosShellPageState extends State<PosShellPage>
                                 tooltip:
                                     displayState.connection ==
                                         PosCustomerDisplayConnection.connected
-                                    ? 'Layar pelanggan terhubung'
-                                    : 'Hubungkan layar pelanggan',
+                                    ? ('Layar pelanggan terhubung').tr(context)
+                                    : ('Hubungkan layar pelanggan').tr(context),
                                 icon: Badge(
                                   isLabelVisible:
                                       displayState.connection ==
@@ -1381,7 +1397,7 @@ class _PosShellPageState extends State<PosShellPage>
                           if (!isSmallScreen)
                             Builder(
                               builder: (posBlocContext) => IconButton(
-                                tooltip: 'Checklist kesiapan POS',
+                                tooltip: ('Checklist kesiapan POS').tr(context),
                                 icon: Icon(
                                   _showSetupGuide
                                       ? Icons.checklist_rounded
@@ -1403,7 +1419,7 @@ class _PosShellPageState extends State<PosShellPage>
                           ),
                           if (!isSmallScreen)
                             IconButton(
-                              tooltip: 'Kunci POS',
+                              tooltip: ('Kunci POS').tr(context),
                               icon: const Icon(
                                 Icons.lock_outline,
                                 color: Colors.white,
@@ -1416,7 +1432,7 @@ class _PosShellPageState extends State<PosShellPage>
                               builder: (menuContext) => SizedBox(
                                 width: 40,
                                 child: PopupMenuButton<String>(
-                                  tooltip: 'Aksi lainnya',
+                                  tooltip: ('Aksi lainnya').tr(context),
                                   padding: EdgeInsets.zero,
                                   iconSize: 20,
                                   icon: const Icon(
@@ -1449,7 +1465,7 @@ class _PosShellPageState extends State<PosShellPage>
                                         leading: Icon(
                                           Icons.keyboard_alt_outlined,
                                         ),
-                                        title: Text('Shortcut keyboard'),
+                                        title: PosText('Shortcut keyboard'),
                                       ),
                                     ),
                                     PopupMenuItem(
@@ -1460,7 +1476,7 @@ class _PosShellPageState extends State<PosShellPage>
                                         leading: Icon(
                                           Icons.fact_check_outlined,
                                         ),
-                                        title: Text('Checklist kesiapan'),
+                                        title: PosText('Checklist kesiapan'),
                                       ),
                                     ),
                                     PopupMenuItem(
@@ -1471,7 +1487,7 @@ class _PosShellPageState extends State<PosShellPage>
                                         leading: Icon(
                                           Icons.connected_tv_outlined,
                                         ),
-                                        title: Text('Layar pelanggan'),
+                                        title: PosText('Layar pelanggan'),
                                       ),
                                     ),
                                     PopupMenuItem(
@@ -1480,7 +1496,7 @@ class _PosShellPageState extends State<PosShellPage>
                                         dense: true,
                                         contentPadding: EdgeInsets.zero,
                                         leading: Icon(Icons.lock_outline),
-                                        title: Text('Kunci POS'),
+                                        title: PosText('Kunci POS'),
                                       ),
                                     ),
                                   ],
@@ -1555,7 +1571,9 @@ class _PosShellPageState extends State<PosShellPage>
                                               ? PosOrderWorkspacePolicy(
                                                   state.runtimeConfig,
                                                 ).title
-                                              : 'Riwayat Transaksi',
+                                              : ('Riwayat Transaksi').tr(
+                                                  context,
+                                                ),
                                         ),
                                         const SizedBox(width: 4),
                                         const Icon(
@@ -1577,8 +1595,8 @@ class _PosShellPageState extends State<PosShellPage>
                                     )
                                   : null,
                               tooltip: _productGridView
-                                  ? 'Tampilkan sebagai tabel'
-                                  : 'Tampilkan sebagai grid',
+                                  ? ('Tampilkan sebagai tabel').tr(context)
+                                  : ('Tampilkan sebagai grid').tr(context),
                               icon: Icon(
                                 _productGridView
                                     ? Icons.table_rows
@@ -1600,8 +1618,8 @@ class _PosShellPageState extends State<PosShellPage>
                                     )
                                   : null,
                               tooltip: _stockGridView
-                                  ? 'Tampilkan sebagai tabel'
-                                  : 'Tampilkan sebagai grid',
+                                  ? ('Tampilkan sebagai tabel').tr(context)
+                                  : ('Tampilkan sebagai grid').tr(context),
                               icon: Icon(
                                 _stockGridView
                                     ? Icons.table_rows
@@ -1623,8 +1641,8 @@ class _PosShellPageState extends State<PosShellPage>
                                     )
                                   : null,
                               tooltip: _useHistoryGridView
-                                  ? 'Tampilkan sebagai tabel'
-                                  : 'Tampilkan sebagai kartu',
+                                  ? ('Tampilkan sebagai tabel').tr(context)
+                                  : ('Tampilkan sebagai kartu').tr(context),
                               icon: Icon(
                                 _useHistoryGridView
                                     ? Icons.table_rows
@@ -1646,8 +1664,8 @@ class _PosShellPageState extends State<PosShellPage>
                                     )
                                   : null,
                               tooltip: _useOrderTableGridView
-                                  ? 'Tampilkan sebagai list'
-                                  : 'Tampilkan sebagai grid',
+                                  ? ('Tampilkan sebagai list').tr(context)
+                                  : ('Tampilkan sebagai grid').tr(context),
                               icon: Icon(
                                 _useOrderTableGridView
                                     ? Icons.view_list_rounded
@@ -1709,7 +1727,7 @@ class _PosShellPageState extends State<PosShellPage>
                                           child: _buildBottomNavItem(
                                             icon: Icons.home_outlined,
                                             selectedIcon: Icons.home,
-                                            label: 'Beranda',
+                                            label: ('Beranda').tr(context),
                                             index: 0,
                                           ),
                                         ),
@@ -1717,7 +1735,7 @@ class _PosShellPageState extends State<PosShellPage>
                                           child: _buildBottomNavItem(
                                             icon: Icons.inventory_2_outlined,
                                             selectedIcon: Icons.inventory_2,
-                                            label: 'Katalog',
+                                            label: ('Katalog').tr(context),
                                             index: 2,
                                           ),
                                         ),
@@ -1732,7 +1750,7 @@ class _PosShellPageState extends State<PosShellPage>
                                           child: _buildBottomNavItem(
                                             icon: Icons.receipt_long_outlined,
                                             selectedIcon: Icons.receipt_long,
-                                            label: 'Transaksi',
+                                            label: ('Transaksi').tr(context),
                                             index: 3,
                                           ),
                                         ),
@@ -1740,7 +1758,7 @@ class _PosShellPageState extends State<PosShellPage>
                                           child: _buildBottomNavItem(
                                             icon: Icons.menu_outlined,
                                             selectedIcon: Icons.menu,
-                                            label: 'Lainnya',
+                                            label: ('Lainnya').tr(context),
                                             index: 4,
                                           ),
                                         ),
@@ -1773,7 +1791,7 @@ class _PosShellPageState extends State<PosShellPage>
                                     ),
                                   ),
                                   const SizedBox(height: 14),
-                                  const Text(
+                                  const PosText(
                                     'Mempersiapkan dashboard...',
                                     textScaler: TextScaler.noScaling,
                                     style: TextStyle(
@@ -1784,7 +1802,7 @@ class _PosShellPageState extends State<PosShellPage>
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  const Text(
+                                  const PosText(
                                     'Mohon tunggu sebentar',
                                     textScaler: TextScaler.noScaling,
                                     style: TextStyle(
@@ -1832,7 +1850,7 @@ class _PosShellPageState extends State<PosShellPage>
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              PosText(
                                 'Pantoo',
                                 style: TextStyle(
                                   color: Colors.white,
@@ -1840,7 +1858,7 @@ class _PosShellPageState extends State<PosShellPage>
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              Text(
+                              PosText(
                                 'Aplikasi Kasir Online',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1878,7 +1896,7 @@ class _PosShellPageState extends State<PosShellPage>
     if (!_railExpanded) return const SizedBox(height: 8);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 12, 6),
-      child: Text(
+      child: PosText(
         label,
         style: const TextStyle(
           color: AppColors.primary,
@@ -1950,14 +1968,14 @@ class _PosShellPageState extends State<PosShellPage>
           child: ListTile(
             dense: true,
             leading: const Icon(Icons.keyboard_alt_outlined),
-            title: const Text('Shortcut keyboard'),
-            subtitle: const Text('F1 untuk melihat panduan'),
+            title: const PosText('Shortcut keyboard'),
+            subtitle: const PosText('F1 untuk melihat panduan'),
             onTap: _showKeyboardHelp,
           ),
         )
       else
         Tooltip(
-          message: 'Shortcut keyboard (F1)',
+          message: ('Shortcut keyboard (F1)').tr(menuContext),
           child: IconButton(
             onPressed: _showKeyboardHelp,
             icon: const Icon(Icons.keyboard_alt_outlined),
@@ -1993,7 +2011,7 @@ class _PosShellPageState extends State<PosShellPage>
                   _sidebarIcon(destination, selected, index),
                   const SizedBox(width: 13),
                   Expanded(
-                    child: Text(
+                    child: PosText(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -2030,7 +2048,9 @@ class _PosShellPageState extends State<PosShellPage>
             : Center(child: _sidebarIcon(destination, selected, index)),
       ),
     );
-    return _railExpanded ? item : Tooltip(message: label, child: item);
+    return _railExpanded
+        ? item
+        : Tooltip(message: (label).tr(context), child: item);
   }
 
   Widget _sidebarIcon(
@@ -2077,7 +2097,7 @@ class _PosShellPageState extends State<PosShellPage>
         children: [
           Icon(isSelected ? selectedIcon : icon, color: color, size: 19),
           const SizedBox(height: 2),
-          Text(
+          PosText(
             label,
             style: TextStyle(
               color: color,

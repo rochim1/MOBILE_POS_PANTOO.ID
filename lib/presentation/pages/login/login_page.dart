@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,7 +27,7 @@ class LoginPage extends StatelessWidget {
               final message = state.error ?? 'Login gagal. Coba lagi.';
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
+                  content: PosText(
                     message,
                     style: const TextStyle(color: Colors.white),
                   ),

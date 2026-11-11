@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -102,7 +103,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
             padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
+              child: PosText(
                 'Pilih Pelanggan',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
@@ -115,7 +116,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               autofocus: true,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Cari nama atau nomor telepon...',
+                hintText: ('Cari nama atau nomor telepon...').tr(context),
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 border: OutlineInputBorder(
@@ -137,7 +138,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                   Navigator.pop(context, customer);
                 },
                 icon: const Icon(Icons.person_add_alt_1),
-                label: const Text('Tambah pelanggan baru'),
+                label: const PosText('Tambah pelanggan baru'),
               ),
             ),
           ),
@@ -153,7 +154,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                 if (index == 0) {
                   return ListTile(
                     leading: const CircleAvatar(child: Icon(Icons.person_off)),
-                    title: const Text('Tanpa pelanggan'),
+                    title: const PosText('Tanpa pelanggan'),
                     trailing: widget.selected == null
                         ? const Icon(Icons.check, color: AppColors.primary)
                         : null,
@@ -178,7 +179,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                   if (_items.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(32),
-                      child: Center(child: Text('Pelanggan tidak ditemukan')),
+                      child: Center(child: PosText('Pelanggan tidak ditemukan')),
                     );
                   }
                   return const SizedBox(height: 24);
@@ -194,7 +195,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                   ),
                   title: Text(customer.name),
                   subtitle: Text(
-                    '${customer.phone.isEmpty ? 'Tanpa nomor telepon' : customer.phone} · ${customer.priceLevel}',
+                    '${customer.phone.isEmpty ? ('Tanpa nomor telepon').tr(context) : customer.phone} · ${customer.priceLevel}',
                   ),
                   trailing: widget.selected?.id == customer.id
                       ? const Icon(Icons.check, color: AppColors.primary)
@@ -245,7 +246,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const PosText(
           'Detail Transaksi',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
@@ -268,7 +269,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    const PosText(
                       'Konteks harga',
                       style: TextStyle(fontSize: 11, color: Colors.black54),
                     ),
@@ -282,7 +283,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               if (canOverridePricing)
                 TextButton(
                   onPressed: () => _showAdvancedPricing(state),
-                  child: const Text('Ubah'),
+                  child: const PosText('Ubah'),
                 ),
             ],
           ),
@@ -297,7 +298,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                 controller: _promoController,
                 textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
-                  hintText: 'Kode promo',
+                  hintText: ('Kode promo').tr(context),
                   filled: true,
                   fillColor: Colors.grey.shade100,
                   border: OutlineInputBorder(
@@ -316,7 +317,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                   discountPolicy: state.discountPolicy,
                 ),
               ),
-              child: const Text('Terapkan'),
+              child: const PosText('Terapkan'),
             ),
           ],
         ),
@@ -333,11 +334,11 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               ),
               const SizedBox(width: 7),
               Expanded(
-                child: Text(
+                child: PosText(
                   promoMessage ??
                       (state.promoApplied
-                          ? 'Promo berhasil diterapkan'
-                          : 'Promo belum memenuhi ketentuan'),
+                          ? ('Promo berhasil diterapkan').tr(context)
+                          : ('Promo belum memenuhi ketentuan').tr(context)),
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -352,7 +353,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                     ),
                   );
                 },
-                child: const Text('Hapus'),
+                child: const PosText('Hapus'),
               ),
             ],
           ),
@@ -361,7 +362,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           const SizedBox(height: 8),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: const Text(
+            title: const PosText(
               'Diskon manual (otorisasi)',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
@@ -369,10 +370,10 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               TextFormField(
                 initialValue: state.manualDiscountPercent.toStringAsFixed(0),
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Diskon manual',
+                decoration:  InputDecoration(
+                  labelText: ('Diskon manual').tr(context),
                   suffixText: '%',
-                  helperText: 'Perubahan tercatat sebagai override transaksi',
+                  helperText: ('Perubahan tercatat sebagai override transaksi').tr(context),
                 ),
                 onChanged: (value) => context.read<PosBloc>().add(
                   UpdateDiscount(
@@ -403,7 +404,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
         Expanded(child: _buildInfoTab('promo', 'Promo', Icons.local_offer)),
         const SizedBox(width: 8),
         Expanded(
-          child: _buildInfoTab('harga', 'Harga', Icons.price_change_outlined),
+          child: _buildInfoTab('harga', ('Harga').tr(context), Icons.price_change_outlined),
         ),
       ],
     );
@@ -428,7 +429,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               color: isActive ? Colors.white : Colors.black54,
             ),
             const SizedBox(width: 6),
-            Text(
+            PosText(
               label,
               style: TextStyle(
                 color: isActive ? Colors.white : Colors.black87,
@@ -491,8 +492,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             ),
             child: Text(
               state.selectedCustomer == null
-                  ? 'Tanpa pelanggan'
-                  : '${state.selectedCustomer!.name}${state.selectedCustomer!.phone.isEmpty ? '' : ' • ${state.selectedCustomer!.phone}'}',
+                  ? ('Tanpa pelanggan').tr(context)
+                  : '${state.selectedCustomer!.name}${state.selectedCustomer!.phone.isEmpty ? '' : (' • ${state.selectedCustomer!.phone}').tr(context)}',
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
@@ -531,12 +532,12 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              const PosText(
                 'Konteks Transaksi & Harga',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
-              const Text(
+              const PosText(
                 'Channel mencatat asal transaksi; level harga menentukan daftar harga produk.',
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
@@ -591,7 +592,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                   const SizedBox(height: 7),
                   TextField(
                     decoration: InputDecoration(
-                      hintText: 'Contoh: HEMAT10',
+                      hintText: ('Contoh: HEMAT10').tr(context),
                       filled: true,
                       fillColor: Colors.grey.shade100,
                       border: OutlineInputBorder(
@@ -630,7 +631,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Contoh: 10',
+                      hintText: ('Contoh: 10').tr(context),
                       suffixText: '%',
                       filled: true,
                       fillColor: Colors.grey.shade100,
@@ -652,8 +653,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               ),
             ),
             _pricingDropdown(
-              label: 'Aturan Kombinasi Diskon',
-              description: 'Tentukan cara promo dan diskon manual diterapkan',
+              label: ('Aturan Kombinasi Diskon').tr(context),
+              description: ('Tentukan cara promo dan diskon manual diterapkan').tr(context),
               value: state.discountPolicy,
               width: widget.isMobile ? double.infinity : 240,
               items: const {
@@ -682,8 +683,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
       runSpacing: 12,
       children: [
         _pricingDropdown(
-          label: 'Channel Penjualan',
-          description: 'Asal transaksi; tidak menentukan cara pesanan dipenuhi',
+          label: ('Channel Penjualan').tr(context),
+          description: ('Asal transaksi; tidak menentukan cara pesanan dipenuhi').tr(context),
           value: state.salesChannel,
           width: widget.isMobile ? double.infinity : 220,
           items: {
@@ -693,8 +694,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           onChanged: (value) => _updateContext(state, salesChannel: value),
         ),
         _pricingDropdown(
-          label: 'Level Harga',
-          description: 'Daftar harga yang diterapkan pada produk',
+          label: ('Level Harga').tr(context),
+          description: ('Daftar harga yang diterapkan pada produk').tr(context),
           value: state.priceLevel,
           width: widget.isMobile ? double.infinity : 220,
           items: {
@@ -738,7 +739,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
                 .map(
                   (item) => DropdownMenuItem(
                     value: item.key,
-                    child: Text(item.value, overflow: TextOverflow.ellipsis),
+                    child: PosText(item.value, overflow: TextOverflow.ellipsis),
                   ),
                 )
                 .toList(),
@@ -755,13 +756,13 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        PosText(
           label,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
         if (description != null) ...[
           const SizedBox(height: 2),
-          Text(
+          PosText(
             description,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -16,6 +18,7 @@ class PosPromoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     return BlocProvider(
       create: (_) => sl<PosPromoBloc>()..add(const LoadPromos()),
       child: const _PosPromoView(),
@@ -47,7 +50,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
     if (dateStr.isEmpty) return '-';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+      return DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(date);
     } catch (_) {
       return dateStr;
     }
@@ -94,6 +97,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     final compact = MediaQuery.sizeOf(context).width < 600;
     return ColoredBox(
       color: AppColors.bgPrimary,
@@ -202,7 +206,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
           _loadWithFilters();
         },
         decoration: _filterDecoration(
-          hintText: 'Cari kode atau nama promo...',
+          hintText: ('Cari kode atau nama promo...').tr(context),
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
               ? null
@@ -232,9 +236,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
           prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
         ),
         items: const [
-          DropdownMenuItem(value: 'all', child: Text('Semua Status')),
-          DropdownMenuItem(value: 'active', child: Text('Aktif')),
-          DropdownMenuItem(value: 'inactive', child: Text('Nonaktif')),
+          DropdownMenuItem(value: 'all', child: PosText('Semua Status')),
+          DropdownMenuItem(value: 'active', child: PosText('Aktif')),
+          DropdownMenuItem(value: 'inactive', child: PosText('Nonaktif')),
         ],
         onChanged: (value) {
           setState(() {
@@ -256,7 +260,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
       child: ElevatedButton.icon(
         onPressed: () => _showPromoForm(context),
         icon: const Icon(Icons.add),
-        label: const Text('Tambah Promo'),
+        label: const PosText('Tambah Promo'),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
@@ -275,7 +279,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
     Widget? suffixIcon,
   }) {
     return InputDecoration(
-      hintText: hintText,
+      hintText: (hintText)?.tr(context),
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
@@ -366,7 +370,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                         color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
+                      child: PosText(
                         statusText,
                         style: TextStyle(
                           color: statusColor,
@@ -391,7 +395,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Diskon: $discountDisplay',
+                      posLocale(context).pos79b4aaf15d61((discountDisplay).toString()),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade700,
@@ -402,7 +406,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                         promo.maxDiscountAmount > 0) ...[
                       const SizedBox(width: 8),
                       Text(
-                        '(Maks ${_formatCurrency(promo.maxDiscountAmount)})',
+                        posLocale(context).pos4f22066d96ef((_formatCurrency(promo.maxDiscountAmount)).toString()),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade500,
@@ -443,7 +447,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Min. belanja ${_formatCurrency(promo.minPurchaseAmount)}',
+                        posLocale(context).pos2642c8d7b316((_formatCurrency(promo.minPurchaseAmount)).toString()),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
@@ -463,7 +467,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                   children: [
                     // Usage info
                     Text(
-                      'Pemakaian: ${promo.currentUsageCount}/${promo.usageLimit > 0 ? promo.usageLimit : '∞'}',
+                      posLocale(context).pos5f2c9e5e92b4((promo.currentUsageCount).toString(), (promo.usageLimit > 0 ? promo.usageLimit : '∞').toString()),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade500,
@@ -482,7 +486,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                           onPressed: () => _confirmDelete(context, promo),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          tooltip: 'Hapus',
+                          tooltip: ('Hapus').tr(context),
                         ),
                         const SizedBox(width: 8),
                         // Toggle active/inactive
@@ -517,14 +521,14 @@ class _PosPromoViewState extends State<_PosPromoView> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Promo'),
+        title: const PosText('Hapus Promo'),
         content: Text(
-          'Apakah Anda yakin ingin menghapus promo "${promo.name}" (${promo.code})?',
+          posLocale(dialogContext).posf8ddd141364d((promo.name).toString(), (promo.code).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -537,7 +541,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const PosText('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -758,7 +762,8 @@ class _PromoFormContentState extends State<_PromoFormContent> {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd MMM yyyy', 'id_ID');
+    posLocale(context); // Refresh formatted dates when the language changes.
+    final dateFormat = DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode);
     return Form(
       key: _formKey,
       child: ListView(
@@ -783,13 +788,14 @@ class _PromoFormContentState extends State<_PromoFormContent> {
               ),
             ),
           Text(
-            isEdit ? 'Edit Promo' : 'Tambah Promo Baru',
+            isEdit ? ('Edit Promo').tr(context) : ('Tambah Promo Baru').tr(context),
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
 
           // Code
           TextFormField(
+errorBuilder: posValidationError,
             controller: _codeCtrl,
             readOnly: isEdit,
             decoration: _inputDecoration(
@@ -799,20 +805,21 @@ class _PromoFormContentState extends State<_PromoFormContent> {
             validator: (v) =>
                 RegExp(r'^[A-Za-z0-9]{3,20}$').hasMatch(v?.trim() ?? '')
                 ? null
-                : 'Kode harus 3–20 huruf atau angka tanpa spasi',
+                : ('Kode harus 3–20 huruf atau angka tanpa spasi').tr(context),
             textCapitalization: TextCapitalization.characters,
           ),
           const SizedBox(height: 14),
 
           // Name
           TextFormField(
+errorBuilder: posValidationError,
             controller: _nameCtrl,
             decoration: _inputDecoration(
               'Nama Promo',
               Icons.local_offer_outlined,
             ),
             validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null,
+                v == null || v.trim().isEmpty ? ('Nama wajib diisi').tr(context) : null,
           ),
           const SizedBox(height: 14),
 
@@ -837,11 +844,11 @@ class _PromoFormContentState extends State<_PromoFormContent> {
             items: const [
               DropdownMenuItem(
                 value: 'percentage',
-                child: Text('Persentase (%)'),
+                child: PosText('Persentase (%)'),
               ),
               DropdownMenuItem(
                 value: 'fixed',
-                child: Text('Nominal Tetap (Rp)'),
+                child: PosText('Nominal Tetap (Rp)'),
               ),
             ],
             onChanged: (v) => setState(() {
@@ -858,6 +865,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
 
           // Discount value
           TextFormField(
+errorBuilder: posValidationError,
             controller: _valueCtrl,
             decoration: _inputDecoration(
               _valueType == 'percentage'
@@ -871,12 +879,12 @@ class _PromoFormContentState extends State<_PromoFormContent> {
                 : null,
             validator: (v) {
               if (v == null || v.trim().isEmpty) {
-                return 'Nilai diskon wajib diisi';
+                return ('Nilai diskon wajib diisi').tr(context);
               }
               if (_valueType == 'fixed'
                   ? parseRupiah(v) <= 0
                   : double.tryParse(v) == null) {
-                return 'Masukkan angka valid';
+                return ('Masukkan angka valid').tr(context);
               }
               return null;
             },
@@ -908,6 +916,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
           ),
           const SizedBox(height: 14),
           TextFormField(
+errorBuilder: posValidationError,
             controller: _usagePerCustomerCtrl,
             decoration: _inputDecoration(
               'Batas per pelanggan (pilih pelanggan saat memakai promo)',
@@ -917,7 +926,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
             validator: (value) {
               final limit = int.tryParse(value ?? '');
               return limit == null || limit < 1 || limit > 100
-                  ? 'Isi angka 1–100'
+                  ? ('Isi angka 1–100').tr(context)
                   : null;
             },
           ),
@@ -949,7 +958,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
                     child: Text(
                       _startDate != null
                           ? dateFormat.format(_startDate!)
-                          : 'Pilih tanggal',
+                          : ('Pilih tanggal').tr(context),
                       style: TextStyle(
                         color: _startDate != null
                             ? Colors.black87
@@ -971,7 +980,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
                     child: Text(
                       _endDate != null
                           ? dateFormat.format(_endDate!)
-                          : 'Pilih tanggal',
+                          : ('Pilih tanggal').tr(context),
                       style: TextStyle(
                         color: _endDate != null ? Colors.black87 : Colors.grey,
                       ),
@@ -996,7 +1005,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
                 ),
               ),
               child: Text(
-                isEdit ? 'Simpan Perubahan' : 'Buat Promo',
+                isEdit ? ('Simpan Perubahan').tr(context) : ('Buat Promo').tr(context),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -1013,7 +1022,7 @@ class _PromoFormContentState extends State<_PromoFormContent> {
 
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
-      labelText: label,
+      labelText: (label).tr(context),
       prefixIcon: Icon(icon, size: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

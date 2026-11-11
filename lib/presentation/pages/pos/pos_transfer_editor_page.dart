@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/network/graphql_client_provider.dart';
@@ -215,8 +216,8 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
           ? TextInputType.multiline
           : TextInputType.text,
       decoration: InputDecoration(
-        labelText: label,
-        helperText: hint,
+        labelText: (label).tr(context),
+        helperText: (hint)?.tr(context),
         border: const OutlineInputBorder(),
       ),
       onChanged: change,
@@ -245,7 +246,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         initialValue: current.isEmpty && !optional ? null : current,
         isExpanded: true,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: (label).tr(context),
           border: const OutlineInputBorder(),
         ),
         items: values.entries
@@ -268,7 +269,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          PosText(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 14),
           ...children,
         ],
@@ -284,7 +285,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
     }
     final picked = await showTransferReferencePicker(
       context,
-      title: 'Tambah barang transfer',
+      title: ('Tambah barang transfer').tr(context),
       loader: (search, page) async {
         final data = await repo.query(PosTransferQueries.itemsPage, {
           'id': from['cabang_id'],
@@ -316,7 +317,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     final picked = await showTransferReferencePicker(
       context,
-      title: 'Pilih batch transfer',
+      title: ('Pilih batch transfer').tr(context),
       loader: (search, page) async {
         final data = await repo.query(PosTransferQueries.batches, {
           'id': item['inventaris_id'],
@@ -371,10 +372,10 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         builder: (c) => PosKeyboardStableFormDialog(
           width: 560,
           height: 550,
-          title: const Text('Jumlah per satuan / kemasan'),
+          title: const PosText('Jumlah per satuan / kemasan'),
           content: ListView(
             children: [
-              const Text(
+              const PosText(
                 'Total dihitung ke satuan dasar. Faktor berasal dari master barang.',
               ),
               for (final u in rows)
@@ -390,7 +391,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () {
@@ -418,7 +419,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                 }
                 Navigator.pop(c, true);
               },
-              child: const Text('Gunakan jumlah'),
+              child: const PosText('Gunakan jumlah'),
             ),
           ],
         ),
@@ -446,7 +447,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(
-        widget.existing == null ? 'Tambah Mutasi Stok' : 'Ubah Mutasi Stok',
+        widget.existing == null ? ('Tambah Mutasi Stok').tr(context) : ('Ubah Mutasi Stok').tr(context),
       ),
     ),
     body: loading
@@ -456,8 +457,8 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(error!),
-                TextButton(onPressed: load, child: const Text('Coba lagi')),
+                PosText(error!),
+                TextButton(onPressed: load, child: const PosText('Coba lagi')),
               ],
             ),
           )
@@ -495,7 +496,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                         ),
                       if (draft['submitted_at'] != null)
                         Text(
-                          'Persetujuan ${draft['requires_approval'] == false ? 'tidak diperlukan' : 'diperlukan'} • aturan terkunci setelah diajukan',
+                          posLocale(context).posb11d7ad2d4ac((draft['requires_approval'] == false ? ('tidak diperlukan').tr(context) : ('diperlukan').tr(context)).toString()),
                         ),
                       text(
                         'Catatan transfer',
@@ -506,7 +507,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                     ]),
                     section('Lokasi perpindahan', [
                       PosTransferLocationFields(
-                        title: 'asal',
+                        title: ('asal').tr(context),
                         warehouses: warehouses
                             .where((w) => w['is_transfer_source'] != false)
                             .toList(),
@@ -516,18 +517,18 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                             final yes = await showDialog<bool>(
                               context: context,
                               builder: (c) => AlertDialog(
-                                title: const Text('Ganti lokasi asal?'),
-                                content: const Text(
+                                title: const PosText('Ganti lokasi asal?'),
+                                content: const PosText(
                                   'Daftar barang dikosongkan agar stok dan batch tidak memakai lokasi lama.',
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(c, false),
-                                    child: const Text('Batal'),
+                                    child: const PosText('Batal'),
                                   ),
                                   FilledButton(
                                     onPressed: () => Navigator.pop(c, true),
-                                    child: const Text('Ganti lokasi'),
+                                    child: const PosText('Ganti lokasi'),
                                   ),
                                 ],
                               ),
@@ -542,7 +543,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                       ),
                       const Divider(),
                       PosTransferLocationFields(
-                        title: 'tujuan',
+                        title: ('tujuan').tr(context),
                         warehouses: warehouses
                             .where((w) => w['is_transfer_destination'] != false)
                             .toList(),
@@ -572,7 +573,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                       ),
                                     ),
                                     IconButton(
-                                      tooltip: 'Hapus barang',
+                                      tooltip: ('Hapus barang').tr(context),
                                       onPressed: () =>
                                           setState(() => items.removeAt(index)),
                                       icon: const Icon(Icons.close),
@@ -592,7 +593,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                   number: true,
                                 ),
                                 Text(
-                                  'Batch: ${item['no_batch'] ?? 'Alokasi otomatis saat dikirim'} · ${item['tanggal_kadaluarsa'] ?? ''}',
+                                  posLocale(context).pos19c47f48a246((item['no_batch'] ?? 'Alokasi otomatis saat dikirim').toString(), (item['tanggal_kadaluarsa'] ?? '').toString()),
                                 ),
                                 Wrap(
                                   spacing: 8,
@@ -600,7 +601,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                     OutlinedButton.icon(
                                       onPressed: () => chooseBatch(item),
                                       icon: const Icon(Icons.layers_outlined),
-                                      label: const Text('Pilih batch'),
+                                      label: const PosText('Pilih batch'),
                                     ),
                                     TextButton(
                                       onPressed: () => setState(
@@ -610,7 +611,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                           'tanggal_kadaluarsa': '',
                                         }),
                                       ),
-                                      child: const Text('Alokasi otomatis'),
+                                      child: const PosText('Alokasi otomatis'),
                                     ),
                                   ],
                                 ),
@@ -634,13 +635,13 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                 OutlinedButton.icon(
                                   onPressed: () => editUnits(item),
                                   icon: const Icon(Icons.swap_horiz),
-                                  label: const Text('Input satuan / kemasan'),
+                                  label: const PosText('Input satuan / kemasan'),
                                 ),
                                 if (transferMaps(
                                   item['unit_breakdown'],
                                 ).isNotEmpty)
                                   Text(
-                                    'Konversi tersimpan: ${transferMaps(item['unit_breakdown']).map((u) => '${u['input_qty']} ${u['unit']} × ${u['factor']}').join(' + ')}',
+                                    posLocale(context).pos2befc83ee9ee((transferMaps(item['unit_breakdown']).map((u) => '${u['input_qty']} ${u['unit']} × ${u['factor']}').join(' + ')).toString()),
                                   ),
                               ],
                             ),
@@ -649,12 +650,12 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                       OutlinedButton.icon(
                         onPressed: addItem,
                         icon: const Icon(Icons.add),
-                        label: const Text('Tambah barang'),
+                        label: const PosText('Tambah barang'),
                       ),
                     ]),
                     Card(
                       child: ExpansionTile(
-                        title: const Text(
+                        title: const PosText(
                           'Biaya, rekening & dimensi (opsional)',
                         ),
                         initiallyExpanded: costs.isNotEmpty,
@@ -672,7 +673,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                 if (financeError != null)
                                   TextButton(
                                     onPressed: loadFinance,
-                                    child: Text('$financeError · Coba lagi'),
+                                    child: Text(posLocale(context).posb4fb1c3b1411((financeError).toString())),
                                   ),
                                 select(
                                   'Cabang penanggung jawab',
@@ -744,7 +745,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                             onPressed: () => setState(
                                               () => costs.removeAt(index),
                                             ),
-                                            child: const Text('Hapus biaya'),
+                                            child: const PosText('Hapus biaya'),
                                           ),
                                         ],
                                       ),
@@ -762,7 +763,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                       }),
                                     );
                                   },
-                                  child: const Text('Tambah biaya'),
+                                  child: const PosText('Tambah biaya'),
                                 ),
                                 select(
                                   'Rekening pembayaran biaya',
@@ -839,7 +840,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
-                      label: Text(saving ? 'Menyimpan...' : 'Simpan mutasi'),
+                      label: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan mutasi').tr(context)),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -924,13 +925,13 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
   Widget build(BuildContext context) => PosKeyboardStableFormDialog(
     width: 660,
     height: 650,
-    title: Text(widget.title),
+    title: PosText(widget.title),
     content: Column(
       children: [
         TextField(
           controller: search,
-          decoration: const InputDecoration(
-            labelText: 'Cari nama, kode atau barcode',
+          decoration:  InputDecoration(
+            labelText: ('Cari nama, kode atau barcode').tr(context),
             prefixIcon: Icon(Icons.search),
           ),
           onChanged: (_) {
@@ -943,7 +944,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
         ),
         if (loading) const LinearProgressIndicator(),
         if (error != null)
-          TextButton(onPressed: load, child: Text('$error · Coba lagi')),
+          TextButton(onPressed: load, child: Text(posLocale(context).posb4fb1c3b1411((error).toString()))),
         Expanded(
           child: ListView(
             children: [
@@ -956,7 +957,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
           ),
         ),
         if (!widget.paginated)
-          const Text(
+          const PosText(
             'Maksimal 100 hasil. Ketik nama/kode untuk mempersempit pencarian.',
           ),
         if (widget.paginated)
@@ -970,7 +971,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
                         page--;
                         load();
                       },
-                child: const Text('Sebelumnya'),
+                child: const PosText('Sebelumnya'),
               ),
               TextButton(
                 onPressed: rows.length < 30 || loading
@@ -979,7 +980,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
                         page++;
                         load();
                       },
-                child: const Text('Berikutnya'),
+                child: const PosText('Berikutnya'),
               ),
             ],
           ),
@@ -988,7 +989,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Batal'),
+        child: const PosText('Batal'),
       ),
     ],
   );

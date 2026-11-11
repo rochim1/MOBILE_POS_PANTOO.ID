@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../domain/repositories/pos_repository.dart';
@@ -76,13 +77,13 @@ class _PosCatalogCategoryPickerState extends State<PosCatalogCategoryPicker> {
             Row(
               children: [
                 const Expanded(
-                  child: Text(
+                  child: PosText(
                     'Pilih kategori',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Tutup',
+                  tooltip: ('Tutup').tr(context),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -90,8 +91,8 @@ class _PosCatalogCategoryPickerState extends State<PosCatalogCategoryPicker> {
             ),
             TextField(
               controller: _search,
-              decoration: const InputDecoration(
-                labelText: 'Cari kategori',
+              decoration:  InputDecoration(
+                labelText: ('Cari kategori').tr(context),
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (_) {
@@ -105,7 +106,7 @@ class _PosCatalogCategoryPickerState extends State<PosCatalogCategoryPicker> {
             ),
             if (_loading) const LinearProgressIndicator(),
             if (_error.isNotEmpty)
-              TextButton(onPressed: () => _load(_page), child: Text(_error)),
+              TextButton(onPressed: () => _load(_page), child: PosText(_error)),
             Expanded(
               child: ListView(
                 children: [
@@ -130,14 +131,14 @@ class _PosCatalogCategoryPickerState extends State<PosCatalogCategoryPicker> {
                       _items.isEmpty &&
                       _search.text.isNotEmpty &&
                       _error.isEmpty)
-                    const ListTile(title: Text('Kategori tidak ditemukan')),
+                    const ListTile(title: PosText('Kategori tidak ditemukan')),
                 ],
               ),
             ),
             Row(
               children: [
                 IconButton(
-                  tooltip: 'Kategori sebelumnya',
+                  tooltip: ('Kategori sebelumnya').tr(context),
                   onPressed: _page <= 1 || _loading
                       ? null
                       : () => _load(_page - 1),
@@ -145,12 +146,12 @@ class _PosCatalogCategoryPickerState extends State<PosCatalogCategoryPicker> {
                 ),
                 Expanded(
                   child: Text(
-                    'Halaman $_page · $_total kategori',
+                    posLocale(context).pos6a42159c5abb((_page).toString(), (_total).toString()),
                     textAlign: TextAlign.center,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Kategori berikutnya',
+                  tooltip: ('Kategori berikutnya').tr(context),
                   onPressed: _page * 20 >= _total || _loading
                       ? null
                       : () => _load(_page + 1),

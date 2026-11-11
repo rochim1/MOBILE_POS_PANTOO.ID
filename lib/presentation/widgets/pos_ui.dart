@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 
@@ -18,7 +19,7 @@ class PosAppBarTitle extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      PosText(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       const SizedBox(height: 2),
       Row(
         mainAxisSize: MainAxisSize.min,
@@ -34,7 +35,7 @@ class PosAppBarTitle extends StatelessWidget {
           const SizedBox(width: 5),
           Flexible(
             child: Text(
-              subtitle ?? (online ? 'Status: Online' : 'Status: Offline'),
+              subtitle ?? (online ? 'Status: Online'.tr(context) : 'Status: Offline'.tr(context)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -85,13 +86,13 @@ class PosEmptyState extends StatelessWidget {
               child: Icon(icon, size: 54, color: AppColors.primary),
             ),
             const SizedBox(height: 22),
-            Text(
+            PosText(
               title,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            Text(
+            PosText(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.grey.shade600, height: 1.45),
@@ -101,7 +102,7 @@ class PosEmptyState extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onAction,
                 icon: const Icon(Icons.add_rounded),
-                label: Text(actionLabel!),
+                label: PosText(actionLabel!),
               ),
             ],
           ],
@@ -155,7 +156,7 @@ class PosStatCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: AppColors.grey.shade600)),
+              PosText(label, style: TextStyle(color: AppColors.grey.shade600)),
               const SizedBox(height: 3),
               Text(
                 value,
@@ -196,7 +197,7 @@ class PosSearchField extends StatelessWidget {
           controller: controller,
           onChanged: onChanged,
           decoration: InputDecoration(
-            hintText: hint,
+            hintText: (hint).tr(context),
             prefixIcon: const Icon(Icons.search_rounded),
           ),
         ),
@@ -206,7 +207,7 @@ class PosSearchField extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onFilter,
           icon: const Icon(Icons.tune_rounded),
-          label: const Text('Filter'),
+          label: const PosText('Filter'),
         ),
       ],
     ],
@@ -256,13 +257,13 @@ class PosQueueLoadError extends StatelessWidget {
     children: [
       const Icon(Icons.cloud_off_outlined, size: 36),
       const SizedBox(height: 12),
-      Text(
+      PosText(
         'Antrean belum berhasil dimuat',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 8),
-      const Text(
+      const PosText(
         'Data pesanan belum dapat dipastikan kosong. Periksa koneksi, lalu muat ulang.',
         textAlign: TextAlign.center,
       ),
@@ -271,7 +272,7 @@ class PosQueueLoadError extends StatelessWidget {
         child: FilledButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh),
-          label: const Text('Muat ulang antrean'),
+          label: const PosText('Muat ulang antrean'),
         ),
       ),
     ],

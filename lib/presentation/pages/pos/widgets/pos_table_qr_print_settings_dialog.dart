@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/presentation/widgets/pos_keyboard_stable_dialog.dart';
 
@@ -61,7 +62,7 @@ class _PosTableQrPrintSettingsDialogState
   Widget build(BuildContext context) => PosKeyboardStableFormDialog(
     width: 390,
     height: 580,
-    title: const Text('Pengaturan Cetak QR Code'),
+    title: const PosText('Pengaturan Cetak QR Code'),
     content: SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -74,38 +75,38 @@ class _PosTableQrPrintSettingsDialogState
             onChanged: (_) {
               if (_titleRequired) setState(() => _titleRequired = false);
             },
-            decoration: const InputDecoration(
-              labelText: 'Judul Utama',
+            decoration:  InputDecoration(
+              labelText: ('Judul Utama').tr(context),
               border: OutlineInputBorder(),
-            ).copyWith(errorText: _titleRequired ? 'Judul wajib diisi' : null),
+            ).copyWith(errorText: _titleRequired ? ('Judul wajib diisi').tr(context) : null),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _subtitle,
             maxLength: 120,
             maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Sub-Judul',
+            decoration:  InputDecoration(
+              labelText: ('Sub-Judul').tr(context),
               border: OutlineInputBorder(),
             ),
           ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _useLogo,
-            title: const Text('Tampilkan Logo Instansi'),
+            title: const PosText('Tampilkan Logo Instansi'),
             onChanged: (value) => setState(() => _useLogo = value ?? false),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _orientation,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Orientasi',
+            decoration:  InputDecoration(
+              labelText: ('Orientasi').tr(context),
               border: OutlineInputBorder(),
             ),
             items: const [
-              DropdownMenuItem(value: 'portrait', child: Text('Potret')),
-              DropdownMenuItem(value: 'landscape', child: Text('Lanskap')),
+              DropdownMenuItem(value: 'portrait', child: PosText('Potret')),
+              DropdownMenuItem(value: 'landscape', child: PosText('Lanskap')),
             ],
             onChanged: (value) =>
                 setState(() => _orientation = value ?? 'portrait'),
@@ -114,14 +115,14 @@ class _PosTableQrPrintSettingsDialogState
           DropdownButtonFormField<String>(
             initialValue: _theme,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Warna Tema',
+            decoration:  InputDecoration(
+              labelText: ('Warna Tema').tr(context),
               border: OutlineInputBorder(),
             ),
             items: const [
-              DropdownMenuItem(value: 'light', child: Text('Terang')),
-              DropdownMenuItem(value: 'dark', child: Text('Gelap')),
-              DropdownMenuItem(value: 'primary', child: Text('Aksen Pantoo')),
+              DropdownMenuItem(value: 'light', child: PosText('Terang')),
+              DropdownMenuItem(value: 'dark', child: PosText('Gelap')),
+              DropdownMenuItem(value: 'primary', child: PosText('Aksen Pantoo')),
             ],
             onChanged: (value) => setState(() => _theme = value ?? 'light'),
           ),
@@ -131,9 +132,9 @@ class _PosTableQrPrintSettingsDialogState
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Batal'),
+        child: const PosText('Batal'),
       ),
-      FilledButton(onPressed: _save, child: const Text('Simpan')),
+      FilledButton(onPressed: _save, child: const PosText('Simpan')),
     ],
   );
 }

@@ -35,7 +35,7 @@ void main() {
       final page = File(
         'lib/presentation/pages/pos/pos_table_order_page.dart',
       ).readAsStringSync();
-      expect(page, contains("Teknisi / staf: \${service['technician_name']}"));
+      expect(page, contains("pos4d67ce5fd380((service['technician_name']).toString())"));
     },
   );
 }

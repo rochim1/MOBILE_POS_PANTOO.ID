@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
@@ -140,7 +141,7 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'QR ${widget.entry.tableName}',
+            posLocale(context).pos8c5a30764897((widget.entry.tableName).toString()),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 4),
@@ -165,13 +166,13 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
             style: const TextStyle(fontSize: 12, color: AppColors.body),
           ),
           const SizedBox(height: 12),
-          const Text(
+          const PosText(
             'Uji tautan sebelum menempel QR. Pesanan masuk ke daftar pesanan aktif dengan sumber Web Order.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 6),
-          const Text(
+          const PosText(
             'QR ini permanen. Pantau pesanan Web Order sebelum staf mulai menyiapkannya.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: AppColors.warning),
@@ -180,7 +181,7 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
           OutlinedButton.icon(
             onPressed: _editSettings,
             icon: const Icon(Icons.tune_outlined),
-            label: const Text('Pengaturan Cetak QR'),
+            label: const PosText('Pengaturan Cetak QR'),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -191,7 +192,7 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
               OutlinedButton.icon(
                 onPressed: _open,
                 icon: const Icon(Icons.open_in_new),
-                label: const Text('Uji tautan'),
+                label: const PosText('Uji tautan'),
               ),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -203,7 +204,7 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
                   }
                 },
                 icon: const Icon(Icons.copy_outlined),
-                label: const Text('Salin'),
+                label: const PosText('Salin'),
               ),
               OutlinedButton.icon(
                 onPressed: _sharing ? null : _share,
@@ -214,7 +215,7 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.share_outlined),
-                label: Text(_sharing ? 'Menyiapkan…' : 'Bagikan'),
+                label: Text(_sharing ? ('Menyiapkan…').tr(context) : ('Bagikan').tr(context)),
               ),
               FilledButton.icon(
                 onPressed: _printing ? null : _print,
@@ -225,7 +226,7 @@ class _PosTableQrSheetState extends State<PosTableQrSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.print_outlined),
-                label: Text(_printing ? 'Menyiapkan…' : 'Cetak QR'),
+                label: Text(_printing ? ('Menyiapkan…').tr(context) : ('Cetak QR').tr(context)),
               ),
             ],
           ),
@@ -302,7 +303,7 @@ class _PosTableQrPreview extends StatelessWidget {
         ),
         if (entry.capacity > 0)
           Text(
-            'Kapasitas: ${entry.capacity} Orang',
+            posLocale(context).pos50275ce55359((entry.capacity).toString()),
             style: TextStyle(color: muted, fontSize: 12),
           ),
         if (entry.location.isNotEmpty)

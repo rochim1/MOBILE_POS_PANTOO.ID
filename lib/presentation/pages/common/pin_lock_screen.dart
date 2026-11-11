@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -78,13 +79,13 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Buat PIN Kasir'),
+    title: const PosText('Buat PIN Kasir'),
     content: SizedBox(
       width: (MediaQuery.sizeOf(context).width - 80).clamp(220.0, 380.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          const PosText(
             'Konfirmasi password akun login, lalu buat PIN kasir 4–6 digit.',
           ),
           const SizedBox(height: 16),
@@ -92,8 +93,8 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             controller: _passwordController,
             obscureText: true,
             autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Password akun',
+            decoration:  InputDecoration(
+              labelText: ('Password akun').tr(context),
               prefixIcon: Icon(Icons.password_outlined),
               border: OutlineInputBorder(),
             ),
@@ -105,8 +106,8 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             keyboardType: TextInputType.number,
             maxLength: 6,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'PIN baru',
+            decoration:  InputDecoration(
+              labelText: ('PIN baru').tr(context),
               prefixIcon: Icon(Icons.pin_outlined),
               border: OutlineInputBorder(),
               counterText: '',
@@ -119,8 +120,8 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             keyboardType: TextInputType.number,
             maxLength: 6,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'Ulangi PIN',
+            decoration:  InputDecoration(
+              labelText: ('Ulangi PIN').tr(context),
               prefixIcon: Icon(Icons.verified_user_outlined),
               border: OutlineInputBorder(),
               counterText: '',
@@ -128,7 +129,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
           ),
           if (_error.isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text(
+            PosText(
               _error,
               style: const TextStyle(color: AppColors.danger, fontSize: 12),
             ),
@@ -139,7 +140,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
     actions: [
       TextButton(
         onPressed: _saving ? null : () => Navigator.pop(context),
-        child: const Text('Batal'),
+        child: const PosText('Batal'),
       ),
       FilledButton.icon(
         onPressed: _saving ? null : _submit,
@@ -152,7 +153,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
                 ),
               )
             : const Icon(Icons.add_moderator_outlined),
-        label: const Text('Buat PIN'),
+        label: const PosText('Buat PIN'),
       ),
     ],
   );
@@ -318,21 +319,21 @@ class _PinLockScreenState extends State<PinLockScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Keluar dari akun?'),
+        title: const PosText('Keluar dari akun?'),
         content: Text(
           unresolved > 0
-              ? '$unresolved transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi tidak dapat disinkronkan sampai akun instansi ini login kembali.'
-              : 'Sesi kasir dan akun akan ditutup. Anda perlu login kembali untuk menggunakan POS.',
+              ? posLocale(dialogContext).pos509814bee562((unresolved).toString())
+              : ('Sesi kasir dan akun akan ditutup. Anda perlu login kembali untuk menggunakan POS.').tr(dialogContext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
             icon: const Icon(Icons.logout),
-            label: const Text('Logout'),
+            label: const PosText('Logout'),
           ),
         ],
       ),
@@ -365,11 +366,11 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   String _employeeName(Map<String, dynamic>? employee) {
-    if (employee == null) return 'Pilih karyawan';
+    if (employee == null) return 'Pilih karyawan'.tr(context);
     final name = employee['name']?.toString() ?? '';
     return name.isNotEmpty
         ? name
-        : employee['username']?.toString() ?? 'Karyawan';
+        : employee['username']?.toString() ?? 'Karyawan'.tr(context);
   }
 
   Future<void> _showEmployeePicker() async {
@@ -411,7 +412,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       size: 20,
                     ),
                     SizedBox(width: 8),
-                    Text(
+                    PosText(
                       'Pilih Kasir',
                       style: TextStyle(
                         fontSize: 16,
@@ -429,7 +430,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                     autofocus: true,
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama atau username…',
+                      hintText: ('Cari nama atau username…').tr(sheetContext),
                       hintStyle: const TextStyle(fontSize: 13),
                       prefixIcon: const Icon(Icons.search, size: 19),
                       prefixIconConstraints: const BoxConstraints(
@@ -464,7 +465,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                     }
                     if (state.employees.isEmpty) {
                       return const Center(
-                        child: Text('Karyawan tidak ditemukan'),
+                        child: PosText('Karyawan tidak ditemukan'),
                       );
                     }
                     return ListView.separated(
@@ -509,7 +510,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                             style: const TextStyle(fontSize: 11),
                           ),
                           trailing: canCreatePin
-                              ? const Text(
+                              ? const PosText(
                                   'Buat PIN',
                                   style: TextStyle(
                                     color: AppColors.primary,
@@ -636,7 +637,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            const Text(
+                                            const PosText(
                                               'Akses Kasir',
                                               style: TextStyle(
                                                 fontSize: 24,
@@ -644,7 +645,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 color: AppColors.heading,
                                               ),
                                             ),
-                                            const Text(
+                                            const PosText(
                                               'Pilih operator dan masukkan PIN untuk melanjutkan',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
@@ -711,8 +712,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               state.errorMessage.isNotEmpty
                                                   ? state.errorMessage
                                                   : canCreateOwnPin
-                                                  ? 'Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.'
-                                                  : 'Masukkan PIN 4–6 digit karyawan',
+                                                  ? ('Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.').tr(context)
+                                                  : ('Masukkan PIN 4–6 digit karyawan').tr(context),
                                               style: TextStyle(
                                                 color:
                                                     state
@@ -754,7 +755,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                     ),
                                                     const SizedBox(width: 7),
                                                     Text(
-                                                      'Coba lagi dalam $lockoutSeconds detik',
+                                                      posLocale(context).poseb9c086c8b8f((lockoutSeconds).toString()),
                                                       style: const TextStyle(
                                                         color:
                                                             AppColors.heading,
@@ -859,8 +860,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       ),
                                                 label: Text(
                                                   canCreateOwnPin
-                                                      ? 'Buat PIN Akun Ini'
-                                                      : 'Masuk sebagai Kasir',
+                                                      ? ('Buat PIN Akun Ini').tr(context)
+                                                      : ('Masuk sebagai Kasir').tr(context),
                                                 ),
                                                 style: ElevatedButton.styleFrom(
                                                   padding:
@@ -878,8 +879,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             const SizedBox(height: 8),
                                             Text(
                                               canCreateOwnPin
-                                                  ? 'PIN akun lain tetap dibuat atau direset oleh admin POS.'
-                                                  : 'PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.',
+                                                  ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.').tr(context)
+                                                  : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.').tr(context),
                                               style: TextStyle(
                                                 color: AppColors.textSecondary,
                                                 fontSize: 11,
@@ -900,7 +901,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 Icons.connected_tv_outlined,
                                                 size: 18,
                                               ),
-                                              label: const Text(
+                                              label: const PosText(
                                                 'Hubungkan layar pelanggan',
                                               ),
                                             ),
@@ -929,7 +930,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       Icons.logout,
                                                       size: 18,
                                                     ),
-                                              label: const Text('Logout akun'),
+                                              label: const PosText('Logout akun'),
                                             ),
                                           ],
                                         ),
@@ -1031,7 +1032,7 @@ class _PinMarketingPanel extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        PosText(
                           'Pantoo POS',
                           style: TextStyle(
                             color: Colors.white,
@@ -1039,7 +1040,7 @@ class _PinMarketingPanel extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        Text(
+                        PosText(
                           'Kasir cepat, bisnis lebih tertata',
                           style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
@@ -1049,7 +1050,7 @@ class _PinMarketingPanel extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              const Text(
+              const PosText(
                 'Satu kasir untuk setiap peluang',
                 style: TextStyle(
                   color: Colors.white,
@@ -1058,7 +1059,7 @@ class _PinMarketingPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              const PosText(
                 'Layani pelanggan, pantau stok, dan kelola penjualan dari satu tempat.',
                 style: TextStyle(
                   color: Colors.white,

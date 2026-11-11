@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -83,7 +84,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           child: TextField(
             onChanged: (value) => setState(() => _search = value),
             decoration: InputDecoration(
-              hintText: 'Cari toko atau kasir...',
+              hintText: ('Cari toko atau kasir...').tr(context),
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.white,
@@ -115,9 +116,9 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
               ),
             ),
             items: const [
-              DropdownMenuItem(value: 'all', child: Text('Semua Status')),
-              DropdownMenuItem(value: 'open', child: Text('Buka')),
-              DropdownMenuItem(value: 'closed', child: Text('Tutup')),
+              DropdownMenuItem(value: 'all', child: PosText('Semua Status')),
+              DropdownMenuItem(value: 'open', child: PosText('Buka')),
+              DropdownMenuItem(value: 'closed', child: PosText('Tutup')),
             ],
             onChanged: (value) => setState(() => _status = value ?? 'all'),
           ),
@@ -143,7 +144,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
         children: [
           const Icon(Icons.history, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
+          const PosText(
             'Belum ada riwayat shift',
             style: TextStyle(color: Colors.grey),
           ),
@@ -152,7 +153,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
             onPressed: () =>
                 context.read<PosShiftBloc>().add(ReloadShiftHistory()),
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
+            label: const PosText('Refresh'),
           ),
         ],
       ),
@@ -232,7 +233,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  isOpen ? 'Buka' : 'Tutup',
+                  isOpen ? ('Buka').tr(context) : ('Tutup').tr(context),
                   style: TextStyle(
                     color: isOpen ? AppColors.success : Colors.grey.shade700,
                     fontWeight: FontWeight.bold,
@@ -245,11 +246,11 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           const Divider(height: 24),
           Row(
             children: [
-              Expanded(child: _buildTimeColumn('Waktu Buka', openedAt)),
+              Expanded(child: _buildTimeColumn(('Waktu Buka').tr(context), openedAt)),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildTimeColumn(
-                  'Waktu Tutup',
+                  ('Waktu Tutup').tr(context),
                   closedAt,
                   alignment: CrossAxisAlignment.end,
                 ),
@@ -258,16 +259,16 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           ),
           const SizedBox(height: 16),
           _buildInfoRow(
-            'Kas Awal',
+            ('Kas Awal').tr(context),
             formatCurrency.format(shift['opening_cash'] ?? 0),
           ),
           _buildInfoRow(
-            'Kas Expected',
+            ('Kas Expected').tr(context),
             formatCurrency.format(posShiftExpectedCash(shift)),
           ),
           if (!isOpen) ...[
             _buildInfoRow(
-              'Kas Aktual',
+              ('Kas Aktual').tr(context),
               formatCurrency.format(shift['closing_cash_actual'] ?? 0),
             ),
             _buildInfoRow(
@@ -289,7 +290,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
     return Column(
       crossAxisAlignment: alignment,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        PosText(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 4),
         Text(
           time != null ? DateFormat('dd MMM yyyy, HH:mm').format(time) : '-',
@@ -305,7 +306,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          PosText(
             label,
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 import '../../../../domain/models/pos_remote_profile_catalog.dart';
 import '../../../../domain/models/pos_settings.dart';
@@ -456,7 +457,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(failure.message),
+            content: PosText(failure.message),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -502,7 +503,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        PosText(
           title,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
         ),
@@ -510,7 +511,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
         DropdownButtonFormField<String>(
           initialValue: options.contains(value) ? value : options.first,
           decoration: InputDecoration(
-            hintText: 'Pilih ${title.toLowerCase()}',
+            hintText: posLocale(context).pos42aa2abf5ad3((title.toLowerCase()).toString()),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 13,
@@ -519,7 +520,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
           items: options
               .map(
                 (item) =>
-                    DropdownMenuItem(value: item, child: Text(_label(item))),
+                    DropdownMenuItem(value: item, child: PosText(_label(item))),
               )
               .toList(),
           onChanged: _canManage
@@ -559,8 +560,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               }
             })
           : null,
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle),
+      title: PosText(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: PosText(subtitle),
     ),
   );
 
@@ -582,10 +583,10 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_loadError!),
+                    PosText(_loadError!),
                     TextButton(
                       onPressed: _loadCurrentSettings,
-                      child: const Text('Coba lagi'),
+                      child: const PosText('Coba lagi'),
                     ),
                   ],
                 ),
@@ -611,7 +612,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         foregroundColor: Colors.white,
                         disabledForegroundColor: Colors.white38,
                       ),
-                      child: const Text('Lewati'),
+                      child: const PosText('Lewati'),
                     ),
                   ],
                 ),
@@ -619,7 +620,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               if (!_canManage)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                  child: Text(
+                  child: PosText(
                     'Mode lihat saja. Perubahan memerlukan izin Kelola Pengaturan POS.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white),
@@ -637,20 +638,20 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                       _Slide(
                         stepLabel: 'Langkah 1 dari 4 · Profil Usaha',
                         icon: Icons.storefront_outlined,
-                        title: 'Pilih profil usaha',
+                        title: ('Pilih profil usaha').tr(context),
                         description:
-                            'Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.',
+                            ('Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.').tr(context),
                         children: [
                           if (_profileCatalog.source != 'backend')
                             const Padding(
                               padding: EdgeInsets.only(bottom: 12),
-                              child: Text(
+                              child: PosText(
                                 'Katalog tersimpan digunakan. Hubungkan kembali untuk memuat profil terbaru.',
                               ),
                             ),
                           const Align(
                             alignment: Alignment.centerLeft,
-                            child: Text(
+                            child: PosText(
                               'Profil usaha',
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
@@ -667,7 +668,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                               children: profiles
                                   .map(
                                     (item) => ChoiceChip(
-                                      label: Text(_label(item)),
+                                      label: PosText(_label(item)),
                                       selected: _profile == item,
                                       onSelected: _canManage
                                           ? (_) => _applyProfile(item)
@@ -682,9 +683,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                       _Slide(
                         stepLabel: 'Langkah 2 dari 4 · Fitur Operasional',
                         icon: Icons.tune_rounded,
-                        title: 'Kebutuhan operasional',
+                        title: ('Kebutuhan operasional').tr(context),
                         description:
-                            'Aktifkan hanya fitur yang digunakan usaha Anda.',
+                            ('Aktifkan hanya fitur yang digunakan usaha Anda.').tr(context),
                         children: [
                           ..._profileCatalog.featureOptions.map(
                             (option) => _switch(
@@ -701,9 +702,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                       _Slide(
                         stepLabel: 'Langkah 3 dari 4 · Default Transaksi',
                         icon: Icons.point_of_sale_outlined,
-                        title: 'Default transaksi',
+                        title: ('Default transaksi').tr(context),
                         description:
-                            'Channel, tipe pemenuhan, dan level harga disimpan sebagai konteks terpisah.',
+                            ('Channel, tipe pemenuhan, dan level harga disimpan sebagai konteks terpisah.').tr(context),
                         children: [
                           _dropdown(
                             'Channel penjualan',
@@ -725,8 +726,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                           ),
                           TextFormField(
                             controller: _taxController,
-                            decoration: const InputDecoration(
-                              labelText: 'Pajak transaksi (%)',
+                            decoration:  InputDecoration(
+                              labelText: ('Pajak transaksi (%)').tr(context),
                             ),
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
@@ -739,15 +740,15 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                             ),
                           ),
                           if (_taxPercent < 0 || _taxPercent > 100)
-                            const Text('Pajak harus antara 0 dan 100 persen'),
+                            const PosText('Pajak harus antara 0 dan 100 persen'),
                         ],
                       ),
                       _Slide(
                         stepLabel: 'Langkah 4 dari 4 · Validasi Inventory',
                         icon: Icons.check_circle_outline_rounded,
-                        title: 'Pastikan POS dan Inventory sejalan',
+                        title: ('Pastikan POS dan Inventory sejalan').tr(context),
                         description:
-                            'Pengaturan disimpan ke database dan digunakan bersama POS Admin serta Inventory.',
+                            ('Pengaturan disimpan ke database dan digunakan bersama POS Admin serta Inventory.').tr(context),
                         children: [
                           _Summary(
                             'Profil Inventory',
@@ -775,11 +776,11 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                                   ? (value) =>
                                         setState(() => _autoPrint = value)
                                   : null,
-                              title: const Text(
+                              title: const PosText(
                                 'Cetak struk otomatis',
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
-                              subtitle: const Text(
+                              subtitle: const PosText(
                                 'Printer dapat dipilih dari menu Pengaturan Printer',
                               ),
                             ),
@@ -821,7 +822,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                           color: Colors.white70,
                         ),
                         const SizedBox(width: 5),
-                        Text(
+                        PosText(
                           'Geser card',
                           style: const TextStyle(
                             color: Colors.white70,
@@ -852,7 +853,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                                       : Icons.arrow_forward_rounded,
                                   size: 18,
                                 ),
-                          label: Text(_index == 3 ? 'Simpan' : 'Lanjut'),
+                          label: Text(_index == 3 ? ('Simpan').tr(context) : ('Lanjut').tr(context)),
                           style: FilledButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: AppColors.primary,
@@ -934,7 +935,7 @@ class _Slide extends StatelessWidget {
                       color: AppColors.primary.withValues(alpha: .08),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
+                    child: PosText(
                       stepLabel,
                       style: TextStyle(
                         color: AppColors.primary,
@@ -954,7 +955,7 @@ class _Slide extends StatelessWidget {
                     child: Icon(icon, size: 30, color: AppColors.primary),
                   ),
                   const SizedBox(height: 14),
-                  Text(
+                  PosText(
                     title,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -962,7 +963,7 @@ class _Slide extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 7),
-                  Text(
+                  PosText(
                     description,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -997,7 +998,7 @@ class _Summary extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: const TextStyle(color: Colors.black54)),
+          child: PosText(label, style: const TextStyle(color: Colors.black54)),
         ),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
       ],

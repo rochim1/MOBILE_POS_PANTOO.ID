@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -139,7 +140,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
               return Row(
                 children: [
                   PosCategorySidebar<_OrderCategory>(
-                    title: 'Kategori Order',
+                    title: ('Kategori Order').tr(context),
                     items: categories,
                     selected: _selectedCategory,
                     onSelected: (value) =>
@@ -157,7 +158,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   color: Colors.white,
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                   child: PosCategoryDropdown<_OrderCategory>(
-                    label: 'Kategori order',
+                    label: ('Kategori order').tr(context),
                     items: categories,
                     selected: _selectedCategory,
                     onSelected: (value) =>
@@ -181,22 +182,22 @@ class _PosOrderPageState extends State<PosOrderPage> {
       PosCategoryItem(
         value: _OrderCategory.all,
         icon: Icons.list_alt_outlined,
-        label: 'Semua (${orders.length})',
+        label: posLocale(context).pos5ab6295dbc59((orders.length).toString()),
       ),
       PosCategoryItem(
         value: _OrderCategory.cashier,
         icon: Icons.point_of_sale_outlined,
-        label: 'Kasir (${cashier.length})',
+        label: posLocale(context).posf9195de99c01((cashier.length).toString()),
       ),
       PosCategoryItem(
         value: _OrderCategory.online,
         icon: Icons.language_outlined,
-        label: 'Order Online (${online.length})',
+        label: posLocale(context).pos46179ba2b7f3((online.length).toString()),
       ),
       PosCategoryItem(
         value: _OrderCategory.invoice,
         icon: Icons.request_quote_outlined,
-        label: 'Faktur Penjualan (${invoices.length})',
+        label: posLocale(context).pos1d39c9ee7007((invoices.length).toString()),
       ),
     ];
   }
@@ -251,7 +252,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   InputDecoration _filterDecoration({required String label, IconData? icon}) {
     return InputDecoration(
-      labelText: label,
+      labelText: (label).tr(context),
       prefixIcon: icon == null ? null : Icon(icon, size: 19),
       filled: true,
       fillColor: Colors.white,
@@ -274,11 +275,11 @@ class _PosOrderPageState extends State<PosOrderPage> {
         initialValue: value,
         isExpanded: true,
         decoration: _filterDecoration(
-          label: 'Kasir',
+          label: ('Kasir').tr(context),
           icon: Icons.person_outline,
         ),
         items: [
-          const DropdownMenuItem(value: 'Semua', child: Text('Semua Kasir')),
+          const DropdownMenuItem(value: 'Semua', child: PosText('Semua Kasir')),
           ...cashiers.map(
             (cashier) => DropdownMenuItem(
               value: cashier,
@@ -298,14 +299,14 @@ class _PosOrderPageState extends State<PosOrderPage> {
         initialValue: _selectedPeriod,
         isExpanded: true,
         decoration: _filterDecoration(
-          label: 'Periode',
+          label: ('Periode').tr(context),
           icon: Icons.date_range_outlined,
         ),
         items: const [
-          DropdownMenuItem(value: 'Semua', child: Text('Semua Waktu')),
-          DropdownMenuItem(value: 'Hari Ini', child: Text('Hari Ini')),
-          DropdownMenuItem(value: '7 Hari', child: Text('7 Hari')),
-          DropdownMenuItem(value: '30 Hari', child: Text('30 Hari')),
+          DropdownMenuItem(value: 'Semua', child: PosText('Semua Waktu')),
+          DropdownMenuItem(value: 'Hari Ini', child: PosText('Hari Ini')),
+          DropdownMenuItem(value: '7 Hari', child: PosText('7 Hari')),
+          DropdownMenuItem(value: '30 Hari', child: PosText('30 Hari')),
         ],
         onChanged: (value) => setState(() => _selectedPeriod = value!),
       ),
@@ -317,7 +318,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
       height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Cari invoice atau pelanggan...',
+          hintText: ('Cari invoice atau pelanggan...').tr(context),
           filled: true,
           fillColor: Colors.white,
           prefixIcon: const Icon(Icons.search),
@@ -341,17 +342,17 @@ class _PosOrderPageState extends State<PosOrderPage> {
         initialValue: _selectedStatus,
         isExpanded: true,
         decoration: _filterDecoration(
-          label: 'Status',
+          label: ('Status').tr(context),
           icon: Icons.filter_list_rounded,
         ),
         items: const [
-          DropdownMenuItem(value: 'Semua', child: Text('Semua Status')),
-          DropdownMenuItem(value: 'Lunas', child: Text('Lunas')),
+          DropdownMenuItem(value: 'Semua', child: PosText('Semua Status')),
+          DropdownMenuItem(value: 'Lunas', child: PosText('Lunas')),
           DropdownMenuItem(
             value: 'Belum Bayar',
-            child: Text('Invoice Belum Bayar'),
+            child: PosText('Invoice Belum Bayar'),
           ),
-          DropdownMenuItem(value: 'Batal', child: Text('Batal')),
+          DropdownMenuItem(value: 'Batal', child: PosText('Batal')),
         ],
         onChanged: (val) {
           if (val != null) setState(() => _selectedStatus = val);
@@ -397,7 +398,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       )
                     : const Icon(Icons.expand_more),
                 label: Text(
-                  loadingMore ? 'Memuat transaksi...' : 'Muat lebih banyak',
+                  loadingMore ? ('Memuat transaksi...').tr(context) : ('Muat lebih banyak').tr(context),
                 ),
               ),
             );
@@ -440,7 +441,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                           color: _badgeBackgroundColor(displayStatus),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
+                        child: PosText(
                           displayStatus,
                           style: TextStyle(
                             color: _badgeColor(displayStatus),
@@ -449,7 +450,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         ),
                       ),
                       PopupMenuButton<String>(
-                        tooltip: 'Aksi transaksi',
+                        tooltip: ('Aksi transaksi').tr(context),
                         onSelected: (action) =>
                             _handleOrderAction(action, order, true),
                         itemBuilder: (_) => _orderActionItems(),
@@ -466,16 +467,16 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     spacing: 12,
                     runSpacing: 8,
                     children: [
-                      _buildInfoChip('Tanggal', _formatDate(order.date)),
+                      _buildInfoChip(('Tanggal').tr(context), _formatDate(order.date)),
                       _buildInfoChip(
-                        'Total',
+                        ('Total').tr(context),
                         NumberFormat.currency(
                           locale: 'id_ID',
                           symbol: 'Rp ',
                           decimalDigits: 0,
                         ).format(order.total),
                       ),
-                      _buildInfoChip('Kasir', order.cashierName),
+                      _buildInfoChip(('Kasir').tr(context), order.cashierName),
                     ],
                   ),
                   if (order.isInvoice &&
@@ -490,7 +491,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Text(
+                          child: PosText(
                             'Invoice tersimpan · menunggu pembayaran',
                             style: TextStyle(
                               color: AppColors.warning,
@@ -508,7 +509,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       child: FilledButton.icon(
                         onPressed: () => _showPayInvoiceSheet(order),
                         icon: const Icon(Icons.payments_outlined, size: 19),
-                        label: const Text('Proses Pembayaran'),
+                        label: const PosText('Proses Pembayaran'),
                       ),
                     ),
                   ],
@@ -572,21 +573,21 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${selectedOrders.length} transaksi dipilih',
+                        posLocale(context).posac37abdf6133((selectedOrders.length).toString()),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                   TextButton(
                     onPressed: () => setState(_selection.clear),
-                    child: const Text('Batalkan'),
+                    child: const PosText('Batalkan'),
                   ),
                   FilledButton.tonalIcon(
                     onPressed: selectedOrders.length == 1
                         ? () => _printReceipt(selectedOrders.single)
                         : null,
                     icon: const Icon(Icons.print_outlined, size: 18),
-                    label: const Text('Print Struk'),
+                    label: const PosText('Print Struk'),
                   ),
                 ],
               ),
@@ -605,14 +606,14 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       Colors.grey.shade100,
                     ),
                     columns: const [
-                      DataColumn(label: Text('Jenis')),
-                      DataColumn(label: Text('Nama')),
-                      DataColumn(label: Text('No Transaksi')),
-                      DataColumn(label: Text('Tanggal')),
-                      DataColumn(label: Text('Kasir')),
-                      DataColumn(label: Text('Status')),
-                      DataColumn(label: Text('Tagihan'), numeric: true),
-                      DataColumn(label: Text('Aksi')),
+                      DataColumn(label: PosText('Jenis')),
+                      DataColumn(label: PosText('Nama')),
+                      DataColumn(label: PosText('No Transaksi')),
+                      DataColumn(label: PosText('Tanggal')),
+                      DataColumn(label: PosText('Kasir')),
+                      DataColumn(label: PosText('Status')),
+                      DataColumn(label: PosText('Tagihan'), numeric: true),
+                      DataColumn(label: PosText('Aksi')),
                     ],
                     rows: orders.map((order) {
                       final status = _displayStatus(order);
@@ -629,13 +630,13 @@ class _PosOrderPageState extends State<PosOrderPage> {
                           });
                         },
                         cells: [
-                          DataCell(Text(_orderKind(order))),
+                          DataCell(PosText(_orderKind(order))),
                           DataCell(Text(order.customer)),
                           DataCell(Text(order.invoice)),
                           DataCell(Text(_formatDate(order.date))),
                           DataCell(Text(order.cashierName)),
                           DataCell(
-                            Text(
+                            PosText(
                               status,
                               style: TextStyle(
                                 color: _badgeColor(status),
@@ -662,10 +663,10 @@ class _PosOrderPageState extends State<PosOrderPage> {
                                       Icons.payments_outlined,
                                       size: 17,
                                     ),
-                                    label: const Text('Bayar'),
+                                    label: const PosText('Bayar'),
                                   )
                                 : PopupMenuButton<String>(
-                                    tooltip: 'Aksi transaksi',
+                                    tooltip: ('Aksi transaksi').tr(context),
                                     onSelected: (action) => _handleOrderAction(
                                       action,
                                       order,
@@ -697,7 +698,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         )
                       : const Icon(Icons.expand_more),
                   label: Text(
-                    loadingMore ? 'Memuat transaksi...' : 'Muat lebih banyak',
+                    loadingMore ? ('Memuat transaksi...').tr(context) : ('Muat lebih banyak').tr(context),
                   ),
                 ),
               ),
@@ -745,10 +746,13 @@ class _PosOrderPageState extends State<PosOrderPage> {
       'Nov',
       'Des',
     ];
+    const englishMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final monthNames = posLocale(context).localeName == 'en' ? englishMonths : months;
     final day = date.day.toString().padLeft(2, '0');
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
-    return '$day ${months[date.month - 1]} ${date.year}, $hour:$minute';
+    return '$day ${monthNames[date.month - 1]} ${date.year}, $hour:$minute';
   }
 
   Future<void> _showPayInvoiceSheet(PosOrder order) async {
@@ -801,7 +805,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text(
+                  const PosText(
                     'Proses Pembayaran Invoice',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
@@ -820,7 +824,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Total tagihan'),
+                        const PosText('Total tagihan'),
                         Text(
                           NumberFormat.currency(
                             locale: 'id_ID',
@@ -838,28 +842,28 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: method,
-                    decoration: const InputDecoration(
-                      labelText: 'Metode pembayaran',
+                    decoration:  InputDecoration(
+                      labelText: ('Metode pembayaran').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'tunai', child: Text('Tunai')),
-                      DropdownMenuItem(value: 'qris', child: Text('QRIS')),
+                      DropdownMenuItem(value: 'tunai', child: PosText('Tunai')),
+                      DropdownMenuItem(value: 'qris', child: PosText('QRIS')),
                       DropdownMenuItem(
                         value: 'debit',
-                        child: Text('Kartu Debit'),
+                        child: PosText('Kartu Debit'),
                       ),
                       DropdownMenuItem(
                         value: 'kartu_kredit',
-                        child: Text('Kartu Kredit'),
+                        child: PosText('Kartu Kredit'),
                       ),
                       DropdownMenuItem(
                         value: 'transfer',
-                        child: Text('Transfer'),
+                        child: PosText('Transfer'),
                       ),
                       DropdownMenuItem(
                         value: 'e_wallet',
-                        child: Text('E-Wallet'),
+                        child: PosText('E-Wallet'),
                       ),
                     ],
                     onChanged: (value) =>
@@ -871,8 +875,8 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       controller: cashController,
                       keyboardType: TextInputType.number,
                       inputFormatters: const [RupiahInputFormatter()],
-                      decoration: const InputDecoration(
-                        labelText: 'Uang diterima',
+                      decoration:  InputDecoration(
+                        labelText: ('Uang diterima').tr(context),
                         prefixText: 'Rp ',
                         border: OutlineInputBorder(),
                       ),
@@ -927,7 +931,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Bayar Sekarang'),
+                        : const PosText('Bayar Sekarang'),
                   ),
                 ],
               ),
@@ -1002,7 +1006,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
               children: [
                 Expanded(
                   child: Text(
-                    'Invoice: ${order.invoice}',
+                    posLocale(context).posee94ad7e244c((order.invoice).toString()),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1021,7 +1025,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     color: _badgeBackgroundColor(_displayStatus(order)),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
+                  child: PosText(
                     _displayStatus(order),
                     style: TextStyle(
                       color: _badgeColor(_displayStatus(order)),
@@ -1033,17 +1037,17 @@ class _PosOrderPageState extends State<PosOrderPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Pelanggan: ${order.customer}',
+              posLocale(context).pose8576d8afa6c((order.customer).toString()),
               style: const TextStyle(fontSize: 15),
             ),
             Text(
-              'Waktu: ${_formatDate(order.date)}',
+              posLocale(context).posee16580f1d1c((_formatDate(order.date)).toString()),
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            const Text(
+            const PosText(
               'Item Pembelian',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
@@ -1067,7 +1071,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     _buildReceiptItem(
                       name,
                       '$qty $unit',
-                      'Rp ${formatRupiahAmount(num.tryParse((item['subtotal'] ?? 0).toString()) ?? 0)}',
+                      posLocale(context).pos70272f418def((formatRupiahAmount(num.tryParse((item['subtotal'] ?? 0).toString()) ?? 0)).toString()),
                     ),
                     if (components.isNotEmpty)
                       Container(
@@ -1082,7 +1086,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            const PosText(
                               'Komposisi dikonsumsi',
                               style: TextStyle(
                                 fontSize: 12,
@@ -1091,10 +1095,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                             ),
                             ...components.map(
                               (component) => Text(
-                                '• ${component['nama_inventaris'] ?? '-'}: '
-                                '${component['qty_consumed_base'] ?? 0} '
-                                '${component['unit'] ?? 'unit'} · HPP Rp '
-                                '${formatRupiahAmount(num.tryParse((component['harga_pokok_total'] ?? 0).toString()) ?? 0)}',
+                                posLocale(context).pos04f490437f3e((component['nama_inventaris'] ?? '-').toString(), (component['qty_consumed_base'] ?? 0).toString(), (component['unit'] ?? 'unit').toString(), (formatRupiahAmount(num.tryParse((component['harga_pokok_total'] ?? 0).toString()) ?? 0)).toString()),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -1105,20 +1106,20 @@ class _PosOrderPageState extends State<PosOrderPage> {
                 ),
               );
             }),
-            _buildReceiptItem('Metode pembayaran', '', order.paymentMethod),
-            _buildReceiptItem('Kasir', '', order.cashierName),
+            _buildReceiptItem(('Metode pembayaran').tr(context), '', order.paymentMethod),
+            _buildReceiptItem(('Kasir').tr(context), '', order.cashierName),
             const SizedBox(height: 8),
             const Divider(),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                const PosText(
                   'Total Pembayaran',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  'Rp ${formatRupiahAmount(order.total)}',
+                  posLocale(context).pos70272f418def((formatRupiahAmount(order.total)).toString()),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -1136,12 +1137,12 @@ class _PosOrderPageState extends State<PosOrderPage> {
                 OutlinedButton.icon(
                   onPressed: () => _printReceipt(order),
                   icon: const Icon(Icons.print_outlined),
-                  label: const Text('Print Struk'),
+                  label: const PosText('Print Struk'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _printInvoice(order),
                   icon: const Icon(Icons.description_outlined),
-                  label: const Text('Print Invoice'),
+                  label: const PosText('Print Invoice'),
                 ),
               ],
             ),
@@ -1151,7 +1152,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Tutup'),
+                  child: const PosText('Tutup'),
                 ),
               ],
             ),
@@ -1196,7 +1197,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.visibility_outlined),
-        title: Text('Lihat Detail'),
+        title: PosText('Lihat Detail'),
       ),
     ),
     PopupMenuItem(
@@ -1204,7 +1205,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.print_outlined),
-        title: Text('Print Struk'),
+        title: PosText('Print Struk'),
       ),
     ),
     PopupMenuItem(
@@ -1212,7 +1213,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.description_outlined),
-        title: Text('Print Invoice'),
+        title: PosText('Print Invoice'),
       ),
     ),
   ];
@@ -1257,7 +1258,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Future<Uint8List> _buildInvoicePdf(PosOrder order) async {
     final document = pw.Document(
-      title: 'Invoice ${order.invoice}',
+      title: posLocale(context).pos3818e7b1db75((order.invoice).toString()),
       author: 'Pantoo POS',
     );
     final currency = NumberFormat.currency(
@@ -1271,18 +1272,18 @@ class _PosOrderPageState extends State<PosOrderPage> {
         margin: const pw.EdgeInsets.all(32),
         build: (_) => [
           pw.Text(
-            'INVOICE',
+            ('INVOICE').trCurrent(),
             style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
           ),
           pw.Text(order.invoice),
           pw.Divider(),
-          pw.Text('Tanggal: ${_formatDate(order.date)}'),
-          pw.Text('Pelanggan: ${order.customer}'),
-          pw.Text('Kasir: ${order.cashierName}'),
-          pw.Text('Metode pembayaran: ${order.paymentMethod}'),
+          pw.Text(posCurrentLocale().pos54ec6781af4f((_formatDate(order.date)).toString())),
+          pw.Text(posCurrentLocale().pose8576d8afa6c((order.customer).toString())),
+          pw.Text(posCurrentLocale().pos354df62f6aa3((order.cashierName).toString())),
+          pw.Text(posCurrentLocale().pos37949a5da433((order.paymentMethod).toString())),
           pw.SizedBox(height: 18),
           pw.TableHelper.fromTextArray(
-            headers: const ['Item', 'Qty', 'Harga', 'Subtotal'],
+            headers: ['Item', 'Qty', 'Harga', 'Subtotal'].map((label) => label.trCurrent()).toList(),
             data: order.items.map((item) {
               final name =
                   item['nama_inventaris']?.toString() ??
@@ -1317,7 +1318,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
           _pdfTotalRow('Total', currency.format(order.total), bold: true),
           if (order.note.trim().isNotEmpty) ...[
             pw.SizedBox(height: 12),
-            pw.Text('Catatan: ${order.note}'),
+            pw.Text(posCurrentLocale().posb0bf84cc5839((order.note).toString())),
           ],
         ],
       ),
@@ -1332,7 +1333,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: style),
+          pw.Text((label).trCurrent(), style: style),
           pw.Text(value, style: style),
         ],
       ),

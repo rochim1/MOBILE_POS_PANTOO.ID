@@ -221,9 +221,9 @@ void main() {
   );
 
   test(
-    'different PIN or account cannot inherit another owners shift including an offline snapshot',
+    'another owner cannot be inherited in per-operator mode including offline',
     () async {
-      for (final mode in ['per_operator', 'shared_register']) {
+      for (final mode in ['per_operator']) {
         final repo = _Repo()..stores = [store('A', mode: mode)];
         repo.active = {
           ...shift('A', owner: 'unrelated-user'),
@@ -233,6 +233,42 @@ void main() {
       }
       final repo = _Repo()..active = null;
       expect(await _discover(repo), isNull);
+    },
+  );
+
+  test(
+    'shared drawer belongs to the verified store, not the opening account',
+    () async {
+      final repo = _Repo()..stores = [store('A', mode: 'shared_register')];
+      repo.active = {
+        ...shift('A', owner: 'other-login'),
+        'shift_mode': 'shared_register',
+      };
+      expect((await _discover(repo))?['_id'], 'shift-A');
+      repo.active = {
+        ...shift('B', owner: 'other-login'),
+        'shift_mode': 'shared_register',
+      };
+      await expectLater(_discover(repo), throwsStateError);
+    },
+  );
+
+  test(
+    'shared discovery probes each store instead of one store per mode',
+    () async {
+      final repo = _Repo()
+        ..stores = [
+          store('A', mode: 'shared_register'),
+          store('B', mode: 'shared_register'),
+        ];
+      repo.read = (id) async => id == 'A'
+          ? null
+          : {
+              ...shift('B', owner: 'other-login'),
+              'shift_mode': 'shared_register',
+            };
+      expect((await _discover(repo))?['toko_id'], 'B');
+      expect(repo.requests, ['A', 'B']);
     },
   );
 

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/_core.dart';
 
@@ -9,7 +10,7 @@ class BranchOutletPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Cabang / Outlet'),
+        title: const PosText('Cabang / Outlet'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -92,7 +93,7 @@ class BranchOutletPage extends StatelessWidget {
                   color: AppColors.successBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
+                child: const PosText(
                   'Aktif',
                   style: TextStyle(
                     color: AppColors.success,
@@ -114,7 +115,7 @@ class BranchOutletPage extends StatelessWidget {
             ? null
             : () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Beralih ke $name... (Mock)')),
+                  SnackBar(content: Text(posLocale(context).posde300b92dea3((name).toString()))),
                 );
               },
       ),

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -102,7 +103,7 @@ class PosMoreMenuPage extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
-                const Text(
+                const PosText(
                   'Lainnya',
                   style: TextStyle(
                     fontSize: 20,
@@ -111,7 +112,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                const PosText(
                   'Kelola operasional dan pengaturan toko.',
                   style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
@@ -134,10 +135,10 @@ class PosMoreMenuPage extends StatelessWidget {
                       ],
                     ),
                 _MenuSection(
-                  title: 'Akun',
+                  title: ('Akun').tr(context),
                   children: [
                     _MenuTile(
-                      title: 'Keluar',
+                      title: ('Keluar').tr(context),
                       icon: Icons.logout,
                       color: AppColors.danger,
                       onTap: onLogout,
@@ -176,7 +177,7 @@ class _MenuSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
             child: Text(
-              title.toUpperCase(),
+              title.tr(context).toUpperCase(),
               style: const TextStyle(
                 color: AppColors.primary,
                 fontSize: 11,
@@ -234,7 +235,7 @@ class _MenuTile extends StatelessWidget {
               Icon(icon, size: 20, color: color),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
+                child: PosText(
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

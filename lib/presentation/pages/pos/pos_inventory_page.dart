@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -179,21 +181,18 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Sudah ada PO terbuka'),
+          title: const PosText('Sudah ada PO terbuka'),
           content: Text(
-            '${stock.namaInventaris} masih memiliki ${open.quantity} ${stock.baseUnit} '
-            'dalam PO yang belum diterima. '
-            '${needed > 0 ? 'Usulan tambahan: $needed ${stock.baseUnit}.' : 'Jumlah PO terbuka sudah memenuhi target stok.'} '
-            'Periksa PO yang ada sebelum membuat pesanan baru.',
+            posLocale(dialogContext).pos3ddbca1be993((stock.namaInventaris).toString(), (open.quantity).toString(), (stock.baseUnit).toString(), (needed > 0 ? ('Usulan tambahan: $needed ${stock.baseUnit}.').tr(dialogContext) : ('Jumlah PO terbuka sudah memenuhi target stok.').tr(dialogContext)).toString()),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Tetap Buat PO'),
+              child: const PosText('Tetap Buat PO'),
             ),
           ],
         ),
@@ -242,6 +241,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     final permissions = Map<String, dynamic>.from(
       context.watch<PosBloc>().state.runtimeConfig['permissions'] as Map? ??
           const {},
@@ -311,7 +311,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     ];
     if (sections.isEmpty) {
       return const Center(
-        child: Text('Akun ini belum memiliki akses inventori.'),
+        child: PosText('Akun ini belum memiliki akses inventori.'),
       );
     }
     if (!sections.any((item) => item.section == _selected)) {
@@ -334,12 +334,12 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
           return Row(
             children: [
               PosCategorySidebar<_InventorySection>(
-                title: 'Kategori Inventori',
+                title: ('Kategori Inventori').tr(context),
                 items: categoryItems,
                 selected: _selected,
                 onSelected: (value) => setState(() => _selected = value),
                 expandedWidth: 230,
-                footer: 'Data inventori mengikuti akses gudang akun kasir.',
+                footer: ('Data inventori mengikuti akses gudang akun kasir.').tr(context),
               ),
               const VerticalDivider(width: 1),
               Expanded(child: content),
@@ -352,7 +352,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
               child: PosCategoryDropdown<_InventorySection>(
-                label: 'Kategori inventori',
+                label: ('Kategori inventori').tr(context),
                 items: categoryItems,
                 selected: _selected,
                 onSelected: (value) => setState(() => _selected = value),
@@ -579,7 +579,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                const PosText(
                   'Filter Stock Opname',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -587,15 +587,15 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 DropdownButtonFormField<String>(
                   initialValue: locationId,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Warehouse / Lokasi',
+                  decoration:  InputDecoration(
+                    labelText: ('Warehouse / Lokasi').tr(context),
                     prefixIcon: Icon(Icons.warehouse_outlined),
                     border: OutlineInputBorder(),
                   ),
                   items: [
                     const DropdownMenuItem(
                       value: '',
-                      child: Text('Semua lokasi'),
+                      child: PosText('Semua lokasi'),
                     ),
                     ..._warehouses.map(
                       (item) => DropdownMenuItem(
@@ -615,7 +615,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   children: [
                     Expanded(
                       child: _OpnameDateFilter(
-                        label: 'Dari tanggal',
+                        label: ('Dari tanggal').tr(context),
                         value: dateFrom,
                         onChanged: (value) =>
                             setSheetState(() => dateFrom = value),
@@ -624,7 +624,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _OpnameDateFilter(
-                        label: 'Sampai tanggal',
+                        label: ('Sampai tanggal').tr(context),
                         value: dateTo,
                         onChanged: (value) =>
                             setSheetState(() => dateTo = value),
@@ -643,12 +643,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                           dateTo = null;
                         });
                       },
-                      child: const Text('Reset'),
+                      child: const PosText('Reset'),
                     ),
                     const Spacer(),
                     FilledButton(
                       onPressed: () => Navigator.pop(sheetContext, true),
-                      child: const Text('Terapkan'),
+                      child: const PosText('Terapkan'),
                     ),
                   ],
                 ),
@@ -683,7 +683,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                const PosText(
                   'Filter Stok Terbuang',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -691,23 +691,23 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 DropdownButtonFormField<String>(
                   initialValue: reason,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Alasan disposal',
+                  decoration:  InputDecoration(
+                    labelText: ('Alasan disposal').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: '', child: Text('Semua alasan')),
-                    DropdownMenuItem(value: 'rusak', child: Text('Rusak')),
+                    DropdownMenuItem(value: '', child: PosText('Semua alasan')),
+                    DropdownMenuItem(value: 'rusak', child: PosText('Rusak')),
                     DropdownMenuItem(
                       value: 'kadaluarsa',
-                      child: Text('Kadaluarsa'),
+                      child: PosText('Kadaluarsa'),
                     ),
-                    DropdownMenuItem(value: 'hilang', child: Text('Hilang')),
+                    DropdownMenuItem(value: 'hilang', child: PosText('Hilang')),
                     DropdownMenuItem(
                       value: 'cacat_produksi',
-                      child: Text('Cacat produksi'),
+                      child: PosText('Cacat produksi'),
                     ),
-                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+                    DropdownMenuItem(value: 'lainnya', child: PosText('Lainnya')),
                   ],
                   onChanged: (value) =>
                       setSheetState(() => reason = value ?? ''),
@@ -717,7 +717,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   children: [
                     Expanded(
                       child: _OpnameDateFilter(
-                        label: 'Dari tanggal',
+                        label: ('Dari tanggal').tr(context),
                         value: dateFrom,
                         onChanged: (value) =>
                             setSheetState(() => dateFrom = value),
@@ -726,7 +726,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _OpnameDateFilter(
-                        label: 'Sampai tanggal',
+                        label: ('Sampai tanggal').tr(context),
                         value: dateTo,
                         onChanged: (value) =>
                             setSheetState(() => dateTo = value),
@@ -743,12 +743,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                         dateFrom = null;
                         dateTo = null;
                       }),
-                      child: const Text('Reset'),
+                      child: const PosText('Reset'),
                     ),
                     const Spacer(),
                     FilledButton(
                       onPressed: () => Navigator.pop(sheetContext, true),
-                      child: const Text('Terapkan'),
+                      child: const PosText('Terapkan'),
                     ),
                   ],
                 ),
@@ -854,7 +854,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           : await showDialog<int>(
               context: context,
               builder: (dialogContext) => SimpleDialog(
-                title: const Text('Pilih lokasi isi rak'),
+                title: const PosText('Pilih lokasi isi rak'),
                 children: [
                   for (var index = 0; index < pairs.length; index++)
                     SimpleDialogOption(
@@ -901,31 +901,27 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_actionWarning(item, action)),
+                  PosText(_actionWarning(item, action)),
                   const SizedBox(height: 12),
                   TextField(
                     controller: controller,
                     maxLines: 3,
                     decoration: InputDecoration(
-                      labelText: switch (action) {
-                        'reject' => 'Alasan penolakan',
-                        'cancel' => 'Alasan pembatalan',
-                        _ => 'Alasan penghapusan',
-                      },
+                      labelText: (switch (action) {'reject' => 'Alasan penolakan', 'cancel' => 'Alasan pembatalan', _ => 'Alasan penghapusan'}).tr(context),
                       border: const OutlineInputBorder(),
                     ),
                   ),
                 ],
               )
-            : Text(_actionWarning(item, action)),
+            : PosText(_actionWarning(item, action)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Lanjutkan'),
+            child: const PosText('Lanjutkan'),
           ),
         ],
       ),
@@ -1007,28 +1003,28 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         : '';
     if (action == 'delete') {
       return widget.type == PosInventoryDocumentType.purchase
-          ? 'Dokumen akan dihapus dan tidak dapat dipulihkan. Tuliskan alasan untuk jejak audit.'
-          : 'Dokumen akan dihapus dan tidak dapat dipulihkan.';
+          ? ('Dokumen akan dihapus dan tidak dapat dipulihkan. Tuliskan alasan untuk jejak audit.').trCurrent()
+          : ('Dokumen akan dihapus dan tidak dapat dipulihkan.').trCurrent();
     }
     if (action == 'cancel' &&
         widget.type == PosInventoryDocumentType.transfer &&
         (status == 'in_transit' || status == 'posted')) {
-      return 'Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau transit masih mencukupi.';
+      return ('Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau transit masih mencukupi.').trCurrent();
     }
     if (action == 'post' || action == 'process') {
-      return 'Aksi ini mengubah saldo stok dan dapat membuat jurnal otomatis. Pastikan rincian barang sudah benar.';
+      return ('Aksi ini mengubah saldo stok dan dapat membuat jurnal otomatis. Pastikan rincian barang sudah benar.').trCurrent();
     }
     if (action == 'approve') {
-      return '${purchaseSummary}Dokumen akan disetujui untuk melanjutkan proses inventori.';
+      return ('${purchaseSummary}Dokumen akan disetujui untuk melanjutkan proses inventori.').trCurrent();
     }
     if (action == 'reject') {
-      return '${purchaseSummary}Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.';
+      return ('${purchaseSummary}Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.').trCurrent();
     }
     if (action == 'submit' &&
         widget.type == PosInventoryDocumentType.purchase) {
-      return '${purchaseSummary}PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.';
+      return ('${purchaseSummary}PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.').trCurrent();
     }
-    return 'Pastikan rincian dokumen sudah benar sebelum melanjutkan.';
+    return ('Pastikan rincian dokumen sudah benar sebelum melanjutkan.').trCurrent();
   }
 
   Future<void> _receive(Map<String, dynamic> item) async {
@@ -1067,7 +1063,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
             return PosKeyboardStableFormDialog(
               width: 560,
               height: 580,
-              title: const Text('Terima mutasi stok'),
+              title: const PosText('Terima mutasi stok'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -1080,7 +1076,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      const PosText(
                         'Isi jumlah yang benar-benar tiba. Sisa tetap dalam perjalanan.',
                       ),
                       for (
@@ -1098,14 +1094,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                             labelText:
                                 remaining[index]['nama_inventaris']
                                     ?.toString() ??
-                                'Barang',
+                                ('Barang').tr(dialogContext),
                             helperText:
-                                'Sisa ${((remaining[index]['qty'] as num?)?.toDouble() ?? 0) - ((remaining[index]['received_qty'] as num?)?.toDouble() ?? 0)}',
+                                posLocale(dialogContext).posb83023605a49((((remaining[index]['qty'] as num?)?.toDouble() ?? 0) - ((remaining[index]['received_qty'] as num?)?.toDouble() ?? 0)).toString()),
                             border: const OutlineInputBorder(),
                           ),
                         ),
                       ],
-                      if (validationError != null) Text(validationError ?? ''),
+                      if (validationError != null) PosText(validationError ?? ''),
                     ],
                   ),
                 ),
@@ -1113,7 +1109,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Batal'),
+                  child: const PosText('Batal'),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -1149,7 +1145,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     }
                     Navigator.pop(dialogContext, rows);
                   },
-                  child: const Text('Terima jumlah ini'),
+                  child: const PosText('Terima jumlah ini'),
                 ),
               ],
             );
@@ -1306,13 +1302,13 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           width: 560,
           height: 420,
           title: Text(
-            '${action == 'post' ? 'Kirim transfer' : _actionLabel(action)} ${current['no_transfer']}?',
+            '${action == 'post' ? ('Kirim transfer').tr(context) : _actionLabel(action)} ${current['no_transfer']}?',
           ),
           content: ListView(
             children: [
               Text(
                 action == 'post'
-                    ? '${(current['routing_snapshot'] ?? current['routing_preview'])?['mode'] == 'direct' ? 'Transfer langsung: stok tujuan bertambah dan dokumen selesai saat dikirim.' : 'Pengiriman menuju transit: stok tujuan baru bertambah setelah penerimaan.'}\n${_actionWarning(current, action)}'
+                    ? '${(current['routing_snapshot'] ?? current['routing_preview'])?['mode'] == 'direct' ? ('Transfer langsung: stok tujuan bertambah dan dokumen selesai saat dikirim.').tr(context) : ('Pengiriman menuju transit: stok tujuan baru bertambah setelah penerimaan.').tr(context)}\n${_actionWarning(current, action)}'
                     : _actionWarning(current, action),
               ),
               if (needsReason) ...[
@@ -1320,8 +1316,8 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 TextField(
                   controller: note,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Alasan / catatan (wajib)',
+                  decoration:  InputDecoration(
+                    labelText: ('Alasan / catatan (wajib)').tr(context),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -1330,8 +1326,8 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: date,
-                  decoration: const InputDecoration(
-                    labelText: 'Tanggal pembukuan biaya (YYYY-MM-DD)',
+                  decoration:  InputDecoration(
+                    labelText: ('Tanggal pembukuan biaya (YYYY-MM-DD)').tr(context),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -1341,11 +1337,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(c, true),
-              child: const Text('Lanjutkan'),
+              child: const PosText('Lanjutkan'),
             ),
           ],
         ),
@@ -1408,6 +1404,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     return ColoredBox(
       color: AppColors.bgPrimary,
       child: Column(
@@ -1427,7 +1424,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     controller: _search,
                     onChanged: _onSearch,
                     decoration: InputDecoration(
-                      labelText: _searchLabel,
+                      labelText: (_searchLabel).tr(context),
                       prefixIcon: const Icon(Icons.search),
                       border: const OutlineInputBorder(),
                     ),
@@ -1439,15 +1436,15 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     initialValue: _status,
                     isDense: true,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
+                    decoration:  InputDecoration(
+                      labelText: ('Status').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _statuses
                         .map(
                           (entry) => DropdownMenuItem(
                             value: entry.$1,
-                            child: Text(
+                            child: PosText(
                               entry.$2,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1467,7 +1464,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     controlHeight: controlHeight,
                   ),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Tambah'),
+                  label: const PosText('Tambah'),
                 );
                 final hasOpnameFilter =
                     _locationId.isNotEmpty ||
@@ -1475,7 +1472,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     _dateTo != null;
                 final opnameFilter = IconButton.filledTonal(
                   onPressed: _showOpnameFilters,
-                  tooltip: 'Filter lokasi dan tanggal',
+                  tooltip: ('Filter lokasi dan tanggal').tr(context),
                   style: InventoryActionStyle.filter(
                     controlHeight: controlHeight,
                   ),
@@ -1488,7 +1485,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     _reason.isNotEmpty || _dateFrom != null || _dateTo != null;
                 final scrapFilter = IconButton.filledTonal(
                   onPressed: _showScrapFilters,
-                  tooltip: 'Filter alasan dan tanggal',
+                  tooltip: ('Filter alasan dan tanggal').tr(context),
                   style: InventoryActionStyle.filter(
                     controlHeight: controlHeight,
                   ),
@@ -1558,7 +1555,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.shelves, size: 18),
-                  label: const Text('Isi Rak Display'),
+                  label: const PosText('Isi Rak Display'),
                 ),
               ),
             ),
@@ -1574,7 +1571,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(_runningActionLabel!)),
+                  Expanded(child: PosText(_runningActionLabel!)),
                 ],
               ),
             ),
@@ -1603,7 +1600,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                           Icon(_emptyIcon, size: 68, color: Colors.black26),
                           const SizedBox(height: 12),
                           Center(
-                            child: Text(
+                            child: PosText(
                               _emptyText,
                               style: const TextStyle(
                                 fontSize: 16,
@@ -1613,7 +1610,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                           ),
                           const SizedBox(height: 6),
                           const Center(
-                            child: Text(
+                            child: PosText(
                               'Tarik ke bawah untuk memuat ulang.',
                               style: TextStyle(color: Colors.black54),
                             ),
@@ -1642,7 +1639,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                         : null,
                     icon: const Icon(Icons.chevron_left),
                   ),
-                  Text('Halaman $_page dari ${(_total / _limit).ceil()}'),
+                  Text(posLocale(context).posea3f79a3c91b((_page).toString(), ((_total / _limit).ceil()).toString())),
                   IconButton(
                     onPressed: _page * _limit < _total && !_loading
                         ? () => _load(page: _page + 1)
@@ -1702,7 +1699,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
+                PosText(
                   _subtitle(item),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1710,7 +1707,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '$itemCount item • ${_date(_dateValue(item))}',
+                  posLocale(context).posc7eeba1af189((itemCount).toString(), (_date(_dateValue(item))).toString()),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: Colors.black45),
@@ -1723,20 +1720,20 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     rawStatus == 'in_transit' &&
                     transferReceived > 0)
                   Text(
-                    '$transferReceived dari $itemCount baris sudah diproses • periksa sisa tiap barang',
+                    posLocale(context).pos078a5eb9fa64((transferReceived).toString(), (itemCount).toString()),
                     style: const TextStyle(fontSize: 12, color: AppColors.info),
                   ),
                 if (widget.type == PosInventoryDocumentType.purchase &&
                     rawStatus == 'completed' &&
                     status == 'partially_received')
-                  const Text(
+                  const PosText(
                     'Status lama tidak sesuai progres • masih bisa diterima',
                     style: TextStyle(fontSize: 12, color: AppColors.warning),
                   ),
               ],
             );
             final actionMenu = PopupMenuButton<String>(
-              tooltip: 'Aksi dokumen',
+              tooltip: ('Aksi dokumen').tr(context),
               icon: const Icon(Icons.more_vert),
               onSelected: (action) => _handleCardAction(item, action),
               itemBuilder: (_) => [
@@ -1801,7 +1798,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       ? null
                       : () => _receive(item),
                   icon: const Icon(Icons.download_done, size: 16),
-                  label: const Text('Terima'),
+                  label: const PosText('Terima'),
                 ),
               actionMenu,
             ];
@@ -1959,7 +1956,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
+                PosText(
                   _subtitle(item),
                   style: const TextStyle(color: Colors.black54),
                 ),
@@ -1991,18 +1988,16 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        const PosText(
                           'Kesepakatan pembayaran',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Metode: ${item['payment_method'] ?? '-'} · '
-                          'Termin: ${item['payment_term_type'] ?? '-'}'
-                          '${(item['term_days'] as num? ?? 0) > 0 ? ' · ${item['term_days']} hari' : ''}',
+                          posLocale(context).posb0b20c64aae6((item['payment_method'] ?? '-').toString(), (item['payment_term_type'] ?? '-').toString(), ((item['term_days'] as num? ?? 0) > 0 ? (' · ${item['term_days']} hari').tr(context) : '').toString()),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        const PosText(
                           'Referensi untuk Finance; tidak membentuk utang atau pembayaran.',
                           style: TextStyle(fontSize: 12, color: Colors.black54),
                         ),
@@ -2019,11 +2014,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       icon: Icons.inventory_2_outlined,
                       label: widget.type == PosInventoryDocumentType.opname
                           ? opnameRowsSummary(rows)
-                          : '${rows.length} jenis barang',
+                          : posLocale(context).posd3db39ddbb57((rows.length).toString()),
                     ),
                     _DetailMetric(
                       icon: Icons.numbers_outlined,
-                      label: '${_compactNumber(totalQty)} total jumlah',
+                      label: posLocale(context).pos30453377460d((_compactNumber(totalQty)).toString()),
                     ),
                     if (widget.type == PosInventoryDocumentType.purchase)
                       _DetailMetric(
@@ -2034,41 +2029,41 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       _DetailMetric(
                         icon: Icons.inventory_outlined,
                         label:
-                            '${(PosPurchaseProgress.completionRatio(item) * 100).round()}% diterima',
+                            posLocale(context).pos984dd212a7c5(((PosPurchaseProgress.completionRatio(item) * 100).round()).toString()),
                       ),
                     if (widget.type == PosInventoryDocumentType.transfer)
                       _DetailMetric(
                         icon: Icons.move_to_inbox_outlined,
                         label:
-                            '${_compactNumber(rows.fold<double>(0, (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0)))} diterima',
+                            posLocale(context).pos5e64822cb742((_compactNumber(rows.fold<double>(0, (sum, row) => sum + ((row['received_qty'] as num?)?.toDouble() ?? 0)))).toString()),
                       ),
                     if (widget.type == PosInventoryDocumentType.opname) ...[
                       _DetailMetric(
                         icon: Icons.approval_outlined,
                         label:
-                            'Persetujuan ${item['approval_current_level'] ?? 0}/${item['approval_required_level'] ?? 1}',
+                            posLocale(context).pos3b0f37c81a64((item['approval_current_level'] ?? 0).toString(), (item['approval_required_level'] ?? 1).toString()),
                       ),
                       _DetailMetric(
                         icon: Icons.computer_outlined,
-                        label: '${_compactNumber(totalSystem)} stok sistem',
+                        label: posLocale(context).posef655d18b036((_compactNumber(totalSystem)).toString()),
                       ),
                       _DetailMetric(
                         icon: Icons.fact_check_outlined,
-                        label: '${_compactNumber(totalPhysical)} hasil fisik',
+                        label: posLocale(context).pos0b3c91d7acb1((_compactNumber(totalPhysical)).toString()),
                       ),
                       _DetailMetric(
                         icon: totalDifference == 0
                             ? Icons.check_circle_outline
                             : Icons.compare_arrows,
                         label:
-                            '${totalDifference > 0 ? '+' : ''}${_compactNumber(totalDifference)} selisih',
+                            posLocale(context).posdf19d6c3808e((totalDifference > 0 ? '+' : '').toString(), (_compactNumber(totalDifference)).toString()),
                       ),
                     ],
                     if (widget.type == PosInventoryDocumentType.scrap) ...[
                       _DetailMetric(
                         icon: Icons.delete_sweep_outlined,
                         label:
-                            '${_compactNumber(totalNetLoss)} kerugian bersih',
+                            posLocale(context).pos2b5b18eb7e33((_compactNumber(totalNetLoss)).toString()),
                       ),
                       _DetailMetric(
                         icon: Icons.payments_outlined,
@@ -2090,7 +2085,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       border: Border.all(color: AppColors.dangerBorder),
                     ),
                     child: Text(
-                      'Alasan penolakan: ${item['alasan_penolakan']}',
+                      posLocale(context).pos61cebd1cf6b2((item['alasan_penolakan']).toString()),
                       style: TextStyle(color: AppColors.danger),
                     ),
                   ),
@@ -2104,7 +2099,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text('Catatan: ${item['catatan']}'),
+                    child: Text(posLocale(context).posb0bf84cc5839((item['catatan']).toString())),
                   ),
                 ],
                 if (widget.type == PosInventoryDocumentType.transfer &&
@@ -2117,7 +2112,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     ].contains(item['journal_status'])) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Stok sudah diproses, tetapi jurnal biaya perlu diperiksa: ${item['journal_error'] ?? 'belum terkonfirmasi'}',
+                    posLocale(context).pos39e38f288da4((item['journal_error'] ?? 'belum terkonfirmasi').toString()),
                     style: TextStyle(color: AppColors.danger),
                   ),
                 ],
@@ -2131,7 +2126,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     ].contains(item['cancel_journal_status'])) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Stok sudah dikembalikan, tetapi jurnal pembatalan perlu diperiksa: ${item['cancel_journal_error'] ?? 'belum terkonfirmasi'}',
+                    posLocale(context).pos2de86e144e10((item['cancel_journal_error'] ?? 'belum terkonfirmasi').toString()),
                     style: TextStyle(color: AppColors.danger),
                   ),
                 ],
@@ -2141,7 +2136,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   const SizedBox(height: 16),
                   const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
+                    child: PosText(
                       'Riwayat persetujuan',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
@@ -2172,14 +2167,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                   }),
                 ],
                 const Divider(height: 28),
-                const Text(
+                const PosText(
                   'Daftar barang',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 if (rows.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('Tidak ada rincian barang')),
+                    child: Center(child: PosText('Tidak ada rincian barang')),
                   )
                 else
                   ...rows.map((row) {
@@ -2221,14 +2216,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                       title: Text(row['nama_inventaris']?.toString() ?? '-'),
                       subtitle: widget.type == PosInventoryDocumentType.transfer
                           ? Text(
-                              'Diterima ${_compactNumber(row['received_qty'] ?? 0)} • Diselesaikan ${_compactNumber(row['resolved_qty'] ?? 0)} • Sisa ${_compactNumber((transferNumber(row['qty']) - transferNumber(row['received_qty'] ?? 0) - transferNumber(row['resolved_qty'] ?? 0)).clamp(0, double.infinity))}',
+                              posLocale(context).pos17d47a833e6d((_compactNumber(row['received_qty'] ?? 0)).toString(), (_compactNumber(row['resolved_qty'] ?? 0)).toString(), (_compactNumber((transferNumber(row['qty']) - transferNumber(row['received_qty'] ?? 0) - transferNumber(row['resolved_qty'] ?? 0)).clamp(0, double.infinity))).toString()),
                             )
                           : isScrap
                           ? Text(
-                              '${source.isEmpty ? (row['stock_balance_id'] == null ? 'Sumber stok tidak tercatat' : 'Lokasi stok') : source}'
-                              '${(row['no_batch']?.toString() ?? '').isEmpty ? '' : ' • Batch ${row['no_batch']}'}\n'
-                              '${row['tindakan'] == 'recycle' ? 'Recycle ${_compactNumber(row['jumlah_hasil_recycle'])} • ' : ''}'
-                              'Hilang ${_compactNumber(row['jumlah_hilang'] ?? row['qty'])}',
+                              posLocale(context).posecae7016438c((source.isEmpty ? (row['stock_balance_id'] == null ? ('Sumber stok tidak tercatat').tr(context) : ('Lokasi stok').tr(context)) : source).toString(), ((row['no_batch']?.toString() ?? '').isEmpty ? '' : (' • Batch ${row['no_batch']}').tr(context)).toString(), (row['tindakan'] == 'recycle' ? ('Recycle ${_compactNumber(row['jumlah_hasil_recycle'])} • ').tr(context) : '').toString(), (_compactNumber(row['jumlah_hilang'] ?? row['qty'])).toString()),
                             )
                           : system == null
                           ? null
@@ -2237,24 +2229,24 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                               children: [
                                 if (widget.type ==
                                     PosInventoryDocumentType.opname)
-                                  Text(
+                                  PosText(
                                     opnameLocationLabel(row['lokasi'] as Map?),
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                 Text(
-                                  'Sistem: $system • Selisih: ${row['selisih'] ?? 0}',
+                                  posLocale(context).pos3f737224c118((system).toString(), (row['selisih'] ?? 0).toString()),
                                 ),
                                 if ((row['batch_counts'] as List? ?? const [])
                                     .isNotEmpty)
                                   Text(
-                                    '${(row['batch_counts'] as List).length} batch tercatat',
+                                    posLocale(context).pos3a95104b1217(((row['batch_counts'] as List).length).toString()),
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                 if ((row['catatan_item']?.toString().trim() ??
                                         '')
                                     .isNotEmpty)
                                   Text(
-                                    'Alasan selisih: ${row['catatan_item']}',
+                                    posLocale(context).posae638041fd8e((row['catatan_item']).toString()),
                                     style: const TextStyle(fontSize: 12),
                                   ),
                               ],
@@ -2309,7 +2301,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.picture_as_pdf_outlined),
-          label: const Text('Pratinjau PO'),
+          label: const PosText('Pratinjau PO'),
         );
       }
       if (action == 'print_po') {
@@ -2317,7 +2309,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.print_outlined),
-          label: const Text('Cetak PO A4'),
+          label: const PosText('Cetak PO A4'),
         );
       }
       if (action == 'edit') {
@@ -2325,7 +2317,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.edit_outlined),
-          label: const Text('Ubah'),
+          label: const PosText('Ubah'),
         );
       }
       if (action == 'receive_purchase') {
@@ -2333,7 +2325,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.inventory),
-          label: const Text('Terima Barang'),
+          label: const PosText('Terima Barang'),
         );
       }
       if (action == 'receive_transfer') {
@@ -2341,7 +2333,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.download_done),
-          label: const Text('Terima Mutasi'),
+          label: const PosText('Terima Mutasi'),
         );
       }
       if (action == 'pay_purchase') {
@@ -2349,7 +2341,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           style: InventoryActionStyle.outlined(),
           onPressed: () => onAction(action),
           icon: const Icon(Icons.payments_outlined),
-          label: const Text('Lihat Tagihan Supplier'),
+          label: const PosText('Lihat Tagihan Supplier'),
         );
       }
       return OutlinedButton.icon(
@@ -2358,7 +2350,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         icon: Icon(_actionIcon(action)),
         label: Text(
           widget.type == PosInventoryDocumentType.transfer && action == 'post'
-              ? 'Kirim transfer'
+              ? ('Kirim transfer').tr(context)
               : _actionLabel(action),
         ),
       );
@@ -2601,26 +2593,26 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(_actionLabel(action)),
+          title: PosText(_actionLabel(action)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (action == 'send_purchase') ...[
                 DropdownButtonFormField<String>(
                   initialValue: channel,
-                  decoration: const InputDecoration(
-                    labelText: 'Channel pengiriman',
+                  decoration:  InputDecoration(
+                    labelText: ('Channel pengiriman').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: const [
                     DropdownMenuItem(
                       value: 'whatsapp',
-                      child: Text('WhatsApp'),
+                      child: PosText('WhatsApp'),
                     ),
-                    DropdownMenuItem(value: 'email', child: Text('Email')),
-                    DropdownMenuItem(value: 'print', child: Text('Cetak')),
-                    DropdownMenuItem(value: 'portal', child: Text('Portal')),
-                    DropdownMenuItem(value: 'other', child: Text('Lainnya')),
+                    DropdownMenuItem(value: 'email', child: PosText('Email')),
+                    DropdownMenuItem(value: 'print', child: PosText('Cetak')),
+                    DropdownMenuItem(value: 'portal', child: PosText('Portal')),
+                    DropdownMenuItem(value: 'other', child: PosText('Lainnya')),
                   ],
                   onChanged: (value) =>
                       setDialogState(() => channel = value ?? 'whatsapp'),
@@ -2630,22 +2622,22 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               if (action == 'acknowledge_purchase') ...[
                 DropdownButtonFormField<String>(
                   initialValue: acknowledgement,
-                  decoration: const InputDecoration(
-                    labelText: 'Respons supplier',
+                  decoration:  InputDecoration(
+                    labelText: ('Respons supplier').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: const [
                     DropdownMenuItem(
                       value: 'accepted',
-                      child: Text('Diterima supplier'),
+                      child: PosText('Diterima supplier'),
                     ),
                     DropdownMenuItem(
                       value: 'revision_requested',
-                      child: Text('Meminta revisi'),
+                      child: PosText('Meminta revisi'),
                     ),
                     DropdownMenuItem(
                       value: 'rejected',
-                      child: Text('Ditolak supplier'),
+                      child: PosText('Ditolak supplier'),
                     ),
                   ],
                   onChanged: (value) => setDialogState(
@@ -2660,13 +2652,9 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                 minLines: action == 'send_purchase' ? 1 : 3,
                 maxLines: action == 'send_purchase' ? 2 : 5,
                 decoration: InputDecoration(
-                  labelText: switch (action) {
-                    'send_purchase' => 'Kontak supplier tujuan',
-                    'acknowledge_purchase' => 'Catatan respons supplier',
-                    _ => 'Alasan penutupan dan sisa barang',
-                  },
+                  labelText: (switch (action) {'send_purchase' => 'Kontak supplier tujuan', 'acknowledge_purchase' => 'Catatan respons supplier', _ => 'Alasan penutupan dan sisa barang'}).tr(context),
                   hintText: action == 'close_purchase'
-                      ? 'Jelaskan alasan sisa barang tidak akan diterima'
+                      ? ('Jelaskan alasan sisa barang tidak akan diterima').tr(context)
                       : null,
                   border: const OutlineInputBorder(),
                 ),
@@ -2674,10 +2662,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
               const SizedBox(height: 8),
               Text(
                 action == 'send_purchase'
-                    ? 'Sistem menyimpan snapshot PO yang dikirim. Pengiriman melalui aplikasi eksternal tetap dilakukan dari channel tersebut.'
+                    ? ('Sistem menyimpan snapshot PO yang dikirim. Pengiriman melalui aplikasi eksternal tetap dilakukan dari channel tersebut.').tr(context)
                     : action == 'close_purchase'
-                    ? 'PO tidak dapat menerima barang lagi setelah ditutup.'
-                    : 'Catatan ini menjadi jejak acknowledgement supplier.',
+                    ? ('PO tidak dapat menerima barang lagi setelah ditutup.').tr(context)
+                    : ('Catatan ini menjadi jejak acknowledgement supplier.').tr(context),
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ],
@@ -2685,11 +2673,11 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Simpan'),
+              child: const PosText('Simpan'),
             ),
           ],
         ),
@@ -2834,17 +2822,17 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
-          appBar: AppBar(title: const Text('Pratinjau PO')),
+          appBar: AppBar(title: const PosText('Pratinjau PO')),
           body: PdfPreview(
             build: (_) async => previewBytes.freshBytes(),
             pdfFileName: '$number.pdf',
             actions: kDebugMode
-                ? const [
+                ?  [
                     Tooltip(
-                      message: 'Menampilkan panduan tata letak PDF',
+                      message: ('Menampilkan panduan tata letak PDF').tr(context),
                       child: Padding(
                         padding: EdgeInsets.only(left: 8),
-                        child: Text(
+                        child: PosText(
                           'Mode debug PDF',
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         ),
@@ -2865,10 +2853,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   String get _searchLabel => switch (widget.type) {
-    PosInventoryDocumentType.purchase => 'Cari nomor faktur / supplier',
-    PosInventoryDocumentType.opname => 'Cari nomor opname',
-    PosInventoryDocumentType.transfer => 'Cari nomor / lokasi mutasi',
-    PosInventoryDocumentType.scrap => 'Cari nomor / barang terbuang',
+    PosInventoryDocumentType.purchase => ('Cari nomor faktur / supplier').trCurrent(),
+    PosInventoryDocumentType.opname => ('Cari nomor opname').trCurrent(),
+    PosInventoryDocumentType.transfer => ('Cari nomor / lokasi mutasi').trCurrent(),
+    PosInventoryDocumentType.scrap => ('Cari nomor / barang terbuang').trCurrent(),
   };
   IconData get _emptyIcon => switch (widget.type) {
     PosInventoryDocumentType.purchase => Icons.receipt_long_outlined,
@@ -2877,10 +2865,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     PosInventoryDocumentType.scrap => Icons.delete_sweep_outlined,
   };
   String get _emptyText => switch (widget.type) {
-    PosInventoryDocumentType.purchase => 'Faktur pembelian tidak tersedia',
-    PosInventoryDocumentType.opname => 'Stok opname tidak tersedia',
-    PosInventoryDocumentType.transfer => 'Tidak ada mutasi yang perlu diterima',
-    PosInventoryDocumentType.scrap => 'Catatan stok terbuang tidak tersedia',
+    PosInventoryDocumentType.purchase => ('Faktur pembelian tidak tersedia').trCurrent(),
+    PosInventoryDocumentType.opname => ('Stok opname tidak tersedia').trCurrent(),
+    PosInventoryDocumentType.transfer => ('Tidak ada mutasi yang perlu diterima').trCurrent(),
+    PosInventoryDocumentType.scrap => ('Catatan stok terbuang tidak tersedia').trCurrent(),
   };
   List<(String, String)> get _statuses => switch (widget.type) {
     PosInventoryDocumentType.purchase => const [
@@ -2969,20 +2957,20 @@ class _OpnameDateFilter extends StatelessWidget {
     },
     child: InputDecorator(
       decoration: InputDecoration(
-        labelText: label,
+        labelText: (label).tr(context),
         border: const OutlineInputBorder(),
         suffixIcon: value == null
             ? const Icon(Icons.calendar_today_outlined, size: 18)
             : IconButton(
-                tooltip: 'Hapus tanggal',
+                tooltip: ('Hapus tanggal').tr(context),
                 onPressed: () => onChanged(null),
                 icon: const Icon(Icons.close, size: 18),
               ),
       ),
       child: Text(
         value == null
-            ? 'Semua'
-            : DateFormat('dd MMM yyyy', 'id_ID').format(value!),
+            ? ('Semua').tr(context)
+            : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(value!),
       ),
     ),
   );
@@ -2998,7 +2986,7 @@ class _InventoryStatus extends StatelessWidget {
       color: _statusColor(status).withValues(alpha: .12),
       borderRadius: BorderRadius.circular(16),
     ),
-    child: Text(
+    child: PosText(
       _statusLabel(status),
       style: TextStyle(
         fontSize: 11,
@@ -3046,9 +3034,9 @@ class _PurchaseWorkflowBadges extends StatelessWidget {
     spacing: 5,
     runSpacing: 5,
     children: [
-      _WorkflowLabel(label: 'Approval', value: _approval),
-      _WorkflowLabel(label: 'Supplier', value: _supplier),
-      _WorkflowLabel(label: 'Penerimaan', value: _receiving),
+      _WorkflowLabel(label: ('Approval').tr(context), value: _approval),
+      _WorkflowLabel(label: ('Supplier').tr(context), value: _supplier),
+      _WorkflowLabel(label: ('Penerimaan').tr(context), value: _receiving),
     ],
   );
 }
@@ -3066,7 +3054,7 @@ class _WorkflowLabel extends StatelessWidget {
       borderRadius: BorderRadius.circular(5),
     ),
     child: Text(
-      '$label: $value',
+      '${label.tr(context)}: ${value.tr(context)}',
       style: const TextStyle(fontSize: 10.5, color: Color(0xFF4E5965)),
     ),
   );
@@ -3090,6 +3078,7 @@ class _PurchaseTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    posLocale(context); // Refresh formatted dates when the language changes.
     final events = <(String, dynamic, dynamic)>[
       ('Dibuat', item['createdAt'], item['created_by']),
       ('Dikirim ke supplier', item['sent_at'], item['sent_by']),
@@ -3104,7 +3093,7 @@ class _PurchaseTimeline extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const PosText(
           'Timeline PO',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
@@ -3123,7 +3112,7 @@ class _PurchaseTimeline extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${event.$1} · ${_date(event.$2)}${actor.isEmpty ? '' : ' · $actor'}',
+                    '${event.$1.tr(context)} · ${_date(event.$2)}${actor.isEmpty ? '' : ' · $actor'}',
                     style: const TextStyle(fontSize: 12.5),
                   ),
                 ),
@@ -3151,7 +3140,7 @@ class _PayablePaidBadge extends StatelessWidget {
       children: [
         Icon(Icons.check_circle_outline, size: 13, color: Color(0xFF16824A)),
         SizedBox(width: 4),
-        Text(
+        PosText(
           'Lunas',
           style: TextStyle(
             fontSize: 11,
@@ -3267,7 +3256,7 @@ class _ActionMenuItem extends StatelessWidget {
     children: [
       Icon(icon, size: 19, color: destructive ? AppColors.danger : null),
       const SizedBox(width: 10),
-      Text(
+      PosText(
         label,
         style: TextStyle(color: destructive ? AppColors.danger : null),
       ),
@@ -3293,7 +3282,7 @@ class _DetailMetric extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: AppColors.primary),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        PosText(label, style: const TextStyle(fontSize: 12)),
       ],
     ),
   );

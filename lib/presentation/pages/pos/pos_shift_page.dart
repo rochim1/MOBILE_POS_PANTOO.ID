@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../injections.dart';
@@ -47,13 +48,13 @@ class PosShiftPage extends StatelessWidget {
             color: AppColors.bgPrimary,
             child: Column(
               children: [
-                const PosFullWidthTabBar(
+                 PosFullWidthTabBar(
                   tabs: [
                     PosFullWidthTab(
                       icon: Icons.point_of_sale,
-                      label: 'Shift Aktif',
+                      label: ('Shift Aktif').tr(context),
                     ),
-                    PosFullWidthTab(icon: Icons.history, label: 'Riwayat'),
+                    PosFullWidthTab(icon: Icons.history, label: ('Riwayat').tr(context)),
                   ],
                 ),
                 Expanded(

@@ -44,15 +44,15 @@ void main() {
     ).readAsStringSync();
     final query = File('lib/data/graphql/pos_queries.dart').readAsStringSync();
 
-    expect(renderer, contains("pw.Text('Shift: \${data.shiftReference}')"));
+    expect(renderer, contains('pw.Text(posCurrentLocale().pos98c99bd51ac2((data.shiftReference).toString()))'));
     expect(
       renderer,
-      contains("pw.Text('Referensi: \${data.transactionReference}')"),
+      contains('pw.Text(posCurrentLocale().pos96b044b6e7c2((data.transactionReference).toString()))'),
     );
-    expect(renderer, contains("add('Shift: \${data.shiftReference}')"));
+    expect(renderer, contains('add(posCurrentLocale().pos98c99bd51ac2((data.shiftReference).toString()))'));
     expect(
       renderer,
-      contains("add('Referensi: \${data.transactionReference}')"),
+      contains('add(posCurrentLocale().pos96b044b6e7c2((data.transactionReference).toString()))'),
     );
     expect(query, contains('client_transaction_id'));
     expect(query, contains('kasir_shift_id'));

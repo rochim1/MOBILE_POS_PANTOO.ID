@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -111,12 +113,12 @@ class _ReportViewState extends State<_ReportView> {
           _Section.topReports => _topReports(data),
           _Section.commission => _notAvailable(
             icon: Icons.percent_rounded,
-            title: 'Laporan Komisi',
+            title: ('Laporan Komisi').tr(context),
             message: 'Komisi belum tercatat pada transaksi POS di periode ini.',
           ),
           _Section.voidSales => _notAvailable(
             icon: Icons.block_outlined,
-            title: 'Laporan Void',
+            title: ('Laporan Void').tr(context),
             message:
                 'Belum ada data transaksi void yang tersedia pada laporan.',
           ),
@@ -126,14 +128,14 @@ class _ReportViewState extends State<_ReportView> {
           _Section.payments => _payments(data.paymentBreakdown),
           _Section.satisfaction => _notAvailable(
             icon: Icons.sentiment_satisfied_alt_outlined,
-            title: 'Kepuasan Pelanggan',
+            title: ('Kepuasan Pelanggan').tr(context),
             message:
                 'Belum ada penilaian pelanggan yang tercatat pada transaksi POS.',
           ),
           _Section.others => _otherReport(data),
           _Section.deposits => _notAvailable(
             icon: Icons.savings_outlined,
-            title: 'Penjualan Deposit',
+            title: ('Penjualan Deposit').tr(context),
             message:
                 'Belum ada transaksi deposit yang tercatat pada periode ini.',
           ),
@@ -173,14 +175,14 @@ class _ReportViewState extends State<_ReportView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              PosText(
                 title,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
+              PosText(
                 'Data langsung dari transaksi POS',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
@@ -203,7 +205,7 @@ class _ReportViewState extends State<_ReportView> {
           decoration: _decoration('Periode', Icons.calendar_today_outlined),
           items: _periods
               .map(
-                (p) => DropdownMenuItem(value: p.label, child: Text(p.label)),
+                (p) => DropdownMenuItem(value: p.label, child: PosText(p.label)),
               )
               .toList(),
           onChanged: (value) {
@@ -231,7 +233,7 @@ class _ReportViewState extends State<_ReportView> {
               ),
               const SizedBox(width: 9),
               Expanded(
-                child: Text(
+                child: PosText(
                   _rangeLabel(_days(selected)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -270,7 +272,7 @@ class _ReportViewState extends State<_ReportView> {
   }
 
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
-    labelText: label,
+    labelText: (label).tr(context),
     prefixIcon: Icon(icon, size: 19),
     filled: true,
     fillColor: Colors.white,
@@ -299,42 +301,42 @@ class _ReportViewState extends State<_ReportView> {
           })
         >[
           (
-            title: 'Total Penjualan',
+            title: ('Total Penjualan').tr(context),
             value: _money.format(stats.todayRevenue ?? 0),
             icon: Icons.payments_outlined,
             color: const Color(0xFF087F75),
             growth: stats.revenueGrowth,
           ),
           (
-            title: 'Total Transaksi',
+            title: ('Total Transaksi').tr(context),
             value: '${stats.todayTransactions ?? 0}',
             icon: Icons.receipt_long_outlined,
             color: AppColors.neutral,
             growth: stats.transactionGrowth,
           ),
           (
-            title: 'Rata-rata / Transaksi',
+            title: ('Rata-rata / Transaksi').tr(context),
             value: _money.format(stats.todayAvgOrder ?? 0),
             icon: Icons.analytics_outlined,
             color: AppColors.info,
             growth: null,
           ),
           (
-            title: 'Item Produk Teratas',
+            title: ('Item Produk Teratas').tr(context),
             value: '$topQty item',
             icon: Icons.inventory_2_outlined,
             color: const Color(0xFFC88916),
             growth: null,
           ),
           (
-            title: 'Pertumbuhan Omzet',
+            title: ('Pertumbuhan Omzet').tr(context),
             value: '${(stats.revenueGrowth ?? 0).toStringAsFixed(1)}%',
             icon: Icons.trending_up,
             color: AppColors.info,
             growth: null,
           ),
           (
-            title: 'Pertumbuhan Transaksi',
+            title: ('Pertumbuhan Transaksi').tr(context),
             value: '${(stats.transactionGrowth ?? 0).toStringAsFixed(1)}%',
             icon: Icons.show_chart_rounded,
             color: AppColors.warning,
@@ -392,12 +394,12 @@ class _ReportViewState extends State<_ReportView> {
     final interval = maxY / 4;
     final labelStep = math.max(1, (sales.length / 6).ceil());
     return _Card(
-      title: 'Tren Penjualan',
+      title: ('Tren Penjualan').tr(context),
       subtitle: period,
       trailing: SegmentedButton<bool>(
         segments: const [
-          ButtonSegment(value: true, label: Text('Omzet')),
-          ButtonSegment(value: false, label: Text('Transaksi')),
+          ButtonSegment(value: true, label: PosText('Omzet')),
+          ButtonSegment(value: false, label: PosText('Transaksi')),
         ],
         selected: {_revenueChart},
         showSelectedIcon: false,
@@ -407,9 +409,9 @@ class _ReportViewState extends State<_ReportView> {
       child: SizedBox(
         height: 240,
         child: sales.isEmpty
-            ? const _Empty(
+            ?  _Empty(
                 icon: Icons.show_chart,
-                text: 'Belum ada tren penjualan',
+                text: ('Belum ada tren penjualan').tr(context),
               )
             : LineChart(
                 LineChartData(
@@ -484,13 +486,13 @@ class _ReportViewState extends State<_ReportView> {
   }
 
   Widget _payments(List<PosPaymentBreakdown> items) => _Card(
-    title: 'Jenis Pembayaran',
+    title: ('Jenis Pembayaran').tr(context),
     subtitle:
-        '${items.fold<int>(0, (sum, e) => sum + (e.count ?? 0))} transaksi',
+        posLocale(context).pos3badc0263682((items.fold<int>(0, (sum, e) => sum + (e.count ?? 0))).toString()),
     child: items.isEmpty
-        ? const _Empty(
+        ?  _Empty(
             icon: Icons.payments_outlined,
-            text: 'Belum ada pembayaran pada periode ini',
+            text: ('Belum ada pembayaran pada periode ini').tr(context),
           )
         : Column(
             children: items.map((item) {
@@ -517,7 +519,7 @@ class _ReportViewState extends State<_ReportView> {
                           ),
                         ),
                         Text(
-                          '${item.count ?? 0} trx',
+                          posLocale(context).pos971fbc291672((item.count ?? 0).toString()),
                           style: const TextStyle(fontSize: 11),
                         ),
                         const SizedBox(width: 10),
@@ -548,12 +550,12 @@ class _ReportViewState extends State<_ReportView> {
   );
 
   Widget _products(List<PosTopProduct> items) => _Card(
-    title: 'Produk Terlaris',
-    subtitle: 'Diurutkan berdasarkan omzet',
+    title: ('Produk Terlaris').tr(context),
+    subtitle: ('Diurutkan berdasarkan omzet').tr(context),
     child: items.isEmpty
-        ? const _Empty(
+        ?  _Empty(
             icon: Icons.inventory_2_outlined,
-            text: 'Belum ada produk terjual pada periode ini',
+            text: ('Belum ada produk terjual pada periode ini').tr(context),
           )
         : Column(
             children: items.asMap().entries.map((entry) {
@@ -593,7 +595,7 @@ class _ReportViewState extends State<_ReportView> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            '${item.qtySold ?? 0} item · ${item.kode ?? 'Tanpa kode'}',
+                            posLocale(context).posf6026f00f33e((item.qtySold ?? 0).toString(), (item.kode ?? 'Tanpa kode').toString()),
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -637,7 +639,7 @@ class _ReportViewState extends State<_ReportView> {
           children: [
             Expanded(
               child: PosStatCard(
-                label: 'Penerimaan Tunai',
+                label: ('Penerimaan Tunai').tr(context),
                 value: _money.format(total),
                 icon: Icons.payments_outlined,
                 color: const Color(0xFF087F75),
@@ -646,7 +648,7 @@ class _ReportViewState extends State<_ReportView> {
             const SizedBox(width: 12),
             Expanded(
               child: PosStatCard(
-                label: 'Transaksi Tunai',
+                label: ('Transaksi Tunai').tr(context),
                 value: '$count',
                 icon: Icons.receipt_long_outlined,
                 color: AppColors.info,
@@ -661,12 +663,12 @@ class _ReportViewState extends State<_ReportView> {
   }
 
   Widget _cashierReport(List<PosCashierPerformance> items) => _Card(
-    title: 'Performa Kasir',
-    subtitle: '${items.length} operator pada periode ini',
+    title: ('Performa Kasir').tr(context),
+    subtitle: posLocale(context).posa8b15dbf49a2((items.length).toString()),
     child: items.isEmpty
-        ? const _Empty(
+        ?  _Empty(
             icon: Icons.person_outline_rounded,
-            text: 'Belum ada transaksi kasir pada periode ini',
+            text: ('Belum ada transaksi kasir pada periode ini').tr(context),
           )
         : Column(
             children: items.asMap().entries.map((entry) {
@@ -703,7 +705,7 @@ class _ReportViewState extends State<_ReportView> {
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           Text(
-                            '${item.transactions} transaksi · Rata-rata ${_money.format(item.avgOrder)}',
+                            posLocale(context).posc86080cde078((item.transactions).toString(), (_money.format(item.avgOrder)).toString()),
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -740,12 +742,12 @@ class _ReportViewState extends State<_ReportView> {
   );
 
   Widget _otherReport(PosReportData data) => _Card(
-    title: 'Aktivitas Penjualan Harian',
-    subtitle: '${data.dailySales.length} hari tercatat',
+    title: ('Aktivitas Penjualan Harian').tr(context),
+    subtitle: posLocale(context).pos8d46fa4132ae((data.dailySales.length).toString()),
     child: data.dailySales.isEmpty
-        ? const _Empty(
+        ?  _Empty(
             icon: Icons.event_note_outlined,
-            text: 'Belum ada aktivitas penjualan',
+            text: ('Belum ada aktivitas penjualan').tr(context),
           )
         : Column(
             children: data.dailySales.reversed.take(10).map((day) {
@@ -757,7 +759,7 @@ class _ReportViewState extends State<_ReportView> {
                   child: const Icon(Icons.calendar_today_outlined, size: 17),
                 ),
                 title: Text(day.label ?? day.date ?? '-'),
-                subtitle: Text('${day.transactions} transaksi'),
+                subtitle: Text(posLocale(context).pos3badc0263682((day.transactions).toString())),
                 trailing: Text(
                   _money.format(day.revenue),
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -790,7 +792,7 @@ class _ReportViewState extends State<_ReportView> {
                 child: Icon(icon, color: AppColors.primary, size: 28),
               ),
               const SizedBox(height: 14),
-              Text(
+              PosText(
                 message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF737B89), height: 1.5),
@@ -803,15 +805,15 @@ class _ReportViewState extends State<_ReportView> {
   );
 
   Widget _categories() => PosCategorySidebar<_Section>(
-    title: 'Kategori Laporan',
+    title: ('Kategori Laporan').tr(context),
     items: _categoryItems,
     selected: _section,
     onSelected: (value) => setState(() => _section = value),
-    footer: 'Laporan diperbarui langsung dari transaksi POS.',
+    footer: ('Laporan diperbarui langsung dari transaksi POS.').tr(context),
   );
 
   Widget _mobileCategories() => PosCategoryDropdown<_Section>(
-    label: 'Kategori laporan',
+    label: ('Kategori laporan').tr(context),
     items: _categoryItems,
     selected: _section,
     onSelected: (value) => setState(() => _section = value),
@@ -838,17 +840,17 @@ class _ReportViewState extends State<_ReportView> {
   ];
 
   Widget _error(BuildContext context, PosReportState state) => _Card(
-    title: 'Laporan tidak dapat dimuat',
+    title: ('Laporan tidak dapat dimuat').tr(context),
     child: Column(
       children: [
         const Icon(Icons.cloud_off_outlined, size: 44, color: Colors.grey),
         const SizedBox(height: 10),
-        Text(state.errorMessage, textAlign: TextAlign.center),
+        PosText(state.errorMessage, textAlign: TextAlign.center),
         const SizedBox(height: 12),
         FilledButton.icon(
           onPressed: () => _reload(context, state),
           icon: const Icon(Icons.refresh),
-          label: const Text('Coba lagi'),
+          label: const PosText('Coba lagi'),
         ),
       ],
     ),
@@ -869,7 +871,7 @@ class _ReportViewState extends State<_ReportView> {
       .days;
   String _rangeLabel(int days) {
     final end = DateTime.now(), start = end.subtract(Duration(days: days - 1));
-    final fmt = DateFormat('dd MMM yyyy', 'id_ID');
+    final fmt = DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode);
     return days == 1
         ? fmt.format(end)
         : '${fmt.format(start)} – ${fmt.format(end)}';
@@ -921,7 +923,7 @@ class _Metric extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
+              child: PosText(
                 data.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1000,7 +1002,7 @@ class _Card extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  PosText(
                     title,
                     style: const TextStyle(
                       fontSize: 15,
@@ -1008,7 +1010,7 @@ class _Card extends StatelessWidget {
                     ),
                   ),
                   if (subtitle != null)
-                    Text(
+                    PosText(
                       subtitle!,
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
@@ -1037,7 +1039,7 @@ class _Empty extends StatelessWidget {
         children: [
           Icon(icon, color: Colors.grey.shade300, size: 38),
           const SizedBox(height: 8),
-          Text(
+          PosText(
             text,
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),

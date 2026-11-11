@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pantoo symbol only: Android small icons use a white alpha mask, not a full-color wordmark. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="250"
+    android:viewportHeight="280">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M81,130 L81,48 Q81,26 104,26 L148,26 C187,26 218,56 218,94 C218,133 187,164 148,164 L56,164 L81,216 L81,173 L105,173 L105,234 C105,258 81,266 68,244 L32,174 C22,156 33,140 51,140 L148,140 C174,140 194,120 194,94 C194,69 174,50 148,50 L105,50 L105,130 Z" />
+</vector>

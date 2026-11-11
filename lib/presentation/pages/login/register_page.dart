@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
@@ -90,7 +92,7 @@ class _RegisterViewState extends State<_RegisterView> {
     if (!_acceptedLegal) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
+          content: PosText(
             'Setujui Kebijakan Privasi dan Ketentuan Layanan untuk mendaftar.',
           ),
         ),
@@ -110,7 +112,7 @@ class _RegisterViewState extends State<_RegisterView> {
 
   InputDecoration _decoration(String label, IconData icon, {Widget? suffix}) {
     return InputDecoration(
-      labelText: label,
+      labelText: (label).tr(context),
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
       filled: true,
@@ -135,7 +137,7 @@ class _RegisterViewState extends State<_RegisterView> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(width: 7),
-            Text('Memeriksa...', style: TextStyle(fontSize: 12)),
+            PosText('Memeriksa...', style: TextStyle(fontSize: 12)),
           ],
         ),
       );
@@ -153,7 +155,7 @@ class _RegisterViewState extends State<_RegisterView> {
           ),
           const SizedBox(width: 6),
           Text(
-            available ? '$noun tersedia' : '$noun sudah digunakan',
+            available ? posLocale(context).pose9a226455937((noun).toString()) : posLocale(context).pos4f29bd492330((noun).toString()),
             style: TextStyle(fontSize: 12, color: color),
           ),
         ],
@@ -174,10 +176,9 @@ class _RegisterViewState extends State<_RegisterView> {
             builder: (dialogContext) => StatefulBuilder(
               builder: (dialogContext, setDialogState) => AlertDialog(
                 icon: const Icon(Icons.mark_email_read_outlined, size: 48),
-                title: const Text('Pendaftaran Berhasil'),
+                title: const PosText('Pendaftaran Berhasil'),
                 content: Text(
-                  'Email verifikasi telah dikirim ke ${_email.text.trim()}. '
-                  'Verifikasi akun terlebih dahulu, lalu masuk untuk menyiapkan POS Anda.',
+                  posLocale(dialogContext).pos4502e01c7a52((_email.text.trim()).toString()),
                 ),
                 actions: [
                   TextButton(
@@ -195,20 +196,20 @@ class _RegisterViewState extends State<_RegisterView> {
                             );
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
                               SnackBar(
-                                content: Text(message),
+                                content: PosText(message),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
                           },
                     child: Text(
-                      resending ? 'Mengirim...' : 'Kirim Ulang Email',
+                      resending ? ('Mengirim...').tr(dialogContext) : ('Kirim Ulang Email').tr(dialogContext),
                     ),
                   ),
                   FilledButton(
                     onPressed: resending
                         ? null
                         : () => Navigator.pop(dialogContext),
-                    child: const Text('Kembali ke Login'),
+                    child: const PosText('Kembali ke Login'),
                   ),
                 ],
               ),
@@ -219,7 +220,7 @@ class _RegisterViewState extends State<_RegisterView> {
             state.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.error!),
+              content: PosText(state.error!),
               backgroundColor: AppColors.danger,
               behavior: SnackBarBehavior.floating,
             ),
@@ -257,12 +258,13 @@ class _RegisterViewState extends State<_RegisterView> {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
                                   children: [
+                                    const Align(alignment: Alignment.centerRight, child: LanguagePicker()),
                                     Image.asset(
                                       'assets/images/pantoo.png',
                                       height: 58,
                                     ),
                                     const SizedBox(height: 14),
-                                    Text(
+                                    PosText(
                                       'Daftar POS Mobile',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context)
@@ -273,7 +275,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                           ),
                                     ),
                                     const SizedBox(height: 6),
-                                    Text(
+                                    PosText(
                                       'Mulai trial Pantoo Unlimited dan siapkan toko Anda dalam beberapa langkah.',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context)
@@ -290,6 +292,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                           setState(() => _googleBusy = value),
                                     ),
                                     TextFormField(
+errorBuilder: posValidationError,
                                       controller: _name,
                                       decoration: _decoration(
                                         'Nama lengkap',
@@ -299,11 +302,12 @@ class _RegisterViewState extends State<_RegisterView> {
                                       autofillHints: const [AutofillHints.name],
                                       validator: (value) =>
                                           (value?.trim().length ?? 0) < 3
-                                          ? 'Nama minimal 3 karakter'
+                                          ? ('Nama minimal 3 karakter').tr(context)
                                           : null,
                                     ),
                                     const SizedBox(height: 14),
                                     TextFormField(
+errorBuilder: posValidationError,
                                       controller: _username,
                                       decoration: _decoration(
                                         'Username',
@@ -321,15 +325,15 @@ class _RegisterViewState extends State<_RegisterView> {
                                       onChanged: _checkUsername,
                                       validator: (value) {
                                         if ((value?.trim().length ?? 0) < 3) {
-                                          return 'Username minimal 3 karakter';
+                                          return ('Username minimal 3 karakter').tr(context);
                                         }
                                         if (!RegExp(
                                           r'^[a-zA-Z0-9._-]+$',
                                         ).hasMatch(value ?? '')) {
-                                          return 'Gunakan huruf, angka, titik, _ atau -';
+                                          return ('Gunakan huruf, angka, titik, _ atau -').tr(context);
                                         }
                                         if (state.usernameAvailable == false) {
-                                          return 'Username sudah digunakan';
+                                          return ('Username sudah digunakan').tr(context);
                                         }
                                         return null;
                                       },
@@ -341,6 +345,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                     ),
                                     const SizedBox(height: 14),
                                     TextFormField(
+errorBuilder: posValidationError,
                                       controller: _email,
                                       decoration: _decoration(
                                         'Email',
@@ -357,10 +362,10 @@ class _RegisterViewState extends State<_RegisterView> {
                                           r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
                                         ).hasMatch(value?.trim() ?? '');
                                         if (!valid) {
-                                          return 'Masukkan email yang valid';
+                                          return ('Masukkan email yang valid').tr(context);
                                         }
                                         if (state.emailAvailable == false) {
-                                          return 'Email sudah digunakan';
+                                          return ('Email sudah digunakan').tr(context);
                                         }
                                         return null;
                                       },
@@ -372,6 +377,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                     ),
                                     const SizedBox(height: 14),
                                     TextFormField(
+errorBuilder: posValidationError,
                                       controller: _phone,
                                       decoration: _decoration(
                                         'Nomor telepon',
@@ -389,12 +395,13 @@ class _RegisterViewState extends State<_RegisterView> {
                                       validator: (value) {
                                         final length = value?.length ?? 0;
                                         return length < 8 || length > 15
-                                            ? 'Nomor telepon harus 8–15 digit'
+                                            ? ('Nomor telepon harus 8–15 digit').tr(context)
                                             : null;
                                       },
                                     ),
                                     const SizedBox(height: 4),
                                     TextFormField(
+errorBuilder: posValidationError,
                                       controller: _password,
                                       decoration: _decoration(
                                         'Password',
@@ -418,11 +425,12 @@ class _RegisterViewState extends State<_RegisterView> {
                                       ],
                                       validator: (value) =>
                                           (value?.length ?? 0) < 8
-                                          ? 'Password minimal 8 karakter'
+                                          ? ('Password minimal 8 karakter').tr(context)
                                           : null,
                                     ),
                                     const SizedBox(height: 14),
                                     TextFormField(
+errorBuilder: posValidationError,
                                       controller: _confirmation,
                                       decoration: _decoration(
                                         'Konfirmasi password',
@@ -447,7 +455,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                       onFieldSubmitted: (_) => _submit(),
                                       validator: (value) =>
                                           value != _password.text
-                                          ? 'Konfirmasi password tidak sama'
+                                          ? ('Konfirmasi password tidak sama').tr(context)
                                           : null,
                                     ),
                                     const SizedBox(height: 22),
@@ -465,7 +473,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                       title: const PantooLegalLinks(
                                         includePrefix: false,
                                       ),
-                                      subtitle: const Text(
+                                      subtitle: const PosText(
                                         'Persetujuan diperlukan untuk membuat akun.',
                                       ),
                                     ),
@@ -489,7 +497,7 @@ class _RegisterViewState extends State<_RegisterView> {
                                                       color: Colors.white,
                                                     ),
                                               )
-                                            : const Text(
+                                            : const PosText(
                                                 'Daftar & Mulai Trial',
                                               ),
                                       ),
@@ -497,10 +505,10 @@ class _RegisterViewState extends State<_RegisterView> {
                                     const SizedBox(height: 18),
                                     Text.rich(
                                       TextSpan(
-                                        text: 'Sudah punya akun? ',
+                                        text: ('Sudah punya akun? ').tr(context),
                                         children: [
                                           TextSpan(
-                                            text: 'Masuk',
+                                            text: ('Masuk').tr(context),
                                             style: const TextStyle(
                                               color: Color(0xFF087F75),
                                               fontWeight: FontWeight.w700,
@@ -532,7 +540,7 @@ class _RegisterViewState extends State<_RegisterView> {
                       elevation: 3,
                       shape: const CircleBorder(),
                       child: IconButton(
-                        tooltip: 'Kembali ke login',
+                        tooltip: ('Kembali ke login').tr(context),
                         onPressed: state.isSubmitting
                             ? null
                             : () => Navigator.pop(context),

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -58,10 +59,10 @@ class PosTableOrderPage extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Text(
             !canView
-                ? 'Anda tidak memiliki izin melihat pesanan aktif.'
+                ? ('Anda tidak memiliki izin melihat pesanan aktif.').tr(context)
                 : allowOutOfShift
-                ? 'Toko aktif belum tersedia untuk menampilkan meja.'
-                : 'Buka shift kasir untuk menampilkan meja toko aktif.',
+                ? ('Toko aktif belum tersedia untuk menampilkan meja.').tr(context)
+                : ('Buka shift kasir untuk menampilkan meja toko aktif.').tr(context),
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.grey, fontSize: 16),
           ),
@@ -131,50 +132,50 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   bool _cancellingOrder = false;
 
   List<DropdownMenuItem<String>> get _fulfillmentItems => [
-    const DropdownMenuItem(value: '', child: Text('Semua tipe')),
-    const DropdownMenuItem(value: 'dine_in', child: Text('Meja')),
-    const DropdownMenuItem(value: 'free_table', child: Text('Tanpa meja')),
+    const DropdownMenuItem(value: '', child: PosText('Semua tipe')),
+    const DropdownMenuItem(value: 'dine_in', child: PosText('Meja')),
+    const DropdownMenuItem(value: 'free_table', child: PosText('Tanpa meja')),
     DropdownMenuItem(
       value: 'take_away',
-      child: Text(_workflow.kitchen ? 'Bawa pulang' : 'Ambil di toko'),
+      child: Text(_workflow.kitchen ? ('Bawa pulang').tr(context) : ('Ambil di toko').tr(context)),
     ),
-    const DropdownMenuItem(value: 'delivery', child: Text('Pesan antar')),
+    const DropdownMenuItem(value: 'delivery', child: PosText('Pesan antar')),
     const DropdownMenuItem(
       value: 'quick_service',
-      child: Text('Layanan cepat'),
+      child: PosText('Layanan cepat'),
     ),
-    const DropdownMenuItem(value: 'reservation', child: Text('Reservasi')),
+    const DropdownMenuItem(value: 'reservation', child: PosText('Reservasi')),
   ];
   List<DropdownMenuItem<String>> get _statusItems => [
-    const DropdownMenuItem(value: '', child: Text('Semua aktif')),
+    const DropdownMenuItem(value: '', child: PosText('Semua aktif')),
     for (final status in ['Baru', 'Diproses', 'Siap', 'Disajikan'])
       DropdownMenuItem(
         value: status,
-        child: Text(_workflow.stageLabel(status)),
+        child: PosText(_workflow.stageLabel(status)),
       ),
   ];
   static const _sortItems = <DropdownMenuItem<String>>[
     DropdownMenuItem(
       value: 'newest',
-      child: Text('Pesanan terbaru', overflow: TextOverflow.ellipsis),
+      child: PosText('Pesanan terbaru', overflow: TextOverflow.ellipsis),
     ),
     DropdownMenuItem(
       value: 'oldest',
-      child: Text('Pesanan terlama', overflow: TextOverflow.ellipsis),
+      child: PosText('Pesanan terlama', overflow: TextOverflow.ellipsis),
     ),
     DropdownMenuItem(
       value: 'longest',
-      child: Text('Durasi terlama', overflow: TextOverflow.ellipsis),
+      child: PosText('Durasi terlama', overflow: TextOverflow.ellipsis),
     ),
     DropdownMenuItem(
       value: 'highest_total',
-      child: Text('Total terbesar', overflow: TextOverflow.ellipsis),
+      child: PosText('Total terbesar', overflow: TextOverflow.ellipsis),
     ),
   ];
   static const _periodItems = <DropdownMenuItem<String>>[
-    DropdownMenuItem(value: 'all', child: Text('Semua tanggal')),
-    DropdownMenuItem(value: 'today', child: Text('Hari ini')),
-    DropdownMenuItem(value: 'week', child: Text('7 hari terakhir')),
+    DropdownMenuItem(value: 'all', child: PosText('Semua tanggal')),
+    DropdownMenuItem(value: 'today', child: PosText('Hari ini')),
+    DropdownMenuItem(value: 'week', child: PosText('7 hari terakhir')),
   ];
 
   @override
@@ -428,7 +429,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                 });
                                 _reload();
                               },
-                              child: const Text('Atur ulang filter'),
+                              child: const PosText('Atur ulang filter'),
                             ),
                           ),
                       ],
@@ -473,7 +474,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    tooltip: 'Halaman sebelumnya',
+                    tooltip: ('Halaman sebelumnya').tr(context),
                     onPressed:
                         state.page <= 0 ||
                             state.status == PosOrderManagementStatus.loading
@@ -481,9 +482,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         : () => _reload(page: state.page - 1),
                     icon: const Icon(Icons.chevron_left),
                   ),
-                  Text('Halaman ${state.page + 1} · ${state.total} pesanan'),
+                  Text(posLocale(context).posd628bb3772f8((state.page + 1).toString(), (state.total).toString())),
                   IconButton(
-                    tooltip: 'Halaman berikutnya',
+                    tooltip: ('Halaman berikutnya').tr(context),
                     onPressed:
                         (state.page + 1) * 30 >= state.total ||
                             state.status == PosOrderManagementStatus.loading
@@ -543,8 +544,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               child: TextField(
                 controller: _searchController,
                 onChanged: _search,
-                decoration: const InputDecoration(
-                  hintText: 'Cari nomor order atau pelanggan…',
+                decoration:  InputDecoration(
+                  hintText: ('Cari nomor order atau pelanggan…').tr(context),
                   prefixIcon: Icon(Icons.search),
                   isDense: true,
                   border: OutlineInputBorder(),
@@ -563,8 +564,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     initialValue: _fulfillment,
                     isDense: true,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipe Pemenuhan',
+                    decoration:  InputDecoration(
+                      labelText: ('Tipe Pemenuhan').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _fulfillmentItems,
@@ -581,8 +582,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     initialValue: _status,
                     isDense: true,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
+                    decoration:  InputDecoration(
+                      labelText: ('Status').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _statusItems,
@@ -599,8 +600,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     initialValue: _sort,
                     isDense: true,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Urutkan',
+                    decoration:  InputDecoration(
+                      labelText: ('Urutkan').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: _sortItems,
@@ -649,7 +650,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    const PosText(
                       'Filter pesanan aktif',
                       style: TextStyle(
                         fontSize: 17,
@@ -661,8 +662,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       key: ValueKey('fulfillment-$fulfillment'),
                       initialValue: fulfillment,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipe pemenuhan',
+                      decoration:  InputDecoration(
+                        labelText: ('Tipe pemenuhan').tr(sheetContext),
                         border: OutlineInputBorder(),
                       ),
                       items: _fulfillmentItems,
@@ -674,8 +675,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       key: ValueKey('status-$status'),
                       initialValue: status,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
+                      decoration:  InputDecoration(
+                        labelText: ('Status').tr(sheetContext),
                         border: OutlineInputBorder(),
                       ),
                       items: _statusItems,
@@ -687,8 +688,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       key: ValueKey('period-$period'),
                       initialValue: period,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Tanggal pesanan',
+                      decoration:  InputDecoration(
+                        labelText: ('Tanggal pesanan').tr(sheetContext),
                         border: OutlineInputBorder(),
                       ),
                       items: _periodItems,
@@ -700,8 +701,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       key: ValueKey('sort-$sort'),
                       initialValue: sort,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Urutkan',
+                      decoration:  InputDecoration(
+                        labelText: ('Urutkan').tr(sheetContext),
                         border: OutlineInputBorder(),
                       ),
                       items: _sortItems,
@@ -718,7 +719,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             sort = 'oldest';
                             period = 'all';
                           }),
-                          child: const Text('Atur ulang'),
+                          child: const PosText('Atur ulang'),
                         ),
                         const Spacer(),
                         FilledButton(
@@ -728,7 +729,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             sort: sort,
                             period: period,
                           )),
-                          child: const Text('Terapkan'),
+                          child: const PosText('Terapkan'),
                         ),
                       ],
                     ),
@@ -819,7 +820,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     });
                     _reload();
                   },
-                  child: const Text('Atur ulang filter'),
+                  child: const PosText('Atur ulang filter'),
                 ),
               ],
             ),
@@ -906,7 +907,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                           Expanded(
                             child: columnOrders.isEmpty && !showPending
                                 ? const Center(
-                                    child: Text(
+                                    child: PosText(
                                       'Belum ada pesanan',
                                       style: TextStyle(
                                         color: AppColors.textSecondary,
@@ -929,7 +930,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                             bottom: 8,
                                           ),
                                           child: Semantics(
-                                            label: 'Memindahkan pesanan',
+                                            label: ('Memindahkan pesanan').tr(context),
                                             child:
                                                 const PosOrderTicketSkeleton(),
                                           ),
@@ -989,7 +990,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Text(
-                order.orderNumber ?? 'Order',
+                order.orderNumber ?? ('Order').tr(context),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -1056,42 +1057,42 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Batalkan pesanan?'),
+        title: const PosText('Batalkan pesanan?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Pesanan ${order.orderNumber ?? ''} belum dibayar. Stok yang dipesan akan dilepas.',
+              posLocale(dialogContext).posbe4e656f20d1((order.orderNumber ?? '').toString()),
             ),
             if (preparing)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Text(
+                child: PosText(
                   'Ada item yang sedang dibuat. PIN supervisor diperlukan.',
                 ),
               ),
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
-              decoration: const InputDecoration(labelText: 'Alasan pembatalan'),
+              decoration:  InputDecoration(labelText: ('Alasan pembatalan').tr(dialogContext)),
             ),
             if (preparing)
               TextField(
                 controller: pinController,
                 obscureText: true,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'PIN supervisor'),
+                decoration:  InputDecoration(labelText: ('PIN supervisor').tr(dialogContext)),
               ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Kembali'),
+            child: const PosText('Kembali'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Batalkan pesanan'),
+            child: const PosText('Batalkan pesanan'),
           ),
         ],
       ),
@@ -1169,10 +1170,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 ],
               ),
               const SizedBox(height: 9),
-              Text(order.customerName ?? 'Pelanggan umum'),
+              Text(order.customerName ?? ('Pelanggan umum').tr(context)),
               const SizedBox(height: 4),
               Text(
-                '${_fulfillmentLabel(order)} · ${order.items.length} item',
+                posLocale(context).posdf24f5ec1143((_fulfillmentLabel(order)).toString(), (order.items.length).toString()),
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 4),
@@ -1233,17 +1234,17 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     ),
                     Text(
                       order.paymentStatus == 'lunas'
-                          ? 'Lunas'
+                          ? ('Lunas').tr(context)
                           : order.hasPostedTransaction
-                          ? 'Piutang · kelola di Finance'
-                          : 'Belum lunas',
+                          ? ('Piutang · kelola di Finance').tr(context)
+                          : ('Belum lunas').tr(context),
                       style: const TextStyle(fontSize: 12),
                     ),
                     if (order.note?.isNotEmpty == true ||
                         order.kitchenNote?.isNotEmpty == true ||
                         order.handoverNote?.isNotEmpty == true)
-                      const Tooltip(
-                        message: 'Ada catatan pesanan',
+                       Tooltip(
+                        message: ('Ada catatan pesanan').tr(context),
                         child: Icon(Icons.sticky_note_2_outlined, size: 16),
                       ),
                   ],
@@ -1258,7 +1259,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     child: OutlinedButton.icon(
                       onPressed: () => _showActiveOrder(order),
                       icon: const Icon(Icons.event_seat_outlined),
-                      label: const Text('Kelola reservasi'),
+                      label: const PosText('Kelola reservasi'),
                     ),
                   ),
                 ] else if (_workflow.isServiceOrder(order)) ...[
@@ -1266,7 +1267,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   OutlinedButton.icon(
                     onPressed: () => _showActiveOrder(order),
                     icon: const Icon(Icons.assignment_outlined),
-                    label: const Text('Kelola layanan'),
+                    label: const PosText('Kelola layanan'),
                   ),
                 ] else if (nextPosOrderStatus(order.status) case final next?
                     when _canManageOrders) ...[
@@ -1287,8 +1288,8 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         shouldPayBeforeOrderTransition(order, next)
                             ? order.webOrderPayBeforeProcessing &&
                                       next != 'Selesai'
-                                  ? 'Bayar dahulu'
-                                  : 'Bayar pesanan'
+                                  ? ('Bayar dahulu').tr(context)
+                                  : ('Bayar pesanan').tr(context)
                             : _nextStatusLabel(next, order),
                       ),
                     ),
@@ -1308,7 +1309,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         ? null
                         : () => _cancelOrder(order),
                     icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Batalkan pesanan'),
+                    label: const PosText('Batalkan pesanan'),
                   ),
                 ],
               ],
@@ -1337,14 +1338,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 child: DataTable(
                   showCheckboxColumn: false,
                   columns: const [
-                    DataColumn(label: Text('No.')),
-                    DataColumn(label: Text('No. Order')),
-                    DataColumn(label: Text('Pelanggan / Meja')),
-                    DataColumn(label: Text('Tanggal Pesan')),
-                    DataColumn(label: Text('Jam Pesan')),
-                    DataColumn(label: Text('Durasi')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Total'), numeric: true),
+                    DataColumn(label: PosText('No.')),
+                    DataColumn(label: PosText('No. Order')),
+                    DataColumn(label: PosText('Pelanggan / Meja')),
+                    DataColumn(label: PosText('Tanggal Pesan')),
+                    DataColumn(label: PosText('Jam Pesan')),
+                    DataColumn(label: PosText('Durasi')),
+                    DataColumn(label: PosText('Status')),
+                    DataColumn(label: PosText('Total'), numeric: true),
                   ],
                   rows: orders.indexed
                       .map(
@@ -1388,7 +1389,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
         border: Border.all(color: color.withValues(alpha: .4)),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
+      child: PosText(
         _workflow.stageLabel(status ?? '', order),
         style: const TextStyle(
           color: AppColors.heading,
@@ -1418,7 +1419,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       _ => 'Proses',
     };
     return Tooltip(
-      message: age.label,
+      message: age.labelFor(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
         decoration: BoxDecoration(
@@ -1427,7 +1428,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
           border: Border.all(color: color.withValues(alpha: .4)),
         ),
         child: Text(
-          '$phase ${age.durationLabel}',
+          '${phase.tr(context)} ${age.durationLabel.tr(context)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -1441,12 +1442,12 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
   }
 
   String _fulfillmentLabel(PosOrderDetail order) => switch (order.orderType) {
-    'dine_in' => 'Meja ${order.tableName ?? '-'}',
-    'free_table' => 'Makan di tempat · Tanpa meja',
-    'delivery' || 'online_delivery' => 'Pesan antar',
-    'quick_service' => 'Layanan cepat',
-    'reservation' => 'Reservasi',
-    _ => _workflow.kitchen ? 'Bawa pulang' : 'Ambil di toko',
+    'dine_in' => ('Meja ${order.tableName ?? '-'}').trCurrent(),
+    'free_table' => ('Makan di tempat · Tanpa meja').trCurrent(),
+    'delivery' || 'online_delivery' => ('Pesan antar').trCurrent(),
+    'quick_service' => ('Layanan cepat').trCurrent(),
+    'reservation' => ('Reservasi').trCurrent(),
+    _ => _workflow.kitchen ? ('Bawa pulang').trCurrent() : ('Ambil di toko').trCurrent(),
   };
 
   void _showActiveOrder(PosOrderDetail order) {
@@ -1463,7 +1464,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  order.orderNumber ?? 'Detail Pesanan',
+                  order.orderNumber ?? ('Detail Pesanan').tr(sheetContext),
                   style: Theme.of(sheetContext).textTheme.titleLarge,
                 ),
                 Text(
@@ -1471,7 +1472,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Dipesan ${_orderDate(order.createdAt)} pukul ${_orderTime(order.createdAt)} · ${_duration(order.createdAt)}',
+                  posLocale(sheetContext).pos2885c22e700d((_orderDate(order.createdAt)).toString(), (_orderTime(order.createdAt)).toString(), (_duration(order.createdAt)).toString()),
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -1502,7 +1503,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Reservasi · ${_reservationStatusLabel(order.reservationStatus ?? 'pending')}',
+                            posLocale(sheetContext).pos039cdeadaabb((_reservationStatusLabel(order.reservationStatus ?? 'pending')).toString()),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 4),
@@ -1510,7 +1511,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             '${formatPosReservationTime(order.reservationStartAt)} – ${formatPosReservationTime(order.reservationEndAt)}',
                           ),
                           Text(
-                            '${order.reservationGuestCount <= 0 ? 1 : order.reservationGuestCount} tamu${order.reservationDepositAmount > 0 ? ' · Deposit ${_currency(order.reservationDepositAmount)} (${order.reservationDepositPaid ? 'lunas' : 'belum dibayar'})' : ''}',
+                            posLocale(sheetContext).pos9e2b35272c32((order.reservationGuestCount <= 0 ? 1 : order.reservationGuestCount).toString(), (order.reservationDepositAmount > 0 ? (' · Deposit ${_currency(order.reservationDepositAmount)} (${order.reservationDepositPaid ? 'lunas'.tr(sheetContext) : 'belum dibayar'.tr(sheetContext)})').tr(sheetContext) : '').toString()),
                           ),
                           if (_reservationNext(
                             order.reservationStatus,
@@ -1526,7 +1527,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                     await _rescheduleReservation(order);
                                   },
                                   icon: const Icon(Icons.event_repeat_outlined),
-                                  label: const Text('Jadwalkan ulang'),
+                                  label: const PosText('Jadwalkan ulang'),
                                 ),
                                 ..._reservationNext(
                                   order.reservationStatus,
@@ -1539,7 +1540,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                         status,
                                       );
                                     },
-                                    child: Text(
+                                    child: PosText(
                                       _reservationStatusLabel(status),
                                     ),
                                   ),
@@ -1578,15 +1579,15 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         _openPayment(order);
                       },
                       icon: const Icon(Icons.payments_outlined),
-                      label: const Text('Bayar layanan'),
+                      label: const PosText('Bayar layanan'),
                     ),
                   if (order.paymentStatus != 'lunas' &&
                       order.hasPostedTransaction)
-                    const Text(
+                    const PosText(
                       'Invoice sudah diterbitkan. Pelunasan melalui Piutang di Finance.',
                     ),
                   const Divider(height: 24),
-                  Text(
+                  PosText(
                     'Proses layanan',
                     style: Theme.of(sheetContext).textTheme.titleMedium,
                   ),
@@ -1596,21 +1597,21 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   ),
                   if (_workflow.profile == 'laundry' ||
                       (num.tryParse('${service['weight_kg']}') ?? 0) > 0)
-                    Text(posServiceQuantitySummary(service)),
+                    PosText(posServiceQuantitySummary(service)),
                   if ((service['vehicle_no']?.toString() ?? '').isNotEmpty)
-                    Text('Kendaraan: ${service['vehicle_no']}'),
+                    Text(posLocale(sheetContext).posd11b0955d522((service['vehicle_no']).toString())),
                   if ((service['vehicle_model']?.toString() ?? '').isNotEmpty)
-                    Text('Model: ${service['vehicle_model']}'),
+                    Text(posLocale(sheetContext).posbdc2845195b0((service['vehicle_model']).toString())),
                   if ((service['technician_name']?.toString() ?? '').isNotEmpty)
-                    Text('Teknisi / staf: ${service['technician_name']}'),
+                    Text(posLocale(sheetContext).pos4d67ce5fd380((service['technician_name']).toString())),
                   if ((service['appointment_at']?.toString() ?? '').isNotEmpty)
                     Text(
-                      'Jadwal: ${DateFormat('dd/MM/yyyy HH:mm').format(PosOrder.parseDateValue(service['appointment_at'].toString()))}',
+                      posLocale(sheetContext).posbfa60931a0a5((DateFormat('dd/MM/yyyy HH:mm').format(PosOrder.parseDateValue(service['appointment_at'].toString()))).toString()),
                     ),
                   if ((service['complaint']?.toString() ?? '').isNotEmpty)
-                    Text('Keluhan: ${service['complaint']}'),
+                    Text(posLocale(sheetContext).pos40b1639b7bb2((service['complaint']).toString())),
                   if ((service['bag_tag']?.toString() ?? '').isNotEmpty)
-                    Text('Tag: ${service['bag_tag']}'),
+                    Text(posLocale(sheetContext).pos60cb53587d72((service['bag_tag']).toString())),
                   const SizedBox(height: 10),
                   if ((service['service_lines'] as List?)?.isNotEmpty == true)
                     ...(service['service_lines'] as List).whereType<Map>().map(
@@ -1632,7 +1633,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                 Navigator.pop(sheetContext);
                                 await _updateServiceStatus(order, status);
                               },
-                              child: Text(_serviceStatusLabel(status)),
+                              child: PosText(_serviceStatusLabel(status)),
                             ),
                           )
                           .toList(),
@@ -1651,7 +1652,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       }
                     },
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Ubah Pesanan'),
+                    label: const PosText('Ubah Pesanan'),
                   ),
                 ],
                 if ((order.promoCode ?? '').isNotEmpty &&
@@ -1665,7 +1666,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       _removeOrderPromo(order);
                     },
                     icon: const Icon(Icons.local_offer_outlined),
-                    label: Text('Lepas voucher ${order.promoCode}'),
+                    label: Text(posLocale(sheetContext).pos3c6acbdc6172((order.promoCode).toString())),
                   ),
                 ],
                 if ((!_workflow.isServiceOrder(order) &&
@@ -1693,10 +1694,10 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       shouldPayBeforeOrderTransition(order, next)
                           ? order.webOrderPayBeforeProcessing &&
                                     next != 'Selesai'
-                                ? 'Bayar dahulu'
-                                : 'Bayar pesanan'
+                                ? ('Bayar dahulu').tr(sheetContext)
+                                : ('Bayar pesanan').tr(sheetContext)
                           : next == 'Selesai' && order.orderType == 'dine_in'
-                          ? 'Tutup pesanan & kosongkan meja'
+                          ? ('Tutup pesanan & kosongkan meja').tr(sheetContext)
                           : _nextStatusLabel(next, order),
                     ),
                   ),
@@ -1718,12 +1719,12 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             _cancelOrder(order);
                           },
                     icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Batalkan pesanan'),
+                    label: const PosText('Batalkan pesanan'),
                   ),
                 ],
                 if (order.statusHistory.isNotEmpty) ...[
                   const Divider(height: 24),
-                  Text(
+                  PosText(
                     'Riwayat status',
                     style: Theme.of(sheetContext).textTheme.titleMedium,
                   ),
@@ -1733,7 +1734,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.history, size: 18),
-                      title: Text(entry['status']?.toString() ?? '-'),
+                      title: Text(posStatusLabel(entry['status']?.toString() ?? '-', context)),
                       subtitle: Text(
                         [
                               entry['actor_name']?.toString(),
@@ -1864,7 +1865,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
             children: [
               Expanded(
                 child: Text(
-                  line['name']?.toString() ?? 'Item layanan',
+                  line['name']?.toString() ?? ('Item layanan').tr(sheetContext),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -1873,16 +1874,16 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
           ),
           const SizedBox(height: 3),
           Text(
-            'Status: ${_serviceLineStatusLabel(status)} · ${_currency((line['subtotal'] as num?) ?? 0)}',
+            posLocale(sheetContext).posd3f7af1f6d12((_serviceLineStatusLabel(status)).toString(), (_currency((line['subtotal'] as num?) ?? 0)).toString()),
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,
             ),
           ),
           if ((line['tag_code']?.toString() ?? '').isNotEmpty)
-            Text('Tag: ${line['tag_code']}'),
+            Text(posLocale(sheetContext).pos60cb53587d72((line['tag_code']).toString())),
           if ((line['condition_notes']?.toString() ?? '').isNotEmpty)
-            Text('Kondisi: ${line['condition_notes']}'),
+            Text(posLocale(sheetContext).pos3ef623db628c((line['condition_notes']).toString())),
           if (_canManageOrders &&
               !['Selesai', 'Batal'].contains(order.status) &&
               _serviceLineNext(status).isNotEmpty) ...[
@@ -1897,7 +1898,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         Navigator.pop(sheetContext);
                         await _updateServiceLineStatus(order, line, next);
                       },
-                      child: Text(_serviceLineStatusLabel(next)),
+                      child: PosText(_serviceLineStatusLabel(next)),
                     ),
                   )
                   .toList(),
@@ -1930,13 +1931,13 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       };
 
   String _reservationStatusLabel(String status) => switch (status) {
-    'pending' => 'Menunggu konfirmasi',
-    'confirmed' => 'Konfirmasi',
-    'checked_in' => 'Check-in',
-    'seated' => 'Dudukkan tamu',
-    'completed' => 'Selesai',
-    'cancelled' => 'Batalkan',
-    'no_show' => 'Tidak hadir',
+    'pending' => ('Menunggu konfirmasi').trCurrent(),
+    'confirmed' => ('Konfirmasi').trCurrent(),
+    'checked_in' => ('Check-in').trCurrent(),
+    'seated' => ('Dudukkan tamu').trCurrent(),
+    'completed' => ('Selesai').trCurrent(),
+    'cancelled' => ('Batalkan').trCurrent(),
+    'no_show' => ('Tidak hadir').trCurrent(),
     _ => status,
   };
 
@@ -1969,13 +1970,13 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Jadwalkan ulang reservasi'),
+          title: const PosText('Jadwalkan ulang reservasi'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Mulai'),
+                title: const PosText('Mulai'),
                 subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(start)),
                 onTap: () async {
                   final date = await showDatePicker(
@@ -2004,7 +2005,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Selesai'),
+                title: const PosText('Selesai'),
                 subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(end)),
                 onTap: () async {
                   final date = await showDatePicker(
@@ -2034,18 +2035,18 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
               TextField(
                 controller: guests,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Jumlah tamu'),
+                decoration:  InputDecoration(labelText: ('Jumlah tamu').tr(context)),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Simpan'),
+              child: const PosText('Simpan'),
             ),
           ],
         ),
@@ -2129,7 +2130,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            const PosText(
                               'Ubah Pesanan',
                               style: TextStyle(
                                 fontSize: 16,
@@ -2137,7 +2138,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                               ),
                             ),
                             Text(
-                              '${order.orderNumber ?? ''} · ${_quantityText(totalItems)} item',
+                              posLocale(context).posdf24f5ec1143((order.orderNumber ?? '').toString(), (_quantityText(totalItems)).toString()),
                               style: const TextStyle(
                                 color: AppColors.textSecondary,
                               ),
@@ -2158,9 +2159,9 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: TextField(
                     onChanged: (value) => setSheetState(() => search = value),
-                    decoration: const InputDecoration(
-                      labelText: 'Cari menu',
-                      hintText: 'Nama, kode, atau barcode',
+                    decoration:  InputDecoration(
+                      labelText: ('Cari menu').tr(context),
+                      hintText: ('Nama, kode, atau barcode').tr(context),
                       prefixIcon: Icon(Icons.search),
                     ),
                   ),
@@ -2168,7 +2169,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: filtered.isEmpty
-                      ? const Center(child: Text('Menu tidak ditemukan'))
+                      ? const Center(child: PosText('Menu tidak ditemukan'))
                       : ListView.separated(
                           padding: EdgeInsets.fromLTRB(
                             12,
@@ -2184,13 +2185,13 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                             return ListTile(
                               title: Text(product.name),
                               subtitle: Text(
-                                '${_currency(product.price)} · Stok ${product.stock.toStringAsFixed(0)}',
+                                posLocale(context).pos0bdde42d626d((_currency(product.price)).toString(), (product.stock.toStringAsFixed(0)).toString()),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    tooltip: 'Kurangi',
+                                    tooltip: ('Kurangi').tr(context),
                                     onPressed: qty <= 0
                                         ? null
                                         : () => setSheetState(() {
@@ -2216,7 +2217,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                                     ),
                                   ),
                                   IconButton(
-                                    tooltip: 'Tambah',
+                                    tooltip: ('Tambah').tr(context),
                                     onPressed: () => setSheetState(
                                       () => quantities[product.id] = qty + 1.0,
                                     ),
@@ -2283,7 +2284,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                               ),
                             )
                           : const Icon(Icons.save_outlined),
-                      label: Text(saving ? 'Menyimpan...' : 'Simpan Perubahan'),
+                      label: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan Perubahan').tr(context)),
                     ),
                   ),
                 ),
@@ -2303,18 +2304,18 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Lepas voucher dari pesanan?'),
+        title: const PosText('Lepas voucher dari pesanan?'),
         content: Text(
-          'Voucher ${order.promoCode} akan dilepas. Total tagihan dihitung ulang oleh server dan perlu ditinjau sebelum pembayaran.',
+          posLocale(dialogContext).pos05d7f4d6cf47((order.promoCode).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Lepas voucher'),
+            child: const PosText('Lepas voucher'),
           ),
         ],
       ),
@@ -2346,7 +2347,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
     if (order.hasPostedTransaction) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
+          content: PosText(
             'Tagihan sudah menjadi invoice. Pelunasan dicatat melalui Piutang di Finance.',
           ),
         ),
@@ -2545,7 +2546,7 @@ class _PosTableOrderViewState extends State<_PosTableOrderView> {
                             ),
                             SizedBox(height: 12),
                             Center(
-                              child: Text(
+                              child: PosText(
                                 'Tidak ada meja dengan kapasitas ini.',
                                 style: TextStyle(color: Colors.grey),
                               ),
@@ -2611,10 +2612,10 @@ class _CapacityTabs extends StatelessWidget {
         child: ListView(
           scrollDirection: Axis.horizontal,
           children: [
-            _tab(label: 'Semua ($totalTables)', capacity: null),
+            _tab(label: posLocale(context).pos5ab6295dbc59((totalTables).toString()), capacity: null),
             for (final capacity in capacities) ...[
               const SizedBox(width: 8),
-              _tab(label: '$capacity kursi', capacity: capacity),
+              _tab(label: posLocale(context).posc92e889b21e0((capacity).toString()), capacity: capacity),
             ],
           ],
         ),
@@ -2625,7 +2626,7 @@ class _CapacityTabs extends StatelessWidget {
   Widget _tab({required String label, required int? capacity}) {
     final selected = selectedCapacity == capacity;
     return ChoiceChip(
-      label: Text(label),
+      label: PosText(label),
       selected: selected,
       onSelected: (_) => onSelected(capacity),
       showCheckmark: false,
@@ -2689,7 +2690,7 @@ class _TableCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isOccupied ? 'Terisi' : 'Tersedia',
+                      isOccupied ? ('Terisi').tr(context) : ('Tersedia').tr(context),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 9,
@@ -2715,7 +2716,7 @@ class _TableCard extends StatelessWidget {
                   Icon(Icons.chair_outlined, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    '${table.capacity} kursi',
+                    posLocale(context).posc92e889b21e0((table.capacity).toString()),
                     style: TextStyle(color: Colors.grey[700], fontSize: 11),
                   ),
                 ],
@@ -2796,7 +2797,7 @@ class _OrderDetailsSheet extends StatelessWidget {
               Icon(Icons.table_restaurant, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
-                'Pesanan Meja ${table.name}',
+                posLocale(context).posf86f87a78d52((table.name).toString()),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -2820,7 +2821,7 @@ class _OrderDetailsSheet extends StatelessWidget {
         children: [
           Icon(Icons.receipt_long, size: 64, color: Colors.grey),
           SizedBox(height: 16),
-          Text(
+          PosText(
             'Belum ada pesanan aktif di meja ini',
             style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
@@ -2858,7 +2859,7 @@ class _OrderDetailsSheet extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      order.customerName ?? 'Guest',
+                      order.customerName ?? ('Guest').tr(context),
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 12,
@@ -2876,7 +2877,7 @@ class _OrderDetailsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    order.status ?? 'active',
+                    posStatusLabel(order.status ?? 'active', context),
                     style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
@@ -2910,7 +2911,7 @@ class _OrderDetailsSheet extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.arrow_forward),
-                label: Text(_nextOrderStatusLabel(nextStatus)),
+                label: PosText(_nextOrderStatusLabel(nextStatus)),
               ),
             ),
         ],
@@ -2956,9 +2957,9 @@ class _OrderDetailsSheet extends StatelessWidget {
   };
 
   String _nextOrderStatusLabel(String status) => switch (status) {
-    'Diproses' => 'Mulai proses',
-    'Siap' => 'Tandai siap',
-    'Disajikan' => 'Tandai sudah disajikan',
-    _ => 'Perbarui status',
+    'Diproses' => ('Mulai proses').trCurrent(),
+    'Siap' => ('Tandai siap').trCurrent(),
+    'Disajikan' => ('Tandai sudah disajikan').trCurrent(),
+    _ => ('Perbarui status').trCurrent(),
   };
 }

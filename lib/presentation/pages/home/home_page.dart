@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -54,11 +55,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   String get _periodLabel => switch (_selectedDays) {
-    1 => 'Hari Ini',
-    7 => '7 Hari',
-    30 => '30 Hari',
-    90 => '90 Hari',
-    _ => '$_selectedDays Hari',
+    1 => ('Hari Ini').trCurrent(),
+    7 => ('7 Hari').trCurrent(),
+    30 => ('30 Hari').trCurrent(),
+    90 => ('90 Hari').trCurrent(),
+    _ => ('$_selectedDays Hari').trCurrent(),
   };
 
   @override
@@ -121,13 +122,13 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                const PosText(
                   'Atur Widget Dashboard',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Pilih informasi yang paling penting untuk operasional ${profile == 'restoran' ? 'restoran' : profile}.',
+                  posLocale(context).pos28da64abd533((profile == 'restoran' ? ('restoran').tr(context) : profile).toString()),
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 12),
@@ -135,7 +136,7 @@ class _HomePageState extends State<HomePage> {
                   (entry) => CheckboxListTile(
                     value: draft.contains(entry.key),
                     contentPadding: EdgeInsets.zero,
-                    title: Text(entry.value),
+                    title: PosText(entry.value),
                     onChanged: (checked) => setSheetState(() {
                       if (checked == true) {
                         draft.add(entry.key);
@@ -154,12 +155,12 @@ class _HomePageState extends State<HomePage> {
                           ..clear()
                           ..addAll(_profileWidgetPreset(profile));
                       }),
-                      child: const Text('Reset sesuai profil'),
+                      child: const PosText('Reset sesuai profil'),
                     ),
                     const Spacer(),
                     FilledButton(
                       onPressed: () => Navigator.pop(sheetContext, draft),
-                      child: const Text('Simpan'),
+                      child: const PosText('Simpan'),
                     ),
                   ],
                 ),
@@ -248,7 +249,7 @@ class _HomePageState extends State<HomePage> {
                         if (usingOfflineSnapshot) ...[
                           data?['_offline_estimate'] == true
                               ? _buildDashboardStatusNotice(
-                                  'Mode offline · Angka ini hanya perkiraan dari riwayat yang tersimpan di perangkat.',
+                                  ('Mode offline · Angka ini hanya perkiraan dari riwayat yang tersimpan di perangkat.').tr(context),
                                 )
                               : _buildOfflineSnapshotNotice(offlineCachedAt),
                           const SizedBox(height: 16),
@@ -273,7 +274,7 @@ class _HomePageState extends State<HomePage> {
                             onTap: () => widget.onNavigate?.call(15),
                             borderRadius: BorderRadius.circular(10),
                             child: _buildDashboardStatusNotice(
-                              '${widget.offlineUnresolved} transaksi lokal belum selesai disinkronkan. Ketuk untuk melihat antrean dan konflik.',
+                              posLocale(context).pos2b8d8622ab16((widget.offlineUnresolved).toString()),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -369,7 +370,7 @@ class _HomePageState extends State<HomePage> {
                         if (_widgetVisible('orders')) ...[
                           if (usingOfflineSnapshot && state.orders.isEmpty)
                             _buildDashboardStatusNotice(
-                              'Riwayat pesanan belum tersimpan untuk mode offline.',
+                              ('Riwayat pesanan belum tersimpan untuk mode offline.').tr(context),
                             )
                           else
                             _buildRecentOrders(state.orders, isTablet),
@@ -378,7 +379,7 @@ class _HomePageState extends State<HomePage> {
 
                         if (state.activeShift?['_offline_snapshot'] == true)
                           _buildDashboardStatusNotice(
-                            'Status shift berasal dari data terakhir yang tersimpan. Transaksi offline tetap menunggu verifikasi server saat sinkronisasi.',
+                            ('Status shift berasal dari data terakhir yang tersimpan. Transaksi offline tetap menunggu verifikasi server saat sinkronisasi.').tr(context),
                           ),
 
                         // Section 4: Active Shift
@@ -405,7 +406,7 @@ class _HomePageState extends State<HomePage> {
               '${savedAt.hour.toString().padLeft(2, '0')}:${savedAt.minute.toString().padLeft(2, '0')}';
     return Semantics(
       liveRegion: true,
-      label: '$label. Data bukan pembaruan langsung.',
+      label: posLocale(context).pos69b46e44cb84((label).toString()),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -424,7 +425,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(width: 9),
             Expanded(
               child: Text(
-                'Data tersimpan · $label · Belum real-time',
+                posLocale(context).pos644f622b51e8((label).toString()),
                 style: const TextStyle(
                   color: AppColors.body,
                   fontSize: 12,
@@ -451,7 +452,7 @@ class _HomePageState extends State<HomePage> {
         const Icon(Icons.info_outline, size: 19, color: AppColors.warning),
         const SizedBox(width: 9),
         Expanded(
-          child: Text(
+          child: PosText(
             message,
             style: const TextStyle(fontSize: 12, color: AppColors.body),
           ),
@@ -475,7 +476,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Halo, ${name == null || name.isEmpty ? 'Pengguna' : name} 👋',
+              posLocale(context).pos49f816b08de3((name == null || name.isEmpty ? ('Pengguna').tr(context) : name).toString()),
               style: TextStyle(
                 fontSize: isTablet ? 28 : 23,
                 fontWeight: FontWeight.w800,
@@ -486,7 +487,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Ringkasan performa POS untuk $_periodLabel.',
+              posLocale(context).pos29a28ea5e03e((_periodLabel).toString()),
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -497,7 +498,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
     final periodFilter = PopupMenuButton<int>(
-      tooltip: 'Pilih periode dashboard',
+      tooltip: ('Pilih periode dashboard').tr(context),
       initialValue: _selectedDays,
       onSelected: (days) {
         if (days == _selectedDays) return;
@@ -509,10 +510,10 @@ class _HomePageState extends State<HomePage> {
         context.read<PosBloc>().add(LoadDashboardData(days: days));
       },
       itemBuilder: (context) => const [
-        PopupMenuItem(value: 1, child: Text('Hari Ini')),
-        PopupMenuItem(value: 7, child: Text('7 Hari Terakhir')),
-        PopupMenuItem(value: 30, child: Text('30 Hari Terakhir')),
-        PopupMenuItem(value: 90, child: Text('90 Hari Terakhir')),
+        PopupMenuItem(value: 1, child: PosText('Hari Ini')),
+        PopupMenuItem(value: 7, child: PosText('7 Hari Terakhir')),
+        PopupMenuItem(value: 30, child: PosText('30 Hari Terakhir')),
+        PopupMenuItem(value: 90, child: PosText('90 Hari Terakhir')),
       ],
       child: Material(
         color: Colors.white,
@@ -531,7 +532,7 @@ class _HomePageState extends State<HomePage> {
                 color: AppColors.primary,
               ),
               const SizedBox(width: 8),
-              Text(
+              PosText(
                 _periodLabel,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
@@ -549,7 +550,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     final widgetButton = IconButton.outlined(
-      tooltip: 'Atur widget dashboard',
+      tooltip: ('Atur widget dashboard').tr(context),
       onPressed: _widgetsLoaded ? _showWidgetPicker : null,
       icon: const Icon(Icons.dashboard_customize_outlined),
     );
@@ -598,7 +599,7 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Text(
               issues.isEmpty
-                  ? 'Konfigurasi POS belum siap. Tarik untuk mencoba memuat ulang.'
+                  ? ('Konfigurasi POS belum siap. Tarik untuk mencoba memuat ulang.').tr(context)
                   : issues.join('\n'),
               style: const TextStyle(
                 color: AppColors.warning,
@@ -624,8 +625,8 @@ class _HomePageState extends State<HomePage> {
     final cards = [
       _StatCardData(
         title: _selectedDays == 1
-            ? 'Pendapatan Hari Ini'
-            : 'Pendapatan $_periodLabel',
+            ? ('Pendapatan Hari Ini').tr(context)
+            : posLocale(context).pos14401dca7861((_periodLabel).toString()),
         value: _formatCurrency(todayRevenue),
         icon: Icons.account_balance_wallet_outlined,
         color: AppColors.primary,
@@ -633,22 +634,22 @@ class _HomePageState extends State<HomePage> {
       ),
       _StatCardData(
         title: _selectedDays == 1
-            ? 'Transaksi Hari Ini'
-            : 'Transaksi $_periodLabel',
+            ? ('Transaksi Hari Ini').tr(context)
+            : posLocale(context).posb9fb0286e5f6((_periodLabel).toString()),
         value: '$todayTransactions',
         icon: Icons.receipt_long_outlined,
         color: AppColors.info,
         growth: transactionGrowth,
       ),
       _StatCardData(
-        title: 'Rata-rata Order',
+        title: ('Rata-rata Order').tr(context),
         value: _formatCurrency(todayAvgOrder),
         icon: Icons.show_chart_outlined,
         color: AppColors.warning,
         growth: null,
       ),
       _StatCardData(
-        title: 'Total Produk',
+        title: ('Total Produk').tr(context),
         value: '$totalProducts',
         icon: Icons.inventory_2_outlined,
         color: AppColors.neutral,
@@ -740,7 +741,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
+                child: PosText(
                   data.title,
                   style: const TextStyle(
                     fontSize: 12,
@@ -812,8 +813,8 @@ class _HomePageState extends State<HomePage> {
         children: [
           Text(
             _selectedDays == 1
-                ? 'Penjualan Hari Ini'
-                : 'Penjualan $_periodLabel Terakhir',
+                ? ('Penjualan Hari Ini').tr(context)
+                : posLocale(context).pos063e03843503((_periodLabel).toString()),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -825,7 +826,7 @@ class _HomePageState extends State<HomePage> {
             height: isTablet ? 250 : 200,
             child: dailySales.isEmpty
                 ? Center(
-                    child: Text(
+                    child: PosText(
                       'Belum ada data penjualan',
                       style: TextStyle(
                         color: Colors.grey.shade400,
@@ -973,7 +974,7 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const PosText(
             'Metode Pembayaran',
             style: TextStyle(
               fontSize: 16,
@@ -986,7 +987,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(
               height: 160,
               child: Center(
-                child: Text(
+                child: PosText(
                   'Belum ada data pembayaran',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                 ),
@@ -1041,7 +1042,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text(
+                    PosText(
                       label,
                       style: TextStyle(
                         fontSize: 12,
@@ -1074,7 +1075,7 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const PosText(
             'Produk Terlaris',
             style: TextStyle(
               fontSize: 16,
@@ -1087,7 +1088,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(
               height: 160,
               child: Center(
-                child: Text(
+                child: PosText(
                   'Belum ada data produk',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                 ),
@@ -1143,7 +1144,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$qtySold terjual',
+                            posLocale(context).pos67fdbcba215b((qtySold).toString()),
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey.shade500,
@@ -1175,7 +1176,7 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const PosText(
           'Shift Aktif',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
@@ -1204,7 +1205,7 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      state.activeShift!['toko']?['nama_toko'] ?? 'Toko Kasir',
+                      state.activeShift!['toko']?['nama_toko'] ?? ('Toko Kasir').tr(context),
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -1212,7 +1213,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Waktu Buka: ${state.activeShift!['opened_at'] ?? '-'}',
+                      posLocale(context).pos13585ecae7e3((state.activeShift!['opened_at'] ?? '-').toString()),
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 12,
@@ -1230,7 +1231,7 @@ class _HomePageState extends State<HomePage> {
                   color: AppColors.successBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
+                child: const PosText(
                   'Aktif',
                   style: TextStyle(
                     color: AppColors.success,
@@ -1290,7 +1291,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              '${lowStockProducts.length} produk kosong atau mencapai batas pesan ulang.',
+              posLocale(context).poscda259d82b9a((lowStockProducts.length).toString()),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -1306,7 +1307,7 @@ class _HomePageState extends State<HomePage> {
               minimumSize: const Size(0, 34),
               padding: const EdgeInsets.symmetric(horizontal: 9),
             ),
-            child: const Text(
+            child: const PosText(
               'Periksa',
               style: TextStyle(
                 color: AppColors.danger,
@@ -1340,7 +1341,7 @@ class _HomePageState extends State<HomePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              const PosText(
                 'Transaksi Terakhir',
                 style: TextStyle(
                   fontSize: 16,
@@ -1350,7 +1351,7 @@ class _HomePageState extends State<HomePage> {
               ),
               TextButton(
                 onPressed: () => widget.onNavigate?.call(3),
-                child: const Text('Lihat Semua'),
+                child: const PosText('Lihat Semua'),
               ),
             ],
           ),
@@ -1400,7 +1401,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        order.status,
+                        posStatusLabel(order.status, context),
                         style: const TextStyle(
                           color: AppColors.success,
                           fontSize: 10,

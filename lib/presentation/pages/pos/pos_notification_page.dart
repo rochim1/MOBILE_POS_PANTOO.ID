@@ -1,4 +1,8 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../../core/notifications/pos_push_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 import '../../../../injections.dart';
 import '../../../core/_core.dart';
@@ -75,14 +79,14 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        title: const Text('Notifikasi'),
+        title: const PosText('Notifikasi'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
           if (_unread > 0)
             TextButton(
               onPressed: _readAll,
-              child: const Text(
+              child: const PosText(
                 'Tandai dibaca',
                 style: TextStyle(color: Colors.white),
               ),
@@ -94,6 +98,48 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            if (sl.isRegistered<PosPushService>() &&
+                sl<PosPushService>().supported)
+              SliverToBoxAdapter(
+                child: ValueListenableBuilder<PosPushStatus>(
+                  valueListenable: sl<PosPushService>().status,
+                  builder: (context, status, _) {
+                    if (status != PosPushStatus.denied &&
+                        status != PosPushStatus.error)
+                      return const SizedBox.shrink();
+                    final strings = AppLocalizations.of(context)!;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.notifications_off_outlined,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              status == PosPushStatus.denied
+                                  ? strings.pushPermissionDenied
+                                  : strings.pushConnectionError,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              if (status == PosPushStatus.denied) {
+                                await openAppSettings();
+                              } else {
+                                await sl<PosPushService>().activate();
+                              }
+                            },
+                            child: const PosText('Perbarui'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -107,19 +153,19 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _module,
                     isDense: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Kategori notifikasi',
+                    decoration: InputDecoration(
+                      labelText: ('Kategori notifikasi').tr(context),
                       prefixIcon: Icon(Icons.filter_list),
                       border: OutlineInputBorder(),
                       filled: true,
                       fillColor: Colors.white,
                     ),
                     items: const [
-                      DropdownMenuItem(value: '', child: Text('Semua')),
-                      DropdownMenuItem(value: 'POS', child: Text('POS')),
+                      DropdownMenuItem(value: '', child: PosText('Semua')),
+                      DropdownMenuItem(value: 'POS', child: PosText('POS')),
                       DropdownMenuItem(
                         value: 'inventory',
-                        child: Text('Inventori'),
+                        child: PosText('Inventori'),
                       ),
                     ],
                     onChanged: (value) {
@@ -147,7 +193,7 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                         color: Colors.black26,
                       ),
                       SizedBox(height: 12),
-                      Text(
+                      PosText(
                         'Belum ada notifikasi',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
@@ -196,7 +242,7 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                                         Expanded(
                                           child: Text(
                                             item['title']?.toString() ??
-                                                'Notifikasi',
+                                                ('Notifikasi').tr(context),
                                             style: TextStyle(
                                               fontWeight: unread
                                                   ? FontWeight.w700
@@ -223,7 +269,7 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                                       ),
                                     ),
                                     const SizedBox(height: 7),
-                                    Text(
+                                    PosText(
                                       _dateLabel(
                                         item['tanggal_notifikasi'] ??
                                             item['createdAt'],

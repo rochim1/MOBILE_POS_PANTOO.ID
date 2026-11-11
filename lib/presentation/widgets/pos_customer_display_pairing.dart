@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,7 +49,7 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                               ),
                               SizedBox(width: 10),
                               Expanded(
-                                child: Text(
+                                child: PosText(
                                   'Hubungkan Layar Pelanggan',
                                   style: TextStyle(
                                     fontSize: 18,
@@ -60,7 +61,7 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          const PosText(
                             'Buka tautan ini pada tablet/monitor pelanggan. Layar tersebut hanya menampilkan keranjang dan total, tanpa akses akun POS.',
                             style: TextStyle(
                               color: AppColors.textSecondary,
@@ -73,12 +74,12 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                               ButtonSegment(
                                 value: PosCustomerDisplayTransport.internet,
                                 icon: Icon(Icons.cloud_outlined),
-                                label: Text('Internet'),
+                                label: PosText('Internet'),
                               ),
                               ButtonSegment(
                                 value: PosCustomerDisplayTransport.localWifi,
                                 icon: Icon(Icons.wifi),
-                                label: Text('Wi-Fi lokal'),
+                                label: PosText('Wi-Fi lokal'),
                                 enabled: !kIsWeb,
                               ),
                             ],
@@ -152,7 +153,7 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                                     sheetContext,
                                   ).showSnackBar(
                                     const SnackBar(
-                                      content: Text(
+                                      content: PosText(
                                         'Tautan layar pelanggan disalin',
                                       ),
                                     ),
@@ -160,12 +161,12 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                                 }
                               },
                               icon: const Icon(Icons.copy_outlined),
-                              label: const Text('Salin tautan'),
+                              label: const PosText('Salin tautan'),
                             ),
                             const SizedBox(height: 12),
                           ],
                           if (state.message.isNotEmpty) ...[
-                            Text(
+                            PosText(
                               state.message,
                               style: const TextStyle(
                                 color: AppColors.danger,
@@ -196,10 +197,10 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                                       : const Icon(Icons.link_outlined),
                                   label: Text(
                                     isWaiting
-                                        ? 'Menunggu perangkat…'
+                                        ? ('Menunggu perangkat…').tr(context)
                                         : isConnected
-                                        ? 'Layar terhubung'
-                                        : 'Buat tautan pairing',
+                                        ? ('Layar terhubung').tr(context)
+                                        : ('Buat tautan pairing').tr(context),
                                   ),
                                 ),
                               ),
@@ -210,14 +211,14 @@ Future<void> showPosCustomerDisplayPairing(BuildContext context) async {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.danger,
                                   ),
-                                  child: const Text('Putuskan'),
+                                  child: const PosText('Putuskan'),
                                 ),
                               ],
                             ],
                           ),
                           if (isConnected) ...[
                             const SizedBox(height: 10),
-                            const Text(
+                            const PosText(
                               'Terhubung · perubahan keranjang akan tampil otomatis.',
                               style: TextStyle(
                                 color: AppColors.success,
@@ -258,7 +259,7 @@ class _PairingGuide extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const PosText(
             'Cara menyambungkan',
             style: TextStyle(
               color: AppColors.heading,
@@ -268,7 +269,7 @@ class _PairingGuide extends StatelessWidget {
           ),
           const SizedBox(height: 9),
           if (isLocal) ...[
-            const Text(
+            const PosText(
               'Ponsel POS dan layar pelanggan harus berada pada Wi-Fi/hotspot pribadi yang sama. Mode ini tidak memerlukan internet; biarkan aplikasi POS tetap terbuka. Hindari Wi-Fi publik.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
@@ -277,32 +278,32 @@ class _PairingGuide extends StatelessWidget {
           _GuideStep(
             number: '1',
             text: hasLink
-                ? 'Tautan pairing sudah dibuat di bawah.'
-                : 'Tekan “Buat tautan pairing” di bawah.',
+                ? ('Tautan pairing sudah dibuat di bawah.').tr(context)
+                : ('Tekan “Buat tautan pairing” di bawah.').tr(context),
           ),
           const SizedBox(height: 7),
-          const _GuideStep(
+           _GuideStep(
             number: '2',
             text:
-                'Di tablet atau monitor pelanggan, pindai QR atau buka tautan yang disalin. Tidak perlu login.',
+                ('Di tablet atau monitor pelanggan, pindai QR atau buka tautan yang disalin. Tidak perlu login.').tr(context),
           ),
           const SizedBox(height: 7),
-          const _GuideStep(
+           _GuideStep(
             number: '3',
             text:
-                'Tunggu status “Layar terhubung”, lalu tambahkan produk ke keranjang untuk memastikan layar ikut berubah.',
+                ('Tunggu status “Layar terhubung”, lalu tambahkan produk ke keranjang untuk memastikan layar ikut berubah.').tr(context),
           ),
           const SizedBox(height: 7),
-          const _GuideStep(
+           _GuideStep(
             number: '4',
             text:
-                'Tekan “Putuskan” setelah kasir selesai atau sebelum berganti operator. Tautan akan dinonaktifkan.',
+                ('Tekan “Putuskan” setelah kasir selesai atau sebelum berganti operator. Tautan akan dinonaktifkan.').tr(context),
           ),
           const SizedBox(height: 9),
           Text(
             isLocal
-                ? 'Jika tautan tidak terbuka, periksa apakah kedua perangkat benar-benar satu jaringan dan fitur isolasi perangkat pada router tidak aktif.'
-                : 'Kedua perangkat memerlukan internet, tetapi tidak harus memakai Wi-Fi yang sama. Bluetooth tidak digunakan untuk layar pelanggan.',
+                ? ('Jika tautan tidak terbuka, periksa apakah kedua perangkat benar-benar satu jaringan dan fitur isolasi perangkat pada router tidak aktif.').tr(context)
+                : ('Kedua perangkat memerlukan internet, tetapi tidak harus memakai Wi-Fi yang sama. Bluetooth tidak digunakan untuk layar pelanggan.').tr(context),
             style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
           ),
         ],
@@ -341,7 +342,7 @@ class _GuideStep extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: PosText(
             text,
             style: const TextStyle(
               color: AppColors.body,

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -156,21 +157,21 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       children: [
                         Expanded(
                           flex: 4,
-                          child: Text(
+                          child: PosText(
                             'Produk',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         Expanded(
                           flex: 2,
-                          child: Text(
+                          child: PosText(
                             'SKU',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         Expanded(
                           flex: 1,
-                          child: Text(
+                          child: PosText(
                             'Stok',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontWeight: FontWeight.bold),
@@ -178,7 +179,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         ),
                         Expanded(
                           flex: 2,
-                          child: Text(
+                          child: PosText(
                             'Harga',
                             textAlign: TextAlign.right,
                             style: TextStyle(fontWeight: FontWeight.bold),
@@ -211,7 +212,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   child: Container(
                     color: Colors.white,
                     child: const Center(
-                      child: Text('Tidak ada produk ditemukan'),
+                      child: PosText('Tidak ada produk ditemukan'),
                     ),
                   ),
                 )
@@ -270,12 +271,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     child: Column(
                       children: [
                         if (_catalogOffline)
-                          const Text(
+                          const PosText(
                             'Offline · hanya katalog tersimpan, belum tentu lengkap',
                             textAlign: TextAlign.center,
                           ),
                         if (_catalogError.isNotEmpty)
-                          Text(
+                          PosText(
                             _catalogError,
                             style: const TextStyle(color: Colors.red),
                             textAlign: TextAlign.center,
@@ -284,7 +285,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             IconButton(
-                              tooltip: 'Produk sebelumnya',
+                              tooltip: ('Produk sebelumnya').tr(context),
                               onPressed: _catalogPage <= 1 || _remoteSearching
                                   ? null
                                   : () => _loadCatalog(page: _catalogPage - 1),
@@ -292,12 +293,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             ),
                             Flexible(
                               child: Text(
-                                'Halaman $_catalogPage · $_catalogTotal produk',
+                                posLocale(context).posddeedb7fc620((_catalogPage).toString(), (_catalogTotal).toString()),
                                 textAlign: TextAlign.center,
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Produk berikutnya',
+                              tooltip: ('Produk berikutnya').tr(context),
                               onPressed:
                                   _catalogPage * 30 >= _catalogTotal ||
                                       _remoteSearching
@@ -307,7 +308,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             ),
                             if (_catalogError.isNotEmpty)
                               IconButton(
-                                tooltip: 'Muat ulang katalog',
+                                tooltip: ('Muat ulang katalog').tr(context),
                                 onPressed: () =>
                                     _loadCatalog(page: _catalogPage),
                                 icon: const Icon(Icons.refresh),
@@ -440,7 +441,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                 child: TextField(
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
-                    hintText: 'Cari nama, kode, SKU, atau barcode...',
+                    hintText: ('Cari nama, kode, SKU, atau barcode...').tr(context),
                     hintStyle: const TextStyle(
                       fontSize: 13,
                       color: Colors.black38,
@@ -472,7 +473,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             ),
                           )
                         : IconButton(
-                            tooltip: 'Scan barcode',
+                            tooltip: ('Scan barcode').tr(context),
                             onPressed: () => _scanBarcode(context, state),
                             padding: EdgeInsets.zero,
                             constraints: BoxConstraints.tightFor(
@@ -506,7 +507,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
           if (widget.isMobile) ...[
             const SizedBox(width: 5),
             IconButton(
-              tooltip: 'Pilih kategori',
+              tooltip: ('Pilih kategori').tr(context),
               onPressed: _pickCatalogCategory,
               icon: Container(
                 width: 40,
@@ -525,7 +526,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
             ),
             const SizedBox(width: 5),
             IconButton.outlined(
-              tooltip: 'Pilih pelanggan',
+              tooltip: ('Pilih pelanggan').tr(context),
               onPressed: () => _selectCustomer(context),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 40, height: 40),
@@ -543,7 +544,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
           ],
           if (!widget.isMobile) ...[
             IconButton(
-              tooltip: 'Cari semua kategori',
+              tooltip: ('Cari semua kategori').tr(context),
               onPressed: _pickCatalogCategory,
               icon: const Icon(Icons.tune),
             ),
@@ -578,7 +579,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     Icon(Icons.add, color: AppColors.primary, size: 18),
                     SizedBox(width: 4),
                     Flexible(
-                      child: Text(
+                      child: PosText(
                         'Pelanggan',
                         style: TextStyle(
                           color: AppColors.primary,
@@ -606,7 +607,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }) {
     final orderTypes = _availableOrderTypes(state);
     return PopupMenuButton<String>(
-      tooltip: 'Tipe pemenuhan: ${_orderTypeLabel(selectedOrderType)}',
+      tooltip: posLocale(context).pos0a10d64b8683((_orderTypeLabel(selectedOrderType)).toString()),
       initialValue: selectedOrderType,
       onSelected: (value) async {
         if (value == 'dine_in') {
@@ -639,7 +640,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
           const PopupMenuItem<String>(
             enabled: false,
             height: 34,
-            child: Text(
+            child: PosText(
               'TIPE PEMENUHAN',
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
@@ -658,21 +659,21 @@ class _PosProductPanelState extends State<PosProductPanel> {
           const PopupMenuItem<String>(
             enabled: false,
             height: 34,
-            child: Text(
+            child: PosText(
               'AKSI TRANSAKSI',
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
-          const PopupMenuItem<String>(
+           PopupMenuItem<String>(
             value: '__served_by',
             child: _OrderMenuRow(
               icon: Icons.badge_outlined,
-              label: 'Dilayani Oleh',
+              label: ('Dilayani Oleh').tr(context),
             ),
           ),
-          const PopupMenuItem<String>(
+           PopupMenuItem<String>(
             value: '__reset',
-            child: _OrderMenuRow(icon: Icons.sync, label: 'Reset'),
+            child: _OrderMenuRow(icon: Icons.sync, label: ('Reset').tr(context)),
           ),
         ];
       },
@@ -711,7 +712,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   child: Text(
                     selectedOrderType == 'dine_in' &&
                             state.selectedTableName != null
-                        ? 'Meja · ${state.selectedTableName}'
+                        ? posLocale(context).posc617cc586a0c((state.selectedTableName).toString())
                         : _orderTypeLabel(selectedOrderType),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -793,36 +794,36 @@ class _PosProductPanelState extends State<PosProductPanel> {
       if (features['use_tables'] == true)
         (
           value: 'dine_in',
-          label: 'Makan di Tempat (Pilih Meja)',
+          label: ('Makan di Tempat (Pilih Meja)').tr(context),
           icon: Icons.restaurant_outlined,
         ),
       if (isRestaurant)
-        const (
+        (
           value: 'free_table',
-          label: 'Makan di Tempat (Tanpa Meja)',
+          label: ('Makan di Tempat (Tanpa Meja)').tr(context),
           icon: Icons.chair_alt_outlined,
         ),
-      const (
+      (
         value: 'take_away',
-        label: 'Bawa Pulang',
+        label: ('Bawa Pulang').tr(context),
         icon: Icons.shopping_bag_outlined,
       ),
       if (features['use_delivery'] == true)
-        const (
+        (
           value: 'delivery',
-          label: 'Pesan Antar',
+          label: ('Pesan Antar').tr(context),
           icon: Icons.local_shipping_outlined,
         ),
       if (isRestaurant)
-        const (
+        (
           value: 'quick_service',
-          label: 'Layanan Cepat',
+          label: ('Layanan Cepat').tr(context),
           icon: Icons.timer_outlined,
         ),
       if (features['use_appointments'] == true)
-        const (
+        (
           value: 'reservation',
-          label: 'Reservasi',
+          label: ('Reservasi').tr(context),
           icon: Icons.event_available_outlined,
         ),
     ];
@@ -835,12 +836,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }
 
   String _orderTypeLabel(String value) => switch (value) {
-    'dine_in' => 'Makan di Tempat',
-    'free_table' => 'Makan di Tempat (Tanpa Meja)',
-    'delivery' || 'online_delivery' => 'Pesan Antar',
-    'quick_service' => 'Layanan Cepat',
-    'reservation' => 'Reservasi',
-    _ => 'Bawa Pulang',
+    'dine_in' => ('Makan di Tempat').trCurrent(),
+    'free_table' => ('Makan di Tempat (Tanpa Meja)').trCurrent(),
+    'delivery' || 'online_delivery' => ('Pesan Antar').trCurrent(),
+    'quick_service' => ('Layanan Cepat').trCurrent(),
+    'reservation' => ('Reservasi').trCurrent(),
+    _ => ('Bawa Pulang').trCurrent(),
   };
 
   Future<void> _showServedByInfo(BuildContext context, PosState state) {
@@ -851,14 +852,14 @@ class _PosProductPanelState extends State<PosProductPanel> {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Dilayani Oleh'),
+        title: const PosText('Dilayani Oleh'),
         content: Text(
-          '$cashier\n\nTransaksi otomatis dicatat atas kasir yang membuka shift aktif.',
+          posLocale(dialogContext).posf8d9cba5e651((cashier).toString()),
         ),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Mengerti'),
+            child: const PosText('Mengerti'),
           ),
         ],
       ),
@@ -905,7 +906,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
               ),
             ),
             IconButton(
-              tooltip: 'Favorit',
+              tooltip: ('Favorit').tr(context),
               onPressed: () => context.read<PosBloc>().add(
                 ToggleFavoriteProduct(product.id),
               ),
@@ -936,7 +937,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
             Expanded(
               flex: 2,
               child: Text(
-                'Rp ${formatRupiahAmount(product.price)}',
+                posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString()),
                 style: const TextStyle(color: Colors.black87),
                 textAlign: TextAlign.right,
               ),
@@ -957,10 +958,10 @@ class _PosProductPanelState extends State<PosProductPanel> {
         product.tracksStock &&
         (state.runtimeConfig['features'] as Map?)?['track_stock'] != false;
     final stockLabel = !tracksStock
-        ? 'Stok tidak dilacak'
+        ? 'Stok tidak dilacak'.tr(context)
         : unavailable
-        ? 'Habis'
-        : '${_formatStock(product.stock)} tersedia';
+        ? 'Habis'.tr(context)
+        : posLocale(context).pose9a226455937(_formatStock(product.stock));
 
     return Material(
       color: Colors.white,
@@ -1036,7 +1037,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 120),
                     child: Text(
-                      'Rp ${formatRupiahInput(product.price)}',
+                      posLocale(context).pos70272f418def((formatRupiahInput(product.price)).toString()),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
@@ -1055,8 +1056,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     children: [
                       IconButton(
                         tooltip: state.favoriteProductIds.contains(product.id)
-                            ? 'Hapus ${product.name} dari favorit'
-                            : 'Tambahkan ${product.name} ke favorit',
+                            ? posLocale(context).posb45b8e526f3f((product.name).toString())
+                            : posLocale(context).pos954c7b7880aa((product.name).toString()),
                         onPressed: () => context.read<PosBloc>().add(
                           ToggleFavoriteProduct(product.id),
                         ),
@@ -1075,8 +1076,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       ),
                       IconButton(
                         tooltip: unavailable
-                            ? '${product.name} tidak tersedia'
-                            : 'Tambah ${product.name} ke keranjang',
+                            ? posLocale(context).pos0137b35ee82f((product.name).toString())
+                            : posLocale(context).posee8ce59373ea((product.name).toString()),
                         onPressed: () => _addProductToCart(context, product),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(
@@ -1161,7 +1162,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     right: 2,
                     top: 2,
                     child: IconButton(
-                      tooltip: 'Tambah atau hapus dari favorit',
+                      tooltip: ('Tambah atau hapus dari favorit').tr(context),
                       onPressed: () => context.read<PosBloc>().add(
                         ToggleFavoriteProduct(product.id),
                       ),
@@ -1199,9 +1200,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       child: Text(
                         product.preparationMode == 'station'
                             ? (product.productionStationName.isEmpty
-                                  ? 'Dapur'
+                                  ? ('Dapur').tr(context)
                                   : product.productionStationName)
-                            : 'Langsung',
+                            : ('Langsung').tr(context),
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -1242,7 +1243,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Rp ${formatRupiahAmount(product.price)}',
+                            posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString()),
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppColors.primary,
@@ -1253,7 +1254,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         ),
                         if (product.tracksStock)
                           Text(
-                            'Stok ${_formatStock(product.stock)}',
+                            posLocale(context).pos0f3c48a06258((_formatStock(product.stock)).toString()),
                             style: TextStyle(
                               color: product.stock <= 0
                                   ? AppColors.danger
@@ -1263,7 +1264,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             ),
                           )
                         else
-                          const Text(
+                          const PosText(
                             'Nonstok',
                             style: TextStyle(
                               color: AppColors.textSecondary,
@@ -1347,7 +1348,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                               color: AppColors.primary,
                             ),
                             SizedBox(width: 8),
-                            Text(
+                            PosText(
                               'Pilih Pelanggan',
                               style: TextStyle(
                                 fontSize: 16,
@@ -1364,7 +1365,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                           onChanged: (value) =>
                               setSheetState(() => query = value),
                           decoration: InputDecoration(
-                            hintText: 'Cari nama atau nomor telepon...',
+                            hintText: ('Cari nama atau nomor telepon...').tr(context),
                             prefixIcon: const Icon(Icons.search),
                             filled: true,
                             fillColor: Colors.grey.shade50,
@@ -1393,7 +1394,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                               ));
                             },
                             icon: const Icon(Icons.person_add_alt_1),
-                            label: const Text('Tambah pelanggan baru'),
+                            label: const PosText('Tambah pelanggan baru'),
                           ),
                         ),
                       ),
@@ -1405,8 +1406,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         leading: const CircleAvatar(
                           child: Icon(Icons.person_off_outlined),
                         ),
-                        title: const Text('Tanpa pelanggan'),
-                        subtitle: const Text('Gunakan pelanggan umum'),
+                        title: const PosText('Tanpa pelanggan'),
+                        subtitle: const PosText('Gunakan pelanggan umum'),
                         onTap: () => Navigator.pop(sheetContext, (
                           clear: true,
                           customer: null,
@@ -1416,7 +1417,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       Expanded(
                         child: filtered.isEmpty
                             ? const Center(
-                                child: Text('Pelanggan tidak ditemukan'),
+                                child: PosText('Pelanggan tidak ditemukan'),
                               )
                             : ListView.separated(
                                 padding: EdgeInsets.only(
@@ -1449,7 +1450,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                                     title: Text(item.name),
                                     subtitle: Text(
                                       item.phone.isEmpty
-                                          ? 'Tanpa nomor telepon'
+                                          ? ('Tanpa nomor telepon').tr(context)
                                           : item.phone,
                                     ),
                                     trailing: selected
@@ -1517,7 +1518,7 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text(
+              child: PosText(
                 'Pilih meja untuk pesanan',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
@@ -1527,8 +1528,8 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
               child: TextField(
                 autofocus: true,
                 onChanged: (value) => setState(() => _search = value),
-                decoration: const InputDecoration(
-                  labelText: 'Cari meja',
+                decoration:  InputDecoration(
+                  labelText: ('Cari meja').tr(context),
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
                 ),
@@ -1537,7 +1538,7 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
             const SizedBox(height: 12),
             Expanded(
               child: tables.isEmpty
-                  ? const Center(child: Text('Meja tidak ditemukan'))
+                  ? const Center(child: PosText('Meja tidak ditemukan'))
                   : GridView.builder(
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
@@ -1593,7 +1594,7 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
                                       ),
                                       const Spacer(),
                                       Text(
-                                        occupied ? 'Terisi' : 'Tersedia',
+                                        occupied ? ('Terisi').tr(context) : ('Tersedia').tr(context),
                                         style: TextStyle(
                                           color: occupied
                                               ? Colors.orange.shade800
@@ -1614,7 +1615,7 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
                                     ),
                                   ),
                                   Text(
-                                    '${table.capacity} kursi',
+                                    posLocale(context).posc92e889b21e0((table.capacity).toString()),
                                     style: const TextStyle(
                                       color: Colors.black54,
                                       fontSize: 12,
@@ -1665,7 +1666,7 @@ class _OrderMenuRow extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: AppColors.primary),
         const SizedBox(width: 12),
-        Expanded(child: Text(label)),
+        Expanded(child: PosText(label)),
         if (selected)
           const Icon(Icons.check, size: 18, color: AppColors.primary),
       ],

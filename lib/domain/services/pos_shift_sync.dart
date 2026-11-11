@@ -51,7 +51,8 @@ Future<Map<String, dynamic>?> discoverCheckoutShift({
     final mode = store.shiftMode == 'per_operator'
         ? 'per_operator'
         : 'shared_register';
-    if (!checkedModes.add(mode)) continue;
+    // PIN discovery can search other outlets; shared drawers are store scoped.
+    if (mode == 'per_operator' && !checkedModes.add(mode)) continue;
     if (mode == 'per_operator' && operatorId.isEmpty) {
       throw StateError('Masukkan PIN kasir sebelum memeriksa shift.');
     }
@@ -77,9 +78,13 @@ Future<Map<String, dynamic>?> discoverCheckoutShift({
       // a PIN-owned shift as a terminal-owned shared register (or vice versa).
       if (savedMode != mode) continue;
     }
-    final expectedOwner = mode == 'per_operator' ? operatorId : terminalUserId;
-    if (expectedOwner.isEmpty ||
-        shift['kasir_user_id']?.toString() != expectedOwner) {
+    if ((mode == 'per_operator' &&
+            (operatorId.isEmpty ||
+                shift['kasir_user_id']?.toString() != operatorId)) ||
+        (mode == 'shared_register' &&
+            (terminalUserId.isEmpty ||
+                shift['shift_mode'] == 'per_operator' ||
+                shift['toko_id']?.toString() != store.id))) {
       throw StateError(
         'Shift tidak sesuai dengan sesi kasir. Hubungkan kembali untuk memeriksa shift.',
       );

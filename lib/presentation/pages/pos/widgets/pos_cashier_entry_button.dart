@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 
@@ -30,7 +31,7 @@ class _PosCashierEntryButtonState extends State<PosCashierEntryButton> {
       if (mounted) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           const SnackBar(
-            content: Text(
+            content: PosText(
               'Kasir belum dapat dibuka. Periksa koneksi dan kesiapan toko, lalu coba lagi.',
             ),
           ),
@@ -50,7 +51,7 @@ class _PosCashierEntryButtonState extends State<PosCashierEntryButton> {
     foregroundColor: Colors.white,
     shape: const CircleBorder(),
     elevation: 2,
-    tooltip: 'Buka kasir',
+    tooltip: ('Buka kasir').tr(context),
     onPressed: _busy ? null : _open,
     child: _busy
         ? const SizedBox.square(

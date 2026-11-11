@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/pos_transfer.dart';
 
@@ -50,7 +51,7 @@ class PosTransferLocationFields extends StatelessWidget {
           initialValue: current,
           isExpanded: true,
           decoration: InputDecoration(
-            labelText: label,
+            labelText: (label).tr(context),
             border: const OutlineInputBorder(),
           ),
           items: unique.entries
@@ -69,7 +70,7 @@ class PosTransferLocationFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        PosText(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
         select(
           'Lokasi stok $title',
@@ -94,7 +95,7 @@ class PosTransferLocationFields extends StatelessWidget {
         ),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('Gedung, ruangan & rak (opsional)'),
+          title: const PosText('Gedung, ruangan & rak (opsional)'),
           initiallyExpanded: [
             'gedung_kode',
             'ruangan_kode',

@@ -1,3 +1,6 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'dart:async';
+import '../../../core/notifications/pos_push_service.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +44,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
     result.fold(
       (failure) => ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(failure.message),
+          content: PosText(failure.message),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),
@@ -54,6 +57,9 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
           MaterialPageRoute<void>(builder: (_) => const PosOnboardingGate()),
           (route) => false,
         );
+        if (sl.isRegistered<PosPushService>()) {
+          unawaited(sl<PosPushService>().activate());
+        }
       },
     );
   }
@@ -82,35 +88,39 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                       children: [
                         Image.asset('assets/images/pantoo.png', height: 60),
                         const SizedBox(height: 18),
-                        Text(
+                        PosText(
                           'Siapkan Profil Usaha',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        PosText(
                           'Profil ini menjadi workspace utama untuk toko atau organisasi, produk, kasir, laporan, dan trial Pantoo Anda.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
                         const SizedBox(height: 24),
                         TextFormField(
+                          errorBuilder: posValidationError,
                           controller: _businessName,
                           autofocus: true,
                           textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Nama Usaha/Organisasi',
+                          decoration: InputDecoration(
+                            labelText: ('Nama Usaha/Organisasi').tr(context),
                             hintText:
-                                'Contoh: Toko Pantoo Jaya atau Koperasi Maju',
+                                ('Contoh: Toko Pantoo Jaya atau Koperasi Maju')
+                                    .tr(context),
                             prefixIcon: Icon(Icons.storefront_outlined),
                           ),
                           validator: (value) => (value?.trim().length ?? 0) < 3
-                              ? 'Nama usaha atau organisasi minimal 3 karakter'
+                              ? ('Nama usaha atau organisasi minimal 3 karakter')
+                                    .tr(context)
                               : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
+                          errorBuilder: posValidationError,
                           controller: _phone,
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.done,
@@ -118,11 +128,14 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           maxLength: 15,
-                          decoration: const InputDecoration(
-                            labelText: 'Nomor Telepon Usaha/Organisasi',
-                            hintText: '08xxxxxxxxxx',
+                          decoration: InputDecoration(
+                            labelText: ('Nomor Telepon Usaha/Organisasi').tr(
+                              context,
+                            ),
+                            hintText: ('08xxxxxxxxxx').tr(context),
                             helperText:
-                                'Boleh memakai nomor penanggung jawab sementara.',
+                                ('Boleh memakai nomor penanggung jawab sementara.')
+                                    .tr(context),
                             helperMaxLines: 2,
                             prefixIcon: Icon(Icons.phone_outlined),
                           ),
@@ -133,7 +146,8 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                                   r'^(?:0[0-9]{8,13}|62[0-9]{8,13})$',
                                 ).hasMatch(phone)
                                 ? null
-                                : 'Gunakan nomor aktif yang diawali 0 atau 62';
+                                : ('Gunakan nomor aktif yang diawali 0 atau 62')
+                                      .tr(context);
                           },
                         ),
                         const SizedBox(height: 12),
@@ -152,7 +166,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                               ),
                               SizedBox(width: 10),
                               Expanded(
-                                child: Text(
+                                child: PosText(
                                   'Paket trial akan aktif otomatis setelah profil usaha berhasil dibuat.',
                                 ),
                               ),
@@ -173,7 +187,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text('Buat Profil & Lanjutkan'),
+                                : const PosText('Buat Profil & Lanjutkan'),
                           ),
                         ),
                       ],

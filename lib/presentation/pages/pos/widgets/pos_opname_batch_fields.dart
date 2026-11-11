@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/pos_opname.dart';
 
@@ -50,18 +51,19 @@ class PosOpnameBatchFields extends StatelessWidget {
     ) => Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
+errorBuilder: posValidationError,
         key: ValueKey(key),
         initialValue: number(qty),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
-          labelText: label,
-          helperText: helper,
+          labelText: (label).tr(context),
+          helperText: (helper).tr(context),
           border: const OutlineInputBorder(),
         ),
         validator: (text) {
           final n = double.tryParse((text ?? '').replaceAll(',', '.'));
           return n == null || !n.isFinite || n < 0
-              ? 'Isi angka nol atau lebih'
+              ? ('Isi angka nol atau lebih').tr(context)
               : null;
         },
         onChanged: change,
@@ -87,7 +89,7 @@ class PosOpnameBatchFields extends StatelessWidget {
             'Sistem ${number(item['qty_unbatched_system'])}; dihitung terpisah.',
           ),
         Text(
-          'Total fisik: ${number(item['input_qty'])} ${item['unit'] ?? ''}',
+          posLocale(context).posd6f7fd5de931((number(item['input_qty'])).toString(), (item['unit'] ?? '').toString()),
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ],

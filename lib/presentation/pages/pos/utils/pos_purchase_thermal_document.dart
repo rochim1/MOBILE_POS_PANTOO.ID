@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:intl/intl.dart';
 
 /// Compact ESC/POS text for 58/80 mm printers. The A4 PDF remains the
@@ -12,16 +13,16 @@ class PosPurchaseThermalDocument {
   }) {
     final lines = <String>[
       _companyName(company),
-      'PURCHASE ORDER',
+      ('PURCHASE ORDER').trCurrent(),
       _divider(charactersPerLine),
-      'No PO: ${_text(purchase['no_po'])}',
-      'Tanggal: ${_date(purchase['tanggal_po'])}',
-      'Supplier: ${_text(purchase['supplier_name'])}',
-      'Status: ${_text(purchase['status']).toUpperCase()}',
+      ('No PO: ${_text(purchase['no_po'])}').trCurrent(),
+      ('Tanggal: ${_date(purchase['tanggal_po'])}').trCurrent(),
+      ('Supplier: ${_text(purchase['supplier_name'])}').trCurrent(),
+      ('Status: ${_text(purchase['status']).toUpperCase()}').trCurrent(),
       if (_text(purchase['tanggal_pengiriman']).isNotEmpty)
-        'Kirim: ${_date(purchase['tanggal_pengiriman'])}',
+        ('Kirim: ${_date(purchase['tanggal_pengiriman'])}').trCurrent(),
       if (_text(purchase['alamat_pengiriman']).isNotEmpty)
-        'Alamat: ${_text(purchase['alamat_pengiriman'])}',
+        ('Alamat: ${_text(purchase['alamat_pengiriman'])}').trCurrent(),
       _divider(charactersPerLine),
     ];
 
@@ -34,23 +35,36 @@ class PosPurchaseThermalDocument {
         lines.add('   ${_text(item['kode_inventaris'])}');
       }
       lines.add(
-        '   ${_quantity(item['qty_ordered'])} ${_text(item['unit'])} x ${_money(item['harga_beli'])}',
+        ('   ${_quantity(item['qty_ordered'])} ${_text(item['unit'])} x ${_money(item['harga_beli'])}')
+            .trCurrent(),
       );
-      lines.add(_amountLine('Subtotal', item['subtotal'], charactersPerLine));
+      lines.add(
+        _amountLine(
+          ('Subtotal').trCurrent(),
+          item['subtotal'],
+          charactersPerLine,
+        ),
+      );
       if (_text(item['catatan_item']).isNotEmpty) {
-        lines.add('   Catatan: ${_text(item['catatan_item'])}');
+        lines.add(('   Catatan: ${_text(item['catatan_item'])}').trCurrent());
       }
     }
     lines.add(_divider(charactersPerLine));
     lines.add(
-      _amountLine('Total item', purchase['total_amount'], charactersPerLine),
+      _amountLine(
+        ('Total item').trCurrent(),
+        purchase['total_amount'],
+        charactersPerLine,
+      ),
     );
     final subtotal = _amount(purchase['total_amount']);
     final discount = purchase['diskon_type'] == 'fixed'
         ? _amount(purchase['diskon_fixed'])
         : subtotal * _amount(purchase['diskon_persen']) / 100;
     if (discount > 0) {
-      lines.add(_amountLine('Diskon', -discount, charactersPerLine));
+      lines.add(
+        _amountLine(('Diskon').trCurrent(), -discount, charactersPerLine),
+      );
     }
     if (_amount(purchase['ppn_amount']) > 0) {
       lines.add(_amountLine('PPN', purchase['ppn_amount'], charactersPerLine));
@@ -73,33 +87,40 @@ class PosPurchaseThermalDocument {
     } else if (_amount(purchase['biaya_pengiriman']) > 0) {
       lines.add(
         _amountLine(
-          'Ongkos kirim',
+          ('Ongkos kirim').trCurrent(),
           purchase['biaya_pengiriman'],
           charactersPerLine,
         ),
       );
     }
     lines.add(
-      _amountLine('GRAND TOTAL', purchase['grand_total'], charactersPerLine),
+      _amountLine(
+        ('GRAND TOTAL').trCurrent(),
+        purchase['grand_total'],
+        charactersPerLine,
+      ),
     );
     if (_text(purchase['syarat_pembayaran']).isNotEmpty) {
-      lines.add('Pembayaran: ${_text(purchase['syarat_pembayaran'])}');
+      lines.add(
+        ('Pembayaran: ${_text(purchase['syarat_pembayaran'])}').trCurrent(),
+      );
     }
     if (_text(purchase['due_date']).isNotEmpty) {
-      lines.add('Jatuh tempo: ${_date(purchase['due_date'])}');
+      lines.add(('Jatuh tempo: ${_date(purchase['due_date'])}').trCurrent());
     }
     final terms = (purchase['jadwal_termin'] as List? ?? const [])
         .whereType<Map>();
     for (final term in terms) {
       lines.add(
-        'Termin ${_text(term['no_termin'])}: ${_money(term['amount'])} / ${_date(term['due_date'])}',
+        ('Termin ${_text(term['no_termin'])}: ${_money(term['amount'])} / ${_date(term['due_date'])}')
+            .trCurrent(),
       );
     }
     if (_text(purchase['catatan']).isNotEmpty) {
-      lines.add('Catatan: ${_text(purchase['catatan'])}');
+      lines.add(('Catatan: ${_text(purchase['catatan'])}').trCurrent());
     }
     lines.add(_divider(charactersPerLine));
-    lines.add('Salinan thermal - PDF memuat detail lengkap.');
+    lines.add(('Salinan thermal - PDF memuat detail lengkap.').trCurrent());
     return lines.join('\n');
   }
 
@@ -114,27 +135,31 @@ class PosPurchaseThermalDocument {
         : _text(payment['status']);
     return [
       _companyName(company),
-      'BUKTI PENCATATAN PEMBAYARAN',
+      ('BUKTI PENCATATAN PEMBAYARAN').trCurrent(),
       _divider(charactersPerLine),
-      'PO: ${_text(payable['no_po'])}',
-      'Supplier: ${_text(payable['supplier_name'])}',
-      'Tanggal: ${_date(payment['payment_date'])}',
-      'Metode: ${_text(payment['payment_method'])}',
+      ('PO: ${_text(payable['no_po'])}').trCurrent(),
+      ('Supplier: ${_text(payable['supplier_name'])}').trCurrent(),
+      ('Tanggal: ${_date(payment['payment_date'])}').trCurrent(),
+      ('Metode: ${_text(payment['payment_method'])}').trCurrent(),
       if (_text(payment['reference_number']).isNotEmpty)
-        'Referensi: ${_text(payment['reference_number'])}',
+        ('Referensi: ${_text(payment['reference_number'])}').trCurrent(),
       if (payment['no_termin'] != null)
-        'Termin: ${_text(payment['no_termin'])}',
-      _amountLine('DIBAYAR', payment['amount'], charactersPerLine),
+        ('Termin: ${_text(payment['no_termin'])}').trCurrent(),
       _amountLine(
-        'Sisa tagihan',
+        ('DIBAYAR').trCurrent(),
+        payment['amount'],
+        charactersPerLine,
+      ),
+      _amountLine(
+        ('Sisa tagihan').trCurrent(),
         payable['outstanding_amount'],
         charactersPerLine,
       ),
       if (_text(payment['notes']).isNotEmpty)
-        'Catatan: ${_text(payment['notes'])}',
-      if (status != 'active') 'STATUS: ${status.toUpperCase()}',
+        ('Catatan: ${_text(payment['notes'])}').trCurrent(),
+      if (status != 'active') ('STATUS: ${status.toUpperCase()}').trCurrent(),
       _divider(charactersPerLine),
-      'Dicatat oleh pembeli; bukan kuitansi supplier.',
+      ('Dicatat oleh pembeli; bukan kuitansi supplier.').trCurrent(),
     ].join('\n');
   }
 
@@ -142,7 +167,7 @@ class PosPurchaseThermalDocument {
     for (final name in [company['nama_resmi'], company['nama_instansi']]) {
       if (name?.trim().isNotEmpty == true) return name!.trim();
     }
-    return 'PEMBELI';
+    return ('PEMBELI').trCurrent();
   }
 
   static String _text(Object? value) => value?.toString().trim() ?? '';

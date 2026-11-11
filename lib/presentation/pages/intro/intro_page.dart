@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,6 +61,7 @@ class _IntroPageState extends State<IntroPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Align(alignment: Alignment.centerRight, child: LanguagePicker()),
                   // Logo
                   SizedBox(
                     height: 110,
@@ -70,7 +73,7 @@ class _IntroPageState extends State<IntroPage> {
                   const SizedBox(height: 24),
 
                   // App Name / Title
-                  Text(
+                  PosText(
                     title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: Colors.black87,
@@ -81,7 +84,7 @@ class _IntroPageState extends State<IntroPage> {
 
                   const SizedBox(height: 12),
                   // Simple description
-                  Text(
+                  PosText(
                     description,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.black54,
@@ -117,7 +120,7 @@ class _IntroPageState extends State<IntroPage> {
                         }
                       },
                       child: Text(
-                        pageIndex < 2 ? 'Selanjutnya' : 'Mulai Sekarang',
+                        pageIndex < 2 ? ('Selanjutnya').tr(context) : ('Mulai Sekarang').tr(context),
                       ),
                     ),
                   ),
@@ -161,25 +164,25 @@ class _IntroPageState extends State<IntroPage> {
                       _buildCard(
                         context: context,
                         pageIndex: 0,
-                        title: 'Mobile POS Pantoo',
-                        description: 'Solusi kasir modern untuk usaha Anda',
-                        features: const [
+                        title: ('Mobile POS Pantoo').tr(context),
+                        description: ('Solusi kasir modern untuk usaha Anda').tr(context),
+                        features:  [
                           FeatureItem(
                             icon: Icons.access_time_rounded,
-                            title: 'Transaksi Cepat',
-                            subtitle: 'Proses pembayaran tanpa hambatan',
+                            title: ('Transaksi Cepat').tr(context),
+                            subtitle: ('Proses pembayaran tanpa hambatan').tr(context),
                           ),
                           SizedBox(height: 16),
                           FeatureItem(
                             icon: Icons.analytics_rounded,
-                            title: 'Laporan Lengkap',
-                            subtitle: 'Pantau penjualan setiap saat',
+                            title: ('Laporan Lengkap').tr(context),
+                            subtitle: ('Pantau penjualan setiap saat').tr(context),
                           ),
                           SizedBox(height: 16),
                           FeatureItem(
                             icon: Icons.touch_app_rounded,
-                            title: 'Mudah Digunakan',
-                            subtitle: 'Antarmuka yang user-friendly',
+                            title: ('Mudah Digunakan').tr(context),
+                            subtitle: ('Antarmuka yang user-friendly').tr(context),
                           ),
                         ],
                       ),
@@ -187,26 +190,26 @@ class _IntroPageState extends State<IntroPage> {
                       _buildCard(
                         context: context,
                         pageIndex: 1,
-                        title: 'Manajemen Terpadu',
+                        title: ('Manajemen Terpadu').tr(context),
                         description:
-                            'Sistem lengkap dengan berbagai fitur andalan.',
-                        features: const [
+                            ('Sistem lengkap dengan berbagai fitur andalan.').tr(context),
+                        features:  [
                           FeatureItem(
                             icon: Icons.inventory_2_rounded,
-                            title: 'Manajemen Stok',
-                            subtitle: 'Kontrol inventaris secara real-time',
+                            title: ('Manajemen Stok').tr(context),
+                            subtitle: ('Kontrol inventaris secara real-time').tr(context),
                           ),
                           SizedBox(height: 16),
                           FeatureItem(
                             icon: Icons.people_alt_rounded,
-                            title: 'Data Pelanggan',
-                            subtitle: 'Kelola database pelanggan Anda',
+                            title: ('Data Pelanggan').tr(context),
+                            subtitle: ('Kelola database pelanggan Anda').tr(context),
                           ),
                           SizedBox(height: 16),
                           FeatureItem(
                             icon: Icons.receipt_long_rounded,
-                            title: 'Riwayat Transaksi',
-                            subtitle: 'Akses seluruh riwayat penjualan',
+                            title: ('Riwayat Transaksi').tr(context),
+                            subtitle: ('Akses seluruh riwayat penjualan').tr(context),
                           ),
                         ],
                       ),
@@ -214,26 +217,26 @@ class _IntroPageState extends State<IntroPage> {
                       _buildCard(
                         context: context,
                         pageIndex: 2,
-                        title: 'Mulai Lebih Cepat',
+                        title: ('Mulai Lebih Cepat').tr(context),
                         description:
-                            'Tingkatkan produktivitas bisnis Anda sekarang juga.',
-                        features: const [
+                            ('Tingkatkan produktivitas bisnis Anda sekarang juga.').tr(context),
+                        features:  [
                           FeatureItem(
                             icon: Icons.cloud_done_rounded,
-                            title: 'Sinkronisasi Cloud',
-                            subtitle: 'Data tersimpan aman di server',
+                            title: ('Sinkronisasi Cloud').tr(context),
+                            subtitle: ('Data tersimpan aman di server').tr(context),
                           ),
                           SizedBox(height: 16),
                           FeatureItem(
                             icon: Icons.security_rounded,
-                            title: 'Akses Aman',
-                            subtitle: 'Privasi dan keamanan terjamin',
+                            title: ('Akses Aman').tr(context),
+                            subtitle: ('Privasi dan keamanan terjamin').tr(context),
                           ),
                           SizedBox(height: 16),
                           FeatureItem(
                             icon: Icons.rocket_launch_rounded,
-                            title: 'Siap Digunakan',
-                            subtitle: 'Login sekarang dan rasakan kemudahannya',
+                            title: ('Siap Digunakan').tr(context),
+                            subtitle: ('Login sekarang dan rasakan kemudahannya').tr(context),
                           ),
                         ],
                       ),
@@ -256,7 +259,7 @@ class _IntroPageState extends State<IntroPage> {
                                 state.error ?? 'Login gagal. Coba lagi.';
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(
+                                content: PosText(
                                   message,
                                   style: const TextStyle(color: Colors.white),
                                 ),

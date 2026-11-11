@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -256,8 +257,8 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         initialValue: _storeId,
                         isDense: true,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Dapur toko',
+                        decoration:  InputDecoration(
+                          labelText: ('Dapur toko').tr(context),
                           prefixIcon: Icon(Icons.store_outlined),
                           border: OutlineInputBorder(),
                         ),
@@ -287,7 +288,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                       ),
                     );
                     final refresh = IconButton.filledTonal(
-                      tooltip: 'Muat ulang antrean',
+                      tooltip: ('Muat ulang antrean').tr(context),
                       onPressed: _reload,
                       style: compact
                           ? IconButton.styleFrom(
@@ -304,20 +305,20 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         initialValue: _stationId,
                         isDense: true,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Stasiun',
+                        decoration:  InputDecoration(
+                          labelText: ('Stasiun').tr(context),
                           prefixIcon: Icon(Icons.soup_kitchen_outlined),
                           border: OutlineInputBorder(),
                         ),
                         items: [
                           const DropdownMenuItem(
                             value: '',
-                            child: Text('Semua stasiun'),
+                            child: PosText('Semua stasiun'),
                           ),
                           ..._stations.map(
                             (row) => DropdownMenuItem(
                               value: row['_id']?.toString() ?? '',
-                              child: Text(row['name']?.toString() ?? 'Stasiun'),
+                              child: Text(row['name']?.toString() ?? ('Stasiun').tr(context)),
                             ),
                           ),
                         ],
@@ -345,8 +346,8 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         const SizedBox(width: 6),
                         Text(
                           _realtimeConnected
-                              ? 'Real-time'
-                              : 'Fallback 60 detik',
+                              ? ('Real-time').tr(context)
+                              : ('Fallback 60 detik').tr(context),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ],
@@ -387,7 +388,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      tooltip: 'Halaman sebelumnya',
+                      tooltip: ('Halaman sebelumnya').tr(context),
                       onPressed:
                           _page > 0 &&
                               state.status != PosOrderManagementStatus.loading
@@ -400,12 +401,12 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     ),
                     Flexible(
                       child: Text(
-                        'Halaman ${_page + 1} · ${state.total} pesanan',
+                        posLocale(context).posd628bb3772f8((_page + 1).toString(), (state.total).toString()),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Halaman berikutnya',
+                      tooltip: ('Halaman berikutnya').tr(context),
                       onPressed:
                           (_page + 1) * 30 < state.total &&
                               state.status != PosOrderManagementStatus.loading
@@ -494,7 +495,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                             padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
                             child: Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(
+                              child: PosText(
                                 'Geser kartu ke kanan untuk tahap berikutnya',
                                 style: TextStyle(fontSize: 12),
                               ),
@@ -542,25 +543,25 @@ class _KitchenBoardState extends State<_KitchenBoard> {
         ButtonSegment(
           value: '',
           label: Text(
-            'Semua (${context.read<PosOrderManagementBloc>().state.statusCounts.values.fold(0, (a, b) => a + b)})',
+            posLocale(context).pos5ab6295dbc59((context.read<PosOrderManagementBloc>().state.statusCounts.values.fold(0, (a, b) => a + b)).toString()),
           ),
         ),
         ButtonSegment(
           value: 'Baru',
           label: Text(
-            'Baru (${context.read<PosOrderManagementBloc>().state.statusCounts['Baru'] ?? 0})',
+            posLocale(context).pos0c1674e894ea((context.read<PosOrderManagementBloc>().state.statusCounts['Baru'] ?? 0).toString()),
           ),
         ),
         ButtonSegment(
           value: 'Diproses',
           label: Text(
-            'Dibuat (${context.read<PosOrderManagementBloc>().state.statusCounts['Diproses'] ?? 0})',
+            posLocale(context).pos74663425a1fa((context.read<PosOrderManagementBloc>().state.statusCounts['Diproses'] ?? 0).toString()),
           ),
         ),
         ButtonSegment(
           value: 'Siap',
           label: Text(
-            'Siap (${context.read<PosOrderManagementBloc>().state.statusCounts['Siap'] ?? 0})',
+            posLocale(context).posd100bfb67f19((context.read<PosOrderManagementBloc>().state.statusCounts['Siap'] ?? 0).toString()),
           ),
         ),
       ],
@@ -663,7 +664,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Text(
-                order.orderNumber ?? 'Order',
+                order.orderNumber ?? ('Order').tr(context),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -683,7 +684,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
     key: const ValueKey('pending-kitchen-ticket'),
     padding: const EdgeInsets.only(bottom: 10),
     child: Semantics(
-      label: 'Memindahkan pesanan dapur',
+      label: ('Memindahkan pesanan dapur').tr(context),
       child: const PosOrderTicketSkeleton(),
     ),
   );
@@ -722,13 +723,13 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        order.orderNumber ?? 'Order',
+                        order.orderNumber ?? ('Order').tr(context),
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      Text(
+                      PosText(
                         _fulfillment(order),
                         style: const TextStyle(
                           fontSize: 12,
@@ -739,7 +740,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                   ),
                 ),
                 Tooltip(
-                  message: age.label,
+                  message: age.labelFor(context),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 9,
@@ -752,7 +753,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                         color: ageColor.withValues(alpha: .45),
                       ),
                     ),
-                    child: Text(
+                    child: PosText(
                       age.durationLabel,
                       style: const TextStyle(
                         color: AppColors.heading,
@@ -770,7 +771,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
             child: Text(
               order.customerName?.trim().isNotEmpty == true
                   ? order.customerName!
-                  : 'Walk-in',
+                  : ('Walk-in').tr(context),
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ),
@@ -805,7 +806,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              item.productName ?? 'Produk',
+                              item.productName ?? ('Produk').tr(context),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -858,7 +859,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                 color: AppColors.warningBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text('Catatan: ${order.note}'),
+              child: Text(posLocale(context).posb0bf84cc5839((order.note).toString())),
             ),
           if (order.kitchenNote?.trim().isNotEmpty == true)
             Container(
@@ -869,7 +870,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                 color: AppColors.infoBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text('Untuk dapur: ${order.kitchenNote}'),
+              child: Text(posLocale(context).pos6c74f030d8e7((order.kitchenNote).toString())),
             ),
           if (!widget.canUpdate)
             const Padding(
@@ -878,7 +879,7 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                 children: [
                   Icon(Icons.visibility_outlined),
                   SizedBox(width: 8),
-                  Text('Hanya lihat'),
+                  PosText('Hanya lihat'),
                 ],
               ),
             ),
@@ -1015,9 +1016,9 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   }
 
   String _statusLabel(String status) => switch (status) {
-    'Baru' => 'Pesanan Baru',
-    'Diproses' => 'Sedang Dibuat',
-    'Siap' => 'Siap Disajikan',
+    'Baru' => ('Pesanan Baru').trCurrent(),
+    'Diproses' => ('Sedang Dibuat').trCurrent(),
+    'Siap' => ('Siap Disajikan').trCurrent(),
     _ => status,
   };
   Color _statusColor(String status) => switch (status) {
@@ -1027,10 +1028,10 @@ class _KitchenBoardState extends State<_KitchenBoard> {
   };
   String _fulfillment(PosOrderDetail order) => switch (order.orderType) {
     'dine_in' => order.tableName ?? 'Makan di tempat',
-    'free_table' => 'Makan di tempat · tanpa meja',
-    'delivery' || 'online_delivery' => 'Pesan antar',
-    'quick_service' => 'Layanan cepat',
-    'reservation' => 'Reservasi',
-    _ => 'Bawa pulang',
+    'free_table' => ('Makan di tempat · tanpa meja').trCurrent(),
+    'delivery' || 'online_delivery' => ('Pesan antar').trCurrent(),
+    'quick_service' => ('Layanan cepat').trCurrent(),
+    'reservation' => ('Reservasi').trCurrent(),
+    _ => ('Bawa pulang').trCurrent(),
   };
 }

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
@@ -136,7 +137,7 @@ class PosTableQrDocument {
         ),
         if (entry.capacity > 0)
           pw.Text(
-            'Kapasitas: ${entry.capacity} Orang',
+            posCurrentLocale().pos50275ce55359((entry.capacity).toString()),
             style: pw.TextStyle(fontSize: 9, color: secondary),
           ),
         if (entry.location.isNotEmpty)

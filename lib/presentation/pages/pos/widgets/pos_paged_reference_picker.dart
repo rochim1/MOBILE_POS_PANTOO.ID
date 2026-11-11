@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../domain/repositories/pos_inventory_repository.dart';
@@ -67,7 +68,7 @@ class _PosPagedReferencePickerState extends State<PosPagedReferencePicker> {
       TextField(
         autofocus: true,
         decoration: InputDecoration(
-          labelText: widget.placeholder,
+          labelText: (widget.placeholder).tr(context),
           prefixIcon: const Icon(Icons.search),
           border: const OutlineInputBorder(),
         ),
@@ -85,16 +86,16 @@ class _PosPagedReferencePickerState extends State<PosPagedReferencePicker> {
       if (error.isNotEmpty)
         Row(
           children: [
-            Expanded(child: Text(error)),
+            Expanded(child: PosText(error)),
             TextButton(
               onPressed: () => load(page),
-              child: const Text('Coba lagi'),
+              child: const PosText('Coba lagi'),
             ),
           ],
         ),
       Expanded(
         child: items.isEmpty && !loading
-            ? const Center(child: Text('Tidak ada referensi sesuai pencarian.'))
+            ? const Center(child: PosText('Tidak ada referensi sesuai pencarian.'))
             : ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (_, index) {
@@ -114,18 +115,18 @@ class _PosPagedReferencePickerState extends State<PosPagedReferencePicker> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            tooltip: 'Halaman sebelumnya',
+            tooltip: ('Halaman sebelumnya').tr(context),
             onPressed: !loading && page > 1 ? () => load(page - 1) : null,
             icon: const Icon(Icons.chevron_left),
           ),
           Flexible(
             child: Text(
-              'Halaman $page · $total pilihan',
+              posLocale(context).posd56e0c97a9f6((page).toString(), (total).toString()),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           IconButton(
-            tooltip: 'Halaman berikutnya',
+            tooltip: ('Halaman berikutnya').tr(context),
             onPressed: !loading && page * 20 < total
                 ? () => load(page + 1)
                 : null,

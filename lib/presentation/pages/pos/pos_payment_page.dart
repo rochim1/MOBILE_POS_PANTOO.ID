@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
 import 'package:flutter/material.dart';
 import 'utils/pos_service_quantity.dart';
@@ -77,13 +79,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   }
 
   String _paymentMethodLabel(String value) => switch (value.toLowerCase()) {
-    'transfer' => 'Transfer',
-    'qris' => 'QRIS',
-    'debit' => 'Kartu Debit',
-    'kartu_kredit' || 'credit_card' => 'Kartu Kredit',
-    'e_wallet' => 'E-Wallet',
-    'tempo' => 'Tempo / Piutang',
-    _ => 'Tunai',
+    'transfer' => ('Transfer').trCurrent(),
+    'qris' => ('QRIS').trCurrent(),
+    'debit' => ('Kartu Debit').trCurrent(),
+    'kartu_kredit' || 'credit_card' => ('Kartu Kredit').trCurrent(),
+    'e_wallet' => ('E-Wallet').trCurrent(),
+    'tempo' => ('Tempo / Piutang').trCurrent(),
+    _ => ('Tunai').trCurrent(),
   };
 
   @override
@@ -111,7 +113,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  const PosText(
                     'Pembayaran',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -199,19 +201,19 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   color: AppColors.warning,
                   size: 42,
                 ),
-                title: Text(_failureTitle(message)),
-                content: Text(message),
+                title: PosText(_failureTitle(message)),
+                content: PosText(message),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Tutup'),
+                    child: const PosText('Tutup'),
                   ),
                   FilledButton(
                     onPressed: () {
                       Navigator.pop(dialogContext);
                       Navigator.pop(context);
                     },
-                    child: const Text('Kembali ke Keranjang'),
+                    child: const PosText('Kembali ke Keranjang'),
                   ),
                 ],
               ),
@@ -249,14 +251,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               children: [
                                 Expanded(
                                   child: _buildAmountBlock(
-                                    'Total Tagihan',
+                                    ('Total Tagihan').tr(context),
                                     total,
                                     Colors.black,
                                   ),
                                 ),
                                 Expanded(
                                   child: _buildAmountBlock(
-                                    'Sisa Tagihan',
+                                    ('Sisa Tagihan').tr(context),
                                     total - _cashReceived > 0
                                         ? total - _cashReceived
                                         : 0,
@@ -282,7 +284,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               Expanded(
                                 child: _buildActionButton(
                                   Icons.account_balance_wallet,
-                                  'Pisah Bayar',
+                                  ('Pisah Bayar').tr(context),
                                   onPressed: () =>
                                       _configureSplitPayment(total),
                                 ),
@@ -347,7 +349,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
                                               Expanded(
-                                                child: Text(
+                                                child: PosText(
                                                   'Metode Pembayaran',
                                                   maxLines: 2,
                                                   overflow:
@@ -362,14 +364,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             ],
                                           ),
                                         ),
-                                        _buildPaymentMethodTile('Tunai'),
-                                        _buildPaymentMethodTile('Kartu Debit'),
-                                        _buildPaymentMethodTile('Transfer'),
-                                        _buildPaymentMethodTile('QRIS'),
-                                        _buildPaymentMethodTile('E-Wallet'),
-                                        _buildPaymentMethodTile('Kartu Kredit'),
+                                        _buildPaymentMethodTile(('Tunai').tr(context)),
+                                        _buildPaymentMethodTile(('Kartu Debit').tr(context)),
+                                        _buildPaymentMethodTile(('Transfer').tr(context)),
+                                        _buildPaymentMethodTile(('QRIS').tr(context)),
+                                        _buildPaymentMethodTile(('E-Wallet').tr(context)),
+                                        _buildPaymentMethodTile(('Kartu Kredit').tr(context)),
                                         _buildPaymentMethodTile(
-                                          'Tempo / Piutang',
+                                          ('Tempo / Piutang').tr(context),
                                         ),
                                       ],
                                     ),
@@ -391,18 +393,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             mainAxisSpacing: 16,
                                             children: [
                                               _buildCashOption(
-                                                'Uang Pas',
+                                                ('Uang Pas').tr(context),
                                                 total,
                                               ),
                                               _buildCashOption(
-                                                'Rp 20.000',
+                                                ('Rp 20.000').tr(context),
                                                 20000,
                                               ),
                                               _buildCashOption(
-                                                'Rp 50.000',
+                                                ('Rp 50.000').tr(context),
                                                 50000,
                                               ),
-                                              _buildCashOption('Lainnya', 0),
+                                              _buildCashOption(('Lainnya').tr(context), 0),
                                             ],
                                           )
                                         : Center(
@@ -418,7 +420,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                   ),
                                                   const SizedBox(height: 12),
                                                   Text(
-                                                    'Konfirmasi $_paymentMethod',
+                                                    posLocale(context).pos18a9e21cb58b((_paymentMethod).toString()),
                                                     style: const TextStyle(
                                                       fontWeight:
                                                           FontWeight.bold,
@@ -426,7 +428,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                     ),
                                                   ),
                                                   const SizedBox(height: 6),
-                                                  const Text(
+                                                  const PosText(
                                                     'Pastikan pembayaran sudah diterima pada perangkat atau rekening merchant sebelum memproses transaksi. POS mencatat metode pembayaran dan tidak menjalankan payment gateway otomatis.',
                                                     textAlign: TextAlign.center,
                                                     style: TextStyle(
@@ -504,7 +506,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Flexible(
-                                                    child: Text(
+                                                    child: PosText(
                                                       _customerLabel(state),
                                                       maxLines: 1,
                                                       overflow:
@@ -531,7 +533,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                 const SizedBox(width: 8),
                                 Text(
                                   widget.pendingOrder?.invoice ??
-                                      'Transaksi Baru',
+                                      ('Transaksi Baru').tr(context),
                                   style: const TextStyle(
                                     color: Colors.black54,
                                     fontSize: 12,
@@ -593,10 +595,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             ),
                             child: Column(
                               children: [
-                                _buildSummaryRow('Subtotal', subtotal),
+                                _buildSummaryRow(('Subtotal').tr(context), subtotal),
                                 if (discount > 0)
                                   _buildSummaryRow(
-                                    'Diskon',
+                                    ('Diskon').tr(context),
                                     -discount,
                                     color: AppColors.success,
                                   ),
@@ -635,8 +637,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                     Flexible(
                                       child: Text(
                                         widget.pendingOrder != null
-                                            ? 'Total Invoice'
-                                            : 'Total ${state.totalItems == state.totalItems.truncateToDouble() ? state.totalItems.toStringAsFixed(0) : state.totalItems.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '')} Produk',
+                                            ? ('Total Invoice').tr(context)
+                                            : posLocale(context).posbd45ba0ddb67((state.totalItems == state.totalItems.truncateToDouble() ? state.totalItems.toStringAsFixed(0) : state.totalItems.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '')).toString()),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 15,
@@ -662,7 +664,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               padding: const EdgeInsets.all(10),
                               color: AppColors.warningBackground,
                               child: Text(
-                                'Minimum transaksi tunai ${_money(state.minimumCashTransaction)}. Pilih metode lain atau tambah transaksi.',
+                                posLocale(context).pos9e159b1c2295((_money(state.minimumCashTransaction)).toString()),
                                 style: const TextStyle(
                                   color: AppColors.warning,
                                   fontWeight: FontWeight.w600,
@@ -714,7 +716,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
-                                            content: Text(
+                                            content: PosText(
                                               'Pilih pelanggan terlebih dahulu untuk penjualan tempo.',
                                             ),
                                           ),
@@ -783,8 +785,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                       children: [
                                         Text(
                                           widget.pendingOrder != null
-                                              ? 'Bayar Invoice'
-                                              : 'Proses Bayar',
+                                              ? ('Bayar Invoice').tr(context)
+                                              : ('Proses Bayar').tr(context),
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 18,
@@ -834,7 +836,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.warning),
             SizedBox(width: 8),
-            Expanded(child: Text('Otorisasi Barang Kedaluwarsa')),
+            Expanded(child: PosText('Otorisasi Barang Kedaluwarsa')),
           ],
         ),
         content: SingleChildScrollView(
@@ -848,8 +850,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               TextField(
                 controller: usernameController,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Username supervisor',
+                decoration:  InputDecoration(
+                  labelText: ('Username supervisor').tr(dialogContext),
                 ),
               ),
               TextField(
@@ -858,16 +860,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'PIN supervisor'),
+                decoration:  InputDecoration(labelText: ('PIN supervisor').tr(dialogContext)),
               ),
               TextField(
                 controller: reasonController,
                 minLines: 2,
                 maxLines: 4,
                 maxLength: 500,
-                decoration: const InputDecoration(
-                  labelText: 'Alasan penjualan',
-                  hintText: 'Minimal 5 karakter',
+                decoration:  InputDecoration(
+                  labelText: ('Alasan penjualan').tr(dialogContext),
+                  hintText: ('Minimal 5 karakter').tr(dialogContext),
                 ),
               ),
             ],
@@ -876,7 +878,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () {
@@ -893,7 +895,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 });
               }
             },
-            child: const Text('Otorisasi & Lanjutkan'),
+            child: const PosText('Otorisasi & Lanjutkan'),
           ),
         ],
       ),
@@ -972,7 +974,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             width: 520,
             height: 620,
             title: Text(
-              profile == 'laundry' ? 'Detail cucian' : 'Detail layanan',
+              profile == 'laundry' ? ('Detail cucian').tr(context) : ('Detail layanan').tr(context),
             ),
             content: SizedBox(
               width: 520,
@@ -988,21 +990,21 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     if (profile == 'laundry') ...[
                       DropdownButtonFormField<String>(
                         initialValue: mode,
-                        decoration: const InputDecoration(
-                          labelText: 'Model layanan',
+                        decoration:  InputDecoration(
+                          labelText: ('Model layanan').tr(context),
                         ),
                         items: const [
                           DropdownMenuItem(
                             value: 'kiloan',
-                            child: Text('Kiloan'),
+                            child: PosText('Kiloan'),
                           ),
                           DropdownMenuItem(
                             value: 'satuan',
-                            child: Text('Satuan'),
+                            child: PosText('Satuan'),
                           ),
                           DropdownMenuItem(
                             value: 'paket',
-                            child: Text('Paket'),
+                            child: PosText('Paket'),
                           ),
                         ],
                         onChanged: (value) => setDialogState(() {
@@ -1025,8 +1027,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
-                              decoration: const InputDecoration(
-                                labelText: 'Berat (kg)',
+                              decoration:  InputDecoration(
+                                labelText: ('Berat (kg)').tr(context),
                               ),
                             ),
                           ),
@@ -1035,8 +1037,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             child: TextField(
                               controller: pieces,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Jumlah item',
+                              decoration:  InputDecoration(
+                                labelText: ('Jumlah item').tr(context),
                               ),
                             ),
                           ),
@@ -1045,13 +1047,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: tag,
-                        decoration: const InputDecoration(
-                          labelText: 'Tag kantong',
+                        decoration:  InputDecoration(
+                          labelText: ('Tag kantong').tr(context),
                         ),
                       ),
                       if (serviceEntries.isNotEmpty) ...[
                         const SizedBox(height: 10),
-                        Text(
+                        PosText(
                           'Jumlah tagihan mengikuti jumlah layanan di keranjang. '
                           'Ketuk angka jumlah pada keranjang untuk mengubah berat/jumlah.',
                           style: Theme.of(context).textTheme.bodySmall
@@ -1063,8 +1065,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         controller: subject,
                         decoration: InputDecoration(
                           labelText: features?['use_vehicle_data'] == true
-                              ? 'Objek/jenis kendaraan'
-                              : 'Objek layanan',
+                              ? ('Objek/jenis kendaraan').tr(context)
+                              : ('Objek layanan').tr(context),
                         ),
                       ),
                       if (features?['use_vehicle_data'] == true) ...[
@@ -1076,8 +1078,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                 controller: vehicleNo,
                                 textCapitalization:
                                     TextCapitalization.characters,
-                                decoration: const InputDecoration(
-                                  labelText: 'No. polisi / ID unit',
+                                decoration:  InputDecoration(
+                                  labelText: ('No. polisi / ID unit').tr(context),
                                 ),
                               ),
                             ),
@@ -1085,8 +1087,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             Expanded(
                               child: TextField(
                                 controller: vehicleModel,
-                                decoration: const InputDecoration(
-                                  labelText: 'Model / tipe',
+                                decoration:  InputDecoration(
+                                  labelText: ('Model / tipe').tr(context),
                                 ),
                               ),
                             ),
@@ -1097,8 +1099,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: technician,
-                          decoration: const InputDecoration(
-                            labelText: 'Teknisi / staf penanggung jawab',
+                          decoration:  InputDecoration(
+                            labelText: ('Teknisi / staf penanggung jawab').tr(context),
                           ),
                         ),
                       ],
@@ -1115,16 +1117,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           leading: const Icon(Icons.event_outlined),
                           title: Text(
                             appointmentAt == null
-                                ? 'Pilih jadwal layanan'
+                                ? ('Pilih jadwal layanan').tr(context)
                                 : DateFormat(
                                     'dd MMM yyyy · HH:mm',
-                                    'id_ID',
+                                    AppLanguageController.instance.effectiveLocale.languageCode,
                                   ).format(appointmentAt!),
                           ),
                           trailing: appointmentAt == null
                               ? const Icon(Icons.chevron_right)
                               : IconButton(
-                                  tooltip: 'Hapus jadwal',
+                                  tooltip: ('Hapus jadwal').tr(context),
                                   onPressed: () => setDialogState(
                                     () => appointmentAt = null,
                                   ),
@@ -1165,15 +1167,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       maxLines: 2,
                       decoration: InputDecoration(
                         labelText: profile == 'laundry'
-                            ? 'Kondisi/catatan'
-                            : 'Keluhan / catatan layanan',
+                            ? ('Kondisi/catatan').tr(context)
+                            : ('Keluhan / catatan layanan').tr(context),
                       ),
                     ),
                     if (profile != 'laundry') ...[
                       const SizedBox(height: 8),
                       const Align(
                         alignment: Alignment.centerLeft,
-                        child: Text(
+                        child: PosText(
                           'Isi objek layanan atau keluhan, minimal salah satu.',
                           style: TextStyle(fontSize: 12, color: Colors.black54),
                         ),
@@ -1183,7 +1185,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       const SizedBox(height: 10),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Text(
+                        child: PosText(
                           validationMessage,
                           style: const TextStyle(
                             color: AppColors.danger,
@@ -1199,7 +1201,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Batal'),
+                child: const PosText('Batal'),
               ),
               FilledButton(
                 onPressed: () {
@@ -1279,7 +1281,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     if (serviceLines.isNotEmpty) 'service_lines': serviceLines,
                   });
                 },
-                child: const Text('Simpan'),
+                child: const PosText('Simpan'),
               ),
             ],
           ),
@@ -1431,7 +1433,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       children: [
                         Icon(Icons.people_outline, color: AppColors.primary),
                         SizedBox(width: 8),
-                        Text(
+                        PosText(
                           'Pilih Pelanggan',
                           style: TextStyle(
                             fontSize: 16,
@@ -1446,9 +1448,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     child: TextField(
                       autofocus: true,
                       onChanged: (value) => setSheetState(() => query = value),
-                      decoration: const InputDecoration(
-                        labelText: 'Cari pelanggan',
-                        hintText: 'Nama atau nomor telepon',
+                      decoration:  InputDecoration(
+                        labelText: ('Cari pelanggan').tr(context),
+                        hintText: ('Nama atau nomor telepon').tr(context),
                         prefixIcon: Icon(Icons.search),
                       ),
                     ),
@@ -1473,14 +1475,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           }
                         },
                         icon: const Icon(Icons.person_add_alt_1),
-                        label: const Text('Tambah pelanggan baru'),
+                        label: const PosText('Tambah pelanggan baru'),
                       ),
                     ),
                   ),
                   const Divider(height: 1),
                   Expanded(
                     child: filtered.isEmpty
-                        ? const Center(child: Text('Pelanggan tidak ditemukan'))
+                        ? const Center(child: PosText('Pelanggan tidak ditemukan'))
                         : ListView.separated(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -1550,17 +1552,17 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             color: AppColors.warning,
             size: 42,
           ),
-          title: const Text('Pelanggan Wajib Dipilih'),
-          content: Text(message),
+          title: const PosText('Pelanggan Wajib Dipilih'),
+          content: PosText(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.people_outline),
-              label: const Text('Pilih Pelanggan'),
+              label: const PosText('Pilih Pelanggan'),
             ),
           ],
         ),
@@ -1585,12 +1587,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final normalized = message.toLowerCase();
     if (normalized.contains('kadaluarsa') ||
         normalized.contains('kedaluwarsa')) {
-      return 'Produk Kedaluwarsa';
+      return ('Produk Kedaluwarsa').trCurrent();
     }
-    if (normalized.contains('stok')) return 'Stok Tidak Cukup';
-    if (normalized.contains('uang diterima')) return 'Pembayaran Tidak Cukup';
-    if (normalized.contains('shift')) return 'Shift Kasir Bermasalah';
-    return 'Transaksi Ditolak';
+    if (normalized.contains('stok')) return ('Stok Tidak Cukup').trCurrent();
+    if (normalized.contains('uang diterima')) return ('Pembayaran Tidak Cukup').trCurrent();
+    if (normalized.contains('shift')) return ('Shift Kasir Bermasalah').trCurrent();
+    return ('Transaksi Ditolak').trCurrent();
   }
 
   IconData _failureIcon(String message) {
@@ -1608,7 +1610,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
+        PosText(
           label,
           style: const TextStyle(color: Colors.black54, fontSize: 14),
         ),
@@ -1617,7 +1619,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            PosText(
               'Rp ',
               style: TextStyle(
                 color: color,
@@ -1650,7 +1652,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.black54)),
+          PosText(label, style: const TextStyle(color: Colors.black54)),
           Text(
             _money(amount),
             style: TextStyle(
@@ -1671,7 +1673,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     return TextButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, color: AppColors.primary),
-      label: Text(
+      label: PosText(
         label,
         style: const TextStyle(
           color: AppColors.primary,
@@ -1690,26 +1692,26 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Catatan transaksi'),
+        title: const PosText('Catatan transaksi'),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 500,
           maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Contoh: pesanan tanpa sambal, referensi pembayaran…',
+          decoration:  InputDecoration(
+            hintText: ('Contoh: pesanan tanpa sambal, referensi pembayaran…').tr(dialogContext),
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Simpan'),
+            child: const PosText('Simpan'),
           ),
         ],
       ),
@@ -1776,7 +1778,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           return PosKeyboardStableFormDialog(
             width: 480,
             height: 520,
-            title: const Text('Detail reservasi'),
+            title: const PosText('Detail reservasi'),
             content: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.only(
@@ -1789,15 +1791,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Mulai reservasi *'),
-                      subtitle: Text(dateLabel(start)),
+                      title: const PosText('Mulai reservasi *'),
+                      subtitle: PosText(dateLabel(start)),
                       trailing: const Icon(Icons.event_outlined),
                       onTap: () => pickDateTime(true),
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Selesai reservasi *'),
-                      subtitle: Text(dateLabel(end)),
+                      title: const PosText('Selesai reservasi *'),
+                      subtitle: PosText(dateLabel(end)),
                       trailing: const Icon(Icons.event_available_outlined),
                       onTap: () => pickDateTime(false),
                     ),
@@ -1810,8 +1812,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                             ],
-                            decoration: const InputDecoration(
-                              labelText: 'Jumlah tamu',
+                            decoration:  InputDecoration(
+                              labelText: ('Jumlah tamu').tr(context),
                             ),
                           ),
                         ),
@@ -1825,8 +1827,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             inputFormatters: const [
                               RupiahInputFormatter(decimalDigits: 2),
                             ],
-                            decoration: const InputDecoration(
-                              labelText: 'Deposit diminta',
+                            decoration:  InputDecoration(
+                              labelText: ('Deposit diminta').tr(context),
                             ),
                           ),
                         ),
@@ -1834,7 +1836,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     ),
                     if (error.isNotEmpty) ...[
                       const SizedBox(height: 10),
-                      Text(
+                      PosText(
                         error,
                         style: const TextStyle(color: AppColors.danger),
                       ),
@@ -1846,7 +1848,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Batal'),
+                child: const PosText('Batal'),
               ),
               FilledButton(
                 onPressed: () {
@@ -1875,7 +1877,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   }
                   Navigator.pop(dialogContext, true);
                 },
-                child: const Text('Simpan'),
+                child: const PosText('Simpan'),
               ),
             ],
           );
@@ -1932,29 +1934,29 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         builder: (dialogContext) => AlertDialog(
           title: Text(
             continueToPayment
-                ? 'Simpan reservasi & lanjut bayar?'
+                ? ('Simpan reservasi & lanjut bayar?').tr(dialogContext)
                 : state.orderType == 'dine_in'
-                ? 'Simpan pesanan ke meja?'
-                : 'Buat pesanan / ambil nanti?',
+                ? ('Simpan pesanan ke meja?').tr(dialogContext)
+                : ('Buat pesanan / ambil nanti?').tr(dialogContext),
           ),
           content: Text(
             continueToPayment
-                ? 'Jadwal reservasi diperiksa sebelum pembayaran. Jika pembayaran dibatalkan, reservasi tetap tersedia di Pesanan Aktif untuk dilanjutkan.'
+                ? ('Jadwal reservasi diperiksa sebelum pembayaran. Jika pembayaran dibatalkan, reservasi tetap tersedia di Pesanan Aktif untuk dilanjutkan.').tr(dialogContext)
                 : state.orderType == 'dine_in'
-                ? 'Pesanan akan dicatat pada meja ${state.selectedTableName}. Meja ditandai terisi dan tagihan dapat dilanjutkan dari Pesanan Aktif & Meja.'
-                : 'Pesanan operasional disimpan untuk disiapkan dan dibayar kemudian. Bukan invoice piutang Finance. Buka dari Pesanan atau Riwayat Transaksi; untuk keranjang sementara gunakan Simpan pesanan.',
+                ? posLocale(dialogContext).pos3b458bf929ac((state.selectedTableName).toString())
+                : ('Pesanan operasional disimpan untuk disiapkan dan dibayar kemudian. Bukan invoice piutang Finance. Buka dari Pesanan atau Riwayat Transaksi; untuk keranjang sementara gunakan Simpan pesanan.').tr(dialogContext),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: Text(
                 state.orderType == 'dine_in'
-                    ? 'Simpan ke Meja'
-                    : 'Buat Pesanan',
+                    ? ('Simpan ke Meja').tr(dialogContext)
+                    : ('Buat Pesanan').tr(dialogContext),
               ),
             ),
           ],
@@ -2054,7 +2056,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final result = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Uang diterima'),
+        title: const PosText('Uang diterima'),
         content: TextField(
           autofocus: true,
           keyboardType: TextInputType.number,
@@ -2068,12 +2070,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, parseRupiah(cashInput)),
-            child: const Text('Gunakan'),
+            child: const PosText('Gunakan'),
           ),
         ],
       ),
@@ -2110,7 +2112,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           return PosKeyboardStableFormDialog(
             width: 560,
             height: 590,
-            title: const Text('Pisah Bayar'),
+            title: const PosText('Pisah Bayar'),
             content: SizedBox(
               width: 560,
               child: SingleChildScrollView(
@@ -2131,15 +2133,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               flex: 4,
                               child: DropdownButtonFormField<String>(
                                 initialValue: drafts[index].method,
-                                decoration: const InputDecoration(
-                                  labelText: 'Metode',
+                                decoration:  InputDecoration(
+                                  labelText: ('Metode').tr(context),
                                   border: OutlineInputBorder(),
                                 ),
                                 items: _splitPaymentMethods.entries
                                     .map(
                                       (entry) => DropdownMenuItem(
                                         value: entry.key,
-                                        child: Text(entry.value),
+                                        child: PosText(entry.value),
                                       ),
                                     )
                                     .toList(),
@@ -2155,8 +2157,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                 controller: drafts[index].controller,
                                 keyboardType: TextInputType.number,
                                 inputFormatters: const [RupiahInputFormatter()],
-                                decoration: const InputDecoration(
-                                  labelText: 'Jumlah',
+                                decoration:  InputDecoration(
+                                  labelText: ('Jumlah').tr(context),
                                   prefixText: 'Rp ',
                                   border: OutlineInputBorder(),
                                 ),
@@ -2164,7 +2166,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Hapus metode',
+                              tooltip: ('Hapus metode').tr(context),
                               onPressed: drafts.length <= 2
                                   ? null
                                   : () => setDialogState(() {
@@ -2182,12 +2184,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           () => drafts.add(_SplitPaymentDraft()),
                         ),
                         icon: const Icon(Icons.add),
-                        label: const Text('Tambah metode pembayaran'),
+                        label: const PosText('Tambah metode pembayaran'),
                       ),
                     ),
                     const Divider(),
-                    _buildSplitTotalRow('Total tagihan', total),
-                    _buildSplitTotalRow('Sudah dialokasikan', paid()),
+                    _buildSplitTotalRow(('Total tagihan').tr(context), total),
+                    _buildSplitTotalRow(('Sudah dialokasikan').tr(context), paid()),
                     _buildSplitTotalRow(
                       difference >= 0 ? 'Sisa' : 'Kelebihan',
                       difference.abs(),
@@ -2196,7 +2198,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     if (!isValid)
                       const Padding(
                         padding: EdgeInsets.only(top: 8),
-                        child: Text(
+                        child: PosText(
                           'Minimal 2 metode, setiap jumlah harus lebih dari 0, dan total harus tepat.',
                           style: TextStyle(
                             color: AppColors.danger,
@@ -2211,7 +2213,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Batal'),
+                child: const PosText('Batal'),
               ),
               ElevatedButton(
                 onPressed: isValid
@@ -2227,7 +2229,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             .toList(),
                       )
                     : null,
-                child: const Text('Gunakan'),
+                child: const PosText('Gunakan'),
               ),
             ],
           );
@@ -2256,9 +2258,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label),
+          PosText(label),
           Text(
-            'Rp ${formatRupiahAmount(amount)}',
+            posLocale(context).pos70272f418def((formatRupiahAmount(amount)).toString()),
             style: TextStyle(fontWeight: FontWeight.bold, color: color),
           ),
         ],
@@ -2276,12 +2278,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             child: ListTile(
               title: Text(item['metode'].toString().toUpperCase()),
               trailing: Text(
-                'Rp ${formatRupiahAmount((item['jumlah'] as num))}',
+                posLocale(context).pos70272f418def((formatRupiahAmount((item['jumlah'] as num))).toString()),
               ),
             ),
           ),
         Text(
-          'Total: Rp ${formatRupiahAmount(total)}',
+          posLocale(context).pos1b58713d0d0e((formatRupiahAmount(total)).toString()),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ],
@@ -2341,7 +2343,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         ),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(
+        child: PosText(
           label,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),

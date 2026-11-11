@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/pos_product.dart';
@@ -66,8 +67,8 @@ class _PosComponentPickerState extends State<PosComponentPicker> {
     children: [
       TextField(
         autofocus: true,
-        decoration: const InputDecoration(
-          labelText: 'Cari bahan atau komponen',
+        decoration:  InputDecoration(
+          labelText: ('Cari bahan atau komponen').tr(context),
           prefixIcon: Icon(Icons.search),
           border: OutlineInputBorder(),
         ),
@@ -82,16 +83,16 @@ class _PosComponentPickerState extends State<PosComponentPicker> {
       if (error.isNotEmpty)
         Row(
           children: [
-            Expanded(child: Text(error)),
+            Expanded(child: PosText(error)),
             TextButton(
               onPressed: () => load(page),
-              child: const Text('Coba lagi'),
+              child: const PosText('Coba lagi'),
             ),
           ],
         ),
       Expanded(
         child: items.isEmpty && !loading
-            ? const Center(child: Text('Komponen stok tidak ditemukan.'))
+            ? const Center(child: PosText('Komponen stok tidak ditemukan.'))
             : ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (_, index) {
@@ -115,18 +116,18 @@ class _PosComponentPickerState extends State<PosComponentPicker> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            tooltip: 'Halaman sebelumnya',
+            tooltip: ('Halaman sebelumnya').tr(context),
             onPressed: !loading && page > 1 ? () => load(page - 1) : null,
             icon: const Icon(Icons.chevron_left),
           ),
           Flexible(
             child: Text(
-              'Halaman $page · $total komponen',
+              posLocale(context).pos189db84b3f7d((page).toString(), (total).toString()),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           IconButton(
-            tooltip: 'Halaman berikutnya',
+            tooltip: ('Halaman berikutnya').tr(context),
             onPressed: !loading && page * 20 < total
                 ? () => load(page + 1)
                 : null,
@@ -140,11 +141,11 @@ class _PosComponentPickerState extends State<PosComponentPicker> {
         children: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, selected),
-            child: Text('Terapkan (${selected.length})'),
+            child: Text(posLocale(context).posdd94a4d861f7((selected.length).toString())),
           ),
         ],
       ),

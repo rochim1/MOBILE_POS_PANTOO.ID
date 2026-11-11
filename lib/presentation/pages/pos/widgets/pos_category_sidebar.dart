@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 
@@ -90,7 +91,7 @@ class _PosCategorySidebarState extends State<PosCategorySidebar> {
 
                 Widget iconWidget;
                 if (category == 'Makanan') {
-                  iconWidget = Text(
+                  iconWidget = PosText(
                     'MA',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -155,7 +156,7 @@ class _PosCategorySidebarState extends State<PosCategorySidebar> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: Text(
-                              category,
+                              category == 'Semua Kategori' ? category.tr(context) : category,
                               style: TextStyle(
                                 color: isSelected
                                     ? AppColors.primary

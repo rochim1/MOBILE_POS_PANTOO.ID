@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
 
 import 'package:intl/intl.dart';
@@ -126,28 +127,28 @@ class PosReceiptDocumentBuilder {
               ),
               pw.SizedBox(height: 5),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              if (template.showInvoice != false) pw.Text('No: ${data.invoice}'),
+              if (template.showInvoice != false) pw.Text(posCurrentLocale().posded34ba7cec1((data.invoice).toString())),
               if (template.showTanggal != false && data.dateLabel.isNotEmpty)
-                pw.Text('Tanggal: ${data.dateLabel}'),
+                pw.Text(posCurrentLocale().pos54ec6781af4f((data.dateLabel).toString())),
               if (template.showKasir != false && data.cashierName.isNotEmpty)
-                pw.Text('Kasir: ${data.cashierName}'),
+                pw.Text(posCurrentLocale().pos354df62f6aa3((data.cashierName).toString())),
               if (template.showToko != false && data.storeName.isNotEmpty)
-                pw.Text('Toko: ${data.storeName}'),
+                pw.Text(posCurrentLocale().pos25b5fa1d18b0((data.storeName).toString())),
               if (data.shiftReference.isNotEmpty)
-                pw.Text('Shift: ${data.shiftReference}'),
+                pw.Text(posCurrentLocale().pos98c99bd51ac2((data.shiftReference).toString())),
               if (data.transactionReference.isNotEmpty)
-                pw.Text('Referensi: ${data.transactionReference}'),
+                pw.Text(posCurrentLocale().pos96b044b6e7c2((data.transactionReference).toString())),
               if (template.showPelanggan != false &&
                   data.customerName.isNotEmpty)
-                pw.Text('Pelanggan: ${data.customerName}'),
+                pw.Text(posCurrentLocale().pose8576d8afa6c((data.customerName).toString())),
               if (template.showChannel == true && data.salesChannel.isNotEmpty)
-                pw.Text('Channel: ${data.salesChannel}'),
+                pw.Text(posCurrentLocale().pos49724ddf398a((data.salesChannel).toString())),
               if (template.showSegment == true &&
                   data.customerSegment.isNotEmpty)
-                pw.Text('Segmen: ${data.customerSegment}'),
+                pw.Text(posCurrentLocale().posf35e7016437f((data.customerSegment).toString())),
               if (template.showOrderType != false && data.orderType.isNotEmpty)
-                pw.Text('Jenis pesanan: ${_orderTypeLabel(data.orderType)}'),
-              pw.Text('Bayar: ${data.paymentMethod.toUpperCase()}'),
+                pw.Text(posCurrentLocale().pos351aef710752((_orderTypeLabel(data.orderType)).toString())),
+              pw.Text(posCurrentLocale().posc5a29ff60a03((data.paymentMethod.toUpperCase()).toString())),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               ...data.items.expand((item) {
                 final name =
@@ -193,7 +194,7 @@ class PosReceiptDocumentBuilder {
                 _totalRow('Kembalian', currency.format(data.change)),
               if (data.note.trim().isNotEmpty) ...[
                 pw.SizedBox(height: 5),
-                pw.Text('Catatan: ${data.note}'),
+                pw.Text(posCurrentLocale().posb0bf84cc5839((data.note).toString())),
               ],
               pw.SizedBox(height: 8),
               ...footerLines.map(
@@ -214,7 +215,7 @@ class PosReceiptDocumentBuilder {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: style),
+          pw.Text((label).trCurrent(), style: style),
           pw.Text(value, style: style),
         ],
       ),
@@ -253,35 +254,35 @@ class PosReceiptDocumentBuilder {
       add(_resolve(value, company, cashierName: data.cashierName));
     }
     lines.add('------------------------------');
-    if (template.showInvoice != false) add('No: ${data.invoice}');
+    if (template.showInvoice != false) add(posCurrentLocale().posded34ba7cec1((data.invoice).toString()));
     if (template.showTanggal != false && data.dateLabel.isNotEmpty) {
-      add('Tanggal: ${data.dateLabel}');
+      add(posCurrentLocale().pos54ec6781af4f((data.dateLabel).toString()));
     }
     if (template.showKasir != false && data.cashierName.isNotEmpty) {
-      add('Kasir: ${data.cashierName}');
+      add(posCurrentLocale().pos354df62f6aa3((data.cashierName).toString()));
     }
     if (template.showToko != false && data.storeName.isNotEmpty) {
-      add('Toko: ${data.storeName}');
+      add(posCurrentLocale().pos25b5fa1d18b0((data.storeName).toString()));
     }
     if (data.shiftReference.isNotEmpty) {
-      add('Shift: ${data.shiftReference}');
+      add(posCurrentLocale().pos98c99bd51ac2((data.shiftReference).toString()));
     }
     if (data.transactionReference.isNotEmpty) {
-      add('Referensi: ${data.transactionReference}');
+      add(posCurrentLocale().pos96b044b6e7c2((data.transactionReference).toString()));
     }
     if (template.showPelanggan != false && data.customerName.isNotEmpty) {
-      add('Pelanggan: ${data.customerName}');
+      add(posCurrentLocale().pose8576d8afa6c((data.customerName).toString()));
     }
     if (template.showChannel == true && data.salesChannel.isNotEmpty) {
-      add('Channel: ${data.salesChannel}');
+      add(posCurrentLocale().pos49724ddf398a((data.salesChannel).toString()));
     }
     if (template.showSegment == true && data.customerSegment.isNotEmpty) {
-      add('Segmen: ${data.customerSegment}');
+      add(posCurrentLocale().posf35e7016437f((data.customerSegment).toString()));
     }
     if (template.showOrderType != false && data.orderType.isNotEmpty) {
-      add('Jenis pesanan: ${_orderTypeLabel(data.orderType)}');
+      add(posCurrentLocale().pos351aef710752((_orderTypeLabel(data.orderType)).toString()));
     }
-    add('Bayar: ${data.paymentMethod.toUpperCase()}');
+    add(posCurrentLocale().posc5a29ff60a03((data.paymentMethod.toUpperCase()).toString()));
     lines.add('------------------------------');
     for (final item in data.items) {
       final name =
@@ -300,21 +301,21 @@ class PosReceiptDocumentBuilder {
       );
     }
     lines.add('------------------------------');
-    add('Subtotal    ${currency.format(data.subtotal)}');
-    if (data.discount > 0) add('Diskon    -${currency.format(data.discount)}');
+    add(posCurrentLocale().poseb08b632f2d5((currency.format(data.subtotal)).toString()));
+    if (data.discount > 0) add(posCurrentLocale().posd20c0326fffe((currency.format(data.discount)).toString()));
     if (template.showPromo != false && data.promoDiscount > 0) {
-      add('Promo    -${currency.format(data.promoDiscount)}');
+      add(posCurrentLocale().pos5f0e590eb67a((currency.format(data.promoDiscount)).toString()));
     }
     if (template.showPromo == true && data.promoCode.isNotEmpty) {
-      add('Kode promo    ${data.promoCode}');
+      add(posCurrentLocale().pos5d8a179eb068((data.promoCode).toString()));
     }
-    if (data.tax > 0) add('Pajak    ${currency.format(data.tax)}');
-    add('TOTAL    ${currency.format(data.total)}');
+    if (data.tax > 0) add(posCurrentLocale().pos62e104d5b8c0((currency.format(data.tax)).toString()));
+    add(posCurrentLocale().posf584192c76e1((currency.format(data.total)).toString()));
     if (data.cashReceived > 0) {
-      add('Diterima    ${currency.format(data.cashReceived)}');
+      add(posCurrentLocale().pos6cbe2ba54793((currency.format(data.cashReceived)).toString()));
     }
-    if (data.change > 0) add('Kembalian    ${currency.format(data.change)}');
-    if (data.note.trim().isNotEmpty) add('Catatan: ${data.note}');
+    if (data.change > 0) add(posCurrentLocale().pos9346d428aef7((currency.format(data.change)).toString()));
+    if (data.note.trim().isNotEmpty) add(posCurrentLocale().posb0bf84cc5839((data.note).toString()));
     // Internal marker consumed by the ESC/POS writer; it is never sent to
     // the printer and keeps the footer centered like the visual template.
     lines.add('[[PANTOO_CENTER_FOOTER]]');
@@ -412,12 +413,12 @@ class PosReceiptDocumentBuilder {
 
   static String _orderTypeLabel(String value) {
     return switch (value.trim().toLowerCase()) {
-      'dine_in' => 'Makan di Tempat',
-      'free_table' => 'Makan di Tempat (Tanpa Meja)',
-      'take_away' => 'Bawa Pulang',
-      'delivery' || 'online_delivery' => 'Pesan Antar',
-      'quick_service' => 'Layanan Cepat',
-      'reservation' => 'Reservasi',
+      'dine_in' => 'Makan di Tempat'.trCurrent(),
+      'free_table' => 'Makan di Tempat (Tanpa Meja)'.trCurrent(),
+      'take_away' => 'Bawa Pulang'.trCurrent(),
+      'delivery' || 'online_delivery' => 'Pesan Antar'.trCurrent(),
+      'quick_service' => 'Layanan Cepat'.trCurrent(),
+      'reservation' => 'Reservasi'.trCurrent(),
       _ => value,
     };
   }

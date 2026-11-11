@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -72,7 +73,7 @@ class _BadgeState extends State<PosPaymentConnectionBadge> {
         ? 'Jaringan perangkat tersedia. Server diperiksa saat transaksi.'
         : 'Perangkat offline. Penjualan tunai disimpan lokal dan menunggu sinkronisasi.';
     return Tooltip(
-      message: hint,
+      message: hint.tr(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -96,7 +97,7 @@ class _BadgeState extends State<PosPaymentConnectionBadge> {
                   : Colors.deepOrange,
             ),
             const SizedBox(width: 4),
-            Text(
+            PosText(
               label,
               style: const TextStyle(
                 color: Colors.black87,

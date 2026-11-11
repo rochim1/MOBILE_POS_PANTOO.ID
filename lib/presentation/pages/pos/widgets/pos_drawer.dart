@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -70,7 +71,7 @@ class _PosDrawerState extends State<PosDrawer> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
-                        Text(
+                        PosText(
                           'Pantoo POS',
                           style: TextStyle(
                             color: Colors.white,
@@ -78,7 +79,7 @@ class _PosDrawerState extends State<PosDrawer> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Text(
+                        PosText(
                           'Aplikasi Kasir Online',
                           style: TextStyle(color: Colors.white70, fontSize: 10),
                           overflow: TextOverflow.ellipsis,
@@ -87,7 +88,7 @@ class _PosDrawerState extends State<PosDrawer> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Tutup sidebar',
+                    tooltip: ('Tutup sidebar').tr(context),
                     visualDensity: VisualDensity.compact,
                     iconSize: 21,
                     color: Colors.white,
@@ -123,16 +124,16 @@ class _PosDrawerState extends State<PosDrawer> {
                     context: context,
                     builder: (BuildContext dialogContext) {
                       return AlertDialog(
-                        title: const Text('Konfirmasi Keluar'),
+                        title: const PosText('Konfirmasi Keluar'),
                         content: Text(
                           unresolved > 0
-                              ? '$unresolved transaksi penjualan offline belum selesai. Data tetap tersimpan di perangkat, tetapi sinkronisasi tertunda sampai akun instansi ini login kembali.'
-                              : 'Apakah Anda yakin ingin keluar dari aplikasi?',
+                              ? posLocale(dialogContext).pos452e3bc76740((unresolved).toString())
+                              : ('Apakah Anda yakin ingin keluar dari aplikasi?').tr(dialogContext),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text(
+                            child: const PosText(
                               'Batal',
                               style: TextStyle(color: Colors.black54),
                             ),
@@ -154,7 +155,7 @@ class _PosDrawerState extends State<PosDrawer> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.danger,
                             ),
-                            child: const Text(
+                            child: const PosText(
                               'Keluar',
                               style: TextStyle(color: Colors.white),
                             ),
@@ -170,7 +171,7 @@ class _PosDrawerState extends State<PosDrawer> {
                     children: [
                       Icon(Icons.logout, color: AppColors.danger, size: 20),
                       SizedBox(width: 11),
-                      Text(
+                      PosText(
                         'Keluar',
                         style: TextStyle(
                           color: AppColors.danger,
@@ -222,11 +223,11 @@ class _PosDrawerState extends State<PosDrawer> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
         // ---- Point of Sale ----
-        _buildSectionHeader('POINT OF SALE'),
+        _buildSectionHeader(('POINT OF SALE').tr(context)),
         if (can('view_dashboard'))
-          _buildShellItem(Icons.dashboard_outlined, 'Dashboard', 0),
+          _buildShellItem(Icons.dashboard_outlined, ('Dashboard').tr(context), 0),
         if (can('use_cashier'))
-          _buildShellItem(Icons.point_of_sale_outlined, 'Kasir', 1),
+          _buildShellItem(Icons.point_of_sale_outlined, ('Kasir').tr(context), 1),
         if (viewTables || (useTables && manageTables))
           _buildShellItem(
             Icons.restaurant_menu_outlined,
@@ -234,53 +235,53 @@ class _PosDrawerState extends State<PosDrawer> {
             5,
           ),
         if (useKitchenFlow && viewTables)
-          _buildShellItem(Icons.soup_kitchen_outlined, 'Tampilan Dapur', 18),
+          _buildShellItem(Icons.soup_kitchen_outlined, ('Tampilan Dapur').tr(context), 18),
 
         // ---- Manajemen ----
         _buildSectionHeader('MANAJEMEN'),
         if (can('view_products'))
-          _buildShellItem(Icons.inventory_2_outlined, 'Katalog POS', 2),
+          _buildShellItem(Icons.inventory_2_outlined, ('Katalog POS').tr(context), 2),
         if (canViewInventory) ...[
-          _buildShellItem(Icons.inventory_2_outlined, 'Inventori', 7),
+          _buildShellItem(Icons.inventory_2_outlined, ('Inventori').tr(context), 7),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 5),
             child: Text(
-              'Profil inventory: ${_profileLabel(inventoryProfile)}. Stok, pembelian, opname, mutasi, barang terbuang, dan retur tersedia sesuai izin akun.',
+              posLocale(context).pos647182c03196((_profileLabel(inventoryProfile)).toString()),
               style: const TextStyle(fontSize: 10, color: Colors.black54),
             ),
           ),
         ],
         if (can('view_promos'))
-          _buildShellItem(Icons.discount_outlined, 'Promo & Voucher', 8),
+          _buildShellItem(Icons.discount_outlined, ('Promo & Voucher').tr(context), 8),
         if (can('view_customers'))
-          _buildShellItem(Icons.people_outline, 'Pelanggan', 9),
+          _buildShellItem(Icons.people_outline, ('Pelanggan').tr(context), 9),
         if (can('view_stores'))
-          _buildShellItem(Icons.storefront_outlined, 'Toko', 10),
+          _buildShellItem(Icons.storefront_outlined, ('Toko').tr(context), 10),
         if (can('view_shifts'))
-          _buildShellItem(Icons.schedule_outlined, 'Shift Kasir', 11),
+          _buildShellItem(Icons.schedule_outlined, ('Shift Kasir').tr(context), 11),
 
         // ---- Laporan ----
         _buildSectionHeader('LAPORAN'),
         if (can('view_transactions'))
-          _buildShellItem(Icons.receipt_long_outlined, 'Riwayat Transaksi', 3),
+          _buildShellItem(Icons.receipt_long_outlined, ('Riwayat Transaksi').tr(context), 3),
         if (can('view_reports'))
-          _buildShellItem(Icons.bar_chart_outlined, 'Laporan Penjualan', 12),
+          _buildShellItem(Icons.bar_chart_outlined, ('Laporan Penjualan').tr(context), 12),
         if (can('view_returns'))
           _buildShellItem(
             Icons.keyboard_return_outlined,
-            'Retur Penjualan',
+            ('Retur Penjualan').tr(context),
             13,
           ),
 
         // ---- Pengaturan ----
         _buildSectionHeader('PENGATURAN'),
         if (can('view_settings'))
-          _buildShellItem(Icons.settings_outlined, 'Pengaturan POS', 17),
+          _buildShellItem(Icons.settings_outlined, ('Pengaturan POS').tr(context), 17),
         if (can('view_receipt'))
-          _buildShellItem(Icons.print_outlined, 'Pengaturan Struk', 14),
+          _buildShellItem(Icons.print_outlined, ('Pengaturan Struk').tr(context), 14),
         _buildShellItem(
           Icons.cloud_sync_outlined,
-          'Antrean Transaksi Offline',
+          ('Antrean Transaksi Offline').tr(context),
           15,
         ),
       ],
@@ -299,31 +300,31 @@ class _PosDrawerState extends State<PosDrawer> {
       children: [
         // ---- Utama ----
         _buildSectionHeader('UTAMA'),
-        _buildPlaceholderItem(Icons.dashboard_outlined, 'Dashboard Inventory'),
-        _buildPlaceholderItem(Icons.shopping_cart_outlined, 'Barang Dagangan'),
-        _buildPlaceholderItem(Icons.list_alt, 'Semua Inventaris'),
-        _buildPlaceholderItem(Icons.add_circle_outline, 'Tambah Inventaris'),
-        _buildPlaceholderItem(Icons.scale_outlined, 'Saldo Awal Persediaan'),
+        _buildPlaceholderItem(Icons.dashboard_outlined, ('Dashboard Inventory').tr(context)),
+        _buildPlaceholderItem(Icons.shopping_cart_outlined, ('Barang Dagangan').tr(context)),
+        _buildPlaceholderItem(Icons.list_alt, ('Semua Inventaris').tr(context)),
+        _buildPlaceholderItem(Icons.add_circle_outline, ('Tambah Inventaris').tr(context)),
+        _buildPlaceholderItem(Icons.scale_outlined, ('Saldo Awal Persediaan').tr(context)),
 
         // ---- Stok & Gudang ----
-        _buildSectionHeader('STOK & GUDANG'),
-        _buildPlaceholderItem(Icons.archive_outlined, 'Stok Saat Ini'),
-        _buildPlaceholderItem(Icons.compare_arrows, 'Transfer Stok'),
-        _buildPlaceholderItem(Icons.assignment_outlined, 'Stock Opname'),
-        _buildPlaceholderItem(Icons.timer_outlined, 'Batch & Kadaluarsa'),
+        _buildSectionHeader(('STOK & GUDANG').tr(context)),
+        _buildPlaceholderItem(Icons.archive_outlined, ('Stok Saat Ini').tr(context)),
+        _buildPlaceholderItem(Icons.compare_arrows, ('Transfer Stok').tr(context)),
+        _buildPlaceholderItem(Icons.assignment_outlined, ('Stock Opname').tr(context)),
+        _buildPlaceholderItem(Icons.timer_outlined, ('Batch & Kadaluarsa').tr(context)),
 
         // ---- Pembelian ----
         _buildSectionHeader('PEMBELIAN'),
-        _buildPlaceholderItem(Icons.local_shipping_outlined, 'Supplier'),
-        _buildPlaceholderItem(Icons.shopping_bag_outlined, 'Purchase Order'),
-        _buildPlaceholderItem(Icons.inbox_outlined, 'Penerimaan Barang'),
-        _buildPlaceholderItem(Icons.keyboard_return, 'Retur Pembelian'),
-        _buildPlaceholderItem(Icons.directions_boat_outlined, 'Landed Cost'),
-        _buildPlaceholderItem(Icons.delete_outline, 'Scrap & Insiden'),
+        _buildPlaceholderItem(Icons.local_shipping_outlined, ('Supplier').tr(context)),
+        _buildPlaceholderItem(Icons.shopping_bag_outlined, ('Purchase Order').tr(context)),
+        _buildPlaceholderItem(Icons.inbox_outlined, ('Penerimaan Barang').tr(context)),
+        _buildPlaceholderItem(Icons.keyboard_return, ('Retur Pembelian').tr(context)),
+        _buildPlaceholderItem(Icons.directions_boat_outlined, ('Landed Cost').tr(context)),
+        _buildPlaceholderItem(Icons.delete_outline, ('Scrap & Insiden').tr(context)),
 
         // ---- Kategori Lainnya ----
-        _buildSectionHeader('KATEGORI LAINNYA'),
-        _buildExpandableItem(Icons.folder_outlined, 'Kategori Inventaris', [
+        _buildSectionHeader(('KATEGORI LAINNYA').tr(context)),
+        _buildExpandableItem(Icons.folder_outlined, ('Kategori Inventaris').tr(context), [
           'Aset Tetap',
           'Habis Pakai',
           'Bahan Baku',
@@ -331,34 +332,34 @@ class _PosDrawerState extends State<PosDrawer> {
           'MRO Supplies',
           'Intangible',
         ]),
-        _buildExpandableItem(Icons.calculate_outlined, 'Akuntansi Aset', [
+        _buildExpandableItem(Icons.calculate_outlined, ('Akuntansi Aset').tr(context), [
           'Depresiasi',
         ]),
         _buildPlaceholderItem(Icons.settings_outlined, 'Pengaturan'),
 
         // ---- Laporan ----
         _buildSectionHeader('LAPORAN'),
-        _buildPlaceholderItem(Icons.insert_chart_outlined, 'Laporan Stok'),
-        _buildPlaceholderItem(Icons.sync_alt, 'Laporan Pergerakan'),
+        _buildPlaceholderItem(Icons.insert_chart_outlined, ('Laporan Stok').tr(context)),
+        _buildPlaceholderItem(Icons.sync_alt, ('Laporan Pergerakan').tr(context)),
         _buildPlaceholderItem(
           Icons.warning_amber_outlined,
-          'Reorder Alert & HPP',
+          ('Reorder Alert & HPP').tr(context),
         ),
-        _buildPlaceholderItem(Icons.show_chart, 'Sales Forecasting'),
+        _buildPlaceholderItem(Icons.show_chart, ('Sales Forecasting').tr(context)),
 
         // ---- Aset & Kendaraan ----
-        _buildSectionHeader('ASET & KENDARAAN'),
+        _buildSectionHeader(('ASET & KENDARAAN').tr(context)),
         _buildExpandableItem(Icons.directions_car_outlined, 'Kendaraan', [
           'Data Kendaraan',
           'Tambah Kendaraan',
           'Pengaturan Kendaraan',
           'Laporan Kendaraan',
         ]),
-        _buildPlaceholderItem(Icons.vpn_key_outlined, 'Sewa Aset'),
+        _buildPlaceholderItem(Icons.vpn_key_outlined, ('Sewa Aset').tr(context)),
 
         // ---- Mitra ----
         _buildSectionHeader('MITRA'),
-        _buildExpandableItem(Icons.storefront_outlined, 'Data Mitra', [
+        _buildExpandableItem(Icons.storefront_outlined, ('Data Mitra').tr(context), [
           'Data Mitra',
           'Kandidat Mitra',
           'Mitra Non-Aktif',
@@ -375,7 +376,7 @@ class _PosDrawerState extends State<PosDrawer> {
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 14, top: 10, bottom: 3),
-      child: Text(
+      child: PosText(
         title,
         style: const TextStyle(
           color: AppColors.primary,
@@ -388,10 +389,10 @@ class _PosDrawerState extends State<PosDrawer> {
   }
 
   String _profileLabel(String profile) => switch (profile) {
-    'centralized' => 'Terpusat',
-    'advanced' => 'Advanced',
-    'custom' => 'Custom',
-    _ => 'Sederhana',
+    'centralized' => ('Terpusat').trCurrent(),
+    'advanced' => ('Advanced').trCurrent(),
+    'custom' => ('Custom').trCurrent(),
+    _ => ('Sederhana').trCurrent(),
   };
 
   /// Item yang berpindah tab di dalam Shell (index 0-4)
@@ -409,7 +410,7 @@ class _PosDrawerState extends State<PosDrawer> {
         color: isSelected ? AppColors.primary : Colors.black87,
         size: 19,
       ),
-      title: Text(
+      title: PosText(
         title,
         style: TextStyle(
           color: isSelected ? AppColors.primary : Colors.black87,
@@ -428,7 +429,7 @@ class _PosDrawerState extends State<PosDrawer> {
     return ListTile(
       dense: true,
       leading: Icon(icon, color: Colors.black87, size: 22),
-      title: Text(
+      title: PosText(
         title,
         style: const TextStyle(color: Colors.black87, fontSize: 14),
       ),
@@ -444,7 +445,7 @@ class _PosDrawerState extends State<PosDrawer> {
   ) {
     return ExpansionTile(
       leading: Icon(icon, color: Colors.black87, size: 22),
-      title: Text(
+      title: PosText(
         title,
         style: const TextStyle(color: Colors.black87, fontSize: 14),
       ),
@@ -453,7 +454,7 @@ class _PosDrawerState extends State<PosDrawer> {
         return ListTile(
           dense: true,
           leading: const Icon(Icons.circle, size: 6, color: Colors.black54),
-          title: Text(
+          title: PosText(
             subTitle,
             style: const TextStyle(color: Colors.black87, fontSize: 13),
           ),

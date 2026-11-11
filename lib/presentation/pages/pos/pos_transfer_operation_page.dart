@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../injections.dart';
 import '../../../core/network/graphql_client_provider.dart';
@@ -276,7 +277,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
       initialValue: '$value',
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: (label).tr(context),
         border: const OutlineInputBorder(),
       ),
       onChanged: (v) =>
@@ -291,8 +292,8 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
           key: ValueKey('$version:$label'),
           initialValue: value,
           decoration: InputDecoration(
-            labelText: label,
-            helperText: 'YYYY-MM-DD · mengikuti periode pembukuan',
+            labelText: (label).tr(context),
+            helperText: ('YYYY-MM-DD · mengikuti periode pembukuan').tr(context),
             border: const OutlineInputBorder(),
           ),
           onChanged: change,
@@ -303,10 +304,10 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
     appBar: AppBar(
       title: Text(
         deciding
-            ? 'Keputusan selisih'
+            ? ('Keputusan selisih').tr(context)
             : widget.mode == 'receive'
-            ? 'Terima Mutasi Stok'
-            : 'Laporkan selisih transfer',
+            ? ('Terima Mutasi Stok').tr(context)
+            : ('Laporkan selisih transfer').tr(context),
       ),
     ),
     body: loading
@@ -316,8 +317,8 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(error!),
-                TextButton(onPressed: load, child: const Text('Coba lagi')),
+                PosText(error!),
+                TextButton(onPressed: load, child: const PosText('Coba lagi')),
               ],
             ),
           )
@@ -333,15 +334,15 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                 const SizedBox(height: 12),
                 if (deciding) ...[
                   Text(
-                    '${report?['kind'] == 'damaged' ? 'Barang rusak' : 'Barang hilang'} • ${report?['reason']}',
+                    '${report?['kind'] == 'damaged' ? ('Barang rusak').tr(context) : ('Barang hilang').tr(context)} • ${report?['reason']}',
                   ),
                   for (final item in transferMaps(report?['items']))
                     Text(
-                      '${item['qty']} unit · ${item['serial_numbers'] ?? ''}',
+                      posLocale(context).pos256020cc43aa((item['qty']).toString(), (item['serial_numbers'] ?? '').toString()),
                     ),
                   SwitchListTile(
-                    title: const Text('Setujui laporan selisih'),
-                    subtitle: const Text(
+                    title: const PosText('Setujui laporan selisih'),
+                    subtitle: const PosText(
                       'Menolak melepaskan barang agar dapat diproses ulang. Pelapor tidak boleh memutuskan laporannya sendiri.',
                     ),
                     value: approve,
@@ -351,12 +352,12 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                         : (v) => setState(() => approve = v),
                   ),
                   if (report?['kind'] == 'lost' && !widget.canApproveLoss)
-                    const Text(
+                    const PosText(
                       'Izin persetujuan scrap tidak tersedia. Anda hanya dapat menolak; persetujuan dilakukan supervisor yang berwenang.',
                     ),
                   if (approve && report?['kind'] == 'damaged')
                     PosTransferLocationFields(
-                      title: 'karantina',
+                      title: ('karantina').tr(context),
                       warehouses: warehouses
                           .where((w) => w['warehouse_type'] == 'quarantine')
                           .toList(),
@@ -366,15 +367,15 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                   if (approve && report?['kind'] == 'lost')
                     TextField(
                       controller: lossAccount,
-                      decoration: const InputDecoration(
-                        labelText: 'Kode akun beban kehilangan',
-                        helperText: 'Backend memvalidasi izin scrap dan akun.',
+                      decoration:  InputDecoration(
+                        labelText: ('Kode akun beban kehilangan').tr(context),
+                        helperText: ('Backend memvalidasi izin scrap dan akun.').tr(context),
                         border: OutlineInputBorder(),
                       ),
                     ),
                 ] else ...[
                   if (widget.mode == 'receive') ...[
-                    const Text(
+                    const PosText(
                       'Isi barang yang benar-benar tiba. Sisa dan selisih pending tidak diterima otomatis.',
                     ),
                     const SizedBox(height: 12),
@@ -391,17 +392,17 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                   ] else
                     DropdownButtonFormField<String>(
                       initialValue: kind,
-                      decoration: const InputDecoration(
-                        labelText: 'Jenis selisih',
+                      decoration:  InputDecoration(
+                        labelText: ('Jenis selisih').tr(context),
                       ),
                       items: const [
                         DropdownMenuItem(
                           value: 'lost',
-                          child: Text('Hilang / kurang permanen'),
+                          child: PosText('Hilang / kurang permanen'),
                         ),
                         DropdownMenuItem(
                           value: 'damaged',
-                          child: Text('Rusak (perlu karantina)'),
+                          child: PosText('Rusak (perlu karantina)'),
                         ),
                       ],
                       onChanged: (v) => setState(() => kind = v ?? 'lost'),
@@ -425,7 +426,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                                   ),
                                 ),
                                 Text(
-                                  'Sisa tersedia ${row['qty']} ${row['unit']}',
+                                  posLocale(context).posf7452c021e4b((row['qty']).toString(), (row['unit']).toString()),
                                 ),
                                 const SizedBox(height: 10),
                                 OutlinedButton(
@@ -441,7 +442,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                                     });
                                     version++;
                                   }),
-                                  child: const Text(
+                                  child: const PosText(
                                     'Isi seluruh sisa baris ini',
                                   ),
                                 ),
@@ -454,7 +455,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                                 for (final serial in row['serials'] as List)
                                   CheckboxListTile(
                                     contentPadding: EdgeInsets.zero,
-                                    title: Text('Seri $serial'),
+                                    title: Text(posLocale(context).pos2520218913bd((serial).toString())),
                                     value: (item['serial_numbers'] as List)
                                         .contains(serial),
                                     onChanged: (v) => setState(() {
@@ -490,7 +491,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                                   ),
                                 if (widget.mode == 'receive')
                                   PosTransferLocationFields(
-                                    title: 'aktual ${row['name']}',
+                                    title: posLocale(context).posadd23ff79c19((row['name']).toString()),
                                     warehouses: warehouses
                                         .where(
                                           (w) =>
@@ -511,7 +512,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                       ),
                     ),
                   if (rows.isEmpty)
-                    const Text(
+                    const PosText(
                       'Tidak ada sisa bebas. Periksa laporan selisih yang masih menunggu keputusan.',
                     ),
                 ],
@@ -521,8 +522,8 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: deciding
-                          ? 'Catatan keputusan (wajib)'
-                          : 'Alasan selisih (wajib)',
+                          ? ('Catatan keputusan (wajib)').tr(context)
+                          : ('Alasan selisih (wajib)').tr(context),
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -530,8 +531,8 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                   if (!deciding)
                     TextField(
                       controller: evidence,
-                      decoration: const InputDecoration(
-                        labelText: 'Tautan bukti (opsional)',
+                      decoration:  InputDecoration(
+                        labelText: ('Tautan bukti (opsional)').tr(context),
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -548,12 +549,12 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
                       : const Icon(Icons.check),
                   label: Text(
                     saving
-                        ? 'Memproses...'
+                        ? ('Memproses...').tr(context)
                         : deciding
-                        ? 'Simpan keputusan'
+                        ? ('Simpan keputusan').tr(context)
                         : widget.mode == 'receive'
-                        ? 'Terima jumlah ini'
-                        : 'Ajukan laporan selisih',
+                        ? ('Terima jumlah ini').tr(context)
+                        : ('Ajukan laporan selisih').tr(context),
                   ),
                 ),
                 const SizedBox(height: 32),

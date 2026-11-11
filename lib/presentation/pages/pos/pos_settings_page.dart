@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import '../../../../domain/models/pos_remote_profile_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -193,21 +195,21 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                 totalStageCount: 4,
                 stages: [
                   PosSetupTourStage(
-                    title: 'Pilih operator',
+                    title: ('Pilih operator').tr(context),
                     description:
-                        'Pilih karyawan yang akan menggunakan kasir POS.',
+                        ('Pilih karyawan yang akan menggunakan kasir POS.').tr(context),
                     target: targets.pinEmployee,
                   ),
                   PosSetupTourStage(
-                    title: 'Buat PIN aman',
+                    title: ('Buat PIN aman').tr(context),
                     description:
-                        'Masukkan 4–6 digit angka khusus milik operator tersebut.',
+                        ('Masukkan 4–6 digit angka khusus milik operator tersebut.').tr(context),
                     target: targets.pinValue,
                   ),
                   PosSetupTourStage(
-                    title: 'Simpan PIN operator',
+                    title: ('Simpan PIN operator').tr(context),
                     description:
-                        'Simpan PIN. Setelah itu operator dapat dipilih pada layar akses kasir.',
+                        ('Simpan PIN. Setelah itu operator dapat dipilih pada layar akses kasir.').tr(context),
                     target: targets.pinSave,
                   ),
                 ],
@@ -223,7 +225,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
               )?.isAfter(DateTime.now()) ==
               true;
           return AlertDialog(
-            title: const Text('Kelola PIN Operator'),
+            title: const PosText('Kelola PIN Operator'),
             content: SizedBox(
               width: 440,
               child: Column(
@@ -233,8 +235,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                     key: widget.setupTourTargets?.pinEmployee,
                     initialValue: selectedId,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Operator kasir',
+                    decoration:  InputDecoration(
+                      labelText: ('Operator kasir').tr(context),
                     ),
                     items: users
                         .map(
@@ -265,8 +267,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                       keyboardType: TextInputType.number,
                       maxLength: 6,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(
-                        labelText: 'PIN baru (4–6 digit)',
+                      decoration:  InputDecoration(
+                        labelText: ('PIN baru (4–6 digit)').tr(context),
                         counterText: '',
                       ),
                     ),
@@ -295,7 +297,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                                 setDialogState(() => saving = false);
                               },
                         icon: const Icon(Icons.lock_open_outlined),
-                        label: const Text('Buka kunci operator'),
+                        label: const PosText('Buka kunci operator'),
                       ),
                     ),
                 ],
@@ -304,7 +306,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             actions: [
               TextButton(
                 onPressed: saving ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Tutup'),
+                child: const PosText('Tutup'),
               ),
               FilledButton.icon(
                 key: widget.setupTourTargets?.pinSave,
@@ -340,7 +342,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                         );
                       },
                 icon: const Icon(Icons.save_outlined),
-                label: Text(saving ? 'Menyimpan...' : 'Simpan PIN'),
+                label: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan PIN').tr(context)),
               ),
             ],
           );
@@ -591,14 +593,14 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                 return Row(
                   children: [
                     PosCategorySidebar<_SettingsSection>(
-                      title: 'Kategori Pengaturan',
+                      title: ('Kategori Pengaturan').tr(context),
                       items: _sections,
                       selected: _selectedSection,
                       onSelected: (value) =>
                           setState(() => _selectedSection = value),
                       expandedWidth: 230,
                       footer:
-                          'Pengaturan berlaku sebagai default operasional POS.',
+                          ('Pengaturan berlaku sebagai default operasional POS.').tr(context),
                     ),
                     const VerticalDivider(width: 1),
                     Expanded(child: content),
@@ -611,7 +613,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                     color: Colors.white,
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                     child: PosCategoryDropdown<_SettingsSection>(
-                      label: 'Kategori pengaturan',
+                      label: ('Kategori pengaturan').tr(context),
                       items: _sections,
                       selected: _selectedSection,
                       onSelected: (value) =>
@@ -631,18 +633,18 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   Widget _settingsContent(PosSettingsState state, {required bool canManage}) {
     final section = switch (_selectedSection) {
       _SettingsSection.finance => _buildSection(
-        title: 'Pajak & Keuangan',
+        title: ('Pajak & Keuangan').tr(context),
         icon: Icons.account_balance_wallet_outlined,
         children: [
-          _buildTextField('Pajak (%)', _pajakController, isNumber: true),
+          _buildTextField(('Pajak (%)').tr(context), _pajakController, isNumber: true),
           _buildTextField(
-            'Minimal Transaksi Tunai (Rp)',
+            ('Minimal Transaksi Tunai (Rp)').tr(context),
             _minTransaksiTunaiController,
             isNumber: true,
             isCurrency: true,
           ),
           _buildDropdown(
-            label: 'Pembulatan Harga',
+            label: ('Pembulatan Harga').tr(context),
             value: _pembulatanHarga,
             items: const ['none', '100', '500', '1000'],
             onChanged: (val) => setState(() => _pembulatanHarga = val!),
@@ -650,13 +652,13 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         ],
       ),
       _SettingsSection.transaction => _buildSection(
-        title: 'Transaksi & Penjualan',
+        title: ('Transaksi & Penjualan').tr(context),
         icon: Icons.tune_outlined,
         children: [
           Container(
             key: widget.setupTourTargets?.settingsProfile,
             child: _buildDropdown(
-              label: 'Profil Bisnis POS',
+              label: ('Profil Bisnis POS').tr(context),
               value: _businessProfile,
               items: _profileCatalog.ids(current: _businessProfile),
               onChanged: (val) {
@@ -665,10 +667,10 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             ),
           ),
           if (_profileCatalog.source != 'backend')
-            const Text(
+            const PosText(
               'Katalog tersimpan digunakan. Hubungkan kembali untuk memuat profil terbaru.',
             ),
-          const Text(
+          const PosText(
             'Fitur operasional',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -691,7 +693,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                 : field;
           }),
           _buildDropdown(
-            label: 'Metode Pembayaran Default',
+            label: ('Metode Pembayaran Default').tr(context),
             value: _metodePembayaran,
             items: const [
               'tunai',
@@ -704,41 +706,41 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             onChanged: (val) => setState(() => _metodePembayaran = val!),
           ),
           _buildDropdown(
-            label: 'Channel Penjualan Default',
+            label: ('Channel Penjualan Default').tr(context),
             value: _channel,
             items: _channelOptions,
             onChanged: (val) => setState(() => _channel = val!),
           ),
           _buildOptionManager(
-            label: 'Channel Penjualan Aktif',
-            description: 'Sumber transaksi yang tersedia di kasir.',
+            label: ('Channel Penjualan Aktif').tr(context),
+            description: ('Sumber transaksi yang tersedia di kasir.').tr(context),
             values: _channelOptions,
             controller: _newChannelController,
             onAdd: () => _addOption(channel: true),
             onRemove: (value) => _removeOption(value, channel: true),
           ),
           _buildDropdown(
-            label: 'Level Harga Default',
+            label: ('Level Harga Default').tr(context),
             value: _priceLevel,
             items: _priceLevelOptions,
             onChanged: (val) => setState(() => _priceLevel = val!),
           ),
           _buildOptionManager(
-            label: 'Level Harga Aktif',
-            description: 'Dipakai bersama oleh katalog inventaris dan kasir.',
+            label: ('Level Harga Aktif').tr(context),
+            description: ('Dipakai bersama oleh katalog inventaris dan kasir.').tr(context),
             values: _priceLevelOptions,
             controller: _newPriceLevelController,
             onAdd: () => _addOption(channel: false),
             onRemove: (value) => _removeOption(value, channel: false),
           ),
           _buildDropdown(
-            label: 'Jenis Pesanan Default',
+            label: ('Jenis Pesanan Default').tr(context),
             value: _fulfillmentType,
             items: _fulfillmentOptions,
             onChanged: (val) => setState(() => _fulfillmentType = val!),
           ),
           _buildDropdown(
-            label: 'Kebijakan Diskon',
+            label: ('Kebijakan Diskon').tr(context),
             value: _discountPolicy,
             items: const [
               'stack',
@@ -748,66 +750,68 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             ],
             onChanged: (val) => setState(() => _discountPolicy = val!),
           ),
-          _buildTextField('Prefix Invoice', _invoicePrefixController),
+          _buildTextField(('Prefix Invoice').tr(context), _invoicePrefixController),
           _buildTextField(
-            'Default Catatan',
+            ('Default Catatan').tr(context),
             _defaultCatatanController,
             maxLines: 3,
           ),
           _buildSwitch(
-            'Pesanan QR diproses setelah bayar di kasir',
+            ('Pesanan QR diproses setelah bayar di kasir').tr(context),
             _webOrderPayBeforeProcessing,
             (value) => setState(() => _webOrderPayBeforeProcessing = value),
           ),
-          const Text(
+          const PosText(
             'Web Order saat ini hanya menerima pembayaran langsung di kasir; pembayaran online belum tersedia.',
           ),
         ],
       ),
       _SettingsSection.cashier => _buildSection(
-        title: 'Kasir & Keamanan',
+        title: ('Kasir & Keamanan').tr(context),
         icon: Icons.point_of_sale_outlined,
         children: [
+          ListTile(leading: const Icon(Icons.language), title: Text(posLocale(context).languageTitle), trailing: const LanguagePicker()),
+          const SizedBox(height: 12),
           _buildSwitch(
-            'Cetak Struk Otomatis',
+            ('Cetak Struk Otomatis').tr(context),
             _autoPrintReceipt,
             (v) => setState(() => _autoPrintReceipt = v),
           ),
           _buildSwitch(
-            'Izinkan Kasir Edit Harga',
+            ('Izinkan Kasir Edit Harga').tr(context),
             _allowKasirPriceEdit,
             (v) => setState(() => _allowKasirPriceEdit = v),
           ),
           _buildSwitch(
-            'Izinkan Penjualan Tanpa Shift Aktif',
+            ('Izinkan Penjualan Tanpa Shift Aktif').tr(context),
             _allowOutOfShift,
             (v) => setState(() => _allowOutOfShift = v),
           ),
           _buildDropdown(
-            label: 'Penjualan Barang Kedaluwarsa',
+            label: ('Penjualan Barang Kedaluwarsa').tr(context),
             value: _expiredSalePolicy,
             items: const ['block', 'allow_with_permission'],
             onChanged: (val) => setState(() => _expiredSalePolicy = val!),
           ),
           const Padding(
             padding: EdgeInsets.only(bottom: 16),
-            child: Text(
+            child: PosText(
               'Override hanya berlaku untuk produk nonkonsumsi yang diizinkan pada master inventaris. Perangkat harus online dan supervisor wajib memberi PIN serta alasan audit.',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ),
           _buildSwitch(
-            'Aktifkan Kunci POS',
+            ('Aktifkan Kunci POS').tr(context),
             _posLockEnabled,
             (v) => setState(() => _posLockEnabled = v),
           ),
           _buildSwitch(
-            'Kunci Saat Aplikasi di Latar Belakang',
+            ('Kunci Saat Aplikasi di Latar Belakang').tr(context),
             _posLockOnBackground,
             (v) => setState(() => _posLockOnBackground = v),
           ),
           _buildTextField(
-            'Kunci Otomatis Setelah (menit)',
+            ('Kunci Otomatis Setelah (menit)').tr(context),
             _autoLockMinutesController,
             isNumber: true,
           ),
@@ -817,8 +821,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.explore_outlined),
-              title: const Text('Kelola PIN Operator'),
-              subtitle: const Text(
+              title: const PosText('Kelola PIN Operator'),
+              subtitle: const PosText(
                 'Buat, reset, atau buka kunci PIN karyawan kasir.',
               ),
               trailing: const Icon(Icons.chevron_right),
@@ -844,7 +848,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: AppColors.warningBorder),
                 ),
-                child: const Text(
+                child: const PosText(
                   'Mode lihat saja. Izin Kelola Pengaturan POS diperlukan untuk menyimpan perubahan.',
                 ),
               ),
@@ -876,7 +880,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
+                    : const PosText(
                         'Simpan Pengaturan',
                         style: TextStyle(
                           fontSize: 16,
@@ -917,7 +921,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             children: [
               Icon(icon, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              Text(
+              PosText(
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -950,9 +954,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         inputFormatters: isCurrency ? const [RupiahInputFormatter()] : null,
         maxLines: maxLines,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: (label).tr(context),
           floatingLabelBehavior: FloatingLabelBehavior.always,
-          hintText: label,
+          hintText: (label).tr(context),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -977,12 +981,12 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          PosText(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 7),
           DropdownButtonFormField<String>(
             initialValue: safeValue,
             decoration: InputDecoration(
-              hintText: 'Pilih $label',
+              hintText: posLocale(context).pos42aa2abf5ad3((label).toString()),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -995,7 +999,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                 .map(
                   (item) => DropdownMenuItem(
                     value: item,
-                    child: Text(_optionLabel(item)),
+                    child: PosText(_optionLabel(item)),
                   ),
                 )
                 .toList(),
@@ -1019,9 +1023,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          PosText(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 3),
-          Text(
+          PosText(
             description,
             style: const TextStyle(
               fontSize: 12,
@@ -1035,7 +1039,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             children: values
                 .map(
                   (value) => InputChip(
-                    label: Text(_optionLabel(value)),
+                    label: PosText(_optionLabel(value)),
                     onDeleted: value == 'retail' ? null : () => onRemove(value),
                   ),
                 )
@@ -1050,8 +1054,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => onAdd(),
                   decoration: InputDecoration(
-                    labelText: 'Tambah $label',
-                    hintText: 'Contoh: mitra khusus',
+                    labelText: posLocale(context).pos56c80ff62e6d((label).toString()),
+                    hintText: ('Contoh: mitra khusus').tr(context),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1062,7 +1066,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
               ElevatedButton.icon(
                 onPressed: onAdd,
                 icon: const Icon(Icons.add),
-                label: const Text('Tambah'),
+                label: const PosText('Tambah'),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(112, 56),
                   backgroundColor: AppColors.primary,
@@ -1123,7 +1127,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+          Expanded(child: PosText(label, style: const TextStyle(fontSize: 14))),
           Switch(
             value: value,
             onChanged: onChanged,

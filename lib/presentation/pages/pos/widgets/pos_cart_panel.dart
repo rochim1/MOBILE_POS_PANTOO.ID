@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/core/utils/rupiah_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,7 +19,7 @@ class PosCartPanel extends StatelessWidget {
       builder: (context, state) {
         if (state.cart.isEmpty) {
           return const Center(
-            child: Text(
+            child: PosText(
               'Silakan masukkan pesanan dari pelanggan',
               style: TextStyle(color: Colors.black54),
             ),
@@ -113,7 +114,7 @@ class PosCartPanel extends StatelessWidget {
                     ),
                   ),
                   Tooltip(
-                    message: 'Ubah jumlah',
+                    message: ('Ubah jumlah').tr(context),
                     child: InkWell(
                       onTap: () => _editQuantity(context, product, quantity),
                       borderRadius: BorderRadius.circular(6),
@@ -196,7 +197,7 @@ class PosCartPanel extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              '@ Rp ${formatRupiahAmount(unitPrice)}',
+                              posLocale(context).pos5e6481728b57((formatRupiahAmount(unitPrice)).toString()),
                               style: TextStyle(
                                 color: allowPriceEdit
                                     ? AppColors.primary
@@ -219,7 +220,7 @@ class PosCartPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Rp ${formatRupiahAmount((unitPrice * quantity))}',
+                    posLocale(context).pos70272f418def((formatRupiahAmount((unitPrice * quantity))).toString()),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -250,7 +251,7 @@ class PosCartPanel extends StatelessWidget {
     final quantity = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Jumlah ${product.name}'),
+        title: Text(posLocale(dialogContext).posfed87456b577((product.name).toString())),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -259,8 +260,8 @@ class PosCartPanel extends StatelessWidget {
             FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,3}')),
           ],
           decoration: InputDecoration(
-            labelText: 'Jumlah (${product.baseUnit})',
-            helperText: 'Bisa memakai pecahan, contoh 3,5 kg',
+            labelText: posLocale(dialogContext).pos8109832b1b60((product.baseUnit).toString()),
+            helperText: ('Bisa memakai pecahan, contoh 3,5 kg').tr(dialogContext),
             border: const OutlineInputBorder(),
           ),
           onSubmitted: (_) {
@@ -275,7 +276,7 @@ class PosCartPanel extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () {
@@ -286,7 +287,7 @@ class PosCartPanel extends StatelessWidget {
                 Navigator.pop(dialogContext, value);
               }
             },
-            child: const Text('Terapkan'),
+            child: const PosText('Terapkan'),
           ),
         ],
       ),
@@ -309,14 +310,14 @@ class PosCartPanel extends StatelessWidget {
     final price = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Ubah harga satuan'),
+        title: const PosText('Ubah harga satuan'),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: const [RupiahInputFormatter(decimalDigits: 2)],
           decoration: InputDecoration(
-            labelText: 'Harga ${product.name}',
+            labelText: posLocale(dialogContext).posba0f270a2974((product.name).toString()),
             prefixText: 'Rp ',
             border: const OutlineInputBorder(),
           ),
@@ -324,7 +325,7 @@ class PosCartPanel extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () {
@@ -332,7 +333,7 @@ class PosCartPanel extends StatelessWidget {
               if (value <= 0) return;
               Navigator.pop(dialogContext, value);
             },
-            child: const Text('Terapkan'),
+            child: const PosText('Terapkan'),
           ),
         ],
       ),

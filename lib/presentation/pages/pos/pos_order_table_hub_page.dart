@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -40,7 +41,7 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
 
     if (!canViewOrders && !canManageTables) {
       return const Center(
-        child: Text('Anda tidak memiliki akses Pesanan Aktif & Meja.'),
+        child: PosText('Anda tidak memiliki akses Pesanan Aktif & Meja.'),
       );
     }
 
@@ -54,9 +55,9 @@ class _PosOrderTableHubPageState extends State<PosOrderTableHubPage> {
                 label: PosOrderWorkspacePolicy(config).title,
               ),
             if (canManageTables)
-              const PosFullWidthTab(
+               PosFullWidthTab(
                 icon: Icons.table_restaurant_outlined,
-                label: 'Peta Meja',
+                label: ('Peta Meja').tr(context),
               ),
           ],
           selectedIndex: canViewOrders && canManageTables ? selectedTab : 0,

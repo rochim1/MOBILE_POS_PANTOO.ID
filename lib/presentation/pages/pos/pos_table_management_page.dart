@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -52,12 +53,12 @@ class PosTableManagementPage extends StatelessWidget {
     if (!useTables || !canManage || storeId.isEmpty) {
       return _TableAccessMessage(
         title: !useTables
-            ? 'Fitur meja nonaktif'
+            ? ('Fitur meja nonaktif').tr(context)
             : !canManage
-            ? 'Akses manajemen meja ditolak'
+            ? ('Akses manajemen meja ditolak').tr(context)
             : allowOutOfShift
-            ? 'Toko aktif belum tersedia'
-            : 'Shift kasir belum dibuka',
+            ? ('Toko aktif belum tersedia').tr(context)
+            : ('Shift kasir belum dibuka').tr(context),
         message: !useTables
             ? 'Aktifkan fitur Meja / Ruangan melalui Pengaturan POS terlebih dahulu.'
             : !canManage
@@ -98,13 +99,13 @@ class _TableAccessMessage extends StatelessWidget {
             color: Colors.grey,
           ),
           const SizedBox(height: 12),
-          Text(
+          PosText(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          Text(
+          PosText(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.grey),
@@ -429,7 +430,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
             size: 15,
             color: selected ? Colors.white : Colors.grey[700],
           ),
-    label: Text(label),
+    label: PosText(label),
     selected: selected,
     onSelected: (_) => onSelected(),
     showCheckmark: false,
@@ -450,7 +451,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
   Widget _capacityChip(String label, int? capacity, int? activeCapacity) {
     final selected = capacity == activeCapacity;
     return ChoiceChip(
-      label: Text(label),
+      label: PosText(label),
       selected: selected,
       onSelected: (_) => setState(() => _selectedCapacity = capacity),
       showCheckmark: false,
@@ -489,8 +490,8 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: _onSearch,
-                  decoration: const InputDecoration(
-                    hintText: 'Cari meja...',
+                  decoration:  InputDecoration(
+                    hintText: ('Cari meja...').tr(context),
                     prefixIcon: Icon(Icons.search, color: Colors.grey),
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 16,
@@ -513,32 +514,32 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                       initialValue: _sort,
                       isDense: true,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Urutkan',
+                      decoration:  InputDecoration(
+                        labelText: ('Urutkan').tr(context),
                         border: OutlineInputBorder(),
                       ),
                       items: const [
                         DropdownMenuItem(
                           value: 'occupied_first',
-                          child: Text(
+                          child: PosText(
                             'Terisi dahulu',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'name',
-                          child: Text('Nama meja'),
+                          child: PosText('Nama meja'),
                         ),
                         DropdownMenuItem(
                           value: 'longest',
-                          child: Text(
+                          child: PosText(
                             'Durasi terlama',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'capacity',
-                          child: Text('Kapasitas'),
+                          child: PosText('Kapasitas'),
                         ),
                       ],
                       onChanged: (value) =>
@@ -549,7 +550,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                     width: controlHeight,
                     height: controlHeight,
                     child: IconButton(
-                      tooltip: 'Cetak QR semua meja',
+                      tooltip: ('Cetak QR semua meja').tr(context),
                       icon: _printingAllQr
                           ? const SizedBox(
                               width: 18,
@@ -600,7 +601,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
 
     if (visibleTables.isEmpty && state.tables.isNotEmpty) {
       return const Center(
-        child: Text(
+        child: PosText(
           'Tidak ada meja dengan kapasitas ini.',
           style: TextStyle(color: Colors.grey),
         ),
@@ -669,7 +670,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   Icon(Icons.table_restaurant, size: 23, color: accent),
                   const Spacer(),
                   IconButton(
-                    tooltip: 'QR ${table.name}',
+                    tooltip: posLocale(context).pos8c5a30764897((table.name).toString()),
                     onPressed: () => _showTableQr(table),
                     visualDensity: VisualDensity.compact,
                     constraints: const BoxConstraints(
@@ -717,7 +718,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   Icon(Icons.chair_outlined, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    '${table.capacity} kursi',
+                    posLocale(context).posc92e889b21e0((table.capacity).toString()),
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                   ),
                 ],
@@ -725,7 +726,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
               if (!isAvailable) ...[
                 const SizedBox(height: 5),
                 Text(
-                  '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : 'Pelanggan umum'}',
+                  '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : ('Pelanggan umum').tr(context)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -826,7 +827,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           ),
           subtitle: Text(
             isAvailable
-                ? 'Kapasitas: ${table.capacity} kursi${table.floor.isNotEmpty || table.area.isNotEmpty ? ' · ${[table.floor, table.area].where((value) => value.isNotEmpty).join(' · ')}' : ''}'
+                ? posLocale(context).posf4f1e83621da((table.capacity).toString(), (table.floor.isNotEmpty || table.area.isNotEmpty ? (' · ${[table.floor, table.area].where((value) => value.isNotEmpty).join(' · ')}').tr(context) : '').toString())
                 : '${table.activeOrderNo ?? 'Pesanan aktif'} · ${_formatTime(table.activeOrderCreatedAt)} · ${_duration(table.activeOrderCreatedAt)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -844,12 +845,12 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                     ? const [
                         PopupMenuItem(
                           value: 'qr',
-                          child: Text('Lihat / Cetak QR meja'),
+                          child: PosText('Lihat / Cetak QR meja'),
                         ),
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(value: 'edit', child: PosText('Edit')),
                         PopupMenuItem(
                           value: 'delete',
-                          child: Text(
+                          child: PosText(
                             'Hapus',
                             style: TextStyle(color: AppColors.danger),
                           ),
@@ -858,11 +859,11 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                     : const [
                         PopupMenuItem(
                           value: 'qr',
-                          child: Text('Lihat / Cetak QR meja'),
+                          child: PosText('Lihat / Cetak QR meja'),
                         ),
                         PopupMenuItem(
                           value: 'order',
-                          child: Text('Lihat pesanan aktif'),
+                          child: PosText('Lihat pesanan aktif'),
                         ),
                       ],
               ),
@@ -888,7 +889,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
         borderRadius: BorderRadius.circular(compact ? 8 : 12),
       ),
       child: Text(
-        isAvailable ? 'Tersedia' : 'Terisi',
+        isAvailable ? ('Tersedia').tr(context) : ('Terisi').tr(context),
         style: TextStyle(
           color: Colors.white,
           fontSize: compact ? 9 : 11,
@@ -995,17 +996,17 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : 'Pelanggan umum'}',
+                '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : ('Pelanggan umum').tr(sheetContext)}',
               ),
               const Divider(height: 24),
-              _detailRow('Status pesanan', table.activeOrderStatus ?? 'Aktif'),
+              _detailRow(('Status pesanan').tr(sheetContext), table.activeOrderStatus ?? 'Aktif'),
               _detailRow(
-                'Waktu pesan',
+                ('Waktu pesan').tr(sheetContext),
                 _formatTime(table.activeOrderCreatedAt),
               ),
-              _detailRow('Durasi', _duration(table.activeOrderCreatedAt)),
-              _detailRow('Jumlah item', '${table.activeOrderItemCount} item'),
-              _detailRow('Total', _currency(table.activeOrderTotal)),
+              _detailRow(('Durasi').tr(sheetContext), _duration(table.activeOrderCreatedAt)),
+              _detailRow(('Jumlah item').tr(sheetContext), posLocale(sheetContext).pos89bd7b74615c((table.activeOrderItemCount).toString())),
+              _detailRow(('Total').tr(sheetContext), _currency(table.activeOrderTotal)),
               const SizedBox(height: 14),
               FilledButton.icon(
                 onPressed: widget.onOpenOrders == null
@@ -1015,7 +1016,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                         widget.onOpenOrders!();
                       },
                 icon: const Icon(Icons.receipt_long_outlined),
-                label: const Text('Buka Pesanan Aktif'),
+                label: const PosText('Buka Pesanan Aktif'),
               ),
             ],
           ),
@@ -1029,7 +1030,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     child: Row(
       children: [
         Expanded(
-          child: Text(
+          child: PosText(
             label,
             style: const TextStyle(color: AppColors.textSecondary),
           ),
@@ -1084,7 +1085,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
             ),
             ListTile(
               leading: const Icon(Icons.qr_code_2, color: AppColors.primary),
-              title: const Text('Lihat / Cetak QR meja'),
+              title: const PosText('Lihat / Cetak QR meja'),
               onTap: () {
                 Navigator.pop(context);
                 _showTableQr(table);
@@ -1093,7 +1094,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
             if (table.status.toLowerCase() == 'terisi')
               ListTile(
                 leading: const Icon(Icons.receipt_long_outlined),
-                title: const Text('Lihat pesanan aktif'),
+                title: const PosText('Lihat pesanan aktif'),
                 onTap: () {
                   Navigator.pop(context);
                   _showOccupiedTable(context, table);
@@ -1105,7 +1106,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   Icons.edit_outlined,
                   color: AppColors.primary,
                 ),
-                title: const Text('Edit Meja'),
+                title: const PosText('Edit Meja'),
                 onTap: () {
                   Navigator.pop(context);
                   _showTableForm(context, table: table);
@@ -1116,7 +1117,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   Icons.delete_outline,
                   color: AppColors.danger,
                 ),
-                title: const Text(
+                title: const PosText(
                   'Hapus Meja',
                   style: TextStyle(color: AppColors.danger),
                 ),
@@ -1149,12 +1150,12 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Meja'),
-        content: Text('Apakah Anda yakin ingin menghapus "${table.name}"?'),
+        title: const PosText('Hapus Meja'),
+        content: Text(posLocale(context).posc2901f09b11d((table.name).toString())),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -1165,7 +1166,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Hapus'),
+            child: const PosText('Hapus'),
           ),
         ],
       ),
@@ -1307,7 +1308,7 @@ class _TableFormContentState extends State<_TableFormContent> {
 
               // Title
               Text(
-                _isEditing ? 'Edit Meja' : 'Tambah Meja Baru',
+                _isEditing ? ('Edit Meja').tr(context) : ('Tambah Meja Baru').tr(context),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1317,11 +1318,12 @@ class _TableFormContentState extends State<_TableFormContent> {
 
               // Name field
               TextFormField(
+errorBuilder: posValidationError,
                 controller: _nameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  labelText: 'Nama Meja',
-                  hintText: 'Contoh: Meja 1',
+                  labelText: ('Nama Meja').tr(context),
+                  hintText: ('Contoh: Meja 1').tr(context),
                   prefixIcon: const Icon(Icons.table_restaurant_outlined),
                   filled: true,
                   fillColor: AppColors.bgSecondary,
@@ -1339,7 +1341,7 @@ class _TableFormContentState extends State<_TableFormContent> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Nama meja wajib diisi';
+                    return ('Nama meja wajib diisi').tr(context);
                   }
                   return null;
                 },
@@ -1352,9 +1354,9 @@ class _TableFormContentState extends State<_TableFormContent> {
                     child: TextFormField(
                       controller: _floorController,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Lantai / Level',
-                        hintText: 'Lantai 2',
+                      decoration:  InputDecoration(
+                        labelText: ('Lantai / Level').tr(context),
+                        hintText: ('Lantai 2').tr(context),
                         prefixIcon: Icon(Icons.layers_outlined),
                       ),
                     ),
@@ -1364,9 +1366,9 @@ class _TableFormContentState extends State<_TableFormContent> {
                     child: TextFormField(
                       controller: _areaController,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Area / Zona',
-                        hintText: 'Outdoor',
+                      decoration:  InputDecoration(
+                        labelText: ('Area / Zona').tr(context),
+                        hintText: ('Outdoor').tr(context),
                         prefixIcon: Icon(Icons.map_outlined),
                       ),
                     ),
@@ -1377,9 +1379,9 @@ class _TableFormContentState extends State<_TableFormContent> {
               TextFormField(
                 controller: _locationNoteController,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Catatan Posisi',
-                  hintText: 'Contoh: dekat taman',
+                decoration:  InputDecoration(
+                  labelText: ('Catatan Posisi').tr(context),
+                  hintText: ('Contoh: dekat taman').tr(context),
                   prefixIcon: Icon(Icons.place_outlined),
                 ),
               ),
@@ -1389,7 +1391,7 @@ class _TableFormContentState extends State<_TableFormContent> {
               DropdownButtonFormField<int>(
                 initialValue: _selectedCapacity,
                 decoration: InputDecoration(
-                  labelText: 'Kapasitas Kursi',
+                  labelText: ('Kapasitas Kursi').tr(context),
                   prefixIcon: const Icon(Icons.people_outline),
                   filled: true,
                   fillColor: AppColors.bgSecondary,
@@ -1408,7 +1410,7 @@ class _TableFormContentState extends State<_TableFormContent> {
                 items: List.generate(20, (i) => i + 1)
                     .map(
                       (n) =>
-                          DropdownMenuItem(value: n, child: Text('$n kursi')),
+                          DropdownMenuItem(value: n, child: Text(posLocale(context).posc92e889b21e0((n).toString()))),
                     )
                     .toList(),
                 onChanged: (value) {
@@ -1433,7 +1435,7 @@ class _TableFormContentState extends State<_TableFormContent> {
                     elevation: 0,
                   ),
                   child: Text(
-                    _isEditing ? 'Simpan Perubahan' : 'Tambah Meja',
+                    _isEditing ? ('Simpan Perubahan').tr(context) : ('Tambah Meja').tr(context),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

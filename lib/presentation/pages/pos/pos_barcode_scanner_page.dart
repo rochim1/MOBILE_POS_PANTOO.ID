@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/pos_ui.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -54,9 +55,9 @@ class _PosBarcodeScannerPageState extends State<PosBarcodeScannerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const PosAppBarTitle(
-          title: 'Scan Barcode',
-          subtitle: 'Arahkan kamera ke kode produk',
+        title:  PosAppBarTitle(
+          title: ('Scan Barcode').tr(context),
+          subtitle: ('Arahkan kamera ke kode produk').tr(context),
         ),
       ),
       body: Stack(
@@ -89,14 +90,14 @@ class _PosBarcodeScannerPageState extends State<PosBarcodeScannerPage> {
               children: [
                 Text(
                   widget.onScan == null
-                      ? 'Arahkan barcode ke dalam bingkai'
-                      : 'Scan beruntun aktif · tutup halaman jika selesai',
+                      ? ('Arahkan barcode ke dalam bingkai').tr(context)
+                      : ('Scan beruntun aktif · tutup halaman jika selesai').tr(context),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 if (_feedback.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(
+                  PosText(
                     _feedback,
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white),
@@ -105,7 +106,7 @@ class _PosBarcodeScannerPageState extends State<PosBarcodeScannerPage> {
                 if (widget.onScan != null && _lastCameraCode != null)
                   TextButton(
                     onPressed: () => setState(() => _lastCameraCode = null),
-                    child: const Text(
+                    child: const PosText(
                       'Scan ulang kode terakhir',
                       style: TextStyle(color: Colors.white),
                     ),
@@ -116,12 +117,12 @@ class _PosBarcodeScannerPageState extends State<PosBarcodeScannerPage> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (value) => _handleCode(value),
                   decoration: InputDecoration(
-                    hintText: 'Atau ketik barcode / SKU',
+                    hintText: ('Atau ketik barcode / SKU').tr(context),
                     filled: true,
                     fillColor: Colors.white,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      tooltip: 'Gunakan kode',
+                      tooltip: ('Gunakan kode').tr(context),
                       onPressed: () => _handleCode(_manualCode.text),
                       icon: const Icon(Icons.arrow_forward),
                     ),

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 
@@ -231,7 +232,7 @@ class _PosProductPageState extends State<PosProductPage> {
         Icon(Icons.info_outline, color: AppColors.primary, size: 20),
         SizedBox(width: 10),
         Expanded(
-          child: Text(
+          child: PosText(
             'Katalog Penjualan · Produk bersumber dari Inventory. Detail master, HPP, satuan, batch, dan saldo lokasi dikelola melalui alur Inventory.',
             style: TextStyle(fontSize: 12.5, height: 1.35),
           ),
@@ -271,7 +272,7 @@ class _PosProductPageState extends State<PosProductPage> {
                     key: widget.setupTourKey,
                     onPressed: () => _showCatalogProductForm(context, true),
                     icon: const Icon(Icons.add),
-                    label: const Text('Tambah Produk'),
+                    label: const PosText('Tambah Produk'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
@@ -293,7 +294,7 @@ class _PosProductPageState extends State<PosProductPage> {
                   key: widget.setupTourKey,
                   onPressed: () => _showCatalogProductForm(context, false),
                   icon: const Icon(Icons.add),
-                  label: const Text('Tambah Produk'),
+                  label: const PosText('Tambah Produk'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
@@ -319,7 +320,7 @@ class _PosProductPageState extends State<PosProductPage> {
       isLabelVisible: _activeFilterCount(trackStock) > 0,
       label: Text('${_activeFilterCount(trackStock)}'),
       child: IconButton.filledTonal(
-        tooltip: 'Filter produk',
+        tooltip: ('Filter produk').tr(context),
         onPressed: () => _showFilterSheet(context, products, trackStock),
         icon: const Icon(Icons.tune),
         style: IconButton.styleFrom(
@@ -359,21 +360,21 @@ class _PosProductPageState extends State<PosProductPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const PosText(
                   'Filter Produk',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String?>(
                   initialValue: selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Kategori',
+                  decoration:  InputDecoration(
+                    labelText: ('Kategori').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: [
                     const DropdownMenuItem(
                       value: null,
-                      child: Text('Semua kategori'),
+                      child: PosText('Semua kategori'),
                     ),
                     ...categories.map(
                       (category) => DropdownMenuItem(
@@ -389,23 +390,23 @@ class _PosProductPageState extends State<PosProductPage> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: selectedStock,
-                    decoration: const InputDecoration(
-                      labelText: 'Kondisi stok',
+                    decoration:  InputDecoration(
+                      labelText: ('Kondisi stok').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'all', child: Text('Semua stok')),
+                      DropdownMenuItem(value: 'all', child: PosText('Semua stok')),
                       DropdownMenuItem(
                         value: 'available',
-                        child: Text('Tersedia'),
+                        child: PosText('Tersedia'),
                       ),
                       DropdownMenuItem(
                         value: 'low',
-                        child: Text('Stok menipis (1–10)'),
+                        child: PosText('Stok menipis (1–10)'),
                       ),
                       DropdownMenuItem(
                         value: 'empty',
-                        child: Text('Stok habis'),
+                        child: PosText('Stok habis'),
                       ),
                     ],
                     onChanged: (value) =>
@@ -422,14 +423,14 @@ class _PosProductPageState extends State<PosProductPage> {
                           selectedStock = 'all';
                           Navigator.pop(sheetContext, true);
                         },
-                        child: const Text('Reset'),
+                        child: const PosText('Reset'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton(
                         onPressed: () => Navigator.pop(sheetContext, true),
-                        child: const Text('Terapkan'),
+                        child: const PosText('Terapkan'),
                       ),
                     ),
                   ],
@@ -474,7 +475,7 @@ class _PosProductPageState extends State<PosProductPage> {
   Widget _buildSearchField() {
     return TextField(
       decoration: InputDecoration(
-        hintText: 'Cari SKU atau nama produk...',
+        hintText: ('Cari SKU atau nama produk...').tr(context),
         filled: true,
         fillColor: Colors.white,
         prefixIcon: const Icon(Icons.search),
@@ -500,7 +501,7 @@ class _PosProductPageState extends State<PosProductPage> {
           children: const [
             Icon(Icons.search_off, size: 64, color: Colors.grey),
             SizedBox(height: 12),
-            Text(
+            PosText(
               'Tidak ada produk yang cocok',
               style: TextStyle(color: Colors.grey),
             ),
@@ -534,12 +535,12 @@ class _PosProductPageState extends State<PosProductPage> {
                 headingRowColor: WidgetStatePropertyAll(Colors.grey.shade100),
                 columns: [
                   const DataColumn(label: Text('#')),
-                  const DataColumn(label: Text('Foto')),
-                  const DataColumn(label: Text('SKU')),
-                  const DataColumn(label: Text('Produk')),
-                  const DataColumn(label: Text('Kategori')),
-                  const DataColumn(label: Text('Harga')),
-                  if (trackStock) const DataColumn(label: Text('Stok')),
+                  const DataColumn(label: PosText('Foto')),
+                  const DataColumn(label: PosText('SKU')),
+                  const DataColumn(label: PosText('Produk')),
+                  const DataColumn(label: PosText('Kategori')),
+                  const DataColumn(label: PosText('Harga')),
+                  if (trackStock) const DataColumn(label: PosText('Stok')),
                 ],
                 rows: filteredProducts
                     .asMap()
@@ -555,7 +556,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           DataCell(Text(entry.value.name)),
                           DataCell(Text(entry.value.category)),
                           DataCell(
-                            Text('Rp ${formatRupiahAmount(entry.value.price)}'),
+                            Text(posLocale(context).pos70272f418def((formatRupiahAmount(entry.value.price)).toString())),
                           ),
                           if (trackStock)
                             DataCell(Text('${entry.value.stock}')),
@@ -580,7 +581,7 @@ class _PosProductPageState extends State<PosProductPage> {
           children: const [
             Icon(Icons.search_off, size: 64, color: Colors.grey),
             SizedBox(height: 12),
-            Text(
+            PosText(
               'Tidak ada produk yang cocok',
               style: TextStyle(color: Colors.grey),
             ),
@@ -635,8 +636,8 @@ class _PosProductPageState extends State<PosProductPage> {
                         const SizedBox(height: 6),
                         Text(
                           trackStock
-                              ? 'SKU: ${product.code} • Stok ${product.stock}'
-                              : 'SKU: ${product.code}',
+                              ? posLocale(context).posa8bae00d81f1((product.code).toString(), (product.stock).toString())
+                              : posLocale(context).posee769816dc3e((product.code).toString()),
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
@@ -647,7 +648,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Rp ${formatRupiahAmount(product.price)}',
+                              posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString()),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -720,7 +721,7 @@ class _PosProductPageState extends State<PosProductPage> {
                         ),
                         const Spacer(),
                         Text(
-                          'Rp ${formatRupiahAmount(product.price)}',
+                          posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString()),
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w800,
@@ -729,7 +730,7 @@ class _PosProductPageState extends State<PosProductPage> {
                         const SizedBox(height: 5),
                         Text(
                           trackStock
-                              ? '${product.category} • Stok ${product.stock}'
+                              ? posLocale(context).pos41d9f9c2727c((product.category).toString(), (product.stock).toString())
                               : product.category,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -763,7 +764,7 @@ class _PosProductPageState extends State<PosProductPage> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          const PosText(
             'Tambah Produk',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
@@ -771,7 +772,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: nameCtrl,
             decoration: InputDecoration(
-              labelText: 'Nama Produk',
+              labelText: ('Nama Produk').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -781,7 +782,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: skuCtrl,
             decoration: InputDecoration(
-              labelText: 'SKU',
+              labelText: ('SKU').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -793,7 +794,7 @@ class _PosProductPageState extends State<PosProductPage> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
-              labelText: 'Harga',
+              labelText: ('Harga').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -807,7 +808,7 @@ class _PosProductPageState extends State<PosProductPage> {
                 color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: const PosText(
                 'Produk baru dibuat dengan stok 0. Saldo awal atau perubahan stok dicatat melalui menu Stok Toko agar lokasi dan riwayat stok tetap valid.',
                 style: TextStyle(fontSize: 12),
               ),
@@ -841,7 +842,7 @@ class _PosProductPageState extends State<PosProductPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Simpan'),
+            child: const PosText('Simpan'),
           ),
         ],
       ),
@@ -945,21 +946,21 @@ class _PosProductPageState extends State<PosProductPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Kategori: ${product.category}',
+              posLocale(context).pos93a6ccae326e((product.category).toString()),
               style: TextStyle(color: Colors.grey.shade600),
             ),
             const SizedBox(height: 16),
-            _DetailRow('SKU', product.code),
-            _DetailRow('Harga', 'Rp ${formatRupiahAmount(product.price)}'),
+            _DetailRow(('SKU').tr(context), product.code),
+            _DetailRow(('Harga').tr(context), posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString())),
             if (_tracksStock(context))
-              _DetailRow('Stok Tersedia', '${product.stock}'),
+              _DetailRow(('Stok Tersedia').tr(context), '${product.stock}'),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Tutup'),
+                  child: const PosText('Tutup'),
                 ),
                 if (_canManageProducts(context)) ...[
                   const SizedBox(width: 8),
@@ -976,7 +977,7 @@ class _PosProductPageState extends State<PosProductPage> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Edit Produk'),
+                    child: const PosText('Edit Produk'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -989,7 +990,7 @@ class _PosProductPageState extends State<PosProductPage> {
                       backgroundColor: AppColors.danger,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Hapus'),
+                    child: const PosText('Hapus'),
                   ),
                 ],
               ],
@@ -1003,7 +1004,7 @@ class _PosProductPageState extends State<PosProductPage> {
                   color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
+                child: const PosText(
                   'Katalog hanya-baca. Perubahan master produk dilakukan oleh admin Inventory.',
                   style: TextStyle(fontSize: 12),
                 ),
@@ -1054,7 +1055,7 @@ class _PosProductPageState extends State<PosProductPage> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          const PosText(
             'Edit Produk',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
@@ -1062,7 +1063,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: nameCtrl,
             decoration: InputDecoration(
-              labelText: 'Nama Produk',
+              labelText: ('Nama Produk').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1072,7 +1073,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: skuCtrl,
             decoration: InputDecoration(
-              labelText: 'SKU',
+              labelText: ('SKU').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1084,7 +1085,7 @@ class _PosProductPageState extends State<PosProductPage> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
-              labelText: 'Harga',
+              labelText: ('Harga').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1094,12 +1095,12 @@ class _PosProductPageState extends State<PosProductPage> {
             const SizedBox(height: 12),
             InputDecorator(
               decoration: InputDecoration(
-                labelText: 'Stok (hanya baca)',
+                labelText: ('Stok (hanya baca)').tr(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 helperText:
-                    'Ubah melalui menu Stok Toko agar tercatat dalam riwayat.',
+                    ('Ubah melalui menu Stok Toko agar tercatat dalam riwayat.').tr(context),
               ),
               child: Text(product.stock.toString()),
             ),
@@ -1110,7 +1111,7 @@ class _PosProductPageState extends State<PosProductPage> {
             children: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
+                child: const PosText('Batal'),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
@@ -1144,7 +1145,7 @@ class _PosProductPageState extends State<PosProductPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Simpan'),
+                child: const PosText('Simpan'),
               ),
             ],
           ),
@@ -1189,14 +1190,14 @@ class _PosProductPageState extends State<PosProductPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Hapus'),
+        title: const PosText('Konfirmasi Hapus'),
         content: Text(
-          'Apakah Anda yakin ingin menghapus produk "${product.name}"?',
+          posLocale(context).pos4a7f70cd767e((product.name).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1204,7 +1205,7 @@ class _PosProductPageState extends State<PosProductPage> {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const PosText('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1308,7 +1309,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ? ''
           : product.reorderPoint.toStringAsFixed(0),
     );
-    _baseUnit = TextEditingController(text: product?.saleUnit ?? 'unit');
+    _baseUnit = TextEditingController(text: product?.saleUnit ?? ('unit').tr(context));
     _prepTime = TextEditingController(
       text: product == null || (product.prepTimeMinutes ?? 0) <= 0
           ? ''
@@ -1459,14 +1460,14 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Tambah kategori'),
+        title: const PosText('Tambah kategori'),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Nama kategori',
-            hintText: 'Contoh: Minuman',
+          decoration:  InputDecoration(
+            labelText: ('Nama kategori').tr(dialogContext),
+            hintText: ('Contoh: Minuman').tr(dialogContext),
             border: OutlineInputBorder(),
           ),
           onSubmitted: (value) {
@@ -1478,7 +1479,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () {
@@ -1486,7 +1487,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 Navigator.pop(dialogContext, controller.text.trim());
               }
             },
-            child: const Text('Tambah'),
+            child: const PosText('Tambah'),
           ),
         ],
       ),
@@ -1547,7 +1548,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             builder: (_) => PosKeyboardStableFormDialog(
               width: 520,
               height: 570,
-              title: const Text('Pilih komponen paket'),
+              title: const PosText('Pilih komponen paket'),
               content: picker(),
               actions: const [],
             ),
@@ -1826,33 +1827,33 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           totalStageCount: 8,
           stages: [
             PosSetupTourStage(
-              title: 'Informasi produk',
+              title: ('Informasi produk').tr(this.context),
               description:
-                  'Isi nama produk yang singkat dan mudah dikenali kasir.',
+                  ('Isi nama produk yang singkat dan mudah dikenali kasir.').tr(this.context),
               target: targets.productName,
             ),
             PosSetupTourStage(
-              title: 'Tentukan harga jual',
+              title: ('Tentukan harga jual').tr(this.context),
               description:
-                  'Masukkan harga yang dibayar pelanggan. Harga beli/HPP dapat dilengkapi untuk membaca margin.',
+                  ('Masukkan harga yang dibayar pelanggan. Harga beli/HPP dapat dilengkapi untuk membaca margin.').tr(this.context),
               target: targets.productPrice,
             ),
             PosSetupTourStage(
-              title: 'Bentuk penjualan',
+              title: ('Bentuk penjualan').tr(this.context),
               description:
-                  'Tentukan produk fisik atau paket agar aturan stok diterapkan dengan benar.',
+                  ('Tentukan produk fisik atau paket agar aturan stok diterapkan dengan benar.').tr(this.context),
               target: targets.productType,
             ),
             PosSetupTourStage(
-              title: 'Kelompokkan produk',
+              title: ('Kelompokkan produk').tr(this.context),
               description:
-                  'Pilih kategori agar pencarian dan penyaringan katalog lebih cepat. Kategori baru dapat ditambahkan dari tombol +.',
+                  ('Pilih kategori agar pencarian dan penyaringan katalog lebih cepat. Kategori baru dapat ditambahkan dari tombol +.').tr(this.context),
               target: targets.productCategory,
             ),
             PosSetupTourStage(
-              title: 'Buka aturan stok dan satuan',
+              title: ('Buka aturan stok dan satuan').tr(this.context),
               description:
-                  'Lanjutkan ke tab Stok & Satuan untuk menentukan satuan dasar dan aturan persediaan.',
+                  ('Lanjutkan ke tab Stok & Satuan untuk menentukan satuan dasar dan aturan persediaan.').tr(this.context),
               target: targets.productStockTab,
               onTargetTap: () async {
                 if (mounted) setState(() => _formTab = 1);
@@ -1861,15 +1862,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               continueAfterTargetTap: true,
             ),
             PosSetupTourStage(
-              title: 'Pilih satuan dasar',
+              title: ('Pilih satuan dasar').tr(this.context),
               description:
-                  'Pilih satuan terkecil tempat stok disimpan, misalnya pcs, porsi, atau botol. Konversi kemasan dapat ditambahkan di bawahnya.',
+                  ('Pilih satuan terkecil tempat stok disimpan, misalnya pcs, porsi, atau botol. Konversi kemasan dapat ditambahkan di bawahnya.').tr(this.context),
               target: targets.productBaseUnit,
             ),
             PosSetupTourStage(
-              title: 'Simpan ke katalog',
+              title: ('Simpan ke katalog').tr(this.context),
               description:
-                  'Lengkapi field wajib lalu simpan agar produk tersedia di kasir.',
+                  ('Lengkapi field wajib lalu simpan agar produk tersedia di kasir.').tr(this.context),
               target: targets.productSave,
             ),
           ],
@@ -1883,8 +1884,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         child: TextField(
           controller: _name,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Nama produk *',
+          decoration:  InputDecoration(
+            labelText: ('Nama produk *').tr(context),
             border: OutlineInputBorder(),
           ),
         ),
@@ -1892,15 +1893,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       TextField(
         controller: _sku,
         decoration: InputDecoration(
-          labelText: 'SKU internal',
+          labelText: ('SKU internal').tr(context),
           hintText: _generatingIdentifiers
-              ? 'Sedang membuat SKU...'
-              : 'Dibuat otomatis oleh server',
+              ? ('Sedang membuat SKU...').tr(context)
+              : ('Dibuat otomatis oleh server').tr(context),
           helperText:
-              'Unik per instansi dan dapat diisi manual bila diperlukan.',
+              ('Unik per instansi dan dapat diisi manual bila diperlukan.').tr(context),
           border: const OutlineInputBorder(),
           suffixIcon: IconButton(
-            tooltip: 'Generate ulang SKU dan barcode',
+            tooltip: ('Generate ulang SKU dan barcode').tr(context),
             onPressed: _generatingIdentifiers ? null : _refreshIdentifiers,
             icon: _generatingIdentifiers
                 ? const SizedBox.square(
@@ -1914,9 +1915,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       TextField(
         controller: _brand,
         textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(
-          labelText: 'Merek',
-          hintText: 'Opsional',
+        decoration:  InputDecoration(
+          labelText: ('Merek').tr(context),
+          hintText: ('Opsional').tr(context),
           border: OutlineInputBorder(),
         ),
       ),
@@ -1924,9 +1925,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         controller: _description,
         minLines: 1,
         maxLines: 3,
-        decoration: const InputDecoration(
-          labelText: 'Deskripsi produk',
-          hintText: 'Opsional',
+        decoration:  InputDecoration(
+          labelText: ('Deskripsi produk').tr(context),
+          hintText: ('Opsional').tr(context),
           border: OutlineInputBorder(),
         ),
       ),
@@ -1937,11 +1938,11 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         inputFormatters: const [RupiahInputFormatter()],
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
-          labelText: 'Harga beli / HPP',
+          labelText: ('Harga beli / HPP').tr(context),
           prefixText: 'Rp ',
           helperText: widget.product?.purchasePriceSource == 'avco'
-              ? 'Dihitung otomatis dari penerimaan barang (AVCO)'
-              : 'Digunakan untuk estimasi margin',
+              ? ('Dihitung otomatis dari penerimaan barang (AVCO)').tr(context)
+              : ('Digunakan untuk estimasi margin').tr(context),
           border: const OutlineInputBorder(),
         ),
       ),
@@ -1952,8 +1953,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           keyboardType: TextInputType.number,
           inputFormatters: const [RupiahInputFormatter()],
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Harga jual *',
+          decoration:  InputDecoration(
+            labelText: ('Harga jual *').tr(context),
             prefixText: 'Rp ',
             border: OutlineInputBorder(),
           ),
@@ -1963,27 +1964,27 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         key: widget.setupTourTargets?.productType,
         child: DropdownButtonFormField<String>(
           initialValue: _productType,
-          decoration: const InputDecoration(
-            labelText: 'Bentuk penjualan *',
+          decoration:  InputDecoration(
+            labelText: ('Bentuk penjualan *').tr(context),
             border: OutlineInputBorder(),
           ),
           items: [
             const DropdownMenuItem(
               value: 'product',
-              child: Text('Produk fisik (stok sendiri)'),
+              child: PosText('Produk fisik (stok sendiri)'),
             ),
             const DropdownMenuItem(
               value: 'package',
-              child: Text('Paket / bundel (stok komponen)'),
+              child: PosText('Paket / bundel (stok komponen)'),
             ),
             const DropdownMenuItem(
               value: 'service',
-              child: Text('Layanan / jasa (tanpa stok)'),
+              child: PosText('Layanan / jasa (tanpa stok)'),
             ),
             if (widget.product?.productType == 'deposit')
               const DropdownMenuItem(
                 value: 'deposit',
-                child: Text('Deposit lama (tanpa stok)'),
+                child: PosText('Deposit lama (tanpa stok)'),
               ),
           ],
           onChanged: (value) => setState(() {
@@ -2012,7 +2013,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                   ? _categoryId
                   : null,
               decoration: InputDecoration(
-                labelText: 'Kategori barang',
+                labelText: ('Kategori barang').tr(context),
                 border: const OutlineInputBorder(),
                 suffixIcon: _loadingCategories
                     ? const Center(
@@ -2025,7 +2026,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                       )
                     : _categoryLoadFailed
                     ? IconButton(
-                        tooltip: 'Muat ulang kategori',
+                        tooltip: ('Muat ulang kategori').tr(context),
                         onPressed: _loadCategories,
                         icon: const Icon(Icons.refresh),
                       )
@@ -2044,7 +2045,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ),
           const SizedBox(width: 8),
           IconButton.filledTonal(
-            tooltip: 'Tambah kategori cepat',
+            tooltip: ('Tambah kategori cepat').tr(context),
             onPressed: _savingCategory ? null : _quickAddCategory,
             icon: _savingCategory
                 ? const SizedBox.square(
@@ -2065,34 +2066,34 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              const PosText(
                 'Alur persiapan',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
-              const Text(
+              const PosText(
                 'Item dapat langsung diserahkan atau dikirim ke dapur/bar.',
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 initialValue: _preparationMode,
-                decoration: const InputDecoration(
-                  labelText: 'Cara persiapan *',
+                decoration:  InputDecoration(
+                  labelText: ('Cara persiapan *').tr(context),
                   border: OutlineInputBorder(),
                 ),
                 items: const [
                   DropdownMenuItem(
                     value: 'instant',
-                    child: Text('Langsung jadi / tanpa dapur'),
+                    child: PosText('Langsung jadi / tanpa dapur'),
                   ),
                   DropdownMenuItem(
                     value: 'station',
-                    child: Text('Diproses di dapur / stasiun'),
+                    child: PosText('Diproses di dapur / stasiun'),
                   ),
                   DropdownMenuItem(
                     value: 'none',
-                    child: Text('Tidak memerlukan persiapan'),
+                    child: PosText('Tidak memerlukan persiapan'),
                   ),
                 ],
                 onChanged: (value) => setState(() {
@@ -2115,15 +2116,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                       )
                       ? _productionStationId
                       : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Stasiun produksi *',
+                  decoration:  InputDecoration(
+                    labelText: ('Stasiun produksi *').tr(context),
                     border: OutlineInputBorder(),
                   ),
                   items: _productionStations
                       .map(
                         (row) => DropdownMenuItem(
                           value: row['_id']?.toString(),
-                          child: Text(row['name']?.toString() ?? 'Stasiun'),
+                          child: Text(row['name']?.toString() ?? ('Stasiun').tr(context)),
                         ),
                       )
                       .toList(),
@@ -2134,15 +2135,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 TextField(
                   controller: _prepTime,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Estimasi waktu persiapan',
+                  decoration:  InputDecoration(
+                    labelText: ('Estimasi waktu persiapan').tr(context),
                     suffixText: 'menit',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Kasir boleh mengganti stasiun'),
+                  title: const PosText('Kasir boleh mengganti stasiun'),
                   value: _allowStationOverride,
                   onChanged: (value) =>
                       setState(() => _allowStationOverride = value),
@@ -2154,8 +2155,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       if (_productType != 'deposit')
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Gunakan komposisi stok / resep (BOM)'),
-          subtitle: const Text(
+          title: const PosText('Gunakan komposisi stok / resep (BOM)'),
+          subtitle: const PosText(
             'Untuk menu olahan atau layanan yang memakai bahan/suku cadang. '
             'Paket boleh berisi produk berbom atau paket lain; stok akhirnya '
             'dihitung dari komponen dasar. Master komponen dikelola melalui Inventory Web.',
@@ -2174,8 +2175,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               icon: const Icon(Icons.inventory_2_outlined),
               label: Text(
                 _componentQty.isEmpty
-                    ? 'Pilih komponen stok *'
-                    : '${_componentQty.length} komponen dipilih',
+                    ? ('Pilih komponen stok *').tr(context)
+                    : posLocale(context).posd8b7f9fcbdae((_componentQty.length).toString()),
               ),
             ),
             const SizedBox(height: 8),
@@ -2190,7 +2191,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: product?.name ?? 'Komponen',
+                    labelText: product?.name ?? ('Komponen').tr(context),
                     suffixText: product?.saleUnit ?? 'unit',
                     border: const OutlineInputBorder(),
                   ),
@@ -2210,8 +2211,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'HPP komposisi Rp ${formatRupiahInput(_compositionCost)}'
-                        '${_compositionCapacity == null ? '' : ' • estimasi kapasitas ${_compositionCapacity!} ${_baseUnit.text.isEmpty ? 'unit' : _baseUnit.text}'}',
+                        posLocale(context).posca170b43672a((formatRupiahInput(_compositionCost)).toString(), (_compositionCapacity == null ? '' : (' • estimasi kapasitas ${_compositionCapacity!} ${_baseUnit.text.isEmpty ? 'unit' : _baseUnit.text}').tr(context)).toString()),
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -2228,9 +2228,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 _availableUnitOptions.contains(_baseUnit.text.toLowerCase())
                 ? _baseUnit.text.toLowerCase()
                 : null,
-            decoration: const InputDecoration(
-              labelText: 'Satuan dasar *',
-              helperText: 'Stok selalu disimpan dalam satuan ini.',
+            decoration:  InputDecoration(
+              labelText: ('Satuan dasar *').tr(context),
+              helperText: ('Stok selalu disimpan dalam satuan ini.').tr(context),
               border: OutlineInputBorder(),
             ),
             items: _availableUnitOptions
@@ -2249,7 +2249,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             Row(
               children: [
                 const Expanded(
-                  child: Text(
+                  child: PosText(
                     'Konversi satuan',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
@@ -2261,11 +2261,11 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     ),
                   ),
                   icon: const Icon(Icons.add),
-                  label: const Text('Tambah'),
+                  label: const PosText('Tambah'),
                 ),
               ],
             ),
-            const Text(
+            const PosText(
               'Contoh: 1 dus = 12 pcs. Faktor selalu terhadap satuan dasar.',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
@@ -2282,8 +2282,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                             _availableUnitOptions.contains(row.unit.text)
                             ? row.unit.text
                             : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Satuan',
+                        decoration:  InputDecoration(
+                          labelText: ('Satuan').tr(context),
                           border: OutlineInputBorder(),
                         ),
                         items: _availableUnitOptions
@@ -2307,14 +2307,14 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        decoration: const InputDecoration(
-                          labelText: 'Isi satuan dasar',
+                        decoration:  InputDecoration(
+                          labelText: ('Isi satuan dasar').tr(context),
                           border: OutlineInputBorder(),
                         ),
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Hapus konversi',
+                      tooltip: ('Hapus konversi').tr(context),
                       onPressed: () => setState(() {
                         _unitConversions.removeAt(entry.key).dispose();
                       }),
@@ -2331,8 +2331,8 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           key: const ValueKey('minimum-stock'),
           controller: _minimumStock,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Peringatan stok minimum',
+          decoration:  InputDecoration(
+            labelText: ('Peringatan stok minimum').tr(context),
             border: OutlineInputBorder(),
           ),
         ),
@@ -2341,9 +2341,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           key: const ValueKey('reorder-point'),
           controller: _reorderPoint,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Titik pemesanan ulang',
-            helperText: 'Saran jumlah stok saat perlu melakukan pembelian',
+          decoration:  InputDecoration(
+            labelText: ('Titik pemesanan ulang').tr(context),
+            helperText: ('Saran jumlah stok saat perlu melakukan pembelian').tr(context),
             border: OutlineInputBorder(),
           ),
         ),
@@ -2352,26 +2352,26 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           key: const ValueKey('maximum-stock'),
           controller: _maximumStock,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Stok maksimum',
-            helperText: 'Opsional, untuk membatasi kelebihan persediaan',
+          decoration:  InputDecoration(
+            labelText: ('Stok maksimum').tr(context),
+            helperText: ('Opsional, untuk membatasi kelebihan persediaan').tr(context),
             border: OutlineInputBorder(),
           ),
         ),
       TextField(
         controller: _barcode,
         decoration: InputDecoration(
-          labelText: 'Barcode',
+          labelText: ('Barcode').tr(context),
           hintText: _generatingIdentifiers
-              ? 'Sedang membuat barcode...'
-              : 'Scan/isi barcode kemasan atau kosongkan',
-          helperText: 'Jika kosong, server membuat barcode internal EAN-13.',
+              ? ('Sedang membuat barcode...').tr(context)
+              : ('Scan/isi barcode kemasan atau kosongkan').tr(context),
+          helperText: ('Jika kosong, server membuat barcode internal EAN-13.').tr(context),
           border: const OutlineInputBorder(),
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: 'Generate ulang SKU dan barcode',
+                tooltip: ('Generate ulang SKU dan barcode').tr(context),
                 onPressed: _generatingIdentifiers ? null : _refreshIdentifiers,
                 icon: _generatingIdentifiers
                     ? const SizedBox.square(
@@ -2381,7 +2381,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     : const Icon(Icons.refresh),
               ),
               IconButton(
-                tooltip: 'Scan barcode dengan kamera',
+                tooltip: ('Scan barcode dengan kamera').tr(context),
                 onPressed: _scanBarcode,
                 icon: const Icon(Icons.qr_code_scanner),
               ),
@@ -2421,11 +2421,11 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  const PosText(
                     'Foto produk',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  const Text(
+                  const PosText(
                     'JPG, PNG, atau WebP • maksimal 5 MB',
                     style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
@@ -2438,7 +2438,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                         onPressed: _uploadingImage ? null : _pickImage,
                         icon: const Icon(Icons.upload_outlined),
                         label: Text(
-                          _hasProductImage ? 'Ganti gambar' : 'Pilih gambar',
+                          _hasProductImage ? ('Ganti gambar').tr(context) : ('Pilih gambar').tr(context),
                         ),
                       ),
                       if (_hasProductImage)
@@ -2450,7 +2450,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                             ).colorScheme.error,
                           ),
                           icon: const Icon(Icons.delete_outline),
-                          label: const Text('Hapus foto'),
+                          label: const PosText('Hapus foto'),
                         ),
                     ],
                   ),
@@ -2481,8 +2481,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Estimasi margin: Rp ${formatRupiahInput(selling - cost)} '
-                    '(${margin.toStringAsFixed(1)}%)',
+                    posLocale(context).pos917facb520d6((formatRupiahInput(selling - cost)).toString(), (margin.toStringAsFixed(1)).toString()),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -2515,7 +2514,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.product == null ? 'Tambah Produk' : 'Edit Produk',
+                      widget.product == null ? ('Tambah Produk').tr(context) : ('Edit Produk').tr(context),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -2539,7 +2538,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: const Text(
+                            child: const PosText(
                               'Data master produk akan disinkronisasi ke server pusat. Konflik SKU/Barcode akan diselesaikan oleh server.',
                               style: TextStyle(
                                 color: Color(0xFFE65100),
@@ -2552,7 +2551,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    const PosText(
                       'Data transaksi stok, batch, dan kedaluwarsa dicatat saat penerimaan.',
                       style: TextStyle(fontSize: 12, color: Colors.black54),
                     ),
@@ -2570,14 +2569,14 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         Container(
           key: widget.setupTourTargets?.productStockTab,
           child: PosFullWidthTabs(
-            tabs: const [
+            tabs:  [
               PosFullWidthTab(
                 icon: Icons.info_outline,
-                label: 'Informasi Produk',
+                label: ('Informasi Produk').tr(context),
               ),
               PosFullWidthTab(
                 icon: Icons.inventory_2_outlined,
-                label: 'Stok & Satuan',
+                label: ('Stok & Satuan').tr(context),
               ),
             ],
             selectedIndex: _formTab,
@@ -2640,7 +2639,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             children: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
+                child: const PosText('Batal'),
               ),
               const SizedBox(width: 10),
               FilledButton.icon(
@@ -2654,10 +2653,10 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     : const Icon(Icons.save_outlined),
                 label: Text(
                   _uploadingImage
-                      ? 'Mengunggah...'
+                      ? ('Mengunggah...').tr(context)
                       : _submitting
-                      ? 'Menyimpan...'
-                      : 'Simpan produk',
+                      ? ('Menyimpan...').tr(context)
+                      : ('Simpan produk').tr(context),
                 ),
               ),
             ],
@@ -2694,7 +2693,7 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
+          PosText(label, style: const TextStyle(color: Colors.grey)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),

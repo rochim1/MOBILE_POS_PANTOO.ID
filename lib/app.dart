@@ -1,4 +1,12 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'dart:async';
+import 'core/notifications/pos_push_service.dart';
+import 'presentation/pages/pos/pos_notification_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_language_controller.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'core/auth/pos_login_navigation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/_core.dart';
 import 'injections.dart';
@@ -52,93 +60,120 @@ class App extends StatelessWidget {
         BlocProvider(create: (_) => sl<AuthCubit>()..checkSession()),
         BlocProvider(create: (_) => AppLockCubit()),
       ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        builder: (context, child) {
-          final mediaQuery = MediaQuery.of(context);
-          final compactMobile = mediaQuery.size.width < 600;
-          final app = BlocListener<AuthCubit, AuthState>(
-            listener: (context, state) async {
-              if (state.status == AuthStatus.authenticated) {
-                final prefs = sl<SharedPreferences>();
-                final lockCubit = context.read<AppLockCubit>();
-                final needsWorkspace =
-                    prefs.getBool('needs_workspace_setup') == true ||
-                    (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
-                if (needsWorkspace) {
-                  lockCubit.reset();
-                } else {
-                  final lockStatus = await sl<PosRepository>()
-                      .getMyPOSLockStatus();
-                  final lockEnabled = lockStatus.fold(
-                    (_) => true,
-                    (status) => status['enabled'] != false,
+      child: ValueListenableBuilder<Locale?>(
+        valueListenable: AppLanguageController.instance,
+        builder: (_, selectedLocale, _) => MaterialApp(
+          locale: selectedLocale,
+          supportedLocales: const [Locale('id'), Locale('en')],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          localeResolutionCallback: (device, _) =>
+              AppLanguageController.resolve(device),
+          navigatorKey: navigatorKey,
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            final compactMobile = mediaQuery.size.width < 600;
+            final app = BlocListener<AuthCubit, AuthState>(
+              listener: (context, state) async {
+                if (state.status == AuthStatus.authenticated) {
+                  final prefs = sl<SharedPreferences>();
+                  final lockCubit = context.read<AppLockCubit>();
+                  final authCubit = context.read<AuthCubit>();
+                  final needsWorkspace =
+                      prefs.getBool('needs_workspace_setup') == true ||
+                      (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
+                  await finishPosLoginNavigation(
+                    needsWorkspace: needsWorkspace,
+                    readLockEnabled: () async =>
+                        (await sl<PosRepository>().getMyPOSLockStatus()).fold(
+                          (_) => true,
+                          (status) => status['enabled'] != false,
+                        ),
+                    lock: lockCubit.lock,
+                    resetLock: lockCubit.reset,
+                    isCurrent: () =>
+                        context.mounted &&
+                        !authCubit.isClosed &&
+                        identical(authCubit.state, state),
+                    navigate: () =>
+                        navigatorKey.currentState?.pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PosOnboardingPage.initialDestination(prefs),
+                          ),
+                          (route) => false,
+                        ),
                   );
-                  if (lockEnabled) {
-                    await lockCubit.lock();
-                  } else {
-                    lockCubit.reset();
+                  if (context.mounted &&
+                      identical(authCubit.state, state) &&
+                      sl.isRegistered<PosPushService>()) {
+                    final push = sl<PosPushService>();
+                    push.onOpen = () => navigatorKey.currentState?.push(
+                      MaterialPageRoute(
+                        builder: (_) => const PosNotificationPage(),
+                      ),
+                    );
+                    unawaited(push.activate());
                   }
+                } else if (state.status == AuthStatus.unauthenticated) {
+                  await sl<PosCustomerDisplayService>().disconnect();
+                  if (!context.mounted) return;
+                  context.read<AppLockCubit>().reset();
+                  final hasSeenIntro =
+                      sl<SharedPreferences>().getBool('has_seen_intro') ??
+                      false;
+                  navigatorKey.currentState?.pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          hasSeenIntro ? const LoginPage() : const IntroPage(),
+                    ),
+                    (route) => false,
+                  );
                 }
-                navigatorKey.currentState?.pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) => PosOnboardingPage.initialDestination(prefs),
-                  ),
-                  (route) => false,
-                );
-              } else if (state.status == AuthStatus.unauthenticated) {
-                await sl<PosCustomerDisplayService>().disconnect();
-                if (!context.mounted) return;
-                context.read<AppLockCubit>().reset();
-                final hasSeenIntro =
-                    sl<SharedPreferences>().getBool('has_seen_intro') ?? false;
-                navigatorKey.currentState?.pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        hasSeenIntro ? const LoginPage() : const IntroPage(),
-                  ),
-                  (route) => false,
-                );
-              }
-            },
-            child: BlocBuilder<AuthCubit, AuthState>(
-              builder: (context, authState) => InactivityWrapper(
-                authenticated: authState.isAuthenticated,
-                child: child!,
+              },
+              child: BlocBuilder<AuthCubit, AuthState>(
+                builder: (context, authState) => InactivityWrapper(
+                  authenticated: authState.isAuthenticated,
+                  child: child!,
+                ),
               ),
-            ),
-          );
-          if (!compactMobile) return app;
-          return MediaQuery(
-            data: mediaQuery.copyWith(
-              textScaler: _CompactMobileTextScaler(mediaQuery.textScaler),
-            ),
-            child: app,
-          );
-        },
-        debugShowCheckedModeBanner: false,
-        title: sl<FlavorConfig>().appName,
-        theme: AppTheme.light(),
-        home: BlocBuilder<AuthCubit, AuthState>(
-          builder: (context, state) {
-            // Keep the branded startup view until the saved session and POS
-            // lock have finished loading. Login submissions stay on LoginPage
-            // so their progress remains on the button.
-            if (state.isCheckingSession || state.isAuthenticated) {
-              return const _StartupSplash();
-            }
-            if (state.isAuthenticating) {
-              return const LoginPage();
-            }
-            final hasSeenIntro =
-                sl<SharedPreferences>().getBool('has_seen_intro') ?? false;
-
-            if (!hasSeenIntro) {
-              return const IntroPage();
-            }
-
-            return const LoginPage();
+            );
+            if (!compactMobile) return app;
+            return MediaQuery(
+              data: mediaQuery.copyWith(
+                textScaler: _CompactMobileTextScaler(mediaQuery.textScaler),
+              ),
+              child: app,
+            );
           },
+          debugShowCheckedModeBanner: false,
+          title: sl<FlavorConfig>().appName,
+          theme: AppTheme.light(),
+          home: BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, state) {
+              // Keep the branded startup view until the saved session and POS
+              // lock have finished loading. Login submissions stay on LoginPage
+              // so their progress remains on the button.
+              if (state.isCheckingSession || state.isAuthenticated) {
+                return const _StartupSplash();
+              }
+              if (state.isAuthenticating) {
+                return const LoginPage();
+              }
+              final hasSeenIntro =
+                  sl<SharedPreferences>().getBool('has_seen_intro') ?? false;
+
+              if (!hasSeenIntro) {
+                return const IntroPage();
+              }
+
+              return const LoginPage();
+            },
+          ),
         ),
       ),
     );
@@ -168,7 +203,7 @@ class _StartupSplash extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
             SizedBox(height: 12),
-            Text('Menyiapkan Pantoo POS…'),
+            PosText('Menyiapkan Pantoo POS…'),
           ],
         ),
       ),

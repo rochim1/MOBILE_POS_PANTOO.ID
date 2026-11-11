@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 
@@ -77,7 +78,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                 padding: const EdgeInsets.only(left: 2, bottom: 7),
                 child: Text.rich(
                   TextSpan(
-                    text: label,
+                    text: (label).tr(dialogContext),
                     children: required
                         ? const [
                             TextSpan(
@@ -102,9 +103,9 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
       builder: (context, setDialogState) {
         final title = Row(
           children: [
-            const Expanded(child: Text('Tambah Pelanggan')),
+            const Expanded(child: PosText('Tambah Pelanggan')),
             IconButton(
-              tooltip: 'Tutup',
+              tooltip: ('Tutup').tr(context),
               onPressed: saving ? null : () => Navigator.pop(dialogContext),
               icon: const Icon(Icons.close),
             ),
@@ -133,11 +134,12 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                     field(
                       'Nama pelanggan',
                       TextFormField(
+errorBuilder: posValidationError,
                         controller: nameController,
                         autofocus: true,
                         textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          hintText: 'Contoh: Budi Santoso',
+                        decoration:  InputDecoration(
+                          hintText: ('Contoh: Budi Santoso').tr(context),
                           prefixIcon: Icon(Icons.person_outline),
                         ),
                         validator: validatePosCustomerName,
@@ -147,10 +149,11 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                     field(
                       'Nomor telepon',
                       TextFormField(
+errorBuilder: posValidationError,
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
-                          hintText: 'Contoh: 081234567890',
+                        decoration:  InputDecoration(
+                          hintText: ('Contoh: 081234567890').tr(context),
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
                         validator: (value) => validatePosCustomerPhone(
@@ -163,10 +166,11 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                     field(
                       'Email',
                       TextFormField(
+errorBuilder: posValidationError,
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          hintText: 'nama@email.com (opsional)',
+                        decoration:  InputDecoration(
+                          hintText: ('nama@email.com (opsional)').tr(context),
                           prefixIcon: Icon(Icons.email_outlined),
                         ),
                         validator: validatePosCustomerEmail,
@@ -179,8 +183,8 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 2,
                         maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'Alamat lengkap pelanggan',
+                        decoration:  InputDecoration(
+                          hintText: ('Alamat lengkap pelanggan').tr(context),
                           prefixIcon: Icon(Icons.location_on_outlined),
                           alignLabelWithHint: true,
                         ),
@@ -193,8 +197,8 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 2,
                         maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'Catatan tambahan (opsional)',
+                        decoration:  InputDecoration(
+                          hintText: ('Catatan tambahan (opsional)').tr(context),
                           prefixIcon: Icon(Icons.notes_outlined),
                           alignLabelWithHint: true,
                         ),
@@ -215,7 +219,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                                 .map(
                                   (entry) => DropdownMenuItem(
                                     value: entry.key,
-                                    child: Text(entry.value),
+                                    child: PosText(entry.value),
                                   ),
                                 )
                                 .toList(),
@@ -233,9 +237,9 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                       'Level harga',
                       DropdownButtonFormField<String>(
                         initialValue: priceLevel,
-                        decoration: const InputDecoration(
+                        decoration:  InputDecoration(
                           helperText:
-                              'Menentukan daftar harga produk pelanggan ini',
+                              ('Menentukan daftar harga produk pelanggan ini').tr(context),
                           prefixIcon: Icon(Icons.price_change_outlined),
                         ),
                         items: priceLevelOptions
@@ -270,7 +274,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                         decoration: InputDecoration(
                           helperText: membershipStatus == 'member'
                               ? null
-                              : 'Aktif setelah status diubah menjadi Member',
+                              : ('Aktif setelah status diubah menjadi Member').tr(context),
                           prefixIcon: const Icon(
                             Icons.workspace_premium_outlined,
                           ),
@@ -285,7 +289,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                                 .map(
                                   (entry) => DropdownMenuItem(
                                     value: entry.key,
-                                    child: Text(entry.value),
+                                    child: PosText(entry.value),
                                   ),
                                 )
                                 .toList(),
@@ -312,7 +316,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                                 .map(
                                   (entry) => DropdownMenuItem(
                                     value: entry.key,
-                                    child: Text(entry.value),
+                                    child: PosText(entry.value),
                                   ),
                                 )
                                 .toList(),
@@ -332,7 +336,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
         final actions = <Widget>[
           TextButton(
             onPressed: saving ? null : () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton.icon(
             onPressed: saving
@@ -411,10 +415,10 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                 : const Icon(Icons.person_add_alt_1),
             label: Text(
               saving
-                  ? 'Menyimpan...'
+                  ? ('Menyimpan...').tr(context)
                   : selectAfterSave
-                  ? 'Simpan & Pilih'
-                  : 'Simpan Pelanggan',
+                  ? ('Simpan & Pilih').tr(context)
+                  : ('Simpan Pelanggan').tr(context),
             ),
           ),
         ];

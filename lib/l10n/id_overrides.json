@@ -1,0 +1,23 @@
+{
+  "Personal": "Pribadi",
+  "Corporate": "Perusahaan",
+  "Intangible": "Tak berwujud",
+  "Advanced": "Lanjutan",
+  "Approval": "Persetujuan",
+  "Completed": "Selesai",
+  "Custom": "Kustom",
+  "Guest": "Tamu",
+  "Handling": "Penanganan",
+  "Order": "Pesanan",
+  "Outdoor": "Luar Ruangan",
+  "Print Invoice": "Cetak Invoice",
+  "Quality Control": "Kontrol Kualitas",
+  "Refresh": "Perbarui",
+  "Sales Forecasting": "Perkiraan Penjualan",
+  "Scan": "Pindai",
+  "Scan Barcode": "Pindai Barcode",
+  "Scan barcode": "Pindai barcode",
+  "Supplier": "Pemasok",
+  "Supplier *": "Pemasok *",
+  "Warehouse": "Gudang"
+}

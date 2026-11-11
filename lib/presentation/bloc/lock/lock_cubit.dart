@@ -7,6 +7,7 @@ import '../../../../core/network/sync_service.dart';
 import '../../../../core/network/pos_operator_identity.dart';
 
 class AppLockCubit extends Cubit<AppLockState> {
+  int _employeeLoadRevision = 0;
   AppLockCubit() : super(const AppLockState()) {
     _init();
   }
@@ -46,91 +47,110 @@ class AppLockCubit extends Cubit<AppLockState> {
   }
 
   Future<void> loadEmployees({String search = ''}) async {
-    emit(state.copyWith(loadingEmployees: true, errorMessage: ''));
-    final repository = sl<PosRepository>();
-    final result = await repository.getPOSPinUsers(
-      search: search,
-      hasPin: true,
-    );
-    // A cached employee list is the complete source for the offline lock
-    // screen. Do not make a second status request that can block the UI.
-    final usingOfflineCache = result.fold(
-      (_) => false,
-      (employees) => employees.any((row) => row['offline_cached'] == true),
-    );
-    final lockStatusResult = usingOfflineCache
-        ? null
-        : await repository.getMyPOSLockStatus();
-    final myHasPin = lockStatusResult == null
-        ? true
-        : lockStatusResult.fold(
-            (_) => true,
-            (status) => status['has_pin'] == true,
-          );
-    result.fold(
-      (failure) => emit(
-        state.copyWith(errorMessage: failure.message, loadingEmployees: false),
-      ),
-      (employees) {
-        // Pertahanan tambahan untuk kompatibilitas dengan server lama/cache:
-        // modal PIN tidak pernah menampilkan operator tanpa PIN.
-        final eligibleEmployees = employees
-            .where((row) => row['has_pin'] == true)
-            .toList();
-        final prefs = sl<SharedPreferences>();
-        final loginUserId = prefs.getString('user_id') ?? '';
-        final loginUserName = prefs.getString('username')?.trim() ?? '';
-        final normalizedSearch = search.trim().toLowerCase();
-        final loginMatchesSearch =
-            normalizedSearch.isEmpty ||
-            loginUserName.toLowerCase().contains(normalizedSearch);
-        if (!myHasPin && loginUserId.isNotEmpty && loginMatchesSearch) {
-          eligibleEmployees.insert(0, {
-            '_id': loginUserId,
-            'name': loginUserName.isEmpty ? 'Akun login' : loginUserName,
-            'username': loginUserName,
-            'has_pin': false,
-            'is_login_user': true,
-          });
-        } else {
-          for (final employee in eligibleEmployees) {
-            if (employee['_id']?.toString() == loginUserId) {
-              employee['is_login_user'] = true;
+    final revision = ++_employeeLoadRevision;
+    try {
+      emit(state.copyWith(loadingEmployees: true, errorMessage: ''));
+      final repository = sl<PosRepository>();
+      final result = await repository
+          .getPOSPinUsers(search: search, hasPin: true)
+          .timeout(const Duration(seconds: 15));
+      if (isClosed || revision != _employeeLoadRevision) return;
+      // A cached employee list is the complete source for the offline lock
+      // screen. Do not make a second status request that can block the UI.
+      final usingOfflineCache = result.fold(
+        (_) => false,
+        (employees) => employees.any((row) => row['offline_cached'] == true),
+      );
+      final lockStatusResult = usingOfflineCache
+          ? null
+          : await repository.getMyPOSLockStatus().timeout(
+              const Duration(seconds: 10),
+            );
+      if (isClosed || revision != _employeeLoadRevision) return;
+      final myHasPin = lockStatusResult == null
+          ? true
+          : lockStatusResult.fold(
+              (_) => true,
+              (status) => status['has_pin'] == true,
+            );
+      result.fold(
+        (failure) => emit(
+          state.copyWith(
+            errorMessage: failure.message,
+            loadingEmployees: false,
+          ),
+        ),
+        (employees) {
+          // Pertahanan tambahan untuk kompatibilitas dengan server lama/cache:
+          // modal PIN tidak pernah menampilkan operator tanpa PIN.
+          final eligibleEmployees = employees
+              .where((row) => row['has_pin'] == true)
+              .toList();
+          final prefs = sl<SharedPreferences>();
+          final loginUserId = prefs.getString('user_id') ?? '';
+          final loginUserName = prefs.getString('username')?.trim() ?? '';
+          final normalizedSearch = search.trim().toLowerCase();
+          final loginMatchesSearch =
+              normalizedSearch.isEmpty ||
+              loginUserName.toLowerCase().contains(normalizedSearch);
+          if (!myHasPin && loginUserId.isNotEmpty && loginMatchesSearch) {
+            eligibleEmployees.insert(0, {
+              '_id': loginUserId,
+              'name': loginUserName.isEmpty ? 'Akun login' : loginUserName,
+              'username': loginUserName,
+              'has_pin': false,
+              'is_login_user': true,
+            });
+          } else {
+            for (final employee in eligibleEmployees) {
+              if (employee['_id']?.toString() == loginUserId) {
+                employee['is_login_user'] = true;
+              }
             }
           }
-        }
-        final currentSelection = state.selectedEmployeeId;
-        final selected =
-            eligibleEmployees.any(
-              (row) => row['_id']?.toString() == currentSelection,
-            )
-            ? currentSelection
-            : (eligibleEmployees.any(
-                    (row) => row['_id']?.toString() == state.activeEmployeeId,
-                  )
-                  ? state.activeEmployeeId
-                  : eligibleEmployees.firstOrNull?['_id']?.toString());
-        final selectedRow = eligibleEmployees
-            .where((row) => row['_id']?.toString() == selected)
-            .firstOrNull;
+          final currentSelection = state.selectedEmployeeId;
+          final selected =
+              eligibleEmployees.any(
+                (row) => row['_id']?.toString() == currentSelection,
+              )
+              ? currentSelection
+              : (eligibleEmployees.any(
+                      (row) => row['_id']?.toString() == state.activeEmployeeId,
+                    )
+                    ? state.activeEmployeeId
+                    : eligibleEmployees.firstOrNull?['_id']?.toString());
+          final selectedRow = eligibleEmployees
+              .where((row) => row['_id']?.toString() == selected)
+              .firstOrNull;
+          emit(
+            state.copyWith(
+              status: AppLockStatus.locked,
+              employees: eligibleEmployees,
+              selectedEmployeeId: selected,
+              hasPinConfigured: selectedRow == null
+                  ? state.hasPinConfigured
+                  : selectedRow['has_pin'] == true,
+              errorMessage: eligibleEmployees.isEmpty
+                  ? 'Belum ada karyawan POS yang memiliki PIN.'
+                  : '',
+              loadingEmployees: false,
+              lockedUntil: _parseLockedUntil(selectedRow?['locked_until']),
+              clearLockedUntil: selectedRow?['locked_until'] == null,
+            ),
+          );
+        },
+      );
+    } catch (_) {
+      if (!isClosed && revision == _employeeLoadRevision) {
         emit(
           state.copyWith(
-            status: AppLockStatus.locked,
-            employees: eligibleEmployees,
-            selectedEmployeeId: selected,
-            hasPinConfigured: selectedRow == null
-                ? state.hasPinConfigured
-                : selectedRow['has_pin'] == true,
-            errorMessage: eligibleEmployees.isEmpty
-                ? 'Belum ada karyawan POS yang memiliki PIN.'
-                : '',
             loadingEmployees: false,
-            lockedUntil: _parseLockedUntil(selectedRow?['locked_until']),
-            clearLockedUntil: selectedRow?['locked_until'] == null,
+            errorMessage:
+                'Daftar kasir belum dapat dimuat. Periksa koneksi lalu coba lagi.',
           ),
         );
-      },
-    );
+      }
+    }
   }
 
   Future<bool> createLoginUserPin({
@@ -275,6 +295,7 @@ class AppLockCubit extends Cubit<AppLockState> {
   }
 
   void reset() {
+    _employeeLoadRevision++;
     sl<PosRepository>().setOperatorSessionToken('');
     sl<SyncService>().setOperatorSessionToken('');
     emit(const AppLockState(status: AppLockStatus.unlocked));

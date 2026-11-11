@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -356,48 +357,48 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: Text('Biaya aktual ${receipt['no_grn'] ?? ''}'),
+          title: Text(posLocale(context).pose8182cdba6ee((receipt['no_grn'] ?? '').toString())),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                const PosText(
                   'Hanya untuk ongkir/biaya yang dibayar terpisah. Jika ongkir ada dalam invoice supplier yang sama dengan barang, catat lewat Vendor Bill di Finance web untuk satu GRN yang ditagih penuh; jangan catat di sini agar utang tidak ganda.',
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: kind,
-                  decoration: const InputDecoration(labelText: 'Jenis biaya'),
+                  decoration:  InputDecoration(labelText: ('Jenis biaya').tr(context)),
                   items: const [
-                    DropdownMenuItem(value: 'freight', child: Text('Ongkir')),
+                    DropdownMenuItem(value: 'freight', child: PosText('Ongkir')),
                     DropdownMenuItem(
                       value: 'handling',
-                      child: Text('Handling'),
+                      child: PosText('Handling'),
                     ),
                     DropdownMenuItem(
                       value: 'insurance',
-                      child: Text('Asuransi'),
+                      child: PosText('Asuransi'),
                     ),
                     DropdownMenuItem(
                       value: 'customs',
-                      child: Text('Bea masuk'),
+                      child: PosText('Bea masuk'),
                     ),
-                    DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+                    DropdownMenuItem(value: 'lainnya', child: PosText('Lainnya')),
                   ],
                   onChanged: (value) => update(() => kind = value ?? 'freight'),
                 ),
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Nominal aktual (Rp)',
+                  decoration:  InputDecoration(
+                    labelText: ('Nominal aktual (Rp)').tr(context),
                   ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: paymentAccountCode,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Kas / bank pembayaran',
+                  decoration:  InputDecoration(
+                    labelText: ('Kas / bank pembayaran').tr(context),
                   ),
                   items: cashAccounts
                       .map(
@@ -416,15 +417,15 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                 ),
                 TextField(
                   controller: referenceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Referensi pembayaran (opsional)',
+                  decoration:  InputDecoration(
+                    labelText: ('Referensi pembayaran (opsional)').tr(context),
                   ),
                   maxLength: 120,
                 ),
                 TextField(
                   controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Catatan (opsional)',
+                  decoration:  InputDecoration(
+                    labelText: ('Catatan (opsional)').tr(context),
                   ),
                 ),
               ],
@@ -433,7 +434,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () {
@@ -453,7 +454,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                   'payment_reference': referenceController.text.trim(),
                 });
               },
-              child: const Text('Simpan & Terapkan'),
+              child: const PosText('Simpan & Terapkan'),
             ),
           ],
         ),
@@ -584,13 +585,13 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       item = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (dialogContext) => SimpleDialog(
-          title: const Text('Pilih baris PO'),
+          title: const PosText('Pilih baris PO'),
           children: poLines
               .map(
                 (line) => SimpleDialogOption(
                   onPressed: () => Navigator.pop(dialogContext, line),
                   child: Text(
-                    '${line['nama_inventaris']} · sisa ${line['remaining']} ${line['unit'] ?? ''}',
+                    posLocale(dialogContext).pos2f893bcc6344((line['nama_inventaris']).toString(), (line['remaining']).toString(), (line['unit'] ?? '').toString()),
                   ),
                 ),
               )
@@ -608,22 +609,23 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     final quantity = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(selectedItem['nama_inventaris']?.toString() ?? 'Barang PO'),
+        title: Text(selectedItem['nama_inventaris']?.toString() ?? ('Barang PO').tr(dialogContext)),
         content: Form(
           key: formKey,
           child: TextFormField(
+errorBuilder: posValidationError,
             controller: controller,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'Diterima sekarang (${selectedItem['unit'] ?? ''})',
-              helperText: 'Sisa PO: ${selectedItem['remaining']}',
+              labelText: posLocale(dialogContext).pos4c2897c3151f((selectedItem['unit'] ?? '').toString()),
+              helperText: posLocale(dialogContext).pos9475d97d7968((selectedItem['remaining']).toString()),
               border: const OutlineInputBorder(),
             ),
             validator: (raw) {
               final qty = double.tryParse((raw ?? '').replaceAll(',', '.'));
               return qty == null || !qty.isFinite || qty < 0 || qty > remaining
-                  ? 'Isi jumlah 0 sampai $remaining'
+                  ? posLocale(dialogContext).posd06dba4cee38((remaining).toString())
                   : null;
             },
           ),
@@ -631,7 +633,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () {
@@ -642,7 +644,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                 );
               }
             },
-            child: const Text('Terapkan'),
+            child: const PosText('Terapkan'),
           ),
         ],
       ),
@@ -677,18 +679,18 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       final retry = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Ulangi penerimaan sebelumnya?'),
-          content: const Text(
+          title: const PosText('Ulangi penerimaan sebelumnya?'),
+          content: const PosText(
             'Permintaan terakhir belum dikonfirmasi. Data jumlah dan lokasi yang tersimpan akan dikirim ulang; perubahan form saat ini tidak ikut dikirim.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Periksa Riwayat'),
+              child: const PosText('Periksa Riwayat'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Ulangi Request'),
+              child: const PosText('Ulangi Request'),
             ),
           ],
         ),
@@ -769,21 +771,18 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Konfirmasi penerimaan'),
+        title: const PosText('Konfirmasi penerimaan'),
         content: Text(
-          '${selected.length} jenis barang akan menambah stok di '
-          '${warehouse['nama_cabang'] ?? 'lokasi terpilih'}.\n\n'
-          '${selected.map((item) => '${item['nama_inventaris']}: ${item['receive_qty']} ${item['unit'] ?? ''}').join('\n')}\n\n'
-          'Pastikan jumlah, batch, dan lokasi sudah benar.',
+          posLocale(dialogContext).posb77962af8721((selected.length).toString(), (warehouse['nama_cabang'] ?? 'lokasi terpilih').toString(), (selected.map((item) => '${item['nama_inventaris']}: ${item['receive_qty']} ${item['unit'] ?? ''}').join('\n')).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Periksa Lagi'),
+            child: const PosText('Periksa Lagi'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Ya, Terima Barang'),
+            child: const PosText('Ya, Terima Barang'),
           ),
         ],
       ),
@@ -996,18 +995,18 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       final recordCost = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Ada ongkir atau biaya aktual?'),
-          content: const Text(
+          title: const PosText('Ada ongkir atau biaya aktual?'),
+          content: const PosText(
             'Jika dibayar terpisah, catat sekarang agar biaya masuk nilai barang. Estimasi di PO tidak otomatis dibebankan.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Nanti'),
+              child: const PosText('Nanti'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Catat biaya'),
+              child: const PosText('Catat biaya'),
             ),
           ],
         ),
@@ -1034,28 +1033,28 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Batalkan ${receipt['no_grn'] ?? 'penerimaan'}?'),
+        title: Text(posLocale(dialogContext).pos345a2afe9fe7((receipt['no_grn'] ?? 'penerimaan').toString())),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Alasan pembatalan *',
-            hintText: 'Contoh: jumlah atau lokasi penerimaan keliru',
+          decoration:  InputDecoration(
+            labelText: ('Alasan pembatalan *').tr(dialogContext),
+            hintText: ('Contoh: jumlah atau lokasi penerimaan keliru').tr(dialogContext),
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Kembali'),
+            child: const PosText('Kembali'),
           ),
           FilledButton(
             onPressed: () {
               final value = controller.text.trim();
               if (value.isNotEmpty) Navigator.pop(dialogContext, value);
             },
-            child: const Text('Batalkan Penerimaan'),
+            child: const PosText('Batalkan Penerimaan'),
           ),
         ],
       ),
@@ -1140,8 +1139,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.history),
-        title: Text('Riwayat penerimaan (${_history.length})'),
-        subtitle: const Text('Penerimaan parsial yang sudah dicatat'),
+        title: Text(posLocale(context).pos78bff8e79d25((_history.length).toString())),
+        subtitle: const PosText('Penerimaan parsial yang sudah dicatat'),
         children: _history.map((receipt) {
           final lines = (receipt['items'] as List? ?? const [])
               .whereType<Map>()
@@ -1156,20 +1155,20 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
             Map<String, dynamic>.from(receipt),
           );
           return ListTile(
-            title: Text(receipt['no_grn']?.toString() ?? 'Penerimaan'),
+            title: Text(receipt['no_grn']?.toString() ?? ('Penerimaan').tr(context)),
             subtitle: Text(
               '${_shortDate(receipt['tanggal_terima'])}'
-              '${(receipt['no_surat_jalan']?.toString() ?? '').isEmpty ? '' : ' · SJ ${receipt['no_surat_jalan']}'}\n$lines'
+              '${(receipt['no_surat_jalan']?.toString() ?? '').isEmpty ? '' : (' · SJ ${receipt['no_surat_jalan']}').tr(context)}\n$lines'
               '${receipt['journal_status'] == 'failed'
-                  ? '\nJurnal asal gagal: ${receipt['journal_error'] ?? ''}'
+                  ? ('\nJurnal asal gagal: ${receipt['journal_error'] ?? ''}').tr(context)
                   : receipt['journal_status'] == 'pending'
-                  ? '\nJurnal asal belum terkonfirmasi'
+                  ? ('\nJurnal asal belum terkonfirmasi').tr(context)
                   : ''}'
-              '${actualCost == null ? '' : '\nBiaya aktual: ${actualCost['status'] == 'validated' ? 'diterapkan' : 'draft menunggu validasi'}'}'
+              '${actualCost == null ? '' : ('\nBiaya aktual: ${actualCost['status'] == 'validated' ? 'diterapkan'.tr(context) : 'draft menunggu validasi'.tr(context)}').tr(context)}'
               '${receipt['cancel_journal_status'] == 'failed'
-                  ? '\nJurnal pembatalan gagal: ${receipt['cancel_journal_error'] ?? ''}'
+                  ? ('\nJurnal pembatalan gagal: ${receipt['cancel_journal_error'] ?? ''}').tr(context)
                   : cancelled && receipt['cancel_journal_status'] == 'pending'
-                  ? '\nJurnal pembatalan belum terkonfirmasi'
+                  ? ('\nJurnal pembatalan belum terkonfirmasi').tr(context)
                   : ''}',
             ),
             isThreeLine: true,
@@ -1183,10 +1182,10 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                       'failed',
                       'pending',
                     ].contains(receipt['cancel_journal_status'])
-                ? const Chip(label: Text('Dibatalkan'))
+                ? const Chip(label: PosText('Dibatalkan'))
                 : PopupMenuButton<String>(
                     enabled: !_loading,
-                    tooltip: 'Aksi penerimaan',
+                    tooltip: ('Aksi penerimaan').tr(context),
                     onSelected: (action) => switch (action) {
                       'cost' => _recordActualCost(
                         Map<String, dynamic>.from(receipt),
@@ -1203,8 +1202,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                           value: 'cost',
                           child: Text(
                             actualCost == null
-                                ? 'Catat ongkir/biaya aktual'
-                                : 'Terapkan draft biaya',
+                                ? ('Catat ongkir/biaya aktual').tr(context)
+                                : ('Terapkan draft biaya').tr(context),
                           ),
                         ),
                       if ([
@@ -1213,7 +1212,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                       ].contains(receipt['journal_status']))
                         const PopupMenuItem(
                           value: 'retry_journal',
-                          child: Text('Ulangi Jurnal'),
+                          child: PosText('Ulangi Jurnal'),
                         ),
                       if (cancelled &&
                           [
@@ -1222,12 +1221,12 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                           ].contains(receipt['cancel_journal_status']))
                         const PopupMenuItem(
                           value: 'retry_cancel_journal',
-                          child: Text('Ulangi Jurnal Pembatalan'),
+                          child: PosText('Ulangi Jurnal Pembatalan'),
                         ),
                       if (!cancelled && widget.canCancelReceiving)
                         const PopupMenuItem(
                           value: 'cancel',
-                          child: Text('Batalkan Penerimaan'),
+                          child: PosText('Batalkan Penerimaan'),
                         ),
                     ],
                   ),
@@ -1252,8 +1251,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
           }
         },
         child: InputDecorator(
-          decoration: const InputDecoration(
-            labelText: 'Tanggal penerimaan',
+          decoration:  InputDecoration(
+            labelText: ('Tanggal penerimaan').tr(context),
             prefixIcon: Icon(Icons.calendar_today_outlined),
             border: OutlineInputBorder(),
           ),
@@ -1267,8 +1266,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
             DropdownButtonFormField<String>(
               isExpanded: true,
               initialValue: _buildingCode.isEmpty ? null : _buildingCode,
-              decoration: const InputDecoration(
-                labelText: 'Gedung (opsional)',
+              decoration:  InputDecoration(
+                labelText: ('Gedung (opsional)').tr(context),
                 border: OutlineInputBorder(),
               ),
               items: _buildings
@@ -1290,8 +1289,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
             DropdownButtonFormField<String>(
               isExpanded: true,
               initialValue: _roomCode.isEmpty ? null : _roomCode,
-              decoration: const InputDecoration(
-                labelText: 'Ruangan (opsional)',
+              decoration:  InputDecoration(
+                labelText: ('Ruangan (opsional)').tr(context),
                 border: OutlineInputBorder(),
               ),
               items: _rooms
@@ -1314,8 +1313,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
             DropdownButtonFormField<String>(
               isExpanded: true,
               initialValue: _rackName.isEmpty ? null : _rackName,
-              decoration: const InputDecoration(
-                labelText: 'Rak (opsional)',
+              decoration:  InputDecoration(
+                labelText: ('Rak (opsional)').tr(context),
                 border: OutlineInputBorder(),
               ),
               items: _racks
@@ -1351,8 +1350,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       const SizedBox(height: 10),
       TextField(
         controller: _deliveryNote,
-        decoration: const InputDecoration(
-          labelText: 'Nomor surat jalan (opsional)',
+        decoration:  InputDecoration(
+          labelText: ('Nomor surat jalan (opsional)').tr(context),
           border: OutlineInputBorder(),
         ),
       ),
@@ -1360,8 +1359,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
       TextField(
         controller: _notes,
         maxLines: 2,
-        decoration: const InputDecoration(
-          labelText: 'Catatan penerimaan (opsional)',
+        decoration:  InputDecoration(
+          labelText: ('Catatan penerimaan (opsional)').tr(context),
           border: OutlineInputBorder(),
         ),
       ),
@@ -1382,7 +1381,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                       color: Color(0xFFFFEBEE),
                       child: Padding(
                         padding: EdgeInsets.all(12),
-                        child: Text(
+                        child: PosText(
                           'Request penerimaan sebelumnya di perangkat tidak dapat dibaca. Penerimaan baru diblokir untuk mencegah stok ganda. Periksa riwayat GRN dan hubungi admin inventori.',
                         ),
                       ),
@@ -1398,7 +1397,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          const PosText(
                             'Informasi penerimaan',
                             style: TextStyle(
                               fontSize: 17,
@@ -1411,8 +1410,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                             initialValue: _warehouseId.isEmpty
                                 ? null
                                 : _warehouseId,
-                            decoration: const InputDecoration(
-                              labelText: 'Cabang penerimaan *',
+                            decoration:  InputDecoration(
+                              labelText: ('Cabang penerimaan *').tr(context),
                               prefixIcon: Icon(Icons.warehouse_outlined),
                               border: OutlineInputBorder(),
                             ),
@@ -1440,8 +1439,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                             tilePadding: EdgeInsets.zero,
                             childrenPadding: const EdgeInsets.only(bottom: 4),
                             leading: const Icon(Icons.tune),
-                            title: const Text('Detail tambahan'),
-                            subtitle: const Text(
+                            title: const PosText('Detail tambahan'),
+                            subtitle: const PosText(
                               'Tanggal, surat jalan, gedung, ruangan, rak, dan catatan',
                             ),
                             children: [_buildAdvancedReceivingFields()],
@@ -1460,7 +1459,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                       color: AppColors.primary.withValues(alpha: .08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: const PosText(
                       'Penerimaan parsial didukung. Isi hanya jumlah yang datang sekarang; sisanya tetap dapat diterima pada penerimaan berikutnya.',
                       style: TextStyle(height: 1.35),
                     ),
@@ -1469,7 +1468,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                   Row(
                     children: [
                       const Expanded(
-                        child: Text(
+                        child: PosText(
                           'Barang diterima',
                           style: TextStyle(
                             fontSize: 17,
@@ -1478,7 +1477,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Scan barcode barang PO',
+                        tooltip: ('Scan barcode barang PO').tr(context),
                         onPressed: _items.isEmpty
                             ? null
                             : _scanReceivingBarcode,
@@ -1495,7 +1494,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                 }
                               }),
                         icon: const Icon(Icons.done_all, size: 18),
-                        label: const Text('Terima Semua'),
+                        label: const PosText('Terima Semua'),
                       ),
                     ],
                   ),
@@ -1513,14 +1512,12 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               ),
                             ),
                             Text(
-                              'Dipesan ${item['qty_ordered'] ?? 0} · '
-                              'Sudah diterima ${item['qty_received'] ?? 0} · '
-                              'Sisa ${item['remaining']} ${item['unit'] ?? ''}',
+                              posLocale(context).posfc674fc6d98d((item['qty_ordered'] ?? 0).toString(), (item['qty_received'] ?? 0).toString(), (item['remaining']).toString(), (item['unit'] ?? '').toString()),
                             ),
                             if (_receivableRemaining(item) >
                                 (item['remaining'] as num).toDouble())
                               Text(
-                                'Batas dengan toleransi ${widget.overReceiptTolerancePercent.toStringAsFixed(2)}%: ${_receivableRemaining(item)} ${item['unit'] ?? ''}',
+                                posLocale(context).poscd4516ba1708((widget.overReceiptTolerancePercent.toStringAsFixed(2)).toString(), (_receivableRemaining(item)).toString(), (item['unit'] ?? '').toString()),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.warning,
@@ -1528,7 +1525,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               ),
                             if ((item['conversion_factor'] as num? ?? 1) != 1)
                               Text(
-                                'Konversi: 1 ${item['unit'] ?? ''} = ${item['conversion_factor']} ${item['base_unit'] ?? ''}',
+                                posLocale(context).posa006c9daadf0((item['unit'] ?? '').toString(), (item['conversion_factor']).toString(), (item['base_unit'] ?? '').toString()),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.black54,
@@ -1536,6 +1533,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               ),
                             const SizedBox(height: 8),
                             TextFormField(
+errorBuilder: posValidationError,
                               key: ValueKey(
                                 '${item['_id']}-${item['receive_qty']}',
                               ),
@@ -1544,10 +1542,10 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
-                              decoration: const InputDecoration(
-                                labelText: 'Diterima sekarang',
+                              decoration:  InputDecoration(
+                                labelText: ('Diterima sekarang').tr(context),
                                 helperText:
-                                    'Boleh kurang dari sisa untuk pengiriman parsial',
+                                    ('Boleh kurang dari sisa untuk pengiriman parsial').tr(context),
                                 border: OutlineInputBorder(),
                               ),
                               autovalidateMode:
@@ -1562,7 +1560,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                         !qty.isFinite ||
                                         qty < 0 ||
                                         qty > remaining
-                                    ? 'Isi jumlah 0 sampai $remaining'
+                                    ? posLocale(context).posd06dba4cee38((remaining).toString())
                                     : null;
                               },
                               onChanged: (value) {
@@ -1585,14 +1583,14 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                               title: Text(
                                 item['wajib_batch_number'] == true ||
                                         item['wajib_serial_number'] == true
-                                    ? 'Data pelacakan wajib'
-                                    : 'Batch, kedaluwarsa & keterangan',
+                                    ? ('Data pelacakan wajib').tr(context)
+                                    : ('Batch, kedaluwarsa & keterangan').tr(context),
                               ),
                               subtitle: Text(
                                 item['wajib_batch_number'] == true ||
                                         item['wajib_serial_number'] == true
-                                    ? 'Lengkapi sebelum menyimpan'
-                                    : 'Opsional untuk barang ini',
+                                    ? ('Lengkapi sebelum menyimpan').tr(context)
+                                    : ('Opsional untuk barang ini').tr(context),
                               ),
                               children: [
                                 LayoutBuilder(
@@ -1604,8 +1602,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                         decoration: InputDecoration(
                                           labelText:
                                               item['wajib_batch_number'] == true
-                                              ? 'Nomor batch *'
-                                              : 'Nomor batch (opsional)',
+                                              ? ('Nomor batch *').tr(context)
+                                              : ('Nomor batch (opsional)').tr(context),
                                           border: const OutlineInputBorder(),
                                         ),
                                         onChanged: (value) =>
@@ -1647,8 +1645,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                             labelText:
                                                 item['wajib_batch_number'] ==
                                                     true
-                                                ? 'Tanggal kedaluwarsa *'
-                                                : 'Tanggal kedaluwarsa (opsional)',
+                                                ? ('Tanggal kedaluwarsa *').tr(context)
+                                                : ('Tanggal kedaluwarsa (opsional)').tr(context),
                                             border: const OutlineInputBorder(),
                                             suffixIcon: const Icon(
                                               Icons.calendar_today_outlined,
@@ -1659,7 +1657,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                                             ?.toString() ??
                                                         '')
                                                     .isEmpty
-                                                ? 'Pilih tanggal'
+                                                ? ('Pilih tanggal').tr(context)
                                                 : _shortDate(
                                                     item['tanggal_kadaluarsa'],
                                                   ),
@@ -1690,8 +1688,8 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                                   decoration: InputDecoration(
                                     labelText:
                                         item['wajib_serial_number'] == true
-                                        ? 'Serial number *'
-                                        : 'Keterangan (opsional)',
+                                        ? ('Serial number *').tr(context)
+                                        : ('Keterangan (opsional)').tr(context),
                                     border: const OutlineInputBorder(),
                                   ),
                                   onChanged: (value) =>
@@ -1712,7 +1710,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
                         : _save,
                     style: InventoryActionStyle.primary(),
                     icon: const Icon(Icons.inventory, size: 18),
-                    label: const Text('Simpan Penerimaan'),
+                    label: const PosText('Simpan Penerimaan'),
                   ),
                 ],
               ),
@@ -1728,7 +1726,7 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
     if (!widget.embedded) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Terima ${widget.purchase['no_po'] ?? 'Pembelian'}'),
+          title: Text(posLocale(context).posfd9cce7e760d((widget.purchase['no_po'] ?? 'Pembelian').toString())),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
@@ -1741,15 +1739,15 @@ class _PosPurchaseReceivingPageState extends State<PosPurchaseReceivingPage> {
           color: Colors.white,
           child: ListTile(
             leading: IconButton(
-              tooltip: 'Kembali ke pembelian',
+              tooltip: ('Kembali ke pembelian').tr(context),
               onPressed: widget.onFinished,
               icon: const Icon(Icons.arrow_back),
             ),
             title: Text(
-              'Terima ${widget.purchase['no_po'] ?? 'Pembelian'}',
+              posLocale(context).posfd9cce7e760d((widget.purchase['no_po'] ?? 'Pembelian').toString()),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            subtitle: const Text('Pembelian & Penerimaan'),
+            subtitle: const PosText('Pembelian & Penerimaan'),
           ),
         ),
         const Divider(height: 1),

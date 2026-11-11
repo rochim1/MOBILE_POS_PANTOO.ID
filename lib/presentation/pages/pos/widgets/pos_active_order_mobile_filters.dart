@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/_core.dart';
@@ -31,8 +32,8 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
                   controller: searchController,
                   onChanged: onSearchChanged,
                   textInputAction: TextInputAction.search,
-                  decoration: const InputDecoration(
-                    hintText: 'Cari order / pelanggan',
+                  decoration:  InputDecoration(
+                    hintText: ('Cari order / pelanggan').tr(context),
                     prefixIcon: Icon(Icons.search, size: 20),
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 10),
@@ -46,7 +47,7 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
               width: 44,
               height: 44,
               child: Tooltip(
-                message: 'Filter pesanan aktif',
+                message: ('Filter pesanan aktif').tr(context),
                 child: OutlinedButton(
                   key: const ValueKey('active-order-mobile-filter'),
                   onPressed: onOpenFilters,
@@ -71,7 +72,7 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
         if (activeLabels.isNotEmpty) ...[
           const SizedBox(height: 7),
           Text(
-            'Filter aktif: ${activeLabels.join(' · ')}',
+            posLocale(context).poscd472b2621dc((activeLabels.join(' · ')).toString()),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -262,18 +263,18 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               children: [
                 if (invoice != null)
                   IconButton(
-                    tooltip: 'Kembali ke daftar piutang',
+                    tooltip: ('Kembali ke daftar piutang').tr(context),
                     onPressed: _sending ? null : _load,
                     icon: const Icon(Icons.arrow_back),
                   ),
                 const Expanded(
-                  child: Text(
+                  child: PosText(
                     'Piutang & Pelunasan',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Muat ulang',
+                  tooltip: ('Muat ulang').tr(context),
                   onPressed: _sending || _loading
                       ? null
                       : () => invoice == null
@@ -283,29 +284,29 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                 ),
               ],
             ),
-            const Text(
+            const PosText(
               'Data Finance online. Penerimaan ke akun kas/bank terpilih, bukan penjualan baru atau uang laci shift.',
             ),
             const SizedBox(height: 12),
             if (invoice == null && _requests.pendingInvoiceIds.isNotEmpty) ...[
-              const Text(
+              const PosText(
                 'Ada bukti belum terkonfirmasi, termasuk jika invoice sudah lunas. Jangan menerima uang dua kali.',
               ),
               for (final id in _requests.pendingInvoiceIds)
                 TextButton(
                   onPressed: _loading || _sending ? null : () => _open(id),
                   child: Text(
-                    'Pulihkan bukti ${id.substring(id.length > 6 ? id.length - 6 : 0)}',
+                    posLocale(context).posc4171a22051c((id.substring(id.length > 6 ? id.length - 6 : 0)).toString()),
                   ),
                 ),
             ],
             if (_error.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error, style: const TextStyle(color: Colors.red)),
+                child: PosText(_error, style: const TextStyle(color: Colors.red)),
               ),
             if (_message.isNotEmpty)
-              Text(_message, style: const TextStyle(color: AppColors.primary)),
+              PosText(_message, style: const TextStyle(color: AppColors.primary)),
             if (_loading)
               ...List.generate(
                 4,
@@ -322,9 +323,9 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               TextField(
                 controller: _search,
                 decoration: InputDecoration(
-                  labelText: 'Cari pelanggan / nomor invoice',
+                  labelText: ('Cari pelanggan / nomor invoice').tr(context),
                   suffixIcon: IconButton(
-                    tooltip: 'Cari',
+                    tooltip: ('Cari').tr(context),
                     onPressed: () {
                       _page = 1;
                       _load();
@@ -339,7 +340,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Termasuk lunas / dikreditkan'),
+                title: const PosText('Termasuk lunas / dikreditkan'),
                 value: _settled,
                 onChanged: (v) {
                   _settled = v;
@@ -350,7 +351,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               if (_items.isEmpty && _error.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
-                  child: Text(
+                  child: PosText(
                     'Tidak ada invoice POS sesuai pencarian. Pesanan belum dibayar bukan piutang Finance.',
                   ),
                 ),
@@ -359,7 +360,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   child: ListTile(
                     title: Text(row['customer_name'].toString()),
                     subtitle: Text(
-                      '${row['source_context']?['receipt_number'] ?? row['invoice_number']}\nJatuh tempo: ${row['due_date'] ?? '-'}',
+                      posLocale(context).pos36e433c66faa((row['source_context']?['receipt_number'] ?? row['invoice_number']).toString(), (row['due_date'] ?? '-').toString()),
                     ),
                     isThreeLine: true,
                     trailing: Text(
@@ -379,9 +380,9 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                             _load();
                           }
                         : null,
-                    child: const Text('Sebelumnya'),
+                    child: const PosText('Sebelumnya'),
                   ),
-                  Text('$_page · $_total invoice'),
+                  Text(posLocale(context).posd4d98a649594((_page).toString(), (_total).toString())),
                   TextButton(
                     onPressed: _page * 20 < _total
                         ? () {
@@ -389,7 +390,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                             _load();
                           }
                         : null,
-                    child: const Text('Selanjutnya'),
+                    child: const PosText('Selanjutnya'),
                   ),
                 ],
               ),
@@ -403,11 +404,11 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               ),
               Text('${invoice['invoice_number']} · ${invoice['status']}'),
               Text(
-                'Total ${_money(invoice['total_amount'])} · Dibayar ${_money(invoice['paid_amount'])}\nKredit ${_money(invoice['credited_amount'])} · Sisa ${_money(invoice['outstanding_amount'])}',
+                posLocale(context).pos708b9937b7f6((_money(invoice['total_amount'])).toString(), (_money(invoice['paid_amount'])).toString(), (_money(invoice['credited_amount'])).toString(), (_money(invoice['outstanding_amount'])).toString()),
               ),
               const SizedBox(height: 16),
               if (_pending != null)
-                const Text(
+                const PosText(
                   'Ada bukti belum terkonfirmasi. Data dikunci; kirim ulang bukti yang sama untuk memeriksa hasil tanpa pembayaran ganda.',
                   style: TextStyle(color: Colors.deepOrange),
                 ),
@@ -418,22 +419,22 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   controller: _amount,
                   enabled: !_sending && _pending == null,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Jumlah penerimaan (Rp)',
+                  decoration:  InputDecoration(
+                    labelText: ('Jumlah penerimaan (Rp)').tr(context),
                   ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _method,
-                  decoration: const InputDecoration(
-                    labelText: 'Metode penerimaan',
+                  decoration:  InputDecoration(
+                    labelText: ('Metode penerimaan').tr(context),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Tunai')),
+                    DropdownMenuItem(value: 'cash', child: PosText('Tunai')),
                     DropdownMenuItem(
                       value: 'transfer',
-                      child: Text('Transfer'),
+                      child: PosText('Transfer'),
                     ),
-                    DropdownMenuItem(value: 'qris', child: Text('QRIS')),
+                    DropdownMenuItem(value: 'qris', child: PosText('QRIS')),
                   ],
                   onChanged: _sending || _pending != null
                       ? null
@@ -458,8 +459,8 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: _method == 'cash'
-                        ? 'Akun kas Finance'
-                        : 'Rekening bank',
+                        ? ('Akun kas Finance').tr(context)
+                        : ('Rekening bank').tr(context),
                   ),
                   items: (_method == 'cash' ? _cash : _banks)
                       .map(
@@ -483,8 +484,8 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   controller: _reference,
                   enabled: !_sending && _pending == null,
                   maxLength: 300,
-                  decoration: const InputDecoration(
-                    labelText: 'Nomor bukti / referensi penerimaan',
+                  decoration:  InputDecoration(
+                    labelText: ('Nomor bukti / referensi penerimaan').tr(context),
                   ),
                 ),
                 FilledButton.icon(
@@ -501,15 +502,15 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                       : const Icon(Icons.payments_outlined),
                   label: Text(
                     _sending
-                        ? 'Memeriksa penerimaan...'
+                        ? ('Memeriksa penerimaan...').tr(context)
                         : _pending != null
-                        ? 'Kirim ulang bukti yang sama'
-                        : 'Catat penerimaan',
+                        ? ('Kirim ulang bukti yang sama').tr(context)
+                        : ('Catat penerimaan').tr(context),
                   ),
                 ),
               ],
               const SizedBox(height: 16),
-              const Text(
+              const PosText(
                 'Riwayat penerimaan',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),

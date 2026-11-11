@@ -103,7 +103,7 @@ void main() {
     final runtimeQuery = readProjectFile('lib/data/graphql/pos_queries.dart');
     expect(page, contains('canOverrideReceivingTolerance'));
     expect(page, contains('overReceiptTolerancePercent'));
-    expect(page, contains('Batas dengan toleransi'));
+    expect(page, contains('poscd4516ba1708((widget.overReceiptTolerancePercent.toStringAsFixed(2)).toString(), (_receivableRemaining(item)).toString()'));
     expect(page, contains('widget.canCancelReceiving'));
     expect(page, contains('Alasan pembatalan *'));
     expect(workspace, contains("permissions['override_receiving_tolerance']"));
@@ -139,9 +139,9 @@ void main() {
     final editor = readProjectFile(
       'lib/presentation/pages/pos/pos_inventory_editor_page.dart',
     );
-    final manualModeStart = editor.indexOf("label: 'Tulis manual'");
+    final manualModeStart = editor.indexOf("label: ('Tulis manual').tr(context)");
     final destinationFieldStart = editor.indexOf(
-      "labelText: 'Lokasi stok penerimaan PO *'",
+      "labelText: ('Lokasi stok penerimaan PO *').tr(context)",
     );
     expect(manualModeStart, greaterThanOrEqualTo(0));
     expect(destinationFieldStart, greaterThan(manualModeStart));

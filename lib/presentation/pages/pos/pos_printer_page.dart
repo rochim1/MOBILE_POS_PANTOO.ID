@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -284,7 +285,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                       state.status == PosReceiptStatus.initial) ...[
                     const LinearProgressIndicator(),
                     const SizedBox(height: 8),
-                    const Text(
+                    const PosText(
                       'Memuat pengaturan struk… Anda tetap dapat melihat halaman ini.',
                       style: TextStyle(color: Colors.black54, fontSize: 12),
                     ),
@@ -299,87 +300,87 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                           Icons.error_outline,
                           color: AppColors.danger,
                         ),
-                        title: const Text('Pengaturan struk gagal dimuat'),
-                        subtitle: Text(state.errorMessage),
+                        title: const PosText('Pengaturan struk gagal dimuat'),
+                        subtitle: PosText(state.errorMessage),
                         trailing: TextButton(
                           onPressed: () => context.read<PosReceiptBloc>().add(
                             LoadReceiptTemplate(),
                           ),
-                          child: const Text('Coba lagi'),
+                          child: const PosText('Coba lagi'),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
                   ],
                   _buildSection(
-                    title: 'Header Struk',
+                    title: ('Header Struk').tr(context),
                     icon: Icons.title,
                     children: [
                       _buildPlaceholderHint(),
                       _buildSwitch(
-                        'Tampilkan Logo Toko',
+                        ('Tampilkan Logo Toko').tr(context),
                         _showLogo,
                         (v) => setState(() => _showLogo = v),
                       ),
                       _buildTextField(
-                        'Judul (Baris 1)',
+                        ('Judul (Baris 1)').tr(context),
                         _headerTitleController,
                       ),
                       _buildTextField(
-                        'Sub Judul (Baris 2)',
+                        ('Sub Judul (Baris 2)').tr(context),
                         _headerSubtitleController,
                       ),
-                      _buildTextField('Baris 3', _headerLine3Controller),
-                      _buildTextField('Baris 4', _headerLine4Controller),
+                      _buildTextField(('Baris 3').tr(context), _headerLine3Controller),
+                      _buildTextField(('Baris 4').tr(context), _headerLine4Controller),
                     ],
                   ),
                   const SizedBox(height: 16),
                   _buildSection(
-                    title: 'Kolom Ditampilkan',
+                    title: ('Kolom Ditampilkan').tr(context),
                     icon: Icons.view_list_outlined,
                     children: [
                       _buildSwitch(
-                        'Nomor Invoice',
+                        ('Nomor Invoice').tr(context),
                         _showInvoice,
                         (v) => setState(() => _showInvoice = v),
                       ),
                       _buildSwitch(
-                        'Tanggal & Waktu',
+                        ('Tanggal & Waktu').tr(context),
                         _showTanggal,
                         (v) => setState(() => _showTanggal = v),
                       ),
                       _buildSwitch(
-                        'Nama Kasir',
+                        ('Nama Kasir').tr(context),
                         _showKasir,
                         (v) => setState(() => _showKasir = v),
                       ),
                       _buildSwitch(
-                        'Nama Toko / Outlet',
+                        ('Nama Toko / Outlet').tr(context),
                         _showToko,
                         (v) => setState(() => _showToko = v),
                       ),
                       _buildSwitch(
-                        'Nama Pelanggan',
+                        ('Nama Pelanggan').tr(context),
                         _showPelanggan,
                         (v) => setState(() => _showPelanggan = v),
                       ),
                       _buildSwitch(
-                        'Channel Penjualan',
+                        ('Channel Penjualan').tr(context),
                         _showChannel,
                         (v) => setState(() => _showChannel = v),
                       ),
                       _buildSwitch(
-                        'Segmen Pelanggan',
+                        ('Segmen Pelanggan').tr(context),
                         _showSegment,
                         (v) => setState(() => _showSegment = v),
                       ),
                       _buildSwitch(
-                        'Jenis Pesanan',
+                        ('Jenis Pesanan').tr(context),
                         _showOrderType,
                         (v) => setState(() => _showOrderType = v),
                       ),
                       _buildSwitch(
-                        'Informasi Promo',
+                        ('Informasi Promo').tr(context),
                         _showPromo,
                         (v) => setState(() => _showPromo = v),
                       ),
@@ -387,22 +388,22 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   ),
                   const SizedBox(height: 16),
                   _buildSection(
-                    title: 'Footer Struk',
+                    title: ('Footer Struk').tr(context),
                     icon: Icons.horizontal_rule,
                     children: [
                       _buildPlaceholderHint(),
                       _buildTextField(
-                        'Catatan Bawah 1',
+                        ('Catatan Bawah 1').tr(context),
                         _footerLine1Controller,
                         maxLines: 3,
                       ),
                       _buildTextField(
-                        'Catatan Bawah 2',
+                        ('Catatan Bawah 2').tr(context),
                         _footerLine2Controller,
                         maxLines: 3,
                       ),
                       _buildTextField(
-                        'Catatan Bawah 3',
+                        ('Catatan Bawah 3').tr(context),
                         _footerLine3Controller,
                         maxLines: 3,
                       ),
@@ -410,11 +411,11 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   ),
                   const SizedBox(height: 16),
                   _buildSection(
-                    title: 'Pengaturan Cetak',
+                    title: ('Pengaturan Cetak').tr(context),
                     icon: Icons.print_outlined,
                     children: [
                       _buildDropdown(
-                        label: 'Lebar Kertas',
+                        label: ('Lebar Kertas').tr(context),
                         value: _paperWidth.toString(),
                         items: const ['58', '80'],
                         onChanged: (val) =>
@@ -422,7 +423,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         suffix: 'mm',
                       ),
                       _buildDropdown(
-                        label: 'Ukuran Font Default',
+                        label: ('Ukuran Font Default').tr(context),
                         value: _fontSize.toString(),
                         items: const [
                           '8',
@@ -442,7 +443,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         suffix: 'pt',
                       ),
                       _buildDropdown(
-                        label: 'Mode Cetak Bluetooth',
+                        label: ('Mode Cetak Bluetooth').tr(context),
                         value: _printMode,
                         items: const ['fast', 'pdf'],
                         labels: const {
@@ -457,7 +458,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                           ).setRenderMode(mode);
                         },
                       ),
-                      const Text(
+                      const PosText(
                         'Cepat memakai teks ESC/POS dan tetap mengikuti field template. '
                         'Pilih Presisi jika logo dan tampilan PDF harus sama persis dengan preview.',
                         style: TextStyle(color: Colors.black54, fontSize: 12),
@@ -491,7 +492,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
+                        : const PosText(
                             'Simpan Template Struk',
                             style: TextStyle(
                               fontSize: 16,
@@ -557,7 +558,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             children: [
               Icon(icon, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              Text(
+              PosText(
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -592,7 +593,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             ? TextInputAction.newline
             : TextInputAction.done,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: (label).tr(context),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -613,7 +614,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
       ),
-      child: const Text(
+      child: const PosText(
         'Placeholder kasir: {{nama_kasir}}  (alias: {{kasir}}). '
         'Contoh: Dilayani oleh {{nama_kasir}}',
         style: TextStyle(fontSize: 12, color: Colors.black87),
@@ -640,7 +641,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             child: DropdownButtonFormField<String>(
               initialValue: safeValue,
               decoration: InputDecoration(
-                labelText: label,
+                labelText: (label).tr(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -653,7 +654,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   .map(
                     (item) => DropdownMenuItem(
                       value: item,
-                      child: Text(labels?[item] ?? item),
+                      child: PosText(labels?[item] ?? item),
                     ),
                   )
                   .toList(),
@@ -679,7 +680,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+          Expanded(child: PosText(label, style: const TextStyle(fontSize: 14))),
           Switch(
             value: value,
             onChanged: onChanged,
@@ -715,10 +716,10 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   Widget _buildReceiptPreview(Map<String, String> company) {
     final previewTemplate = _draftTemplate;
     return _buildSection(
-      title: 'Preview Struk',
+      title: ('Preview Struk').tr(context),
       icon: Icons.receipt_long_outlined,
       children: [
-        const Text(
+        const PosText(
           'Preview diperbarui langsung mengikuti pengaturan di sebelah kiri.',
           style: TextStyle(color: Colors.black54),
         ),
@@ -751,7 +752,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(
+            child: PosText(
               label,
               style: TextStyle(
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
@@ -802,7 +803,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                       ),
                     ),
                   if (title.isNotEmpty)
-                    Text(
+                    PosText(
                       title,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontWeight: FontWeight.w800),
@@ -827,30 +828,30 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                       ),
                   const Divider(height: 18),
                   if (template.showInvoice != false)
-                    const Text('No: INV-20260909-001'),
+                    const PosText('No: INV-20260909-001'),
                   if (template.showTanggal != false)
-                    const Text('Tanggal: 09/09/2026 14:30'),
+                    const PosText('Tanggal: 09/09/2026 14:30'),
                   if (template.showKasir != false)
-                    const Text('Kasir: Kasir Pantoo'),
+                    const PosText('Kasir: Kasir Pantoo'),
                   if (template.showToko != false)
-                    const Text('Toko: Toko Utama'),
+                    const PosText('Toko: Toko Utama'),
                   if (template.showPelanggan != false)
-                    const Text('Pelanggan: Pelanggan Umum'),
+                    const PosText('Pelanggan: Pelanggan Umum'),
                   if (template.showChannel == true)
-                    const Text('Channel: Retail'),
+                    const PosText('Channel: Retail'),
                   if (template.showSegment == true)
-                    const Text('Segmen: Regular'),
+                    const PosText('Segmen: Regular'),
                   if (template.showOrderType != false)
-                    const Text('Jenis pesanan: Bawa Pulang'),
-                  const Text('Bayar: TUNAI'),
+                    const PosText('Jenis pesanan: Bawa Pulang'),
+                  const PosText('Bayar: TUNAI'),
                   const Divider(height: 18),
-                  const Text(
+                  const PosText(
                     'Produk Contoh A',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   line('2 x ${currency.format(15000)}', currency.format(30000)),
                   const SizedBox(height: 4),
-                  const Text(
+                  const PosText(
                     'Produk Contoh B',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
@@ -915,7 +916,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
     final isAndroid =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     return _buildSection(
-      title: 'Printer Terminal Ini',
+      title: ('Printer Terminal Ini').tr(context),
       icon: Icons.print_outlined,
       children: [
         if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
@@ -924,19 +925,19 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             leading: const Icon(Icons.bluetooth, color: Colors.teal),
             title: Text(
               _selectedBluetoothName.isEmpty
-                  ? 'Printer Bluetooth thermal'
+                  ? ('Printer Bluetooth thermal').tr(context)
                   : _selectedBluetoothName,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
               _selectedBluetoothName.isEmpty
-                  ? 'Cetak langsung tanpa dialog sistem'
-                  : 'Aktif untuk cetak struk kasir',
+                  ? ('Cetak langsung tanpa dialog sistem').tr(context)
+                  : ('Aktif untuk cetak struk kasir').tr(context),
             ),
             trailing: FilledButton.icon(
               onPressed: _selectBluetoothPrinter,
               icon: const Icon(Icons.search, size: 17),
-              label: Text(_selectedBluetoothName.isEmpty ? 'Pilih' : 'Ganti'),
+              label: Text(_selectedBluetoothName.isEmpty ? ('Pilih').tr(context) : ('Ganti').tr(context)),
             ),
           ),
           if (_selectedBluetoothName.isNotEmpty)
@@ -948,7 +949,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   if (mounted) setState(() => _selectedBluetoothName = '');
                 },
                 icon: const Icon(Icons.link_off, size: 16),
-                label: const Text('Lepas printer Bluetooth'),
+                label: const PosText('Lepas printer Bluetooth'),
               ),
             ),
           const Divider(height: 12),
@@ -958,13 +959,13 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         else if (!isAndroid && _printers.isEmpty) ...[
           Text(
             kIsWeb
-                ? 'Situs web tidak dapat meminta izin untuk membaca daftar printer sistem. Buka contoh struk PDF, lalu pilih printer melalui dialog cetak browser.'
-                : 'Belum ada printer sistem yang terdeteksi. Periksa koneksi dan driver printer, lalu muat ulang.',
+                ? ('Situs web tidak dapat meminta izin untuk membaca daftar printer sistem. Buka contoh struk PDF, lalu pilih printer melalui dialog cetak browser.').tr(context)
+                : ('Belum ada printer sistem yang terdeteksi. Periksa koneksi dan driver printer, lalu muat ulang.').tr(context),
             style: const TextStyle(color: Colors.black54),
           ),
           if (kIsWeb) ...[
             const SizedBox(height: 8),
-            const Text(
+            const PosText(
               'Unduh contoh struk PDF, buka file tersebut lalu cetak dari browser. Untuk printer Bluetooth thermal langsung, gunakan aplikasi Android.',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
@@ -977,7 +978,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   child: OutlinedButton.icon(
                     onPressed: _loadPrinters,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Muat ulang'),
+                    label: const PosText('Muat ulang'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -997,10 +998,10 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         ),
                   label: Text(
                     _isTestPrinting
-                        ? 'Menyiapkan…'
+                        ? ('Menyiapkan…').tr(context)
                         : kIsWeb
-                        ? 'Unduh contoh struk'
-                        : 'Tes cetak',
+                        ? ('Unduh contoh struk').tr(context)
+                        : ('Tes cetak').tr(context),
                   ),
                 ),
               ),
@@ -1009,21 +1010,21 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         ] else if (!isAndroid) ...[
           DropdownButtonFormField<String>(
             initialValue: _selectedPrinterUrl,
-            decoration: const InputDecoration(
-              labelText: 'Printer default terminal',
+            decoration:  InputDecoration(
+              labelText: ('Printer default terminal').tr(context),
               border: OutlineInputBorder(),
             ),
             items: [
               const DropdownMenuItem(
                 value: '',
-                child: Text('Selalu pilih melalui dialog sistem'),
+                child: PosText('Selalu pilih melalui dialog sistem'),
               ),
               ..._printers.map(
                 (printer) => DropdownMenuItem(
                   value: printer.url,
                   child: Text(
                     printer.isDefault
-                        ? '${printer.name} (default)'
+                        ? posLocale(context).posb572718edb66((printer.name).toString())
                         : printer.name,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1039,7 +1040,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                 child: OutlinedButton.icon(
                   onPressed: _loadPrinters,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Muat ulang printer'),
+                  label: const PosText('Muat ulang printer'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1052,7 +1053,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.print_outlined),
-                  label: Text(_isTestPrinting ? 'Menyiapkan…' : 'Tes cetak'),
+                  label: Text(_isTestPrinting ? ('Menyiapkan…').tr(context) : ('Tes cetak').tr(context)),
                 ),
               ),
             ],
@@ -1060,7 +1061,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         ],
         if (isAndroid) ...[
           const SizedBox(height: 8),
-          const Text(
+          const PosText(
             'Android menggunakan printer Bluetooth thermal yang dipilih di atas. Printer sistem/Wi‑Fi tidak digunakan untuk struk kasir.',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
@@ -1077,7 +1078,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         )
                       : const Icon(Icons.print_outlined),
                   label: Text(
-                    _isTestPrinting ? 'Menyiapkan…' : 'Tes cetak Bluetooth',
+                    _isTestPrinting ? ('Menyiapkan…').tr(context) : ('Tes cetak Bluetooth').tr(context),
                   ),
                 ),
               ),
@@ -1085,7 +1086,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
           ),
         ],
         const SizedBox(height: 8),
-        const Text(
+        const PosText(
           'Printer Bluetooth kasir disimpan pada perangkat ini untuk struk dan label thermal. PO dan bukti pembayaran A4 memilih printer melalui dialog cetak perangkat saat dicetak.',
           style: TextStyle(fontSize: 12, color: Colors.black54),
         ),

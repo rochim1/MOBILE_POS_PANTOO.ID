@@ -182,6 +182,52 @@ void main() {
       expect(saved['client_transaction_id'], 'original-a');
     },
   );
+  test(
+    'closed original shift stays reviewable and retry preserves original identity',
+    () async {
+      final rowId = await enqueue('a', 'closed-shift-sale');
+      var requests = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          requests++;
+          final input = request.variables['input'] as Map;
+          expect(input['shift_id'], 'shift-a');
+          expect(input['client_transaction_id'], 'closed-shift-sale');
+          yield Response(
+            data: {'__typename': 'Mutation'},
+            errors: [
+              const GraphQLError(
+                message: 'Shift asal transaksi offline sudah ditutup',
+                extensions: {'code': 'CONFLICT'},
+              ),
+            ],
+            response: {},
+          );
+        }),
+      );
+      final sync = SyncService(_Provider(client, prefs))
+        ..setOperatorSessionToken(token('a'));
+      await sync.syncOfflineTransactions(force: true);
+      await sync.syncOfflineTransactions(force: true);
+      expect(requests, 1, reason: 'needs_review is not retried automatically');
+      await sync.retryTransaction(rowId);
+      expect(requests, 2);
+      final saved = (await db.query(
+        'offline_transactions',
+        where: 'id = ?',
+        whereArgs: [rowId],
+      )).single;
+      expect(saved['status'], 'needs_review');
+      expect(saved['shift_id'], 'shift-a');
+      expect(saved['client_transaction_id'], 'closed-shift-sale');
+      expect(jsonDecode(saved['payload'] as String)['shift_id'], 'shift-a');
+      expect(
+        jsonDecode(saved['client_snapshot'] as String)['operator_user_id'],
+        'a',
+      );
+    },
+  );
   for (final scenario in [
     'unrelated',
     'referenced',

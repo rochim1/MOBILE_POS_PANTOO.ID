@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:flutter/widgets.dart';
 import '../../../../domain/models/pos_order_detail.dart';
 
 enum PosOrderAgeTone { normal, warning, critical }
@@ -12,10 +14,15 @@ class PosOrderAge {
   String get durationLabel {
     final value = minutes;
     if (value == null) return '-';
-    return value < 60 ? '$value mnt' : '${value ~/ 60}j ${value % 60}m';
+    return value < 60
+        ? ('$value mnt').trCurrent()
+        : ('${value ~/ 60}j ${value % 60}m').trCurrent();
   }
 
   String get label => minutes == null ? '-' : '$phase · $durationLabel';
+  String labelFor(BuildContext context) => minutes == null
+      ? '-'
+      : '${phase.tr(context)} · ${durationLabel.tr(context)}';
 
   static PosOrderAge forOrder(
     PosOrderDetail order,
@@ -26,9 +33,11 @@ class PosOrderAge {
   }) {
     final created = _parseTime(order.createdAt);
     final stationItems = order.items
-        .where((item) =>
-            item.preparationMode == 'station' &&
-            (stationId.isEmpty || item.productionStationId == stationId))
+        .where(
+          (item) =>
+              item.preparationMode == 'station' &&
+              (stationId.isEmpty || item.productionStationId == stationId),
+        )
         .toList();
     DateTime? started;
     String phase;
@@ -55,17 +64,21 @@ class PosOrderAge {
       // for the time spent waiting after preparation.
     } else if (order.status == 'Baru' || order.status == 'Diproses') {
       final pending = stationItems
-          .where((item) =>
-              item.productionStatus == 'queued' ||
-              item.productionStatus == 'preparing')
+          .where(
+            (item) =>
+                item.productionStatus == 'queued' ||
+                item.productionStatus == 'preparing',
+          )
           .toList();
       if (pending.isNotEmpty) {
         phase = 'Menunggu dapur';
         final starts = pending
-            .map((item) =>
-                _firstStatusAt(item, 'queued') ??
-                _firstStatusAt(item, 'preparing') ??
-                created)
+            .map(
+              (item) =>
+                  _firstStatusAt(item, 'queued') ??
+                  _firstStatusAt(item, 'preparing') ??
+                  created,
+            )
             .whereType<DateTime>()
             .toList();
         if (starts.isNotEmpty) {
@@ -77,10 +90,16 @@ class PosOrderAge {
         started = created;
       }
     } else {
-      return const PosOrderAge('Selesai diproses', null, PosOrderAgeTone.normal);
+      return const PosOrderAge(
+        'Selesai diproses',
+        null,
+        PosOrderAgeTone.normal,
+      );
     }
 
-    if (started == null) return PosOrderAge(phase, null, PosOrderAgeTone.normal);
+    if (started == null) {
+      return PosOrderAge(phase, null, PosOrderAgeTone.normal);
+    }
     final minutes = now.difference(started).inMinutes.clamp(0, 9999);
     final warning = warningMinutes > 0 ? warningMinutes : 15;
     final critical = criticalMinutes > warning

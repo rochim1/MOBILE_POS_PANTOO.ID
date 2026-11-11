@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -249,7 +250,7 @@ class _PosPageViewState extends State<PosPageView> {
                           size: 28,
                         ),
                         SizedBox(width: 8),
-                        Text(
+                        PosText(
                           'Pembayaran Berhasil',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -258,11 +259,11 @@ class _PosPageViewState extends State<PosPageView> {
                         ),
                       ],
                     ),
-                    content: const Text('Transaksi telah berhasil diproses.'),
+                    content: const PosText('Transaksi telah berhasil diproses.'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text(
+                        child: const PosText(
                           'Tutup',
                           style: TextStyle(color: Colors.grey),
                         ),
@@ -283,7 +284,7 @@ class _PosPageViewState extends State<PosPageView> {
                           size: 18,
                           color: Colors.white,
                         ),
-                        label: const Text(
+                        label: const PosText(
                           'Print Struk',
                           style: TextStyle(color: Colors.white),
                         ),
@@ -296,18 +297,18 @@ class _PosPageViewState extends State<PosPageView> {
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text(
+                    title: const PosText(
                       'Pembayaran Gagal',
                       style: TextStyle(
                         color: AppColors.danger,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    content: Text(state.errorMessage),
+                    content: PosText(state.errorMessage),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Tutup'),
+                        child: const PosText('Tutup'),
                       ),
                     ],
                   ),
@@ -340,20 +341,20 @@ class _PosPageViewState extends State<PosPageView> {
                                 final confirmed = await showDialog<bool>(
                                   context: context,
                                   builder: (dialogContext) => AlertDialog(
-                                    title: const Text('Kosongkan keranjang?'),
-                                    content: const Text(
+                                    title: const PosText('Kosongkan keranjang?'),
+                                    content: const PosText(
                                       'Barang dalam keranjang akan dihapus dari keranjang, bukan dari stok. Setelah itu toko dan shift diperiksa kembali.',
                                     ),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.pop(dialogContext, false),
-                                        child: const Text('Batal'),
+                                        child: const PosText('Batal'),
                                       ),
                                       FilledButton(
                                         onPressed: () =>
                                             Navigator.pop(dialogContext, true),
-                                        child: const Text('Kosongkan'),
+                                        child: const PosText('Kosongkan'),
                                       ),
                                     ],
                                   ),
@@ -405,16 +406,16 @@ class _PosPageViewState extends State<PosPageView> {
                                                 ? 44
                                                 : 52,
                                             tabs: [
-                                              const PosFullWidthTab(
+                                               PosFullWidthTab(
                                                 icon: Icons.storefront_outlined,
-                                                label: 'Katalog Produk',
+                                                label: ('Katalog Produk').tr(context),
                                               ),
                                               PosFullWidthTab(
                                                 icon: Icons
                                                     .shopping_cart_outlined,
                                                 label: state.cart.isEmpty
-                                                    ? 'Keranjang'
-                                                    : 'Keranjang ($cartQuantityLabel)',
+                                                    ? ('Keranjang').tr(context)
+                                                    : posLocale(context).pos541eb83e5a0c((cartQuantityLabel).toString()),
                                               ),
                                             ],
                                           ),
@@ -548,7 +549,7 @@ class _PosPageViewState extends State<PosPageView> {
                         const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            '${state.heldOrders.length} pesanan tersimpan',
+                            posLocale(context).posc1d0cd74f8ec((state.heldOrders.length).toString()),
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w700,
@@ -556,7 +557,7 @@ class _PosPageViewState extends State<PosPageView> {
                             ),
                           ),
                         ),
-                        const Text(
+                        const PosText(
                           'Buka',
                           style: TextStyle(
                             color: AppColors.primary,
@@ -585,7 +586,7 @@ class _PosPageViewState extends State<PosPageView> {
                 children: [
                   Expanded(
                     child: Tooltip(
-                      message: 'Kosongkan seluruh keranjang',
+                      message: ('Kosongkan seluruh keranjang').tr(context),
                       child: OutlinedButton(
                         onPressed: state.cart.isEmpty
                             ? null
@@ -609,7 +610,7 @@ class _PosPageViewState extends State<PosPageView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Tooltip(
-                      message: 'Atur diskon manual dan kode promo',
+                      message: ('Atur diskon manual dan kode promo').tr(context),
                       child: OutlinedButton(
                         onPressed: state.cart.isEmpty
                             ? null
@@ -645,8 +646,8 @@ class _PosPageViewState extends State<PosPageView> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Tooltip(
-                          message: 'Channel, level harga, pajak dan promo',
+                        child:  Tooltip(
+                          message: ('Channel, level harga, pajak dan promo').tr(context),
                           child: Icon(
                             Icons.tune_outlined,
                             color: AppColors.primary,
@@ -661,7 +662,7 @@ class _PosPageViewState extends State<PosPageView> {
                     child: KeyedSubtree(
                       key: widget.tourTargets?.saveOrder,
                       child: Tooltip(
-                        message: 'Simpan sementara untuk dilanjutkan nanti',
+                        message: ('Simpan sementara untuk dilanjutkan nanti').tr(context),
                         child: OutlinedButton(
                           onPressed:
                               state.cart.isEmpty || state.editingOrderId != null
@@ -689,7 +690,7 @@ class _PosPageViewState extends State<PosPageView> {
                               ),
                               SizedBox(width: 4),
                               Flexible(
-                                child: Text(
+                                child: PosText(
                                   'Simpan',
                                   style: TextStyle(color: Colors.grey),
                                   overflow: TextOverflow.ellipsis,
@@ -770,12 +771,12 @@ class _PosPageViewState extends State<PosPageView> {
                       child: Center(
                         child: Text(
                           _savingTableOrder
-                              ? 'Menyimpan...'
+                              ? ('Menyimpan...').tr(context)
                               : state.editingOrderId != null
-                              ? 'Simpan Perubahan'
+                              ? ('Simpan Perubahan').tr(context)
                               : state.orderType == 'dine_in'
-                              ? 'Simpan ke Meja'
-                              : 'Bayar',
+                              ? ('Simpan ke Meja').tr(context)
+                              : ('Bayar').tr(context),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -843,16 +844,16 @@ class _PosPageViewState extends State<PosPageView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Kosongkan keranjang?'),
-        content: const Text('Semua item dalam pesanan akan dihapus.'),
+        title: const PosText('Kosongkan keranjang?'),
+        content: const PosText('Semua item dalam pesanan akan dihapus.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus'),
+            child: const PosText('Hapus'),
           ),
         ],
       ),
@@ -870,34 +871,34 @@ class _PosPageViewState extends State<PosPageView> {
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Diskon & Promo'),
+        title: const PosText('Diskon & Promo'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: discountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Diskon manual (%)'),
+              decoration:  InputDecoration(labelText: ('Diskon manual (%)').tr(dialogContext)),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: promoController,
               textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'Kode promo'),
+              decoration:  InputDecoration(labelText: ('Kode promo').tr(dialogContext)),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, {
               'discount': discountController.text,
               'promo': promoController.text.trim(),
             }),
-            child: const Text('Terapkan'),
+            child: const PosText('Terapkan'),
           ),
         ],
       ),
@@ -929,7 +930,7 @@ class _PosPageViewState extends State<PosPageView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const ListTile(
-                title: Text(
+                title: PosText(
                   'Pesanan tersimpan',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
@@ -940,13 +941,13 @@ class _PosPageViewState extends State<PosPageView> {
                   title: Text(
                     order.notes.isNotEmpty
                         ? order.notes
-                        : 'Pesanan ${order.customer?.name ?? 'tersimpan'}',
+                        : posLocale(sheetContext).pose27a8b678805((order.customer?.name ?? 'tersimpan').toString()),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   subtitle: Text(
-                    '${order.id} · ${order.cart.length} produk',
+                    posLocale(sheetContext).posa6e5135e1c96((order.id).toString(), (order.cart.length).toString()),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -958,7 +959,7 @@ class _PosPageViewState extends State<PosPageView> {
               ),
               ListTile(
                 leading: const Icon(Icons.add_circle_outline),
-                title: const Text('Simpan pesanan saat ini'),
+                title: const PosText('Simpan pesanan saat ini'),
                 onTap: () => Navigator.pop(sheetContext, true),
               ),
             ],

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 class PosShiftSyncError extends StatelessWidget {
@@ -17,15 +18,15 @@ class PosShiftSyncError extends StatelessWidget {
     children: [
       const Icon(Icons.sync_problem, size: 40),
       const SizedBox(height: 12),
-      const Text('Data kasir belum siap', textAlign: TextAlign.center),
+      const PosText('Data kasir belum siap', textAlign: TextAlign.center),
       const SizedBox(height: 8),
-      Text(message, textAlign: TextAlign.center),
+      PosText(message, textAlign: TextAlign.center),
       const SizedBox(height: 12),
-      TextButton(onPressed: onRetry, child: const Text('Periksa kembali')),
+      TextButton(onPressed: onRetry, child: const PosText('Periksa kembali')),
       if (onClearCart != null)
         TextButton(
           onPressed: onClearCart,
-          child: const Text('Kosongkan keranjang & periksa'),
+          child: const PosText('Kosongkan keranjang & periksa'),
         ),
     ],
   );

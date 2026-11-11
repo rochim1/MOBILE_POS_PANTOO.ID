@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -99,21 +100,21 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
                   ),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text(
+                    child: PosText(
                       'Buat pesanan ke supplier, lalu terima barang saat tiba. Stok belum bertambah saat PO dibuat.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF265953)),
                     ),
                   ),
                   PopupMenuButton<int>(
-                    tooltip: 'Fitur pembelian lainnya',
+                    tooltip: ('Fitur pembelian lainnya').tr(context),
                     icon: const Icon(Icons.more_vert, size: 19),
                     onSelected: (value) => setState(() => _tab = value),
                     itemBuilder: (_) => const [
                       PopupMenuItem(
                         value: 2,
-                        child: Text('Pembelian Langsung'),
+                        child: PosText('Pembelian Langsung'),
                       ),
-                      PopupMenuItem(value: 3, child: Text('Permintaan DP')),
+                      PopupMenuItem(value: 3, child: PosText('Permintaan DP')),
                     ],
                   ),
                 ],
@@ -124,20 +125,20 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
           tabs: [
             PosFullWidthTab(
               icon: Icons.description_outlined,
-              label: simpleInventory ? 'Pesan ke supplier' : 'Purchase Order',
+              label: simpleInventory ? ('Pesan ke supplier').tr(context) : ('Purchase Order').tr(context),
             ),
-            const PosFullWidthTab(
+             PosFullWidthTab(
               icon: Icons.inventory_outlined,
-              label: 'Penerimaan',
+              label: ('Penerimaan').tr(context),
             ),
-            if (!simpleInventory) ...const [
+            if (!simpleInventory) ... [
               PosFullWidthTab(
                 icon: Icons.receipt_long_outlined,
-                label: 'Pembelian Langsung',
+                label: ('Pembelian Langsung').tr(context),
               ),
               PosFullWidthTab(
                 icon: Icons.account_balance_wallet_outlined,
-                label: 'Permintaan DP',
+                label: ('Permintaan DP').tr(context),
               ),
             ],
           ],
@@ -150,8 +151,8 @@ class _PosPurchaseWorkspaceState extends State<PosPurchaseWorkspace> {
             child: ListTile(
               dense: true,
               leading: const Icon(Icons.arrow_back, size: 18),
-              title: Text(_tab == 2 ? 'Pembelian Langsung' : 'Permintaan DP'),
-              subtitle: const Text('Opsi lanjutan pembelian'),
+              title: Text(_tab == 2 ? ('Pembelian Langsung').tr(context) : ('Permintaan DP').tr(context)),
+              subtitle: const PosText('Opsi lanjutan pembelian'),
               onTap: () => setState(() => _tab = 0),
             ),
           ),
@@ -352,7 +353,7 @@ class _ReceivingListState extends State<_ReceivingList> {
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           children: [
             Text(
-              receipt['no_grn']?.toString() ?? 'Penerimaan',
+              receipt['no_grn']?.toString() ?? ('Penerimaan').tr(context),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             Text(
@@ -364,14 +365,14 @@ class _ReceivingListState extends State<_ReceivingList> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(label: Text(receipt['status']?.toString() ?? '-')),
+                Chip(label: Text(posStatusLabel(receipt['status']?.toString() ?? '-', context))),
                 Chip(label: Text(_date(receipt['tanggal_terima']))),
                 if ((receipt['no_surat_jalan']?.toString() ?? '').isNotEmpty)
-                  Chip(label: Text('SJ ${receipt['no_surat_jalan']}')),
+                  Chip(label: Text(posLocale(context).pos2d721657d7fb((receipt['no_surat_jalan']).toString()))),
               ],
             ),
             const Divider(height: 28),
-            const Text(
+            const PosText(
               'Barang diterima',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
@@ -411,14 +412,14 @@ class _ReceivingListState extends State<_ReceivingList> {
             }),
             if ((receipt['catatan']?.toString() ?? '').isNotEmpty) ...[
               const Divider(),
-              Text('Catatan: ${receipt['catatan']}'),
+              Text(posLocale(context).posb0bf84cc5839((receipt['catatan']).toString())),
             ],
             if (widget.canManageReceiving) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () => Navigator.pop(context, true),
                 icon: const Icon(Icons.manage_search),
-                label: const Text('Kelola penerimaan PO'),
+                label: const PosText('Kelola penerimaan PO'),
               ),
             ],
           ],
@@ -463,9 +464,9 @@ class _ReceivingListState extends State<_ReceivingList> {
                   child: TextField(
                     controller: _search,
                     onChanged: _searchChanged,
-                    decoration: const InputDecoration(
+                    decoration:  InputDecoration(
                       prefixIcon: Icon(Icons.search),
-                      labelText: 'Cari GRN, PO, atau supplier',
+                      labelText: ('Cari GRN, PO, atau supplier').tr(context),
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -477,14 +478,14 @@ class _ReceivingListState extends State<_ReceivingList> {
                 child: DropdownButton<String>(
                   value: _status,
                   items: const [
-                    DropdownMenuItem(value: '', child: Text('Semua')),
+                    DropdownMenuItem(value: '', child: PosText('Semua')),
                     DropdownMenuItem(
                       value: 'completed',
-                      child: Text('Selesai'),
+                      child: PosText('Selesai'),
                     ),
                     DropdownMenuItem(
                       value: 'cancelled',
-                      child: Text('Dibatalkan'),
+                      child: PosText('Dibatalkan'),
                     ),
                   ],
                   onChanged: (value) {
@@ -500,9 +501,9 @@ class _ReceivingListState extends State<_ReceivingList> {
             TextField(
               controller: _poSearch,
               onChanged: _poSearchChanged,
-              decoration: const InputDecoration(
+              decoration:  InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                labelText: 'Cari PO yang akan diterima',
+                labelText: ('Cari PO yang akan diterima').tr(context),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -516,7 +517,7 @@ class _ReceivingListState extends State<_ReceivingList> {
             else if (widget.canReceive) ...[
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
+                child: PosText(
                   'Menunggu penerimaan',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
@@ -525,7 +526,7 @@ class _ReceivingListState extends State<_ReceivingList> {
               if (_receivablePurchases.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
+                  child: PosText(
                     'Tidak ada PO siap diterima pada halaman ini. Cari nomor PO/supplier atau buka halaman berikutnya.',
                   ),
                 ),
@@ -554,7 +555,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                             children: [
                               Text(
                                 purchase['no_po']?.toString() ??
-                                    'Purchase Order',
+                                    ('Purchase Order').tr(context),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -571,7 +572,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '$remainingLines jenis barang tersisa · ${_date(purchase['tanggal_po'])}',
+                                posLocale(context).pos005ed817deab((remainingLines).toString(), (_date(purchase['tanggal_po'])).toString()),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -591,7 +592,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                             ),
                           );
                           final progressLabel = Text(
-                            '${(progress * 100).round()}% diterima',
+                            posLocale(context).pos984dd212a7c5(((progress * 100).round()).toString()),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -633,8 +634,8 @@ class _ReceivingListState extends State<_ReceivingList> {
                                   ),
                                   label: Text(
                                     progress > 0
-                                        ? 'Terima Sisa'
-                                        : 'Terima Barang',
+                                        ? ('Terima Sisa').tr(context)
+                                        : ('Terima Barang').tr(context),
                                   ),
                                 ),
                               ),
@@ -656,7 +657,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                           : null,
                       icon: const Icon(Icons.chevron_left),
                     ),
-                    Text('PO halaman $_poPage'),
+                    Text(posLocale(context).pos4a59442df598((_poPage).toString())),
                     IconButton(
                       onPressed: _poPage * _poLimit < _poTotal
                           ? () => _loadPurchases(page: _poPage + 1)
@@ -669,7 +670,7 @@ class _ReceivingListState extends State<_ReceivingList> {
             ],
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text(
+              child: PosText(
                 'Riwayat penerimaan',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
               ),
@@ -679,7 +680,7 @@ class _ReceivingListState extends State<_ReceivingList> {
           if (!_loading && _items.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 36),
-              child: Center(child: Text('Belum ada penerimaan barang')),
+              child: Center(child: PosText('Belum ada penerimaan barang')),
             )
           else if (!_loading)
             ..._items.map(
@@ -696,7 +697,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                         final isCancelled = receipt['status'] == 'cancelled';
                         final status = Chip(
                           visualDensity: VisualDensity.compact,
-                          label: Text(isCancelled ? 'Dibatalkan' : 'Selesai'),
+                          label: Text(isCancelled ? ('Dibatalkan').tr(context) : ('Selesai').tr(context)),
                         );
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,7 +718,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                                 children: [
                                   Text(
                                     receipt['no_grn']?.toString() ??
-                                        'Penerimaan',
+                                        ('Penerimaan').tr(context),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -736,7 +737,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    '${rows.length} jenis barang · ${_date(receipt['tanggal_terima'])}',
+                                    posLocale(context).pos77cc5f06183a((rows.length).toString(), (_date(receipt['tanggal_terima'])).toString()),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -771,7 +772,7 @@ class _ReceivingListState extends State<_ReceivingList> {
                   onPressed: _page > 1 ? () => _load(page: _page - 1) : null,
                   icon: const Icon(Icons.chevron_left),
                 ),
-                Text('Halaman $_page'),
+                Text(posLocale(context).pos4d0803eab0a2((_page).toString())),
                 IconButton(
                   onPressed: _page * 20 < _total
                       ? () => _load(page: _page + 1)

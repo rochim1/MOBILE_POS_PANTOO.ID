@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
@@ -137,7 +138,7 @@ class _PosStockBarcodeSheetState extends State<PosStockBarcodeSheet> {
           MaterialPageRoute<void>(
             builder: (_) => Scaffold(
               appBar: AppBar(
-                title: Text('Label ${widget.stock.namaInventaris}'),
+                title: Text(posLocale(context).posd56f5ea7493b((widget.stock.namaInventaris).toString())),
               ),
               body: PdfPreview(
                 build: (_) async => previewBytes.freshBytes(),
@@ -187,7 +188,7 @@ class _PosStockBarcodeSheetState extends State<PosStockBarcodeSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          PosText(
             'Cetak label barcode',
             style: Theme.of(context).textTheme.titleLarge,
           ),
@@ -196,24 +197,24 @@ class _PosStockBarcodeSheetState extends State<PosStockBarcodeSheet> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _codeSource,
-            decoration: const InputDecoration(
-              labelText: 'Kode pada label',
+            decoration:  InputDecoration(
+              labelText: ('Kode pada label').tr(context),
               border: OutlineInputBorder(),
             ),
             items: [
               if (widget.stock.barcode.isNotEmpty)
                 DropdownMenuItem(
                   value: 'barcode',
-                  child: Text('Barcode · ${widget.stock.barcode}'),
+                  child: Text(posLocale(context).pos49b67ac0c655((widget.stock.barcode).toString())),
                 ),
               if (widget.stock.sku.isNotEmpty)
                 DropdownMenuItem(
                   value: 'sku',
-                  child: Text('SKU · ${widget.stock.sku}'),
+                  child: Text(posLocale(context).pos19aa65c6a13e((widget.stock.sku).toString())),
                 ),
               DropdownMenuItem(
                 value: 'code',
-                child: Text('Kode inventaris · ${widget.stock.kodeInventaris}'),
+                child: Text(posLocale(context).pos844214a54fe7((widget.stock.kodeInventaris).toString())),
               ),
             ],
             onChanged: (value) => setState(() => _codeSource = value ?? 'code'),
@@ -222,32 +223,32 @@ class _PosStockBarcodeSheetState extends State<PosStockBarcodeSheet> {
           TextField(
             controller: _quantity,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Jumlah label (1–50)',
+            decoration:  InputDecoration(
+              labelText: ('Jumlah label (1–50)').tr(context),
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _size,
-            decoration: const InputDecoration(
-              labelText: 'Ukuran label',
+            decoration:  InputDecoration(
+              labelText: ('Ukuran label').tr(context),
               border: OutlineInputBorder(),
             ),
             items: const [
-              DropdownMenuItem(value: 'small', child: Text('Kecil')),
-              DropdownMenuItem(value: 'medium', child: Text('Sedang')),
-              DropdownMenuItem(value: 'large', child: Text('Besar')),
+              DropdownMenuItem(value: 'small', child: PosText('Kecil')),
+              DropdownMenuItem(value: 'medium', child: PosText('Sedang')),
+              DropdownMenuItem(value: 'large', child: PosText('Besar')),
             ],
             onChanged: (value) => setState(() => _size = value ?? 'medium'),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            PosText(_error!, style: const TextStyle(color: Colors.red)),
           ],
           if (_printing && _targetLabels > 0) ...[
             const SizedBox(height: 8),
-            Text('Label terkirim: $_printedLabels/$_targetLabels'),
+            Text(posLocale(context).pos58df45e9d2a1((_printedLabels).toString(), (_targetLabels).toString())),
           ],
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -259,16 +260,16 @@ class _PosStockBarcodeSheetState extends State<PosStockBarcodeSheet> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.print_outlined),
-            label: const Text('Cetak label'),
+            label: const PosText('Cetak label'),
           ),
           const SizedBox(height: 6),
           OutlinedButton.icon(
             onPressed: _printing ? null : () => _print(preview: true),
             icon: const Icon(Icons.preview_outlined),
-            label: const Text('Pratinjau label'),
+            label: const PosText('Pratinjau label'),
           ),
           const SizedBox(height: 6),
-          const Text(
+          const PosText(
             'Cetak memakai printer terminal yang dipilih di Pengaturan Printer. Bluetooth thermal memakai kertas 58/80 mm; pratinjau PDF dapat dibagikan untuk cetak label A4.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12),

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/_core.dart';
 import '../../widgets/app_toast.dart';
@@ -40,7 +41,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Ubah Kata Sandi'),
+        title: const PosText('Ubah Kata Sandi'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -49,28 +50,28 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            const PosText(
               'Demi keamanan, gunakan kombinasi huruf dan angka pada kata sandi baru Anda.',
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 24),
             _buildPasswordField(
               controller: _oldPasswordCtrl,
-              label: 'Kata Sandi Saat Ini',
+              label: ('Kata Sandi Saat Ini').tr(context),
               obscure: _obscureOld,
               onToggle: () => setState(() => _obscureOld = !_obscureOld),
             ),
             const SizedBox(height: 16),
             _buildPasswordField(
               controller: _newPasswordCtrl,
-              label: 'Kata Sandi Baru',
+              label: ('Kata Sandi Baru').tr(context),
               obscure: _obscureNew,
               onToggle: () => setState(() => _obscureNew = !_obscureNew),
             ),
             const SizedBox(height: 16),
             _buildPasswordField(
               controller: _confirmPasswordCtrl,
-              label: 'Konfirmasi Kata Sandi Baru',
+              label: ('Konfirmasi Kata Sandi Baru').tr(context),
               obscure: _obscureConfirm,
               onToggle: () =>
                   setState(() => _obscureConfirm = !_obscureConfirm),
@@ -86,7 +87,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: const PosText(
                 'Simpan Perubahan',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
@@ -107,7 +108,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       controller: controller,
       obscureText: obscure,
       decoration: InputDecoration(
-        labelText: label,
+        labelText: (label).tr(context),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(

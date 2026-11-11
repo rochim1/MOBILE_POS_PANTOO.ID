@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/_core.dart';
@@ -260,7 +261,7 @@ Future<void> showInteractivePosSetupTour(
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(
+                                  child: PosText(
                                     stepTitle,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -270,19 +271,19 @@ Future<void> showInteractivePosSetupTour(
                                   ),
                                 ),
                                 IconButton(
-                                  tooltip: 'Tutup panduan',
+                                  tooltip: ('Tutup panduan').tr(context),
                                   onPressed: () => Navigator.pop(dialogContext),
                                   icon: const Icon(Icons.close),
                                 ),
                               ],
                             ),
-                            Text(
+                            PosText(
                               stage.title,
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(height: 6),
-                            Text(
+                            PosText(
                               stage.description,
                               style: const TextStyle(
                                 color: Colors.black54,
@@ -299,7 +300,7 @@ Future<void> showInteractivePosSetupTour(
                                 ),
                                 SizedBox(width: 7),
                                 Expanded(
-                                  child: Text(
+                                  child: PosText(
                                     'Ketuk elemen yang disorot untuk melanjutkan.',
                                     style: TextStyle(
                                       fontSize: 12,
@@ -315,12 +316,12 @@ Future<void> showInteractivePosSetupTour(
                                 if (index > 0)
                                   TextButton(
                                     onPressed: () => setState(() => index--),
-                                    child: const Text('Kembali'),
+                                    child: const PosText('Kembali'),
                                   ),
                                 const Spacer(),
                                 TextButton(
                                   onPressed: () => Navigator.pop(dialogContext),
-                                  child: const Text('Lewati'),
+                                  child: const PosText('Lewati'),
                                 ),
                                 const SizedBox(width: 8),
                                 FilledButton.icon(
@@ -331,7 +332,7 @@ Future<void> showInteractivePosSetupTour(
                                         : Icons.arrow_forward_rounded,
                                     size: 17,
                                   ),
-                                  label: Text(last ? 'Mengerti' : 'Berikutnya'),
+                                  label: Text(last ? ('Mengerti').tr(context) : ('Berikutnya').tr(context)),
                                 ),
                               ],
                             ),

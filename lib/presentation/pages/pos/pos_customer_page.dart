@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import '../../widgets/pos_ui.dart';
@@ -84,7 +85,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       controller: _searchController,
                       onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
-                        hintText: 'Cari nama atau telepon...',
+                        hintText: ('Cari nama atau telepon...').tr(context),
                         prefixIcon: const Icon(Icons.search),
                         filled: true,
                         fillColor: Colors.white,
@@ -102,14 +103,14 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                 ),
                 const SizedBox(width: 8),
                 PopupMenuButton<String>(
-                  tooltip: 'Filter pelanggan',
+                  tooltip: ('Filter pelanggan').tr(context),
                   initialValue: _priceLevelFilter,
                   onSelected: (value) =>
                       setState(() => _priceLevelFilter = value),
                   itemBuilder: (_) => [
                     const PopupMenuItem(
                       value: 'all',
-                      child: Text('Semua Level Harga'),
+                      child: PosText('Semua Level Harga'),
                     ),
                     ..._customers
                         .map((item) => item.priceLevel)
@@ -155,7 +156,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.person_add_alt_1),
-                    label: const Text('Tambah'),
+                    label: const PosText('Tambah'),
                   ),
                 ),
               ],
@@ -195,14 +196,14 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
-        customer.phone.isEmpty ? 'Tanpa nomor telepon' : customer.phone,
+        customer.phone.isEmpty ? ('Tanpa nomor telepon').tr(context) : customer.phone,
       ),
       trailing: PopupMenuButton<String>(
         onSelected: (action) =>
             action == 'edit' ? _showForm(customer) : _delete(customer),
         itemBuilder: (_) => const [
-          PopupMenuItem(value: 'edit', child: Text('Edit')),
-          PopupMenuItem(value: 'delete', child: Text('Hapus')),
+          PopupMenuItem(value: 'edit', child: PosText('Edit')),
+          PopupMenuItem(value: 'delete', child: PosText('Hapus')),
         ],
       ),
     ),
@@ -278,31 +279,34 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
+                    PosText(
                       'Edit Pelanggan',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
+errorBuilder: posValidationError,
                       controller: name,
-                      decoration: const InputDecoration(labelText: 'Nama'),
+                      decoration:  InputDecoration(labelText: ('Nama').tr(context)),
                       validator: validatePosCustomerName,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
+errorBuilder: posValidationError,
                       controller: phone,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Nomor telepon',
+                      decoration:  InputDecoration(
+                        labelText: ('Nomor telepon').tr(context),
                       ),
                       validator: validatePosCustomerPhone,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
+errorBuilder: posValidationError,
                       controller: email,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email (opsional)',
+                      decoration:  InputDecoration(
+                        labelText: ('Email (opsional)').tr(context),
                       ),
                       validator: validatePosCustomerEmail,
                     ),
@@ -312,7 +316,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       minLines: 2,
                       maxLines: 3,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(labelText: 'Alamat'),
+                      decoration:  InputDecoration(labelText: ('Alamat').tr(context)),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -320,13 +324,13 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       minLines: 2,
                       maxLines: 3,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(labelText: 'Catatan'),
+                      decoration:  InputDecoration(labelText: ('Catatan').tr(context)),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: membershipStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Status keanggotaan',
+                      decoration:  InputDecoration(
+                        labelText: ('Status keanggotaan').tr(context),
                       ),
                       items:
                           const {'non_member': 'Non Member', 'member': 'Member'}
@@ -334,7 +338,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                               .map(
                                 (entry) => DropdownMenuItem(
                                   value: entry.key,
-                                  child: Text(entry.value),
+                                  child: PosText(entry.value),
                                 ),
                               )
                               .toList(),
@@ -352,10 +356,10 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       key: ValueKey('tier:$membershipStatus:$membershipTier'),
                       initialValue: membershipTier,
                       decoration: InputDecoration(
-                        labelText: 'Tier member',
+                        labelText: ('Tier member').tr(context),
                         helperText: membershipStatus == 'member'
                             ? null
-                            : 'Aktif setelah status diubah menjadi Member',
+                            : ('Aktif setelah status diubah menjadi Member').tr(context),
                       ),
                       items:
                           const {
@@ -367,7 +371,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                               .map(
                                 (entry) => DropdownMenuItem(
                                   value: entry.key,
-                                  child: Text(entry.value),
+                                  child: PosText(entry.value),
                                 ),
                               )
                               .toList(),
@@ -380,8 +384,8 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: customerType,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipe pelanggan',
+                      decoration:  InputDecoration(
+                        labelText: ('Tipe pelanggan').tr(context),
                       ),
                       items:
                           const {
@@ -392,7 +396,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                               .map(
                                 (entry) => DropdownMenuItem(
                                   value: entry.key,
-                                  child: Text(entry.value),
+                                  child: PosText(entry.value),
                                 ),
                               )
                               .toList(),
@@ -405,16 +409,16 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: priceLevel,
-                      decoration: const InputDecoration(
-                        labelText: 'Level harga',
+                      decoration:  InputDecoration(
+                        labelText: ('Level harga').tr(context),
                         helperText:
-                            'Menentukan harga produk untuk pelanggan ini',
+                            ('Menentukan harga produk untuk pelanggan ini').tr(context),
                       ),
                       items: priceLevelOptions
                           .map(
                             (level) => DropdownMenuItem(
                               value: level,
-                              child: Text(_priceLevelLabel(level)),
+                              child: PosText(_priceLevelLabel(level)),
                             ),
                           )
                           .toList(),
@@ -471,7 +475,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                                   },
                                 );
                               },
-                        child: Text(saving ? 'Menyimpan...' : 'Simpan'),
+                        child: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan').tr(context)),
                       ),
                     ),
                   ],
@@ -500,16 +504,16 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus pelanggan?'),
+        title: const PosText('Hapus pelanggan?'),
         content: Text(customer.name),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus'),
+            child: const PosText('Hapus'),
           ),
         ],
       ),

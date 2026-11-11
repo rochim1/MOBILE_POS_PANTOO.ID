@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -20,25 +21,25 @@ Future<String?> showPosOfflineOperatorVerification(BuildContext context) async {
   return showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Verifikasi kasir asal'),
+      title: const PosText('Verifikasi kasir asal'),
       content: TextField(
         onChanged: (value) => enteredPin = value,
         obscureText: true,
         keyboardType: TextInputType.number,
         maxLength: 6,
-        decoration: const InputDecoration(
-          labelText: 'PIN kasir pembuat transaksi',
-          helperText: 'Memerlukan verifikasi online.',
+        decoration:  InputDecoration(
+          labelText: ('PIN kasir pembuat transaksi').tr(dialogContext),
+          helperText: ('Memerlukan verifikasi online.').tr(dialogContext),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Batal'),
+          child: const PosText('Batal'),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext, enteredPin),
-          child: const Text('Verifikasi & kirim'),
+          child: const PosText('Verifikasi & kirim'),
         ),
       ],
     ),
@@ -236,7 +237,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                       child: OutlinedButton.icon(
                         onPressed: _loading ? null : _retryAll,
                         icon: const Icon(Icons.replay),
-                        label: const Text('Coba ulang yang ditolak'),
+                        label: const PosText('Coba ulang yang ditolak'),
                       ),
                     ),
                     SizedBox(width: compact ? 8 : 12),
@@ -244,7 +245,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                       child: ElevatedButton.icon(
                         onPressed: _loading ? null : _sync,
                         icon: const Icon(Icons.sync),
-                        label: const Text('Sinkronkan sekarang'),
+                        label: const PosText('Sinkronkan sekarang'),
                       ),
                     ),
                   ],
@@ -329,23 +330,23 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               children: [
                 Text(
                   _networkAvailable
-                      ? 'Koneksi perangkat tersedia'
-                      : 'Perangkat sedang offline',
+                      ? ('Koneksi perangkat tersedia').tr(context)
+                      : ('Perangkat sedang offline').tr(context),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   unresolved == 0
-                      ? 'Tidak ada transaksi penjualan yang menunggu.'
-                      : '$unresolved transaksi belum selesai${ageLabel == null ? '' : ' • tertua $ageLabel'}${review == 0 ? '' : ' • $review perlu ditinjau'}',
+                      ? ('Tidak ada transaksi penjualan yang menunggu.').tr(context)
+                      : posLocale(context).posb9af015b5b3c((unresolved).toString(), (ageLabel == null ? '' : (' • tertua $ageLabel').tr(context)).toString(), (review == 0 ? '' : (' • $review perlu ditinjau').tr(context)).toString()),
                   style: const TextStyle(fontSize: 12.5),
                 ),
                 if (_networkAvailable)
-                  const Text(
+                  const PosText(
                     'Ketersediaan server diperiksa saat sinkronisasi.',
                     style: TextStyle(fontSize: 11, color: Colors.black54),
                   ),
                 const SizedBox(height: 4),
-                const Text(
+                const PosText(
                   'Cakupan offline: penjualan tunai dan penyimpanan pesanan kasir. Pesanan baru masuk meja/dapur setelah sinkronisasi; pembayaran elektronik, shift, pelanggan, dan perubahan inventori wajib online.',
                   style: TextStyle(fontSize: 11, color: Colors.black54),
                 ),
@@ -361,7 +362,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
-        label: Text(label),
+        label: PosText(label),
         selected: _status == status,
         onSelected: (_) {
           setState(() => _status = status);
@@ -408,7 +409,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                   Expanded(
                     child: Text(
                       reference?.toString() ??
-                          '${isOrder ? 'Pesanan' : 'Transaksi'} lokal #${transaction['id']}',
+                          posLocale(context).pos2e58e983605b((isOrder ? ('Pesanan').tr(context) : ('Transaksi').tr(context)).toString(), (transaction['id']).toString()),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -416,12 +417,12 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text('Waktu: ${transaction['timestamp'] ?? '-'}'),
+              Text(posLocale(context).posee16580f1d1c((transaction['timestamp'] ?? '-').toString())),
               if (total != null)
                 Text(
-                  'Total: Rp ${formatRupiahAmount(num.tryParse(total.toString()) ?? 0)}',
+                  posLocale(context).pos1b58713d0d0e((formatRupiahAmount(num.tryParse(total.toString()) ?? 0)).toString()),
                 ),
-              Text('Percobaan sinkron: ${transaction['attempts'] ?? 0}'),
+              Text(posLocale(context).pos7d60a10a7702((transaction['attempts'] ?? 0).toString())),
               if (status != 'synced' &&
                   status != 'syncing' &&
                   !rejectedByOperator &&
@@ -437,14 +438,14 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                       ? null
                       : () => _verifyOperatorAndRetry(transaction),
                   icon: const Icon(Icons.pin_outlined),
-                  label: const Text('Verifikasi kasir & kirim ulang'),
+                  label: const PosText('Verifikasi kasir & kirim ulang'),
                 ),
               if ((transaction['next_retry_at']?.toString() ?? '').isNotEmpty &&
                   status == 'pending')
-                Text('Retry otomatis: ${transaction['next_retry_at']}'),
+                Text(posLocale(context).posb17d3b472148((transaction['next_retry_at']).toString())),
               if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(
+                PosText(
                   transaction['error'].toString(),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -463,7 +464,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                             ),
                           ),
                     icon: const Icon(Icons.replay),
-                    label: const Text('Coba ulang'),
+                    label: const PosText('Coba ulang'),
                   ),
                 ),
               if (status == 'rejected' && !rejectedByOperator)
@@ -472,7 +473,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                   child: TextButton.icon(
                     onPressed: () => _rejectAfterReview(transaction),
                     icon: const Icon(Icons.fact_check_outlined),
-                    label: const Text('Selesaikan manual'),
+                    label: const PosText('Selesaikan manual'),
                   ),
                 ),
               if (needsReview && acceptedByServer)
@@ -481,7 +482,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                   child: FilledButton.icon(
                     onPressed: () => _acknowledgeAccepted(transaction),
                     icon: const Icon(Icons.fact_check_outlined),
-                    label: const Text('Periksa transaksi server'),
+                    label: const PosText('Periksa transaksi server'),
                   ),
                 ),
               if (needsReview && !acceptedByServer)
@@ -492,12 +493,12 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     children: [
                       TextButton(
                         onPressed: () => _rejectAfterReview(transaction),
-                        child: const Text('Tolak transaksi'),
+                        child: const PosText('Tolak transaksi'),
                       ),
                       FilledButton.icon(
                         onPressed: () => _retryAfterReview(transaction),
                         icon: const Icon(Icons.fact_check_outlined),
-                        label: const Text('Tinjau & kirim ulang'),
+                        label: const PosText('Tinjau & kirim ulang'),
                       ),
                     ],
                   ),
@@ -523,7 +524,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
+      child: PosText(
         label,
         style: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
@@ -548,21 +549,21 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           padding: const EdgeInsets.all(14),
           children: [
             Text(
-              'Detail ${isOrder ? 'pesanan' : 'transaksi'} #${transaction['id']}',
+              posLocale(context).pos849b319bd7c1((isOrder ? ('pesanan').tr(context) : ('transaksi').tr(context)).toString(), (transaction['id']).toString()),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            Text('Status: ${transaction['status']}'),
-            Text('Outlet: ${transaction['toko_id'] ?? '-'}'),
-            Text('Shift: ${transaction['shift_id'] ?? '-'}'),
-            Text('Percobaan: ${transaction['attempts'] ?? 0}'),
+            Text(posLocale(context).pos52fb707d5447((transaction['status']).toString())),
+            Text(posLocale(context).pos8c29bd885f11((transaction['toko_id'] ?? '-').toString())),
+            Text(posLocale(context).pos98c99bd51ac2((transaction['shift_id'] ?? '-').toString())),
+            Text(posLocale(context).pos919294430196((transaction['attempts'] ?? 0).toString())),
             if ((transaction['resolution']?.toString() ?? '').isNotEmpty)
-              Text('Keputusan: ${transaction['resolution']}'),
+              Text(posLocale(context).pos735eff437800((transaction['resolution']).toString())),
             if ((transaction['server_response']?.toString() ?? '').isNotEmpty)
-              Text('Respons server: ${transaction['server_response']}'),
+              Text(posLocale(context).pos48c3ba336d52((transaction['server_response']).toString())),
             if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
               const SizedBox(height: 12),
-              const Text(
+              const PosText(
                 'Error',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
@@ -574,8 +575,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             const SizedBox(height: 16),
             Text(
               isOrder
-                  ? 'Snapshot saat pesanan disimpan'
-                  : 'Snapshot saat pembayaran',
+                  ? ('Snapshot saat pesanan disimpan').tr(context)
+                  : ('Snapshot saat pembayaran').tr(context),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
@@ -583,7 +584,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               const JsonEncoder.withIndent('  ').convert(clientSnapshot),
             ),
             const SizedBox(height: 16),
-            const Text(
+            const PosText(
               'Payload lokal',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
@@ -599,19 +600,19 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Kirim ulang transaksi?'),
-        content: const Text(
+        title: const PosText('Kirim ulang transaksi?'),
+        content: const PosText(
           'Pastikan harga, stok, promo, pelanggan, dan shift sudah diperbaiki. '
           'Server akan menghitung dan memvalidasi ulang transaksi ini.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: const PosText('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Kirim ulang'),
+            child: const PosText('Kirim ulang'),
           ),
         ],
       ),
@@ -630,22 +631,22 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
       builder: (dialogContext) => AlertDialog(
         title: Text(
           isOrder
-              ? 'Pesanan sudah masuk server'
-              : 'Transaksi sudah masuk server',
+              ? ('Pesanan sudah masuk server').tr(dialogContext)
+              : ('Transaksi sudah masuk server').tr(dialogContext),
         ),
         content: Text(
           isOrder
-              ? 'Nomor pesanan server: $invoice. Periksa item, total, dan meja sebelum menandai pemeriksaan selesai. Jangan buat pesanan baru untuk menggantikannya.'
-              : 'Invoice server: $invoice. Periksa nilai transaksi, harga, dan kas fisik sebelum menandai pemeriksaan selesai. Jangan kirim ulang sebagai transaksi baru.',
+              ? posLocale(dialogContext).pos810ac1454f9b((invoice).toString())
+              : posLocale(dialogContext).pos498daa89ff78((invoice).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Belum'),
+            child: const PosText('Belum'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sudah diperiksa'),
+            child: const PosText('Sudah diperiksa'),
           ),
         ],
       ),
@@ -668,8 +669,8 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           scrollable: true,
           title: Text(
             wasRejected
-                ? 'Selesaikan transaksi ditolak?'
-                : 'Tolak transaksi lokal?',
+                ? ('Selesaikan transaksi ditolak?').tr(dialogContext)
+                : ('Tolak transaksi lokal?').tr(dialogContext),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -677,16 +678,16 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             children: [
               Text(
                 isOrder
-                    ? 'Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.'
-                    : 'Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.',
+                    ? ('Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.').tr(dialogContext)
+                    : ('Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.').tr(dialogContext),
               ),
               const SizedBox(height: 12),
               TextField(
                 minLines: 2,
                 maxLines: 4,
                 maxLength: 500,
-                decoration: const InputDecoration(
-                  labelText: 'Hasil rekonsiliasi / nomor bukti',
+                decoration:  InputDecoration(
+                  labelText: ('Hasil rekonsiliasi / nomor bukti').tr(dialogContext),
                 ),
                 onChanged: (value) =>
                     updateDialog(() => reconciliationNote = value),
@@ -696,14 +697,14 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Kembali'),
+              child: const PosText('Kembali'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
               onPressed: reconciliationNote.trim().length < 5
                   ? null
                   : () => Navigator.pop(dialogContext, true),
-              child: const Text('Tolak'),
+              child: const PosText('Tolak'),
             ),
           ],
         ),

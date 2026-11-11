@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
 
 import 'package:intl/date_symbol_data_local.dart';
@@ -68,7 +70,7 @@ class PosPurchaseOrderDocument {
                 padding: const pw.EdgeInsets.all(8),
                 color: PdfColors.orange100,
                 child: pw.Text(
-                  'DRAFT - BELUM DISETUJUI - BUKAN PESANAN RESMI',
+                  ('DRAFT - BELUM DISETUJUI - BUKAN PESANAN RESMI').trCurrent(),
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(
                     fontSize: 9,
@@ -117,7 +119,7 @@ class PosPurchaseOrderDocument {
         footer: (context) => pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Text(
-            'Halaman ${context.pageNumber} / ${context.pagesCount}',
+            posCurrentLocale().pos61f7b0c13f15((context.pageNumber).toString(), (context.pagesCount).toString()),
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
           ),
         ),
@@ -127,9 +129,9 @@ class PosPurchaseOrderDocument {
             children: [
               pw.Expanded(
                 child: _block('Purchase Order', [
-                  'Dokumen pesanan pembelian inventory',
-                  'No PO: ${_string(purchase['no_po'])}',
-                  'Tanggal PO: ${_date(purchase['tanggal_po'])}',
+                  'Dokumen pesanan pembelian inventory'.trCurrent(),
+                  'No PO: ${_string(purchase['no_po'])}'.trCurrent(),
+                  'Tanggal PO: ${_date(purchase['tanggal_po'])}'.trCurrent(),
                 ]),
               ),
               pw.SizedBox(width: 20),
@@ -163,7 +165,7 @@ class PosPurchaseOrderDocument {
           ],
           pw.SizedBox(height: 18),
           pw.TableHelper.fromTextArray(
-            headers: const [
+            headers: [
               'No.',
               'Kode',
               'Item',
@@ -171,7 +173,7 @@ class PosPurchaseOrderDocument {
               'Harga',
               'Subtotal',
               'Keterangan',
-            ],
+            ].map((label) => label.trCurrent()).toList(),
             data: [
               for (var index = 0; index < rows.length; index++)
                 [
@@ -247,7 +249,7 @@ class PosPurchaseOrderDocument {
             pw.SizedBox(height: 16),
             _block('Jadwal Termin Pembayaran', const []),
             pw.TableHelper.fromTextArray(
-              headers: const ['Termin', 'Jatuh tempo', 'Jumlah', 'Status'],
+              headers: ['Termin', 'Jatuh tempo', 'Jumlah', 'Status'].map((label) => label.trCurrent()).toList(),
               data: [
                 for (final raw
                     in (purchase['jadwal_termin'] as List).whereType<Map>())
@@ -272,7 +274,7 @@ class PosPurchaseOrderDocument {
           ],
           pw.SizedBox(height: 16),
           pw.Text(
-            'Dokumen ini dicetak dari sistem pada ${_dateTime(DateTime.now())}.',
+            posCurrentLocale().posa8f1911e24f6((_dateTime(DateTime.now())).toString()),
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
           ),
         ],
@@ -285,7 +287,7 @@ class PosPurchaseOrderDocument {
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
       pw.Text(
-        label,
+        (label).trCurrent(),
         style: pw.TextStyle(
           fontSize: 9,
           color: PdfColors.grey700,
@@ -301,7 +303,7 @@ class PosPurchaseOrderDocument {
   static pw.Widget _field(String label, String value) => pw.SizedBox(
     width: 150,
     child: pw.Text(
-      '$label: ${value.isEmpty ? '-' : value}',
+      '${label.trCurrent()}: ${value.isEmpty ? '-' : value}',
       style: const pw.TextStyle(fontSize: 9),
     ),
   );
@@ -316,7 +318,7 @@ class PosPurchaseOrderDocument {
       children: [
         pw.Expanded(
           child: pw.Text(
-            label,
+            (label).trCurrent(),
             style: pw.TextStyle(
               fontSize: 9,
               fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
@@ -352,7 +354,7 @@ class PosPurchaseOrderDocument {
     final parsed = DateTime.tryParse(raw);
     return parsed == null
         ? raw
-        : DateFormat('dd MMM yyyy', 'id_ID').format(parsed);
+        : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(parsed);
   }
 
   static String _dateTime(Object? value) {
@@ -360,6 +362,6 @@ class PosPurchaseOrderDocument {
     final parsed = DateTime.tryParse(raw);
     return parsed == null
         ? (raw.isEmpty ? '-' : raw)
-        : DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(parsed.toLocal());
+        : DateFormat('dd MMM yyyy, HH:mm', AppLanguageController.instance.effectiveLocale.languageCode).format(parsed.toLocal());
   }
 }

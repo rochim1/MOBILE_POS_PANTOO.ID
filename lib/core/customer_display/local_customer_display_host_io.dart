@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../../l10n/app_language_controller.dart';
+import '../../l10n/pos_localization.dart';
+import 'local_customer_display_copy.dart';
 
 /// A token-protected, read-only customer screen served directly by the POS.
 /// No cloud, API credentials, or persistent customer data are exposed.
@@ -50,6 +53,7 @@ class LocalCustomerDisplayHost {
     _server = server;
     _token = token;
     _onClientCountChanged = onClientCountChanged;
+    AppLanguageController.instance.addListener(_refreshLanguage);
     server.listen((request) => unawaited(_handleRequest(request)));
     return 'http://${advertisedHost ?? local.first.address.address}:${server.port}/?pair=$token';
   }
@@ -90,7 +94,8 @@ class LocalCustomerDisplayHost {
     if (!valid) {
       response.statusCode = HttpStatus.forbidden;
       response.write(
-        'Tautan layar pelanggan tidak valid. Buat pairing baru di POS.',
+        'Tautan layar pelanggan tidak valid. Buat pairing baru di POS.'
+            .trCurrent(),
       );
       await response.close();
       return;
@@ -102,7 +107,18 @@ class LocalCustomerDisplayHost {
     }
     if (request.uri.path == '/') {
       response.headers.contentType = ContentType.html;
-      response.write(_customerScreenHtml);
+      final copy = jsonEncode(localCustomerDisplayCopy())
+          .replaceAll('<', r'\u003c')
+          .replaceAll('\u2028', r'\u2028')
+          .replaceAll('\u2029', r'\u2029');
+      response.write(
+        _customerScreenHtml
+            .replaceFirst('__PANTOO_DISPLAY_COPY__', copy)
+            .replaceFirst(
+              'lang="id"',
+              'lang="${AppLanguageController.instance.effectiveLocale.languageCode}"',
+            ),
+      );
       await response.close();
     } else if (request.uri.path == '/ws') {
       final socket = await WebSocketTransformer.upgrade(request);
@@ -124,7 +140,14 @@ class LocalCustomerDisplayHost {
 
   void _send(WebSocket viewer, Map<String, dynamic> data) {
     try {
-      viewer.add(jsonEncode(data));
+      viewer.add(
+        jsonEncode({
+          ...data,
+          'display_labels': localCustomerDisplayCopy(),
+          'display_language':
+              AppLanguageController.instance.effectiveLocale.languageCode,
+        }),
+      );
     } catch (_) {
       _removeViewer(viewer);
     }
@@ -143,7 +166,14 @@ class LocalCustomerDisplayHost {
     }
   }
 
+  void _refreshLanguage() {
+    for (final viewer in _viewers.toList()) {
+      _send(viewer, _lastState ?? {'items': <Object>[]});
+    }
+  }
+
   Future<void> stop() async {
+    AppLanguageController.instance.removeListener(_refreshLanguage);
     _token = '';
     _lastState = null;
     _onClientCountChanged = null;
@@ -167,16 +197,18 @@ const _customerScreenHtml = r'''<!doctype html>
 *{box-sizing:border-box}body{margin:0;font:18px system-ui,sans-serif;background:#eef6f5;color:#172033}.shell{max-width:900px;min-height:100vh;margin:auto;background:white;display:flex;flex-direction:column;box-shadow:0 0 30px #0a51451c}header{padding:24px 30px;background:#087f75;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px}h1{font-size:25px;margin:0}small{font-size:14px;opacity:.85}.status{font-size:14px;padding:7px 12px;border-radius:99px;background:#ffffff25}main{flex:1;padding:30px}.empty{color:#667085;text-align:center;padding:15vh 12px}.item{display:flex;align-items:center;gap:20px;padding:15px 0;border-bottom:1px solid #e5e7eb}.qty{min-width:46px;color:#087f75;font-weight:800}.name{flex:1;overflow-wrap:anywhere}.price{font-weight:700}footer{padding:20px 30px;background:#f7f9f9}footer div[hidden]{display:none}footer div{display:flex;justify-content:space-between;margin:8px 0}.total{font-size:27px;font-weight:800;border-top:1px dashed #9ca3af;padding-top:15px}@media(max-width:600px){header,main,footer{padding:17px}h1{font-size:19px}.item{font-size:16px}.total{font-size:23px}}
 button{border:1px solid #ffffff80;border-radius:8px;background:transparent;color:white;padding:9px 12px;font:inherit;font-size:14px;cursor:pointer}header{flex-wrap:wrap}.fullscreen-error{padding:0 20px;color:#b94a48}
 .success-wrap{display:grid;place-items:center;min-height:55vh}.success-card{width:min(100%,520px);padding:36px 24px;text-align:center;border:1px solid #dce9e3;border-radius:24px;background:#fff;box-shadow:0 16px 48px #064c4710;animation:success-in .25s ease-out}.success-check{width:76px;height:76px;margin:0 auto 24px;display:grid;place-items:center;border-radius:50%;background:#e6f4ed;color:#087f75;font-size:44px;font-weight:700}.success-card h2{color:#087f75;margin:0 0 12px;font-size:26px}.success-card p{color:#667085;line-height:1.6}.success-total{display:block;font-size:32px;margin:24px 0}@keyframes success-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.success-card{animation:none}}
-</style></head><body><div class="shell"><header><div><h1 id="store">Pantoo POS</h1><small>Ringkasan belanja Anda</small></div><span class="status" id="status">Menghubungkan…</span><button id="fullscreen" type="button" aria-pressed="false" hidden>Layar penuh</button></header><p id="fullscreen-error" class="fullscreen-error" role="status" hidden></p><main id="items"><p class="empty">Menunggu kasir menambahkan produk.</p></main><footer id="footer" hidden><div><span>Subtotal</span><strong id="subtotal"></strong></div><div id="discount-row" hidden><span>Diskon</span><strong id="discount"></strong></div><div class="total"><span>Total</span><strong id="total"></strong></div></footer></div>
+</style></head><body><div class="shell"><header><div><h1 id="store">Pantoo POS</h1><small id="summary">Ringkasan belanja Anda</small></div><span class="status" id="status">Menghubungkan…</span><button id="fullscreen" type="button" aria-pressed="false" hidden>Layar penuh</button></header><p id="fullscreen-error" class="fullscreen-error" role="status" hidden></p><main id="items"><p class="empty">Menunggu kasir menambahkan produk.</p></main><footer id="footer" hidden><div><span id="subtotal-label">Subtotal</span><strong id="subtotal"></strong></div><div id="discount-row" hidden><span id="discount-label">Diskon</span><strong id="discount"></strong></div><div class="total"><span id="total-label">Total</span><strong id="total"></strong></div></footer></div>
 <script>
+let copy=__PANTOO_DISPLAY_COPY__;
+function applyCopy(){document.title=copy.title+' · Pantoo POS';document.getElementById('summary').textContent=copy.summary;document.getElementById('subtotal-label').textContent=copy.subtotal;document.getElementById('discount-label').textContent=copy.discount;document.getElementById('total-label').textContent=copy.total;syncFullscreen()}
 const fullscreen=document.getElementById('fullscreen'),fullscreenError=document.getElementById('fullscreen-error');
 fullscreen.hidden=!document.documentElement.requestFullscreen;
-function syncFullscreen(){fullscreen.textContent=document.fullscreenElement?'Keluar layar penuh':'Layar penuh';fullscreen.setAttribute('aria-pressed',String(Boolean(document.fullscreenElement)))}
+function syncFullscreen(){fullscreen.textContent=document.fullscreenElement?copy.exitFullscreen:copy.fullscreen;fullscreen.setAttribute('aria-pressed',String(Boolean(document.fullscreenElement)))}
 document.addEventListener('fullscreenchange',syncFullscreen);
-fullscreen.onclick=async()=>{fullscreenError.hidden=true;try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch(e){fullscreenError.textContent='Layar penuh belum dapat dibuka. Coba lagi dari browser perangkat ini.';fullscreenError.hidden=false}syncFullscreen()};
+fullscreen.onclick=async()=>{fullscreenError.hidden=true;try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch(e){fullscreenError.textContent=copy.fullscreenError;fullscreenError.hidden=false}syncFullscreen()};
 const token=new URLSearchParams(location.search).get('pair');
 const money=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0);
 const items=document.getElementById('items'),footer=document.getElementById('footer'),status=document.getElementById('status');
 let paymentCompleted=false;
-function connect(){const socket=new WebSocket('ws://'+location.host+'/ws?pair='+encodeURIComponent(token||''));socket.onopen=()=>{status.textContent='Terhubung'};socket.onclose=()=>{status.textContent='Koneksi terputus · mencoba ulang';setTimeout(connect,3000)};socket.onerror=()=>socket.close();socket.onmessage=event=>{try{const data=JSON.parse(event.data);if(!data||typeof data!=='object'||Array.isArray(data))return;document.getElementById('store').textContent=data.store_name||'Pantoo POS';if(paymentCompleted&&data.status!=='payment_success'&&!(Array.isArray(data.items)&&data.items.length))return;paymentCompleted=data.status==='payment_success';items.replaceChildren();if(paymentCompleted){const wrap=document.createElement('section');wrap.className='success-wrap';wrap.setAttribute('role','status');wrap.setAttribute('aria-live','polite');wrap.setAttribute('aria-atomic','true');const card=document.createElement('div');card.className='success-card';const check=document.createElement('div');check.className='success-check';check.textContent='\u2713';check.setAttribute('aria-hidden','true');const title=document.createElement('h2');title.textContent='Pembayaran berhasil!';const detail=document.createElement('p');detail.textContent='Transaksi Anda telah selesai.';const total=document.createElement('strong');total.className='success-total';total.textContent=money(data.total);const thanks=document.createElement('p');thanks.textContent='Terima kasih telah berbelanja.';card.append(check,title,detail,total,thanks);wrap.append(card);items.append(wrap);footer.hidden=true;return}for(const item of data.items||[]){const row=document.createElement('div');row.className='item';const qty=document.createElement('span');qty.className='qty';qty.textContent=(Number(item.quantity)||0)+'×';const name=document.createElement('span');name.className='name';name.textContent=item.name||'';const price=document.createElement('span');price.className='price';price.textContent=money(item.subtotal);row.append(qty,name,price);items.append(row)}if(!items.children.length){const p=document.createElement('p');p.className='empty';p.textContent='Keranjang masih kosong';items.append(p)}document.getElementById('subtotal').textContent=money(data.subtotal);document.getElementById('discount').textContent='− '+money(data.discount);document.getElementById('discount-row').hidden=!(Number(data.discount)>0);document.getElementById('total').textContent=money(data.total);footer.hidden=false}catch(e){status.textContent='Data belum dapat ditampilkan'}}}connect();
+function connect(){const socket=new WebSocket('ws://'+location.host+'/ws?pair='+encodeURIComponent(token||''));socket.onopen=()=>{status.textContent=copy.connected};socket.onclose=()=>{status.textContent=copy.disconnected;setTimeout(connect,3000)};socket.onerror=()=>socket.close();socket.onmessage=event=>{try{const data=JSON.parse(event.data);if(!data||typeof data!=='object'||Array.isArray(data))return;if(data.display_labels&&typeof data.display_labels==='object'){copy=data.display_labels;applyCopy();status.textContent=copy.connected}if(data.display_language)document.documentElement.lang=data.display_language;document.getElementById('store').textContent=data.store_name||'Pantoo POS';if(paymentCompleted&&data.status!=='payment_success'&&!(Array.isArray(data.items)&&data.items.length))return;paymentCompleted=data.status==='payment_success';items.replaceChildren();if(paymentCompleted){const wrap=document.createElement('section');wrap.className='success-wrap';wrap.setAttribute('role','status');wrap.setAttribute('aria-live','polite');wrap.setAttribute('aria-atomic','true');const card=document.createElement('div');card.className='success-card';const check=document.createElement('div');check.className='success-check';check.textContent='\u2713';check.setAttribute('aria-hidden','true');const title=document.createElement('h2');title.textContent=copy.paymentSuccess;const detail=document.createElement('p');detail.textContent=copy.completed;const total=document.createElement('strong');total.className='success-total';total.textContent=money(data.total);const thanks=document.createElement('p');thanks.textContent=copy.thanks;card.append(check,title,detail,total,thanks);wrap.append(card);items.append(wrap);footer.hidden=true;return}for(const item of data.items||[]){const row=document.createElement('div');row.className='item';const qty=document.createElement('span');qty.className='qty';qty.textContent=(Number(item.quantity)||0)+'×';const name=document.createElement('span');name.className='name';name.textContent=item.name||'';const price=document.createElement('span');price.className='price';price.textContent=money(item.subtotal);row.append(qty,name,price);items.append(row)}if(!items.children.length){const p=document.createElement('p');p.className='empty';p.textContent=copy.empty;items.append(p)}document.getElementById('subtotal').textContent=money(data.subtotal);document.getElementById('discount').textContent='− '+money(data.discount);document.getElementById('discount-row').hidden=!(Number(data.discount)>0);document.getElementById('total').textContent=money(data.total);footer.hidden=false}catch(e){status.textContent=copy.dataError}}}applyCopy();status.textContent=copy.connecting;items.firstElementChild.textContent=copy.waiting;connect();
 </script></body></html>''';

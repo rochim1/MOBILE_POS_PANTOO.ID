@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/_core.dart';
@@ -89,7 +90,7 @@ class _TabSurface extends StatelessWidget {
               ),
               SizedBox(width: compact ? 7 : 9),
               Flexible(
-                child: Text(
+                child: PosText(
                   tab.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -149,7 +150,7 @@ class PosFullWidthTabBar extends StatelessWidget {
                       Icon(tab.icon, size: compact ? 18 : 20),
                       SizedBox(width: compact ? 7 : 9),
                       Flexible(
-                        child: Text(
+                        child: PosText(
                           tab.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

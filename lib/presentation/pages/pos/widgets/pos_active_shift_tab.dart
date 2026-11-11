@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/_core.dart';
@@ -145,7 +146,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 ),
                 if (hasActiveShift && stores.length > 1) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  PosText(
                     'Tutup shift aktif sebelum memilih toko lain.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey.shade700,
@@ -160,7 +161,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 if (shiftState is PosShiftLoaded && shiftState.notice != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(shiftState.notice!),
+                    child: PosText(shiftState.notice!),
                   ),
                 BlocBuilder<PosShiftBloc, PosShiftState>(
                   builder: (context, state) {
@@ -210,14 +211,14 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             children: [
-                              Text(state.message),
+                              PosText(state.message),
                               TextButton(
                                 onPressed: selectedTokoId == null
                                     ? null
                                     : () => context.read<PosShiftBloc>().add(
                                         LoadShiftData(selectedTokoId!),
                                       ),
-                                child: const Text('Periksa kembali shift'),
+                                child: const PosText('Periksa kembali shift'),
                               ),
                             ],
                           ),
@@ -269,7 +270,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 value: stores.any((store) => store.id == selectedTokoId)
                     ? selectedTokoId
                     : null,
-                hint: const Text('Pilih toko kasir'),
+                hint: const PosText('Pilih toko kasir'),
                 isExpanded: true,
                 isDense: true,
                 items: stores
@@ -323,13 +324,13 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  perOperator ? 'Shift per operator PIN' : 'Register bersama',
+                  perOperator ? ('Shift per operator PIN').tr(context) : ('Register bersama').tr(context),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   perOperator
-                      ? 'Operator aktif: ${operatorName?.trim().isNotEmpty == true ? operatorName : 'masukkan PIN kembali'}'
-                      : 'Satu laci kas dapat digunakan bergantian oleh beberapa operator.',
+                      ? posLocale(context).posf749a4f6a690((operatorName?.trim().isNotEmpty == true ? operatorName : ('masukkan PIN kembali').tr(context)).toString())
+                      : ('Satu laci per toko untuk akun yang memiliki akses; identitas kasir tetap tercatat.').tr(context),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 ),
               ],
@@ -382,7 +383,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        PosText(
                           'Shift sedang berjalan',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -390,7 +391,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                             fontSize: 16,
                           ),
                         ),
-                        Text(
+                        PosText(
                           'Kasir siap menerima transaksi',
                           style: TextStyle(
                             color: AppColors.textSecondary,
@@ -414,8 +415,8 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 3),
               Text(
                 openedAt != null
-                    ? 'Dibuka ${DateFormat('dd MMM, HH:mm').format(openedAt)}'
-                    : 'Waktu buka tidak tersedia',
+                    ? posLocale(context).pos8e461e69d307((DateFormat('dd MMM, HH:mm').format(openedAt)).toString())
+                    : ('Waktu buka tidak tersedia').tr(context),
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
@@ -426,14 +427,14 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 children: [
                   Expanded(
                     child: _buildShiftMetric(
-                      'Kas seharusnya',
+                      ('Kas seharusnya').tr(context),
                       formatCurrency.format(posShiftExpectedCash(shift)),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _buildShiftMetric(
-                      'Transaksi',
+                      ('Transaksi').tr(context),
                       '${shift['total_transaksi'] ?? 0}',
                     ),
                   ),
@@ -444,14 +445,14 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 children: [
                   Expanded(
                     child: _buildShiftMetric(
-                      'Kas awal',
+                      ('Kas awal').tr(context),
                       formatCurrency.format(shift['opening_cash'] ?? 0),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _buildShiftMetric(
-                      'Kas masuk / keluar',
+                      ('Kas masuk / keluar').tr(context),
                       '${formatCurrency.format(shift['petty_cash_in'] ?? 0)} / ${formatCurrency.format(shift['petty_cash_out'] ?? 0)}',
                     ),
                   ),
@@ -460,7 +461,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               if ((shift['cash_refund_total'] as num? ?? 0) > 0) ...[
                 const SizedBox(height: 10),
                 _buildShiftMetric(
-                  'Refund tunai',
+                  ('Refund tunai').tr(context),
                   formatCurrency.format(shift['cash_refund_total']),
                 ),
               ],
@@ -474,7 +475,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               child: OutlinedButton.icon(
                 onPressed: () => _promptPettyCash(context, 'in', shift['_id']),
                 icon: const Icon(Icons.download, color: AppColors.success),
-                label: const Text(
+                label: const PosText(
                   'Kas Masuk',
                   style: TextStyle(color: AppColors.success),
                 ),
@@ -492,7 +493,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               child: OutlinedButton.icon(
                 onPressed: () => _promptPettyCash(context, 'out', shift['_id']),
                 icon: const Icon(Icons.upload, color: AppColors.warning),
-                label: const Text(
+                label: const PosText(
                   'Kas Keluar',
                   style: TextStyle(color: AppColors.warning),
                 ),
@@ -518,7 +519,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: const Text(
+          child: const PosText(
             'Tutup Shift',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -538,7 +539,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          PosText(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -596,14 +597,14 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    PosText(
                       'Mulai shift kasir',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
-                    Text(
+                    PosText(
                       'Catat modal awal sebelum bertransaksi',
                       style: TextStyle(color: Colors.black54, fontSize: 12),
                     ),
@@ -617,7 +618,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
-              labelText: 'Kas Awal (Rp)',
+              labelText: ('Kas Awal (Rp)').tr(context),
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
@@ -629,7 +630,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           const SizedBox(height: 12),
           TextField(
             decoration: InputDecoration(
-              labelText: 'Catatan Buka Shift',
+              labelText: ('Catatan Buka Shift').tr(context),
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
@@ -661,7 +662,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            child: const PosText(
               'Buka Shift Sekarang',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -696,8 +697,8 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             children: [
               Text(
                 type == 'in'
-                    ? 'Kas Masuk (Tambah Modal)'
-                    : 'Kas Keluar (Ambil Kas)',
+                    ? ('Kas Masuk (Tambah Modal)').tr(context)
+                    : ('Kas Keluar (Ambil Kas)').tr(context),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -708,7 +709,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 keyboardType: TextInputType.number,
                 inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
-                  labelText: 'Jumlah (Rp)',
+                  labelText: ('Jumlah (Rp)').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -718,7 +719,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 12),
               TextField(
                 decoration: InputDecoration(
-                  labelText: 'Keterangan',
+                  labelText: ('Keterangan').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -749,7 +750,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Simpan'),
+                child: const PosText('Simpan'),
               ),
               const SizedBox(height: 16),
             ],
@@ -782,7 +783,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              const PosText(
                 'Tutup Shift',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -792,7 +793,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 keyboardType: TextInputType.number,
                 inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
-                  labelText: 'Kas Fisik Aktual (Saat Tutup)',
+                  labelText: ('Kas Fisik Aktual (Saat Tutup)').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -802,7 +803,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 12),
               TextField(
                 decoration: InputDecoration(
-                  labelText: 'Catatan Tutup Shift',
+                  labelText: ('Catatan Tutup Shift').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -816,18 +817,18 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                   final confirmed = await showDialog<bool>(
                     context: bottomSheetContext,
                     builder: (dialogContext) => AlertDialog(
-                      title: const Text('Periksa perangkat kasir lain'),
-                      content: const Text(
+                      title: const PosText('Periksa perangkat kasir lain'),
+                      content: const PosText(
                         'Perangkat lain yang masih offline tidak dapat dideteksi. Pastikan semua kasir pada shift ini telah sinkron dan kas fisik telah dicocokkan.',
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext, false),
-                          child: const Text('Periksa dulu'),
+                          child: const PosText('Periksa dulu'),
                         ),
                         FilledButton(
                           onPressed: () => Navigator.pop(dialogContext, true),
-                          child: const Text('Sudah diperiksa'),
+                          child: const PosText('Sudah diperiksa'),
                         ),
                       ],
                     ),
@@ -855,7 +856,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
+                child: const PosText(
                   'Konfirmasi Tutup Shift',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),

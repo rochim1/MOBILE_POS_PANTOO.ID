@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'core/notifications/pos_push_repository.dart';
+import 'core/notifications/pos_push_service.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -60,6 +62,12 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
     ),
   );
   sl.registerLazySingleton(() => SyncService(sl()));
+  sl.registerLazySingleton<PosPushService>(
+    () => PosPushService(
+      repository: GraphqlPosPushTokenRepository(sl()),
+      prefs: sl(),
+    ),
+  );
   sl.registerLazySingleton<PosCustomerDisplayService>(
     () => PosCustomerDisplayService(sl(), sl()),
   );
@@ -101,7 +109,10 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
   // Blocs
   sl.registerLazySingleton<AppCubit>(() => AppCubit());
   sl.registerLazySingleton<AuthCubit>(
-    () => AuthCubit(authRepository: sl<AuthRepository>()),
+    () => AuthCubit(
+      authRepository: sl<AuthRepository>(),
+      beforeLogout: () => sl<PosPushService>().deactivate(),
+    ),
   );
   sl.registerFactory(() => RegisterCubit(authRepository: sl()));
   sl.registerFactory(() => PosBloc(posRepository: sl()));

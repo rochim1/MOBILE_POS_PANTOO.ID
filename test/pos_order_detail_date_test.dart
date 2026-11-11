@@ -8,7 +8,7 @@ void main() {
       final page = File(
         'lib/presentation/pages/pos/pos_order_page.dart',
       ).readAsStringSync();
-      expect(page, contains(r'Waktu: ${_formatDate(order.date)}'));
+      expect(page, contains('posCurrentLocale().pos54ec6781af4f((_formatDate(order.date)).toString())'));
       expect(page, isNot(contains(r'Waktu: ${order.date}')));
       expect(page, contains('PosOrder.parseDateValue(value)'));
     },
