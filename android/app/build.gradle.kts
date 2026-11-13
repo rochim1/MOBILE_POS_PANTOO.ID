@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     id("com.android.application")
@@ -95,6 +96,53 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+// This Flutter SDK generates an integration_test registration in main even
+// though its Gradle plugin correctly omits that dev dependency from release.
+// Compile a release-only copy; keep the generated original intact for QA/debug
+// and never bundle the test plugin in a production APK.
+val mainPluginRegistrant = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
+val releasePluginRegistrantDir = layout.buildDirectory.dir("generated/posReleasePluginRegistrant")
+val preparePOSReleasePluginRegistrant = tasks.register("preparePOSReleasePluginRegistrant") {
+    inputs.file(mainPluginRegistrant)
+    outputs.dir(releasePluginRegistrantDir)
+    doLast {
+        val original = mainPluginRegistrant.readText()
+        val testRegistration = Regex(
+            """(?s)\s*try\s*\{\s*flutterEngine\.getPlugins\(\)\.add\(new dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin\(\)\);\s*\}\s*catch\s*\(Exception e\)\s*\{[^}]*\}"""
+        )
+        val production = original.replace(testRegistration, "\n")
+        check(!production.contains("dev.flutter.plugins.integration_test")) {
+            "Unexpected integration_test registration; review the release plugin registrant"
+        }
+        val output = releasePluginRegistrantDir.get().file("io/flutter/plugins/GeneratedPluginRegistrant.java").asFile
+        output.parentFile.mkdirs()
+        output.writeText(production)
+    }
+}
+tasks.withType<JavaCompile>().configureEach {
+    if (name.endsWith("ReleaseJavaWithJavac")) {
+        dependsOn(preparePOSReleasePluginRegistrant)
+        inputs.dir(releasePluginRegistrantDir)
+        doFirst {
+            // Materialize before replacing source: a lazy filter of this task's
+            // own source can resolve to an empty collection and omit registration.
+            val productionRegistrant = releasePluginRegistrantDir.get()
+                .file("io/flutter/plugins/GeneratedPluginRegistrant.java").asFile
+            check(productionRegistrant.isFile) { "Production plugin registrant missing" }
+            val javaSources = source.files.filter {
+                it.canonicalFile != mainPluginRegistrant.canonicalFile &&
+                    it.canonicalFile != productionRegistrant.canonicalFile
+            }
+            setSource(javaSources + productionRegistrant)
+        }
+        doLast {
+            check(destinationDirectory.get().file("io/flutter/plugins/GeneratedPluginRegistrant.class").asFile.isFile) {
+                "Release must compile GeneratedPluginRegistrant for Android startup"
+            }
+        }
+    }
 }
 
 // Profile choices are fetched at runtime; bundled profiles are offline fallbacks.

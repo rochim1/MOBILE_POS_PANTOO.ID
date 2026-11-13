@@ -93,7 +93,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             controller: _passwordController,
             obscureText: true,
             autofocus: true,
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               labelText: ('Password akun').tr(context),
               prefixIcon: Icon(Icons.password_outlined),
               border: OutlineInputBorder(),
@@ -106,7 +106,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             keyboardType: TextInputType.number,
             maxLength: 6,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               labelText: ('PIN baru').tr(context),
               prefixIcon: Icon(Icons.pin_outlined),
               border: OutlineInputBorder(),
@@ -120,7 +120,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             keyboardType: TextInputType.number,
             maxLength: 6,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               labelText: ('Ulangi PIN').tr(context),
               prefixIcon: Icon(Icons.verified_user_outlined),
               border: OutlineInputBorder(),
@@ -322,8 +322,11 @@ class _PinLockScreenState extends State<PinLockScreen> {
         title: const PosText('Keluar dari akun?'),
         content: Text(
           unresolved > 0
-              ? posLocale(dialogContext).pos509814bee562((unresolved).toString())
-              : ('Sesi kasir dan akun akan ditutup. Anda perlu login kembali untuk menggunakan POS.').tr(dialogContext),
+              ? posLocale(
+                  dialogContext,
+                ).pos509814bee562((unresolved).toString())
+              : ('Sesi kasir dan akun akan ditutup. Anda perlu login kembali untuk menggunakan POS.')
+                    .tr(dialogContext),
         ),
         actions: [
           TextButton(
@@ -557,13 +560,12 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screen = _buildScreen(context);
     return Focus(
       key: const Key('pin_keyboard_focus'),
       focusNode: _pinKeyboardFocusNode,
       autofocus: true,
       onKeyEvent: _onPinKeyEvent,
-      child: screen,
+      child: _buildScreen(context),
     );
   }
 
@@ -577,7 +579,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
             return Row(
               children: [
                 if (showMarketingPanel)
-                  const Expanded(child: _PinMarketingPanel()),
+                  const Expanded(child: _PinMarketingCarousel()),
                 Expanded(
                   child: ColoredBox(
                     color: Colors.white.withValues(alpha: 0.94),
@@ -712,8 +714,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               state.errorMessage.isNotEmpty
                                                   ? state.errorMessage
                                                   : canCreateOwnPin
-                                                  ? ('Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.').tr(context)
-                                                  : ('Masukkan PIN 4–6 digit karyawan').tr(context),
+                                                  ? ('Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.')
+                                                        .tr(context)
+                                                  : ('Masukkan PIN 4–6 digit karyawan')
+                                                        .tr(context),
                                               style: TextStyle(
                                                 color:
                                                     state
@@ -755,7 +759,12 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                     ),
                                                     const SizedBox(width: 7),
                                                     Text(
-                                                      posLocale(context).poseb9c086c8b8f((lockoutSeconds).toString()),
+                                                      posLocale(
+                                                        context,
+                                                      ).poseb9c086c8b8f(
+                                                        (lockoutSeconds)
+                                                            .toString(),
+                                                      ),
                                                       style: const TextStyle(
                                                         color:
                                                             AppColors.heading,
@@ -860,8 +869,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       ),
                                                 label: Text(
                                                   canCreateOwnPin
-                                                      ? ('Buat PIN Akun Ini').tr(context)
-                                                      : ('Masuk sebagai Kasir').tr(context),
+                                                      ? ('Buat PIN Akun Ini')
+                                                            .tr(context)
+                                                      : ('Masuk sebagai Kasir')
+                                                            .tr(context),
                                                 ),
                                                 style: ElevatedButton.styleFrom(
                                                   padding:
@@ -879,8 +890,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             const SizedBox(height: 8),
                                             Text(
                                               canCreateOwnPin
-                                                  ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.').tr(context)
-                                                  : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.').tr(context),
+                                                  ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
+                                                        .tr(context)
+                                                  : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.')
+                                                        .tr(context),
                                               style: TextStyle(
                                                 color: AppColors.textSecondary,
                                                 fontSize: 11,
@@ -930,7 +943,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       Icons.logout,
                                                       size: 18,
                                                     ),
-                                              label: const PosText('Logout akun'),
+                                              label: const PosText(
+                                                'Logout akun',
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -979,6 +994,105 @@ class _PinLockScreenState extends State<PinLockScreen> {
           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w400),
         ),
       ),
+    );
+  }
+}
+
+class _PinMarketingCarousel extends StatefulWidget {
+  const _PinMarketingCarousel();
+
+  @override
+  State<_PinMarketingCarousel> createState() => _PinMarketingCarouselState();
+}
+
+class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
+  final _controller = PageController();
+  int _page = 0;
+
+  void _show(int page) {
+    _controller.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final english = Localizations.localeOf(context).languageCode == 'en';
+    return Column(
+      key: const Key('pin_marketing_carousel'),
+      children: [
+        Expanded(
+          child: PageView(
+            key: const Key('pin_marketing_slides'),
+            controller: _controller,
+            onPageChanged: (page) => setState(() => _page = page),
+            children: [
+              ColoredBox(
+                color: const Color(0xFFBEF9FE),
+                child: Image.asset(
+                  'assets/images/pin_bni_edc_promo.jpg',
+                  key: const Key('pin_bni_promo'),
+                  fit: BoxFit.contain,
+                  semanticLabel: english
+                      ? 'BNI EDC business payment information'
+                      : 'Informasi layanan pembayaran bisnis EDC BNI',
+                ),
+              ),
+              const _PinMarketingPanel(),
+            ],
+          ),
+        ),
+        Material(
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton.filledTonal(
+                  key: const Key('pin_marketing_previous'),
+                  tooltip: english ? 'Previous image' : 'Gambar sebelumnya',
+                  onPressed: () => _show((_page - 1 + 2) % 2),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                const SizedBox(width: 8),
+                for (var index = 0; index < 2; index++)
+                  Semantics(
+                    label: english
+                        ? 'Image ${index + 1} of 2'
+                        : 'Gambar ${index + 1} dari 2',
+                    selected: index == _page,
+                    child: IconButton(
+                      onPressed: () => _show(index),
+                      icon: Icon(
+                        Icons.circle,
+                        size: index == _page ? 10 : 7,
+                        color: index == _page
+                            ? AppColors.primary
+                            : const Color(0xFF98A2B3),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  key: const Key('pin_marketing_next'),
+                  tooltip: english ? 'Next image' : 'Gambar berikutnya',
+                  onPressed: () => _show((_page + 1) % 2),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -11,7 +11,9 @@ AppLocalizations posCurrentLocale() =>
     lookupAppLocalizations(AppLanguageController.instance.effectiveLocale);
 
 extension PosLocalizedString on String {
-  String tr(BuildContext context) => translatePosText(this, posLocale(context));
+  String tr(BuildContext context) => this == 'Utang & Piutang'
+      ? posLocale(context).tradeTitle
+      : translatePosText(this, posLocale(context));
 
   /// Global toasts can outlive their originating page after an async operation.
   String trCurrent() => translatePosText(

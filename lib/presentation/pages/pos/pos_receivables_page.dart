@@ -15,9 +15,11 @@ class PosReceivablesPage extends StatefulWidget {
     super.key,
     required this.canCollect,
     required this.operatorId,
+    this.initialInvoiceId,
   });
   final bool canCollect;
   final String operatorId;
+  final String? initialInvoiceId;
   @override
   State<PosReceivablesPage> createState() => _PosReceivablesPageState();
 }
@@ -49,7 +51,11 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    unawaited(
+      widget.initialInvoiceId == null
+          ? _load()
+          : _open(widget.initialInvoiceId!),
+    );
   }
 
   @override
@@ -296,17 +302,27 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                 TextButton(
                   onPressed: _loading || _sending ? null : () => _open(id),
                   child: Text(
-                    posLocale(context).posc4171a22051c((id.substring(id.length > 6 ? id.length - 6 : 0)).toString()),
+                    posLocale(context).posc4171a22051c(
+                      (id.substring(
+                        id.length > 6 ? id.length - 6 : 0,
+                      )).toString(),
+                    ),
                   ),
                 ),
             ],
             if (_error.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: PosText(_error, style: const TextStyle(color: Colors.red)),
+                child: PosText(
+                  _error,
+                  style: const TextStyle(color: Colors.red),
+                ),
               ),
             if (_message.isNotEmpty)
-              PosText(_message, style: const TextStyle(color: AppColors.primary)),
+              PosText(
+                _message,
+                style: const TextStyle(color: AppColors.primary),
+              ),
             if (_loading)
               ...List.generate(
                 4,
@@ -360,7 +376,12 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   child: ListTile(
                     title: Text(row['customer_name'].toString()),
                     subtitle: Text(
-                      posLocale(context).pos36e433c66faa((row['source_context']?['receipt_number'] ?? row['invoice_number']).toString(), (row['due_date'] ?? '-').toString()),
+                      posLocale(context).pos36e433c66faa(
+                        (row['source_context']?['receipt_number'] ??
+                                row['invoice_number'])
+                            .toString(),
+                        (row['due_date'] ?? '-').toString(),
+                      ),
                     ),
                     isThreeLine: true,
                     trailing: Text(
@@ -382,7 +403,11 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                         : null,
                     child: const PosText('Sebelumnya'),
                   ),
-                  Text(posLocale(context).posd4d98a649594((_page).toString(), (_total).toString())),
+                  Text(
+                    posLocale(
+                      context,
+                    ).posd4d98a649594((_page).toString(), (_total).toString()),
+                  ),
                   TextButton(
                     onPressed: _page * 20 < _total
                         ? () {
@@ -404,7 +429,12 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               ),
               Text('${invoice['invoice_number']} · ${invoice['status']}'),
               Text(
-                posLocale(context).pos708b9937b7f6((_money(invoice['total_amount'])).toString(), (_money(invoice['paid_amount'])).toString(), (_money(invoice['credited_amount'])).toString(), (_money(invoice['outstanding_amount'])).toString()),
+                posLocale(context).pos708b9937b7f6(
+                  (_money(invoice['total_amount'])).toString(),
+                  (_money(invoice['paid_amount'])).toString(),
+                  (_money(invoice['credited_amount'])).toString(),
+                  (_money(invoice['outstanding_amount'])).toString(),
+                ),
               ),
               const SizedBox(height: 16),
               if (_pending != null)
@@ -419,13 +449,13 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   controller: _amount,
                   enabled: !_sending && _pending == null,
                   keyboardType: TextInputType.number,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Jumlah penerimaan (Rp)').tr(context),
                   ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _method,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Metode penerimaan').tr(context),
                   ),
                   items: const [
@@ -484,8 +514,10 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                   controller: _reference,
                   enabled: !_sending && _pending == null,
                   maxLength: 300,
-                  decoration:  InputDecoration(
-                    labelText: ('Nomor bukti / referensi penerimaan').tr(context),
+                  decoration: InputDecoration(
+                    labelText: ('Nomor bukti / referensi penerimaan').tr(
+                      context,
+                    ),
                   ),
                 ),
                 FilledButton.icon(

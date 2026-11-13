@@ -56,7 +56,7 @@ class PosMoreMenuPage extends StatelessWidget {
         if (can('view_customers')) 9,
         if (can('view_stores')) 10,
         if (can('view_returns')) 13,
-        if (can('view_receivables')) 19,
+        if (can('view_receivables') || can('view_payables')) 19,
         if (can('view_purchase_returns')) 16,
       ],
       'Laporan': [if (can('view_reports')) 12],
@@ -81,11 +81,11 @@ class PosMoreMenuPage extends StatelessWidget {
     10: _MoreDestination('Toko', Icons.storefront_outlined),
     13: _MoreDestination('Retur Penjualan', Icons.keyboard_return_outlined),
     19: _MoreDestination(
-      'Piutang & Pelunasan',
+      'Utang & Piutang',
       Icons.account_balance_wallet_outlined,
     ),
     16: _MoreDestination('Retur ke Supplier', Icons.assignment_return_outlined),
-    12: _MoreDestination('Laporan Penjualan', Icons.bar_chart_outlined),
+    12: _MoreDestination('Laporan', Icons.bar_chart_outlined),
     17: _MoreDestination('Pengaturan POS', Icons.settings_outlined),
     14: _MoreDestination('Pengaturan Struk', Icons.print_outlined),
   };

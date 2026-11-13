@@ -317,7 +317,9 @@ class PosRepository {
         error: error,
         stackTrace: stackTrace,
       );
-      if (isOfflineReadFailure(error)) return cachedConfig ?? fallback;
+      if (isOfflineReadFailure(error)) {
+        return {...(cachedConfig ?? fallback), '_offline_snapshot': true};
+      }
       rethrow;
     }
   }
@@ -1329,13 +1331,47 @@ class PosRepository {
         final activePayload = activeRows.isEmpty
             ? null
             : jsonDecode(activeRows.first['payload'] as String) as Map;
+        final targetCatalogKey = _productSnapshotKey(branchId);
+        final previousKey = activePayload?['catalog_key']?.toString() ?? '';
+        final previousParts = previousKey.split(':');
+        // An ONLINE catalogue may hand stock custody to a different login at
+        // the same tenant/location. Never reuse the previous login's metadata,
+        // restore its consumed stock, or hand a cache across stock locations.
+        final sameStockLocation =
+            previousParts.length == 4 &&
+            previousParts[0] == 'pos_product_catalog_v1' &&
+            previousParts[1] == (_prefs.getString('instansi_id') ?? '') &&
+            previousParts[2].isNotEmpty &&
+            previousParts[3] == branchId;
+        final handover =
+            hasUnresolved &&
+            previousKey != targetCatalogKey &&
+            sameStockLocation;
+        final bootstrap =
+            hasUnresolved &&
+            previousKey.isEmpty &&
+            (await txn.query('products', columns: ['id'], limit: 1)).isEmpty;
         // Preserve the exact stock scope while an older offline sale is
         // unresolved. Never replace already-consumed stock, but unrelated new
         // products in this same scope must still become available offline.
         if (hasUnresolved &&
-            activePayload?['catalog_key'] != _productSnapshotKey(branchId)) {
+            previousKey != targetCatalogKey &&
+            !handover &&
+            !bootstrap) {
+          appLogger.w(
+            '[POS] Catalogue cache retained: previous=$previousKey target=$targetCatalogKey; unresolved stock must not be reset',
+          );
           return;
         }
+        final priorStock = handover
+            ? {
+                for (final row in await txn.query(
+                  'products',
+                  columns: ['id', 'stock'],
+                ))
+                  row['id'].toString(): (row['stock'] as num).toDouble(),
+              }
+            : const <String, double>{};
         final pending = hasUnresolved
             ? await txn.query(
                 'offline_transactions',
@@ -1355,22 +1391,83 @@ class PosRepository {
           }
           pendingPayloads.add(raw);
         }
+        // Logout deliberately clears all read caches without deleting unresolved
+        // sales. Online bootstrap may restore unrelated products, never stock
+        // touched by those sales (including shared BOM/bundle ingredients).
+        // Keep bootstrap reservations across later pages/refreshes until every
+        // unresolved sale is dealt with. Otherwise a second page could refill
+        // a recipe ingredient deliberately withheld by the first page.
+        final heldStock = <String>{
+          if (hasUnresolved && sameStockLocation)
+            for (final id
+                in (activePayload?['held_stock_ids'] as List? ?? const []))
+              id.toString(),
+        };
+        final freshCatalog = {for (final p in products) p.id: p};
+        if (bootstrap) {
+          try {
+            for (final raw in pendingPayloads) {
+              final items = (jsonDecode(raw) as Map)['items'];
+              if (items is! List ||
+                  items.isEmpty ||
+                  items.any((i) => i is! Map)) {
+                throw StateError(
+                  'Unresolved payload has no verifiable stock footprint',
+                );
+              }
+              heldStock.addAll(
+                offlineStockConsumption(
+                  freshCatalog,
+                  items.map((i) => Map<String, dynamic>.from(i as Map)),
+                  validateStock: false,
+                ).keys,
+              );
+            }
+          } on StateError catch (error) {
+            appLogger.w(
+              '[POS] Offline cache bootstrap needs pending product/recipe metadata',
+              error: error,
+            );
+            return;
+          }
+        }
         // A page is a partial snapshot. Merge within the same tenant/user/store
         // catalog instead of deleting products cached from other pages.
-        if (activePayload?['catalog_key'] != _productSnapshotKey(branchId)) {
+        if (previousKey != targetCatalogKey) {
           batch.delete('products');
         }
         for (var product in products) {
+          if (heldStock.isNotEmpty && product.tracksStock) {
+            try {
+              final footprint = offlineStockConsumption(freshCatalog, [
+                {
+                  'inventaris_id': product.id,
+                  'qty': 1,
+                  'unit': product.saleUnit,
+                },
+              ], validateStock: false);
+              if (footprint.keys.any(heldStock.contains)) continue;
+            } on StateError {
+              continue;
+            }
+          }
           if (hasUnresolved &&
               pendingPayloads.any(
                 (raw) => raw.contains(jsonEncode(product.id)),
-              )) {
+              ) &&
+              (!handover || !priorStock.containsKey(product.id))) {
             continue;
           }
+          final stock = handover && priorStock.containsKey(product.id)
+              ? product.stock < priorStock[product.id]!
+                    ? product.stock
+                    : priorStock[product.id]!
+              : product.stock;
+          final productJson = {...product.toJson(), 'stock': stock};
           batch.insert(
             'products',
             {
-              'product_json': jsonEncode(product.toJson()),
+              'product_json': jsonEncode(productJson),
               'id': product.id,
               'code': product.code,
               'name': product.name,
@@ -1379,7 +1476,7 @@ class PosRepository {
               'promo_eligible': product.promoEligible ? 1 : 0,
               'tracks_stock': product.tracksStock ? 1 : 0,
               'price': product.price,
-              'stock': product.stock,
+              'stock': stock,
               'sku': product.sku,
               'barcode': product.barcode,
               'image_url': product.imageUrl,
@@ -1404,6 +1501,7 @@ class PosRepository {
           'scope_key': _activeProductCacheKey,
           'payload': jsonEncode({
             'catalog_key': _productSnapshotKey(branchId),
+            'held_stock_ids': heldStock.toList()..sort(),
             'complete': false,
           }),
           'cached_at': cachedAt,
@@ -3015,6 +3113,9 @@ class PosRepository {
                     ?.toString() ??
                 '';
       if (activeKey != _productSnapshotKey(branchId)) {
+        appLogger.w(
+          '[POS] Offline stock cache mismatch: active=$activeKey target=${_productSnapshotKey(branchId)}',
+        );
         throw StateError(
           'Katalog offline tidak cocok dengan lokasi stok toko. Sambungkan internet dan muat ulang katalog.',
         );

@@ -1,3 +1,4 @@
+import '../../../widgets/pos_metric_card.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -423,48 +424,31 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
+              PosMetricGrid(
                 children: [
-                  Expanded(
-                    child: _buildShiftMetric(
-                      ('Kas seharusnya').tr(context),
-                      formatCurrency.format(posShiftExpectedCash(shift)),
-                    ),
+                  _buildShiftMetric(
+                    ('Kas seharusnya').tr(context),
+                    formatCurrency.format(posShiftExpectedCash(shift)),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildShiftMetric(
-                      ('Transaksi').tr(context),
-                      '${shift['total_transaksi'] ?? 0}',
-                    ),
+                  _buildShiftMetric(
+                    ('Transaksi').tr(context),
+                    '${shift['total_transaksi'] ?? 0}',
                   ),
+                  _buildShiftMetric(
+                    ('Kas awal').tr(context),
+                    formatCurrency.format(shift['opening_cash'] ?? 0),
+                  ),
+                  _buildShiftMetric(
+                    ('Kas masuk / keluar').tr(context),
+                    '${formatCurrency.format(shift['petty_cash_in'] ?? 0)} / ${formatCurrency.format(shift['petty_cash_out'] ?? 0)}',
+                  ),
+                  if ((shift['cash_refund_total'] as num? ?? 0) > 0)
+                    _buildShiftMetric(
+                      ('Refund tunai').tr(context),
+                      formatCurrency.format(shift['cash_refund_total']),
+                    ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildShiftMetric(
-                      ('Kas awal').tr(context),
-                      formatCurrency.format(shift['opening_cash'] ?? 0),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildShiftMetric(
-                      ('Kas masuk / keluar').tr(context),
-                      '${formatCurrency.format(shift['petty_cash_in'] ?? 0)} / ${formatCurrency.format(shift['petty_cash_out'] ?? 0)}',
-                    ),
-                  ),
-                ],
-              ),
-              if ((shift['cash_refund_total'] as num? ?? 0) > 0) ...[
-                const SizedBox(height: 10),
-                _buildShiftMetric(
-                  ('Refund tunai').tr(context),
-                  formatCurrency.format(shift['cash_refund_total']),
-                ),
-              ],
             ],
           ),
         ),
@@ -528,41 +512,11 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
     );
   }
 
-  Widget _buildShiftMetric(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSecondary,
-        border: Border.all(color: AppColors.dividerColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PosText(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 10,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.heading,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildShiftMetric(String label, String value) => PosMetricCard(
+    title: label,
+    value: value,
+    icon: Icons.account_balance_wallet_outlined,
+  );
 
   Widget _buildOpenShiftForm(BuildContext context) {
     double openingCash = 0;

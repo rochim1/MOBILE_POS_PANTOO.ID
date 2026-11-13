@@ -1,3 +1,5 @@
+import 'domain/repositories/pos_trade_repository.dart';
+import 'domain/repositories/pos_financial_report_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'core/notifications/pos_push_repository.dart';
 import 'core/notifications/pos_push_service.dart';
@@ -92,6 +94,13 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
   sl.registerLazySingleton<PosReceiptRepository>(
     () => PosReceiptRepository(sl()),
   );
+  sl.registerLazySingleton<PosTradeRepository>(
+    () => GraphQLPosTradeRepository(sl()),
+  );
+  sl.registerLazySingleton<PosFinancialReportRepository>(
+    () => GraphQLPosFinancialReportRepository(sl()),
+  );
+
   sl.registerLazySingleton<PosReportRepository>(
     () => PosReportRepository(sl()),
   );

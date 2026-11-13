@@ -1,5 +1,4 @@
 export 'bloc/app/app_cubit.dart';
-export 'pages/home/home_page.dart';
 export 'pages/login/login_page.dart';
 export 'pages/pos/pos_shell_page.dart';
 export 'pages/pos/pos_onboarding_page.dart';

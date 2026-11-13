@@ -20387,6 +20387,1272 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Masuk'**
   String get signInAction;
+
+  /// No description provided for @reportPreviousPeriod.
+  ///
+  /// In id, this message translates to:
+  /// **'Dibanding periode sebelumnya'**
+  String get reportPreviousPeriod;
+
+  /// No description provided for @reportAverageTransaction.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai rata-rata setiap transaksi'**
+  String get reportAverageTransaction;
+
+  /// No description provided for @reportTopProductQuantity.
+  ///
+  /// In id, this message translates to:
+  /// **'Jumlah item pada daftar produk teratas'**
+  String get reportTopProductQuantity;
+
+  /// No description provided for @dashboardCatalogProducts.
+  ///
+  /// In id, this message translates to:
+  /// **'Produk yang tersedia dalam katalog'**
+  String get dashboardCatalogProducts;
+
+  /// No description provided for @financialProfitLoss.
+  ///
+  /// In id, this message translates to:
+  /// **'Laba Rugi'**
+  String get financialProfitLoss;
+
+  /// No description provided for @financialReportSubtitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pendapatan dan beban yang sudah dibukukan'**
+  String get financialReportSubtitle;
+
+  /// No description provided for @financialScope.
+  ///
+  /// In id, this message translates to:
+  /// **'Seluruh usaha dalam instansi ini'**
+  String get financialScope;
+
+  /// No description provided for @financialScopeNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Gabungan semua toko/cabang. Bukan laporan toko yang sedang aktif.'**
+  String get financialScopeNote;
+
+  /// No description provided for @financialBasisNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Laporan memakai jurnal terposting. Biaya atau transaksi yang belum dicatat belum termasuk.'**
+  String get financialBasisNote;
+
+  /// No description provided for @financialCostNote.
+  ///
+  /// In id, this message translates to:
+  /// **'HPP mengikuti biaya historis dalam jurnal, bukan harga beli katalog saat ini. Kelengkapan semua biaya usaha belum dapat dipastikan otomatis.'**
+  String get financialCostNote;
+
+  /// No description provided for @financialNetSales.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjualan Bersih'**
+  String get financialNetSales;
+
+  /// No description provided for @financialCogs.
+  ///
+  /// In id, this message translates to:
+  /// **'Harga Pokok Penjualan'**
+  String get financialCogs;
+
+  /// No description provided for @financialGrossProfit.
+  ///
+  /// In id, this message translates to:
+  /// **'Laba Kotor Tercatat'**
+  String get financialGrossProfit;
+
+  /// No description provided for @financialNetProfit.
+  ///
+  /// In id, this message translates to:
+  /// **'Laba/Rugi Tercatat'**
+  String get financialNetProfit;
+
+  /// No description provided for @financialRecorded.
+  ///
+  /// In id, this message translates to:
+  /// **'Sesuai jurnal terposting'**
+  String get financialRecorded;
+
+  /// No description provided for @financialUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum dapat dihitung'**
+  String get financialUnavailable;
+
+  /// No description provided for @financialDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Rincian per akun'**
+  String get financialDetails;
+
+  /// No description provided for @financialOperatingExpenses.
+  ///
+  /// In id, this message translates to:
+  /// **'Biaya Operasional'**
+  String get financialOperatingExpenses;
+
+  /// No description provided for @financialOtherRevenue.
+  ///
+  /// In id, this message translates to:
+  /// **'Pendapatan Lain'**
+  String get financialOtherRevenue;
+
+  /// No description provided for @financialOtherExpenses.
+  ///
+  /// In id, this message translates to:
+  /// **'Beban Lain'**
+  String get financialOtherExpenses;
+
+  /// No description provided for @financialUnclassifiedRevenue.
+  ///
+  /// In id, this message translates to:
+  /// **'Pendapatan Belum Dipetakan'**
+  String get financialUnclassifiedRevenue;
+
+  /// No description provided for @financialUnclassifiedExpenses.
+  ///
+  /// In id, this message translates to:
+  /// **'Beban Belum Dipetakan'**
+  String get financialUnclassifiedExpenses;
+
+  /// No description provided for @financialTotalRevenue.
+  ///
+  /// In id, this message translates to:
+  /// **'Total Pendapatan Tercatat'**
+  String get financialTotalRevenue;
+
+  /// No description provided for @financialTotalExpenses.
+  ///
+  /// In id, this message translates to:
+  /// **'Total Beban Tercatat'**
+  String get financialTotalExpenses;
+
+  /// No description provided for @financialReview.
+  ///
+  /// In id, this message translates to:
+  /// **'Data perlu diperiksa'**
+  String get financialReview;
+
+  /// No description provided for @financialNoEntries.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada jurnal terposting pada periode ini.'**
+  String get financialNoEntries;
+
+  /// No description provided for @financialDenied.
+  ///
+  /// In id, this message translates to:
+  /// **'Akses laporan keuangan belum tersedia'**
+  String get financialDenied;
+
+  /// No description provided for @financialDeniedNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Minta admin memberikan izin laporan Finance. Izin laporan penjualan tidak otomatis membuka laba rugi seluruh usaha.'**
+  String get financialDeniedNote;
+
+  /// No description provided for @financialFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Laporan belum dapat dimuat'**
+  String get financialFailed;
+
+  /// No description provided for @financialFailedNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Periksa koneksi dan coba lagi. Data lama tidak ditampilkan sebagai laporan terbaru.'**
+  String get financialFailedNote;
+
+  /// No description provided for @financialRetry.
+  ///
+  /// In id, this message translates to:
+  /// **'Coba lagi'**
+  String get financialRetry;
+
+  /// No description provided for @financialRefresh.
+  ///
+  /// In id, this message translates to:
+  /// **'Perbarui laporan'**
+  String get financialRefresh;
+
+  /// No description provided for @financialPeriod.
+  ///
+  /// In id, this message translates to:
+  /// **'Periode laporan'**
+  String get financialPeriod;
+
+  /// No description provided for @financialToday.
+  ///
+  /// In id, this message translates to:
+  /// **'Hari ini'**
+  String get financialToday;
+
+  /// No description provided for @financialSevenDays.
+  ///
+  /// In id, this message translates to:
+  /// **'7 hari terakhir'**
+  String get financialSevenDays;
+
+  /// No description provided for @financialThisMonth.
+  ///
+  /// In id, this message translates to:
+  /// **'Bulan ini'**
+  String get financialThisMonth;
+
+  /// No description provided for @financialLastMonth.
+  ///
+  /// In id, this message translates to:
+  /// **'Bulan lalu'**
+  String get financialLastMonth;
+
+  /// No description provided for @financialCustomPeriod.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih rentang tanggal'**
+  String get financialCustomPeriod;
+
+  /// No description provided for @financialInvalidRange.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih periode maksimal 366 hari dan tidak melewati hari ini.'**
+  String get financialInvalidRange;
+
+  /// No description provided for @financialUpdated.
+  ///
+  /// In id, this message translates to:
+  /// **'Diperbarui'**
+  String get financialUpdated;
+
+  /// No description provided for @financialMissingMapping.
+  ///
+  /// In id, this message translates to:
+  /// **'Ada akun yang belum dipetakan atau tidak ditemukan. Periksa klasifikasi akun di Finance.'**
+  String get financialMissingMapping;
+
+  /// No description provided for @financialMissingCogs.
+  ///
+  /// In id, this message translates to:
+  /// **'Pemetaan akun HPP belum tersedia. HPP dan laba kotor belum dapat dipastikan.'**
+  String get financialMissingCogs;
+
+  /// No description provided for @financialUnpostedSales.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi POS belum dibukukan'**
+  String get financialUnpostedSales;
+
+  /// No description provided for @financialUnpostedReturns.
+  ///
+  /// In id, this message translates to:
+  /// **'Retur POS belum dibukukan'**
+  String get financialUnpostedReturns;
+
+  /// No description provided for @financialDraftJournals.
+  ///
+  /// In id, this message translates to:
+  /// **'Jurnal masih berupa draf'**
+  String get financialDraftJournals;
+
+  /// No description provided for @financialUnpostedCogs.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi dengan biaya historis belum memiliki jurnal HPP pada periode ini'**
+  String get financialUnpostedCogs;
+
+  /// No description provided for @financialHeaderPosting.
+  ///
+  /// In id, this message translates to:
+  /// **'Ada pencatatan langsung pada akun kelompok. Periksa jurnal sumber.'**
+  String get financialHeaderPosting;
+
+  /// No description provided for @financialUnknownIssue.
+  ///
+  /// In id, this message translates to:
+  /// **'Ada keterbatasan data yang perlu diperiksa di Finance.'**
+  String get financialUnknownIssue;
+
+  /// No description provided for @financialLedgerDenied.
+  ///
+  /// In id, this message translates to:
+  /// **'Rincian jurnal memerlukan izin buku besar Finance.'**
+  String get financialLedgerDenied;
+
+  /// No description provided for @financialLedger.
+  ///
+  /// In id, this message translates to:
+  /// **'Rincian jurnal'**
+  String get financialLedger;
+
+  /// No description provided for @financialPrevious.
+  ///
+  /// In id, this message translates to:
+  /// **'Sebelumnya'**
+  String get financialPrevious;
+
+  /// No description provided for @financialNext.
+  ///
+  /// In id, this message translates to:
+  /// **'Berikutnya'**
+  String get financialNext;
+
+  /// No description provided for @financialDebit.
+  ///
+  /// In id, this message translates to:
+  /// **'Debit'**
+  String get financialDebit;
+
+  /// No description provided for @financialCredit.
+  ///
+  /// In id, this message translates to:
+  /// **'Kredit'**
+  String get financialCredit;
+
+  /// No description provided for @financialCogsMismatch.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai jurnal HPP berbeda dari biaya historis transaksi'**
+  String get financialCogsMismatch;
+
+  /// No description provided for @financialSessionChanged.
+  ///
+  /// In id, this message translates to:
+  /// **'Sesi atau akses laporan berubah'**
+  String get financialSessionChanged;
+
+  /// No description provided for @financialSessionNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Muat ulang laporan dengan sesi yang aktif. Data dari sesi sebelumnya sudah dihapus.'**
+  String get financialSessionNote;
+
+  /// No description provided for @businessCashFlow.
+  ///
+  /// In id, this message translates to:
+  /// **'Arus Kas'**
+  String get businessCashFlow;
+
+  /// No description provided for @businessAging.
+  ///
+  /// In id, this message translates to:
+  /// **'Piutang & Utang'**
+  String get businessAging;
+
+  /// No description provided for @businessReceivables.
+  ///
+  /// In id, this message translates to:
+  /// **'Piutang Pelanggan'**
+  String get businessReceivables;
+
+  /// No description provided for @businessPayables.
+  ///
+  /// In id, this message translates to:
+  /// **'Utang Pemasok'**
+  String get businessPayables;
+
+  /// No description provided for @businessInventory.
+  ///
+  /// In id, this message translates to:
+  /// **'Persediaan'**
+  String get businessInventory;
+
+  /// No description provided for @businessMovement.
+  ///
+  /// In id, this message translates to:
+  /// **'Pergerakan Stok'**
+  String get businessMovement;
+
+  /// No description provided for @businessRestock.
+  ///
+  /// In id, this message translates to:
+  /// **'Kebutuhan Restok'**
+  String get businessRestock;
+
+  /// No description provided for @businessCutoff.
+  ///
+  /// In id, this message translates to:
+  /// **'Posisi per tanggal'**
+  String get businessCutoff;
+
+  /// No description provided for @businessRange.
+  ///
+  /// In id, this message translates to:
+  /// **'Periode pergerakan'**
+  String get businessRange;
+
+  /// No description provided for @businessSearch.
+  ///
+  /// In id, this message translates to:
+  /// **'Cari nomor dokumen atau nama'**
+  String get businessSearch;
+
+  /// No description provided for @businessAllSources.
+  ///
+  /// In id, this message translates to:
+  /// **'Seluruh sumber yang didukung'**
+  String get businessAllSources;
+
+  /// No description provided for @businessPosSources.
+  ///
+  /// In id, this message translates to:
+  /// **'Hanya invoice POS'**
+  String get businessPosSources;
+
+  /// No description provided for @businessSources.
+  ///
+  /// In id, this message translates to:
+  /// **'Sumber tagihan'**
+  String get businessSources;
+
+  /// No description provided for @businessOpeningCash.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo Awal Kas'**
+  String get businessOpeningCash;
+
+  /// No description provided for @businessCashIn.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang Masuk'**
+  String get businessCashIn;
+
+  /// No description provided for @businessCashOut.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang Keluar'**
+  String get businessCashOut;
+
+  /// No description provided for @businessClosingCash.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo Akhir Kas'**
+  String get businessClosingCash;
+
+  /// No description provided for @businessCashChange.
+  ///
+  /// In id, this message translates to:
+  /// **'Perubahan Bersih Kas'**
+  String get businessCashChange;
+
+  /// No description provided for @businessOutstanding.
+  ///
+  /// In id, this message translates to:
+  /// **'Sisa Tagihan'**
+  String get businessOutstanding;
+
+  /// No description provided for @businessOverdue.
+  ///
+  /// In id, this message translates to:
+  /// **'Lewat Jatuh Tempo'**
+  String get businessOverdue;
+
+  /// No description provided for @businessNotDue.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum Jatuh Tempo'**
+  String get businessNotDue;
+
+  /// No description provided for @businessUnknownDue.
+  ///
+  /// In id, this message translates to:
+  /// **'Jatuh Tempo Belum Diketahui'**
+  String get businessUnknownDue;
+
+  /// No description provided for @businessOpenDocuments.
+  ///
+  /// In id, this message translates to:
+  /// **'Dokumen Terbuka'**
+  String get businessOpenDocuments;
+
+  /// No description provided for @businessExcludedDocuments.
+  ///
+  /// In id, this message translates to:
+  /// **'Sumber Belum Didukung'**
+  String get businessExcludedDocuments;
+
+  /// No description provided for @businessStockValue.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai Persediaan'**
+  String get businessStockValue;
+
+  /// No description provided for @businessBookValue.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo Jurnal Persediaan'**
+  String get businessBookValue;
+
+  /// No description provided for @businessDifference.
+  ///
+  /// In id, this message translates to:
+  /// **'Selisih Nilai Stok'**
+  String get businessDifference;
+
+  /// No description provided for @businessProductsEvidence.
+  ///
+  /// In id, this message translates to:
+  /// **'Produk dengan Bukti'**
+  String get businessProductsEvidence;
+
+  /// No description provided for @businessOpeningStockValue.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai Stok Awal'**
+  String get businessOpeningStockValue;
+
+  /// No description provided for @businessClosingStockValue.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai Stok Akhir'**
+  String get businessClosingStockValue;
+
+  /// No description provided for @businessStockValueChange.
+  ///
+  /// In id, this message translates to:
+  /// **'Perubahan Nilai Stok'**
+  String get businessStockValueChange;
+
+  /// No description provided for @businessStockProducts.
+  ///
+  /// In id, this message translates to:
+  /// **'Produk Stok'**
+  String get businessStockProducts;
+
+  /// No description provided for @businessLowStock.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok Rendah'**
+  String get businessLowStock;
+
+  /// No description provided for @businessOutOfStock.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok Habis'**
+  String get businessOutOfStock;
+
+  /// No description provided for @businessReorderProducts.
+  ///
+  /// In id, this message translates to:
+  /// **'Perlu Restok'**
+  String get businessReorderProducts;
+
+  /// No description provided for @businessReference.
+  ///
+  /// In id, this message translates to:
+  /// **'Referensi'**
+  String get businessReference;
+
+  /// No description provided for @businessParty.
+  ///
+  /// In id, this message translates to:
+  /// **'Pelanggan / Pemasok'**
+  String get businessParty;
+
+  /// No description provided for @businessDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanggal'**
+  String get businessDate;
+
+  /// No description provided for @businessDueDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Jatuh Tempo'**
+  String get businessDueDate;
+
+  /// No description provided for @businessBucket.
+  ///
+  /// In id, this message translates to:
+  /// **'Kelompok Umur'**
+  String get businessBucket;
+
+  /// No description provided for @businessAmount.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai Dokumen'**
+  String get businessAmount;
+
+  /// No description provided for @businessPaid.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran pada Cutoff'**
+  String get businessPaid;
+
+  /// No description provided for @businessCredited.
+  ///
+  /// In id, this message translates to:
+  /// **'Kredit / Retur pada Cutoff'**
+  String get businessCredited;
+
+  /// No description provided for @businessName.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama Produk'**
+  String get businessName;
+
+  /// No description provided for @businessAccount.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun'**
+  String get businessAccount;
+
+  /// No description provided for @businessQuantity.
+  ///
+  /// In id, this message translates to:
+  /// **'Kuantitas'**
+  String get businessQuantity;
+
+  /// No description provided for @businessValue.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai'**
+  String get businessValue;
+
+  /// No description provided for @businessStatus.
+  ///
+  /// In id, this message translates to:
+  /// **'Status Bukti'**
+  String get businessStatus;
+
+  /// No description provided for @businessUnit.
+  ///
+  /// In id, this message translates to:
+  /// **'Satuan Dasar'**
+  String get businessUnit;
+
+  /// No description provided for @businessMinimum.
+  ///
+  /// In id, this message translates to:
+  /// **'Batas Minimum'**
+  String get businessMinimum;
+
+  /// No description provided for @businessReorder.
+  ///
+  /// In id, this message translates to:
+  /// **'Titik Restok'**
+  String get businessReorder;
+
+  /// No description provided for @businessOpeningQuantity.
+  ///
+  /// In id, this message translates to:
+  /// **'Kuantitas Awal'**
+  String get businessOpeningQuantity;
+
+  /// No description provided for @businessIncoming.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang Masuk'**
+  String get businessIncoming;
+
+  /// No description provided for @businessOutgoing.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang Keluar'**
+  String get businessOutgoing;
+
+  /// No description provided for @businessAdjustment.
+  ///
+  /// In id, this message translates to:
+  /// **'Penyesuaian'**
+  String get businessAdjustment;
+
+  /// No description provided for @businessOtherMovement.
+  ///
+  /// In id, this message translates to:
+  /// **'Perubahan Lain'**
+  String get businessOtherMovement;
+
+  /// No description provided for @businessClosingQuantity.
+  ///
+  /// In id, this message translates to:
+  /// **'Kuantitas Akhir'**
+  String get businessClosingQuantity;
+
+  /// No description provided for @businessDescription.
+  ///
+  /// In id, this message translates to:
+  /// **'Keterangan'**
+  String get businessDescription;
+
+  /// No description provided for @businessActivity.
+  ///
+  /// In id, this message translates to:
+  /// **'Aktivitas'**
+  String get businessActivity;
+
+  /// No description provided for @businessOperating.
+  ///
+  /// In id, this message translates to:
+  /// **'Operasional'**
+  String get businessOperating;
+
+  /// No description provided for @businessInvesting.
+  ///
+  /// In id, this message translates to:
+  /// **'Investasi'**
+  String get businessInvesting;
+
+  /// No description provided for @businessFinancing.
+  ///
+  /// In id, this message translates to:
+  /// **'Pendanaan'**
+  String get businessFinancing;
+
+  /// No description provided for @businessUnclassified.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum Terklasifikasi'**
+  String get businessUnclassified;
+
+  /// No description provided for @businessCurrent.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum jatuh tempo'**
+  String get businessCurrent;
+
+  /// No description provided for @businessDays30.
+  ///
+  /// In id, this message translates to:
+  /// **'Terlambat 1–30 hari'**
+  String get businessDays30;
+
+  /// No description provided for @businessDays60.
+  ///
+  /// In id, this message translates to:
+  /// **'Terlambat 31–60 hari'**
+  String get businessDays60;
+
+  /// No description provided for @businessDays90.
+  ///
+  /// In id, this message translates to:
+  /// **'Terlambat 61–90 hari'**
+  String get businessDays90;
+
+  /// No description provided for @businessDaysMore90.
+  ///
+  /// In id, this message translates to:
+  /// **'Terlambat lebih dari 90 hari'**
+  String get businessDaysMore90;
+
+  /// No description provided for @businessComplete.
+  ///
+  /// In id, this message translates to:
+  /// **'Bukti yang diperiksa lengkap'**
+  String get businessComplete;
+
+  /// No description provided for @businessPartial.
+  ///
+  /// In id, this message translates to:
+  /// **'Sebagian sumber belum lengkap'**
+  String get businessPartial;
+
+  /// No description provided for @businessUnknown.
+  ///
+  /// In id, this message translates to:
+  /// **'Bukti belum dapat dipastikan'**
+  String get businessUnknown;
+
+  /// No description provided for @businessDiscrepancy.
+  ///
+  /// In id, this message translates to:
+  /// **'Ada selisih yang perlu diperiksa'**
+  String get businessDiscrepancy;
+
+  /// No description provided for @businessEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak ada rincian sesuai filter. Periksa juga catatan cakupan sumber.'**
+  String get businessEmpty;
+
+  /// No description provided for @businessDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Rincian laporan'**
+  String get businessDetails;
+
+  /// No description provided for @businessSourceNotes.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan sumber dan cakupan'**
+  String get businessSourceNotes;
+
+  /// No description provided for @businessPage.
+  ///
+  /// In id, this message translates to:
+  /// **'Halaman'**
+  String get businessPage;
+
+  /// No description provided for @businessRows.
+  ///
+  /// In id, this message translates to:
+  /// **'baris'**
+  String get businessRows;
+
+  /// No description provided for @businessDenied.
+  ///
+  /// In id, this message translates to:
+  /// **'Laporan ini memerlukan izin Finance dan izin sumber terkait. Persediaan historis memerlukan izin jurnal; restok gabungan memerlukan akses seluruh lokasi.'**
+  String get businessDenied;
+
+  /// No description provided for @businessCashMissing.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun kas/bank belum dipetakan. Saldo tidak dianggap nol.'**
+  String get businessCashMissing;
+
+  /// No description provided for @businessGrossAmbiguous.
+  ///
+  /// In id, this message translates to:
+  /// **'Ada jurnal gabungan yang belum dapat dipisahkan menjadi penerimaan dan pengeluaran bruto. Saldo bersih tetap mengikuti buku besar.'**
+  String get businessGrossAmbiguous;
+
+  /// No description provided for @businessAgingBasis.
+  ///
+  /// In id, this message translates to:
+  /// **'Sisa tagihan dan pembayaran direkonstruksi sampai akhir tanggal cutoff, bukan saldo hari ini.'**
+  String get businessAgingBasis;
+
+  /// No description provided for @businessAgingExclusions.
+  ///
+  /// In id, this message translates to:
+  /// **'Total hanya mencakup sumber yang dapat direkonstruksi. Rincian yang dikeluarkan tercantum pada catatan sumber.'**
+  String get businessAgingExclusions;
+
+  /// No description provided for @businessPosOnly.
+  ///
+  /// In id, this message translates to:
+  /// **'Hanya invoice yang berasal dari transaksi POS; pesanan belum dibayar tidak otomatis menjadi piutang Finance.'**
+  String get businessPosOnly;
+
+  /// No description provided for @businessTradeAR.
+  ///
+  /// In id, this message translates to:
+  /// **'Piutang pelanggan dari sumber yang didukung. Bukan seluruh aset piutang perusahaan.'**
+  String get businessTradeAR;
+
+  /// No description provided for @businessTradeAP.
+  ///
+  /// In id, this message translates to:
+  /// **'Utang dagang pemasok dari sumber yang didukung. Pinjaman, utang gaji, dan pajak tidak termasuk.'**
+  String get businessTradeAP;
+
+  /// No description provided for @businessHistoricalStock.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo dan nilai stok mengikuti bukti historis seluruh lokasi, bukan harga katalog saat ini.'**
+  String get businessHistoricalStock;
+
+  /// No description provided for @businessStockMissing.
+  ///
+  /// In id, this message translates to:
+  /// **'Baseline atau rantai bukti belum lengkap. Stok hari ini tidak dipakai sebagai saldo masa lalu.'**
+  String get businessStockMissing;
+
+  /// No description provided for @businessMovementBasis.
+  ///
+  /// In id, this message translates to:
+  /// **'Kuantitas per produk menggunakan satuan dasar. Saldo awal + masuk − keluar + penyesuaian + perubahan lain = saldo akhir.'**
+  String get businessMovementBasis;
+
+  /// No description provided for @businessMovementMissing.
+  ///
+  /// In id, this message translates to:
+  /// **'Mutasi bruto memerlukan baseline yang sama dan rantai perubahan terverifikasi sepanjang periode. Bukti cutoff terpisah saja tidak membuktikan seluruh mutasi.'**
+  String get businessMovementMissing;
+
+  /// No description provided for @businessRestockLive.
+  ///
+  /// In id, this message translates to:
+  /// **'Daftar restok menunjukkan kondisi hari ini dan ambang minimum/reorder saat ini; bukan laporan historis.'**
+  String get businessRestockLive;
+
+  /// No description provided for @businessExport.
+  ///
+  /// In id, this message translates to:
+  /// **'Ekspor laporan'**
+  String get businessExport;
+
+  /// No description provided for @businessCsv.
+  ///
+  /// In id, this message translates to:
+  /// **'CSV / Excel'**
+  String get businessCsv;
+
+  /// No description provided for @businessPdf.
+  ///
+  /// In id, this message translates to:
+  /// **'PDF'**
+  String get businessPdf;
+
+  /// No description provided for @businessExportChanged.
+  ///
+  /// In id, this message translates to:
+  /// **'Data berubah. Perbarui laporan sebelum mengekspor agar seluruh baris konsisten.'**
+  String get businessExportChanged;
+
+  /// No description provided for @businessExportLimit.
+  ///
+  /// In id, this message translates to:
+  /// **'Ekspor terlalu besar. Persempit periode atau pencarian.'**
+  String get businessExportLimit;
+
+  /// No description provided for @businessExportFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Ekspor belum berhasil. Coba lagi setelah memperbarui laporan.'**
+  String get businessExportFailed;
+
+  /// No description provided for @businessPdfGlyph.
+  ///
+  /// In id, this message translates to:
+  /// **'PDF belum mendukung sebagian karakter pada data ini. Gunakan CSV agar seluruh nama tetap utuh.'**
+  String get businessPdfGlyph;
+
+  /// No description provided for @businessExportScope.
+  ///
+  /// In id, this message translates to:
+  /// **'Cakupan'**
+  String get businessExportScope;
+
+  /// No description provided for @businessExportCurrency.
+  ///
+  /// In id, this message translates to:
+  /// **'Mata uang'**
+  String get businessExportCurrency;
+
+  /// No description provided for @businessExportCoverage.
+  ///
+  /// In id, this message translates to:
+  /// **'Cakupan bukti'**
+  String get businessExportCoverage;
+
+  /// No description provided for @businessExportAllRows.
+  ///
+  /// In id, this message translates to:
+  /// **'Ekspor mencakup seluruh halaman untuk filter ini.'**
+  String get businessExportAllRows;
+
+  /// No description provided for @businessWithheld.
+  ///
+  /// In id, this message translates to:
+  /// **'Potongan Pajak'**
+  String get businessWithheld;
+
+  /// No description provided for @businessCashReconciliation.
+  ///
+  /// In id, this message translates to:
+  /// **'Selisih Rekonsiliasi Kas'**
+  String get businessCashReconciliation;
+
+  /// No description provided for @businessOpenSource.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka dokumen terkini'**
+  String get businessOpenSource;
+
+  /// No description provided for @businessSourceFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Dokumen sumber tidak dapat dibuka. Periksa izin akses lalu coba lagi.'**
+  String get businessSourceFailed;
+
+  /// No description provided for @posPreparingSales.
+  ///
+  /// In id, this message translates to:
+  /// **'Mempersiapkan penjualan...'**
+  String get posPreparingSales;
+
+  /// No description provided for @posCashierNavigationShortcuts.
+  ///
+  /// In id, this message translates to:
+  /// **'Alt+1 / Alt+2 Kasir · Alt+3 Katalog'**
+  String get posCashierNavigationShortcuts;
+
+  /// No description provided for @tradeTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Utang & Piutang'**
+  String get tradeTitle;
+
+  /// No description provided for @tradeCreate.
+  ///
+  /// In id, this message translates to:
+  /// **'Catat Tagihan Manual'**
+  String get tradeCreate;
+
+  /// No description provided for @tradeNewBill.
+  ///
+  /// In id, this message translates to:
+  /// **'Tagihan baru'**
+  String get tradeNewBill;
+
+  /// No description provided for @tradeOpening.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo awal belum tercatat'**
+  String get tradeOpening;
+
+  /// No description provided for @tradeManualNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Untuk tagihan uang tanpa rincian stok atau pajak. Jangan mencatat ulang invoice yang sudah ada di Finance.'**
+  String get tradeManualNote;
+
+  /// No description provided for @tradeOpeningNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Hanya saldo yang belum pernah dicatat di Finance. Saldo awal masuk ke ekuitas dan tidak menjadi pendapatan atau beban baru.'**
+  String get tradeOpeningNote;
+
+  /// No description provided for @tradeCustomer.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama pelanggan'**
+  String get tradeCustomer;
+
+  /// No description provided for @tradeSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama pemasok'**
+  String get tradeSupplier;
+
+  /// No description provided for @tradeExistingCustomer.
+  ///
+  /// In id, this message translates to:
+  /// **'Pelanggan terdaftar (opsional)'**
+  String get tradeExistingCustomer;
+
+  /// No description provided for @tradeNewCustomer.
+  ///
+  /// In id, this message translates to:
+  /// **'Gunakan nama pelanggan'**
+  String get tradeNewCustomer;
+
+  /// No description provided for @tradeControl.
+  ///
+  /// In id, this message translates to:
+  /// **'Kelompok tagihan'**
+  String get tradeControl;
+
+  /// No description provided for @tradeCounter.
+  ///
+  /// In id, this message translates to:
+  /// **'Kategori pencatatan'**
+  String get tradeCounter;
+
+  /// No description provided for @tradeSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan Tagihan'**
+  String get tradeSave;
+
+  /// No description provided for @tradePay.
+  ///
+  /// In id, this message translates to:
+  /// **'Catat Pembayaran'**
+  String get tradePay;
+
+  /// No description provided for @tradeReceive.
+  ///
+  /// In id, this message translates to:
+  /// **'Catat Penerimaan'**
+  String get tradeReceive;
+
+  /// No description provided for @tradePaymentNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Pencatatan online ke akun Finance. Ini bukan penjualan baru dan tidak mengubah uang laci shift.'**
+  String get tradePaymentNote;
+
+  /// No description provided for @tradeCash.
+  ///
+  /// In id, this message translates to:
+  /// **'Tunai — kas Finance'**
+  String get tradeCash;
+
+  /// No description provided for @tradeTransfer.
+  ///
+  /// In id, this message translates to:
+  /// **'Transfer bank'**
+  String get tradeTransfer;
+
+  /// No description provided for @tradeCashAccount.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun kas penerimaan'**
+  String get tradeCashAccount;
+
+  /// No description provided for @tradeBank.
+  ///
+  /// In id, this message translates to:
+  /// **'Rekening bank'**
+  String get tradeBank;
+
+  /// No description provided for @tradePending.
+  ///
+  /// In id, this message translates to:
+  /// **'Permintaan belum terkonfirmasi'**
+  String get tradePending;
+
+  /// No description provided for @tradePendingNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Jangan membuat pencatatan atau pembayaran pengganti. Konfirmasi kembali menggunakan permintaan yang sama.'**
+  String get tradePendingNote;
+
+  /// No description provided for @tradeRetrySame.
+  ///
+  /// In id, this message translates to:
+  /// **'Konfirmasi ulang'**
+  String get tradeRetrySame;
+
+  /// No description provided for @tradeCreateSuccess.
+  ///
+  /// In id, this message translates to:
+  /// **'Tagihan dan jurnal berhasil dicatat.'**
+  String get tradeCreateSuccess;
+
+  /// No description provided for @tradePaySuccess.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran dan jurnal berhasil dicatat.'**
+  String get tradePaySuccess;
+
+  /// No description provided for @tradeDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Rincian tagihan'**
+  String get tradeDetails;
+
+  /// No description provided for @tradeHistory.
+  ///
+  /// In id, this message translates to:
+  /// **'Riwayat pembayaran'**
+  String get tradeHistory;
+
+  /// No description provided for @tradeNoHistory.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada pembayaran.'**
+  String get tradeNoHistory;
+
+  /// No description provided for @tradeLastHistory.
+  ///
+  /// In id, this message translates to:
+  /// **'Menampilkan maksimal 50 pembayaran terakhir.'**
+  String get tradeLastHistory;
+
+  /// No description provided for @tradeConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Konfirmasi pencatatan'**
+  String get tradeConfirm;
+
+  /// No description provided for @tradeConfirmNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Periksa kembali pihak, nominal, tanggal dan kategori. Tindakan ini membentuk jurnal serta memperbarui saldo Finance.'**
+  String get tradeConfirmNote;
+
+  /// No description provided for @tradeCancel.
+  ///
+  /// In id, this message translates to:
+  /// **'Batal'**
+  String get tradeCancel;
+
+  /// No description provided for @tradeContinue.
+  ///
+  /// In id, this message translates to:
+  /// **'Ya, catat'**
+  String get tradeContinue;
+
+  /// No description provided for @tradeRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Wajib diisi.'**
+  String get tradeRequired;
+
+  /// No description provided for @tradeInvalidAmount.
+  ///
+  /// In id, this message translates to:
+  /// **'Masukkan Rupiah bulat positif sesuai sisa tagihan.'**
+  String get tradeInvalidAmount;
+
+  /// No description provided for @tradeInvalidDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanggal atau jatuh tempo tidak valid.'**
+  String get tradeInvalidDate;
+
+  /// No description provided for @tradeNoAccounts.
+  ///
+  /// In id, this message translates to:
+  /// **'Kategori akun belum tersedia. Lengkapi pemetaan akun melalui Finance terlebih dahulu.'**
+  String get tradeNoAccounts;
+
+  /// No description provided for @tradeSettled.
+  ///
+  /// In id, this message translates to:
+  /// **'Tampilkan yang sudah selesai'**
+  String get tradeSettled;
+
+  /// No description provided for @tradeSearch.
+  ///
+  /// In id, this message translates to:
+  /// **'Cari pihak atau nomor dokumen'**
+  String get tradeSearch;
+
+  /// No description provided for @tradeNoAccess.
+  ///
+  /// In id, this message translates to:
+  /// **'Akses utang/piutang belum tersedia untuk pengguna ini.'**
+  String get tradeNoAccess;
+
+  /// No description provided for @tradePOSScope.
+  ///
+  /// In id, this message translates to:
+  /// **'Hanya piutang POS pada toko yang diizinkan. Pencatatan manual memerlukan akses Finance seluruh instansi.'**
+  String get tradePOSScope;
+
+  /// No description provided for @tradeProof.
+  ///
+  /// In id, this message translates to:
+  /// **'Bukti pencatatan'**
+  String get tradeProof;
+
+  /// No description provided for @tradeJournal.
+  ///
+  /// In id, this message translates to:
+  /// **'Nomor jurnal'**
+  String get tradeJournal;
+
+  /// No description provided for @tradeUnverified.
+  ///
+  /// In id, this message translates to:
+  /// **'Bukti jurnal belum dapat dipastikan.'**
+  String get tradeUnverified;
+
+  /// No description provided for @tradeNotes.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan (opsional)'**
+  String get tradeNotes;
+
+  /// No description provided for @tradeSavedCustomer.
+  ///
+  /// In id, this message translates to:
+  /// **'Pelanggan terpilih'**
+  String get tradeSavedCustomer;
+
+  /// No description provided for @tradeUnknown.
+  ///
+  /// In id, this message translates to:
+  /// **'Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.'**
+  String get tradeUnknown;
 }
 
 class _AppLocalizationsDelegate

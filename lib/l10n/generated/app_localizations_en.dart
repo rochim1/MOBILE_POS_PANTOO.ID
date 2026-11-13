@@ -11564,4 +11564,683 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get signInAction => 'Sign In';
+
+  @override
+  String get reportPreviousPeriod => 'Compared with previous period';
+
+  @override
+  String get reportAverageTransaction => 'Average value per transaction';
+
+  @override
+  String get reportTopProductQuantity =>
+      'Items sold from the top products list';
+
+  @override
+  String get dashboardCatalogProducts => 'Products available in the catalog';
+
+  @override
+  String get financialProfitLoss => 'Profit & Loss';
+
+  @override
+  String get financialReportSubtitle => 'Posted income and expenses';
+
+  @override
+  String get financialScope => 'All businesses in this organization';
+
+  @override
+  String get financialScopeNote =>
+      'Combines all stores and branches, not only the active store.';
+
+  @override
+  String get financialBasisNote =>
+      'This report uses posted journals. Unrecorded expenses or transactions are not included.';
+
+  @override
+  String get financialCostNote =>
+      'Cost of sales follows historical journal costs, not current catalog purchase prices. Complete recording of all business expenses cannot be verified automatically.';
+
+  @override
+  String get financialNetSales => 'Net Sales';
+
+  @override
+  String get financialCogs => 'Cost of Sales';
+
+  @override
+  String get financialGrossProfit => 'Recorded Gross Profit';
+
+  @override
+  String get financialNetProfit => 'Recorded Net Profit / Loss';
+
+  @override
+  String get financialRecorded => 'Based on posted journals';
+
+  @override
+  String get financialUnavailable => 'Not available yet';
+
+  @override
+  String get financialDetails => 'Account Breakdown';
+
+  @override
+  String get financialOperatingExpenses => 'Operating Expenses';
+
+  @override
+  String get financialOtherRevenue => 'Other Income';
+
+  @override
+  String get financialOtherExpenses => 'Other Expenses';
+
+  @override
+  String get financialUnclassifiedRevenue => 'Unclassified Income';
+
+  @override
+  String get financialUnclassifiedExpenses => 'Unclassified Expenses';
+
+  @override
+  String get financialTotalRevenue => 'Total Recorded Income';
+
+  @override
+  String get financialTotalExpenses => 'Total Recorded Expenses';
+
+  @override
+  String get financialReview => 'Data needs review';
+
+  @override
+  String get financialNoEntries => 'No posted journals in this period.';
+
+  @override
+  String get financialDenied => 'Financial report access is not available';
+
+  @override
+  String get financialDeniedNote =>
+      'Ask an administrator for Finance report access. Sales report access does not automatically include organization-wide profit and loss.';
+
+  @override
+  String get financialFailed => 'Report could not be loaded';
+
+  @override
+  String get financialFailedNote =>
+      'Check your connection and try again. Previous data is not displayed as a current report.';
+
+  @override
+  String get financialRetry => 'Try Again';
+
+  @override
+  String get financialRefresh => 'Refresh Report';
+
+  @override
+  String get financialPeriod => 'Report Period';
+
+  @override
+  String get financialToday => 'Today';
+
+  @override
+  String get financialSevenDays => 'Last 7 Days';
+
+  @override
+  String get financialThisMonth => 'This Month';
+
+  @override
+  String get financialLastMonth => 'Last Month';
+
+  @override
+  String get financialCustomPeriod => 'Choose Date Range';
+
+  @override
+  String get financialInvalidRange =>
+      'Choose a period of up to 366 days ending no later than today.';
+
+  @override
+  String get financialUpdated => 'Updated';
+
+  @override
+  String get financialMissingMapping =>
+      'Some accounts are unclassified or missing. Review account classification in Finance.';
+
+  @override
+  String get financialMissingCogs =>
+      'Cost of sales accounts are not configured. Cost of sales and gross profit cannot be confirmed.';
+
+  @override
+  String get financialUnpostedSales => 'POS sales not yet posted';
+
+  @override
+  String get financialUnpostedReturns => 'POS returns not yet posted';
+
+  @override
+  String get financialDraftJournals => 'Draft journals';
+
+  @override
+  String get financialUnpostedCogs =>
+      'Transactions with historical costs have no posted cost journal in this period';
+
+  @override
+  String get financialHeaderPosting =>
+      'Some journals post directly to a header account. Review the source journals.';
+
+  @override
+  String get financialUnknownIssue =>
+      'Some data limitations need review in Finance.';
+
+  @override
+  String get financialLedgerDenied =>
+      'Journal details require Finance general ledger access.';
+
+  @override
+  String get financialLedger => 'Journal Entries';
+
+  @override
+  String get financialPrevious => 'Previous';
+
+  @override
+  String get financialNext => 'Next';
+
+  @override
+  String get financialDebit => 'Debit';
+
+  @override
+  String get financialCredit => 'Credit';
+
+  @override
+  String get financialCogsMismatch =>
+      'Posted cost journal differs from the historical transaction cost';
+
+  @override
+  String get financialSessionChanged => 'Report session or access changed';
+
+  @override
+  String get financialSessionNote =>
+      'Reload the report using your active session. Previous session data has been cleared.';
+
+  @override
+  String get businessCashFlow => 'Cash Flow';
+
+  @override
+  String get businessAging => 'Receivables & Payables';
+
+  @override
+  String get businessReceivables => 'Customer Receivables';
+
+  @override
+  String get businessPayables => 'Supplier Payables';
+
+  @override
+  String get businessInventory => 'Inventory';
+
+  @override
+  String get businessMovement => 'Stock Movements';
+
+  @override
+  String get businessRestock => 'Restock Needs';
+
+  @override
+  String get businessCutoff => 'As of Date';
+
+  @override
+  String get businessRange => 'Movement Period';
+
+  @override
+  String get businessSearch => 'Search reference or name';
+
+  @override
+  String get businessAllSources => 'All Supported Sources';
+
+  @override
+  String get businessPosSources => 'POS Invoices Only';
+
+  @override
+  String get businessSources => 'Invoice Source';
+
+  @override
+  String get businessOpeningCash => 'Opening Cash';
+
+  @override
+  String get businessCashIn => 'Cash In';
+
+  @override
+  String get businessCashOut => 'Cash Out';
+
+  @override
+  String get businessClosingCash => 'Closing Cash';
+
+  @override
+  String get businessCashChange => 'Net Cash Change';
+
+  @override
+  String get businessOutstanding => 'Outstanding';
+
+  @override
+  String get businessOverdue => 'Overdue';
+
+  @override
+  String get businessNotDue => 'Not Yet Due';
+
+  @override
+  String get businessUnknownDue => 'Due Date Unknown';
+
+  @override
+  String get businessOpenDocuments => 'Open Documents';
+
+  @override
+  String get businessExcludedDocuments => 'Excluded Sources';
+
+  @override
+  String get businessStockValue => 'Inventory Value';
+
+  @override
+  String get businessBookValue => 'Inventory Ledger Balance';
+
+  @override
+  String get businessDifference => 'Inventory Difference';
+
+  @override
+  String get businessProductsEvidence => 'Products with Evidence';
+
+  @override
+  String get businessOpeningStockValue => 'Opening Inventory Value';
+
+  @override
+  String get businessClosingStockValue => 'Closing Inventory Value';
+
+  @override
+  String get businessStockValueChange => 'Inventory Value Change';
+
+  @override
+  String get businessStockProducts => 'Stock Products';
+
+  @override
+  String get businessLowStock => 'Low Stock';
+
+  @override
+  String get businessOutOfStock => 'Out of Stock';
+
+  @override
+  String get businessReorderProducts => 'Needs Restocking';
+
+  @override
+  String get businessReference => 'Reference';
+
+  @override
+  String get businessParty => 'Customer / Supplier';
+
+  @override
+  String get businessDate => 'Date';
+
+  @override
+  String get businessDueDate => 'Due Date';
+
+  @override
+  String get businessBucket => 'Aging Bucket';
+
+  @override
+  String get businessAmount => 'Document Amount';
+
+  @override
+  String get businessPaid => 'Payments at Cutoff';
+
+  @override
+  String get businessCredited => 'Credits / Returns at Cutoff';
+
+  @override
+  String get businessName => 'Product Name';
+
+  @override
+  String get businessAccount => 'Account';
+
+  @override
+  String get businessQuantity => 'Quantity';
+
+  @override
+  String get businessValue => 'Value';
+
+  @override
+  String get businessStatus => 'Evidence Status';
+
+  @override
+  String get businessUnit => 'Base Unit';
+
+  @override
+  String get businessMinimum => 'Minimum Level';
+
+  @override
+  String get businessReorder => 'Reorder Point';
+
+  @override
+  String get businessOpeningQuantity => 'Opening Quantity';
+
+  @override
+  String get businessIncoming => 'Stock In';
+
+  @override
+  String get businessOutgoing => 'Stock Out';
+
+  @override
+  String get businessAdjustment => 'Adjustment';
+
+  @override
+  String get businessOtherMovement => 'Other Changes';
+
+  @override
+  String get businessClosingQuantity => 'Closing Quantity';
+
+  @override
+  String get businessDescription => 'Description';
+
+  @override
+  String get businessActivity => 'Activity';
+
+  @override
+  String get businessOperating => 'Operating';
+
+  @override
+  String get businessInvesting => 'Investing';
+
+  @override
+  String get businessFinancing => 'Financing';
+
+  @override
+  String get businessUnclassified => 'Unclassified';
+
+  @override
+  String get businessCurrent => 'Not Yet Due';
+
+  @override
+  String get businessDays30 => '1–30 Days Overdue';
+
+  @override
+  String get businessDays60 => '31–60 Days Overdue';
+
+  @override
+  String get businessDays90 => '61–90 Days Overdue';
+
+  @override
+  String get businessDaysMore90 => 'Over 90 Days Overdue';
+
+  @override
+  String get businessComplete => 'Checked Evidence Complete';
+
+  @override
+  String get businessPartial => 'Some Sources Are Incomplete';
+
+  @override
+  String get businessUnknown => 'Evidence Is Not Yet Verified';
+
+  @override
+  String get businessDiscrepancy => 'Difference Needs Review';
+
+  @override
+  String get businessEmpty =>
+      'No details match the filter. Also review the source coverage notes.';
+
+  @override
+  String get businessDetails => 'Report Details';
+
+  @override
+  String get businessSourceNotes => 'Source and Coverage Notes';
+
+  @override
+  String get businessPage => 'Page';
+
+  @override
+  String get businessRows => 'rows';
+
+  @override
+  String get businessDenied =>
+      'This report requires Finance and source permissions. Historical inventory requires journal access; combined restocking requires all-location access.';
+
+  @override
+  String get businessCashMissing =>
+      'Cash/bank accounts are not mapped. Balances are not assumed to be zero.';
+
+  @override
+  String get businessGrossAmbiguous =>
+      'Some combined journals cannot be separated into gross receipts and payments. Net balances still follow the ledger.';
+
+  @override
+  String get businessAgingBasis =>
+      'Outstanding amounts and payments are reconstructed through the cutoff date, not taken from today’s balances.';
+
+  @override
+  String get businessAgingExclusions =>
+      'Totals include only reconstructable sources. Excluded records are listed in the source notes.';
+
+  @override
+  String get businessPosOnly =>
+      'Only invoices originating from POS transactions; unpaid orders are not automatically Finance receivables.';
+
+  @override
+  String get businessTradeAR =>
+      'Customer receivables from supported sources, not every company receivable asset.';
+
+  @override
+  String get businessTradeAP =>
+      'Supported supplier trade payables; loans, payroll liabilities and taxes are excluded.';
+
+  @override
+  String get businessHistoricalStock =>
+      'Inventory balances and values follow historical evidence across all locations, not current catalog prices.';
+
+  @override
+  String get businessStockMissing =>
+      'The baseline or evidence chain is incomplete. Current stock is not substituted for historical balances.';
+
+  @override
+  String get businessMovementBasis =>
+      'Per-product quantities use base units. Opening + in − out + adjustments + other changes = closing.';
+
+  @override
+  String get businessMovementMissing =>
+      'Gross movements require a shared baseline and a verified event chain throughout the period. Separate cutoff snapshots alone do not prove all movements.';
+
+  @override
+  String get businessRestockLive =>
+      'Restock needs use today’s stock and current minimum/reorder thresholds; this is not a historical report.';
+
+  @override
+  String get businessExport => 'Export Report';
+
+  @override
+  String get businessCsv => 'CSV / Excel';
+
+  @override
+  String get businessPdf => 'PDF';
+
+  @override
+  String get businessExportChanged =>
+      'Data changed. Refresh the report before exporting so all rows are consistent.';
+
+  @override
+  String get businessExportLimit =>
+      'Export is too large. Narrow the period or search.';
+
+  @override
+  String get businessExportFailed =>
+      'Export failed. Refresh the report and try again.';
+
+  @override
+  String get businessPdfGlyph =>
+      'PDF does not support some characters in this data. Use CSV to preserve all names.';
+
+  @override
+  String get businessExportScope => 'Scope';
+
+  @override
+  String get businessExportCurrency => 'Currency';
+
+  @override
+  String get businessExportCoverage => 'Evidence Coverage';
+
+  @override
+  String get businessExportAllRows =>
+      'Export includes every page for this filter.';
+
+  @override
+  String get businessWithheld => 'Tax Withheld';
+
+  @override
+  String get businessCashReconciliation => 'Cash Reconciliation Difference';
+
+  @override
+  String get businessOpenSource => 'Open current document';
+
+  @override
+  String get businessSourceFailed =>
+      'The source document could not be opened. Check access and try again.';
+
+  @override
+  String get posPreparingSales => 'Preparing sales...';
+
+  @override
+  String get posCashierNavigationShortcuts =>
+      'Alt+1 / Alt+2 Cashier · Alt+3 Catalog';
+
+  @override
+  String get tradeTitle => 'Payables & Receivables';
+
+  @override
+  String get tradeCreate => 'Record Manual Bill';
+
+  @override
+  String get tradeNewBill => 'New bill';
+
+  @override
+  String get tradeOpening => 'Unrecorded opening balance';
+
+  @override
+  String get tradeManualNote =>
+      'For monetary bills without stock or tax lines. Do not re-enter an invoice already recorded in Finance.';
+
+  @override
+  String get tradeOpeningNote =>
+      'Only balances never recorded in Finance. Opening balances use equity and do not become new income or expenses.';
+
+  @override
+  String get tradeCustomer => 'Customer name';
+
+  @override
+  String get tradeSupplier => 'Supplier name';
+
+  @override
+  String get tradeExistingCustomer => 'Existing customer (optional)';
+
+  @override
+  String get tradeNewCustomer => 'Use customer name';
+
+  @override
+  String get tradeControl => 'Bill account';
+
+  @override
+  String get tradeCounter => 'Entry category';
+
+  @override
+  String get tradeSave => 'Save Bill';
+
+  @override
+  String get tradePay => 'Record Payment';
+
+  @override
+  String get tradeReceive => 'Record Receipt';
+
+  @override
+  String get tradePaymentNote =>
+      'Online entry to Finance accounts. This is not a new sale and does not change the shift cash drawer.';
+
+  @override
+  String get tradeCash => 'Cash — Finance account';
+
+  @override
+  String get tradeTransfer => 'Bank transfer';
+
+  @override
+  String get tradeCashAccount => 'Receipt cash account';
+
+  @override
+  String get tradeBank => 'Bank account';
+
+  @override
+  String get tradePending => 'Unconfirmed request';
+
+  @override
+  String get tradePendingNote =>
+      'Do not create a replacement entry or payment. Confirm again using the same request.';
+
+  @override
+  String get tradeRetrySame => 'Confirm again';
+
+  @override
+  String get tradeCreateSuccess => 'Bill and journal recorded.';
+
+  @override
+  String get tradePaySuccess => 'Payment and journal recorded.';
+
+  @override
+  String get tradeDetails => 'Bill details';
+
+  @override
+  String get tradeHistory => 'Payment history';
+
+  @override
+  String get tradeNoHistory => 'No payments yet.';
+
+  @override
+  String get tradeLastHistory => 'Showing up to the latest 50 payments.';
+
+  @override
+  String get tradeConfirm => 'Confirm entry';
+
+  @override
+  String get tradeConfirmNote =>
+      'Check the party, amount, date and category. This action posts a journal and updates Finance balances.';
+
+  @override
+  String get tradeCancel => 'Cancel';
+
+  @override
+  String get tradeContinue => 'Yes, record';
+
+  @override
+  String get tradeRequired => 'Required.';
+
+  @override
+  String get tradeInvalidAmount =>
+      'Enter a positive whole Rupiah amount within the outstanding balance.';
+
+  @override
+  String get tradeInvalidDate => 'Invalid date or due date.';
+
+  @override
+  String get tradeNoAccounts =>
+      'Account categories are unavailable. Configure Finance account mappings first.';
+
+  @override
+  String get tradeSettled => 'Include settled bills';
+
+  @override
+  String get tradeSearch => 'Search party or document number';
+
+  @override
+  String get tradeNoAccess =>
+      'Payables/receivables access is unavailable for this user.';
+
+  @override
+  String get tradePOSScope =>
+      'Only POS receivables for permitted stores. Manual entries require tenant-wide Finance access.';
+
+  @override
+  String get tradeProof => 'Recorded payment';
+
+  @override
+  String get tradeJournal => 'Journal number';
+
+  @override
+  String get tradeUnverified => 'Journal evidence could not be verified.';
+
+  @override
+  String get tradeNotes => 'Notes (optional)';
+
+  @override
+  String get tradeSavedCustomer => 'Selected customer';
+
+  @override
+  String get tradeUnknown =>
+      'The result is not confirmed. Confirm again using the same request.';
 }

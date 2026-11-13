@@ -389,9 +389,6 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           errorMessage: '',
         ),
       );
-
-      // Also load dashboard data
-      add(LoadDashboardData(days: _requestedDashboardDays));
     } catch (e) {
       if (!isCurrent()) return;
       emit(

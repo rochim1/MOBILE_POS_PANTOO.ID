@@ -419,7 +419,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) =>
-            const PosShellPage(prepareDashboard: true, showSetupGuide: true),
+            const PosShellPage(prepareSalesData: true, showSetupGuide: true),
       ),
       (_) => false,
     );
@@ -511,7 +511,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
         DropdownButtonFormField<String>(
           initialValue: options.contains(value) ? value : options.first,
           decoration: InputDecoration(
-            hintText: posLocale(context).pos42aa2abf5ad3((title.toLowerCase()).toString()),
+            hintText: posLocale(
+              context,
+            ).pos42aa2abf5ad3((title.toLowerCase()).toString()),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 13,
@@ -560,7 +562,10 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               }
             })
           : null,
-      title: PosText(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      title: PosText(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
       subtitle: PosText(subtitle),
     ),
   );
@@ -640,7 +645,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         icon: Icons.storefront_outlined,
                         title: ('Pilih profil usaha').tr(context),
                         description:
-                            ('Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.').tr(context),
+                            ('Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.')
+                                .tr(context),
                         children: [
                           if (_profileCatalog.source != 'backend')
                             const Padding(
@@ -685,7 +691,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         icon: Icons.tune_rounded,
                         title: ('Kebutuhan operasional').tr(context),
                         description:
-                            ('Aktifkan hanya fitur yang digunakan usaha Anda.').tr(context),
+                            ('Aktifkan hanya fitur yang digunakan usaha Anda.')
+                                .tr(context),
                         children: [
                           ..._profileCatalog.featureOptions.map(
                             (option) => _switch(
@@ -704,7 +711,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         icon: Icons.point_of_sale_outlined,
                         title: ('Default transaksi').tr(context),
                         description:
-                            ('Channel, tipe pemenuhan, dan level harga disimpan sebagai konteks terpisah.').tr(context),
+                            ('Channel, tipe pemenuhan, dan level harga disimpan sebagai konteks terpisah.')
+                                .tr(context),
                         children: [
                           _dropdown(
                             'Channel penjualan',
@@ -726,7 +734,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                           ),
                           TextFormField(
                             controller: _taxController,
-                            decoration:  InputDecoration(
+                            decoration: InputDecoration(
                               labelText: ('Pajak transaksi (%)').tr(context),
                             ),
                             keyboardType: const TextInputType.numberWithOptions(
@@ -740,15 +748,20 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                             ),
                           ),
                           if (_taxPercent < 0 || _taxPercent > 100)
-                            const PosText('Pajak harus antara 0 dan 100 persen'),
+                            const PosText(
+                              'Pajak harus antara 0 dan 100 persen',
+                            ),
                         ],
                       ),
                       _Slide(
                         stepLabel: 'Langkah 4 dari 4 · Validasi Inventory',
                         icon: Icons.check_circle_outline_rounded,
-                        title: ('Pastikan POS dan Inventory sejalan').tr(context),
+                        title: ('Pastikan POS dan Inventory sejalan').tr(
+                          context,
+                        ),
                         description:
-                            ('Pengaturan disimpan ke database dan digunakan bersama POS Admin serta Inventory.').tr(context),
+                            ('Pengaturan disimpan ke database dan digunakan bersama POS Admin serta Inventory.')
+                                .tr(context),
                         children: [
                           _Summary(
                             'Profil Inventory',
@@ -853,7 +866,11 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                                       : Icons.arrow_forward_rounded,
                                   size: 18,
                                 ),
-                          label: Text(_index == 3 ? ('Simpan').tr(context) : ('Lanjut').tr(context)),
+                          label: Text(
+                            _index == 3
+                                ? ('Simpan').tr(context)
+                                : ('Lanjut').tr(context),
+                          ),
                           style: FilledButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: AppColors.primary,

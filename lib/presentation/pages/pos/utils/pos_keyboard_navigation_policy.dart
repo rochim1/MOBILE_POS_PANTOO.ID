@@ -13,7 +13,7 @@ bool canOpenPosKeyboardDestination(
   bool can(String key) => permissions[key] == true;
 
   return switch (index) {
-    0 => can('view_dashboard'),
+    0 => false,
     1 => can('use_cashier'),
     2 => can('view_products'),
     3 => can('view_transactions'),

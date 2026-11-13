@@ -79,19 +79,21 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   }
 
   String _paymentMethodLabel(String value) => switch (value.toLowerCase()) {
-    'transfer' => ('Transfer').trCurrent(),
-    'qris' => ('QRIS').trCurrent(),
-    'debit' => ('Kartu Debit').trCurrent(),
-    'kartu_kredit' || 'credit_card' => ('Kartu Kredit').trCurrent(),
-    'e_wallet' => ('E-Wallet').trCurrent(),
-    'tempo' => ('Tempo / Piutang').trCurrent(),
-    _ => ('Tunai').trCurrent(),
+    // Stable business keys; translate only when rendering their labels.
+    'transfer' => 'Transfer',
+    'qris' => 'QRIS',
+    'debit' => 'Kartu Debit',
+    'kartu_kredit' || 'credit_card' => 'Kartu Kredit',
+    'e_wallet' => 'E-Wallet',
+    'tempo' => 'Tempo / Piutang',
+    _ => 'Tunai',
   };
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         toolbarHeight: 64,
@@ -102,12 +104,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         ),
         title: Row(
           children: [
-            const Icon(
-              Icons.storefront_outlined,
-              color: Colors.white,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
+            if (MediaQuery.sizeOf(context).width >= 600) ...[
+              const Icon(
+                Icons.storefront_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -232,8 +236,20 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               total < state.minimumCashTransaction;
           return LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 760;
+              final compact =
+                  constraints.maxWidth < 760 || constraints.maxHeight < 480;
+              if (compact) {
+                return _buildMobilePayment(
+                  state,
+                  total,
+                  subtotal,
+                  discount,
+                  tax,
+                  belowCashMinimum,
+                );
+              }
               return Flex(
+                key: const Key('payment_desktop_layout'),
                 direction: compact ? Axis.vertical : Axis.horizontal,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -364,14 +380,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                             ],
                                           ),
                                         ),
-                                        _buildPaymentMethodTile(('Tunai').tr(context)),
-                                        _buildPaymentMethodTile(('Kartu Debit').tr(context)),
-                                        _buildPaymentMethodTile(('Transfer').tr(context)),
-                                        _buildPaymentMethodTile(('QRIS').tr(context)),
-                                        _buildPaymentMethodTile(('E-Wallet').tr(context)),
-                                        _buildPaymentMethodTile(('Kartu Kredit').tr(context)),
+                                        _buildPaymentMethodTile('Tunai'),
+                                        _buildPaymentMethodTile('Kartu Debit'),
+                                        _buildPaymentMethodTile('Transfer'),
+                                        _buildPaymentMethodTile('QRIS'),
+                                        _buildPaymentMethodTile('E-Wallet'),
+                                        _buildPaymentMethodTile('Kartu Kredit'),
                                         _buildPaymentMethodTile(
-                                          ('Tempo / Piutang').tr(context),
+                                          'Tempo / Piutang',
                                         ),
                                       ],
                                     ),
@@ -404,7 +420,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                 ('Rp 50.000').tr(context),
                                                 50000,
                                               ),
-                                              _buildCashOption(('Lainnya').tr(context), 0),
+                                              _buildCashOption(
+                                                ('Lainnya').tr(context),
+                                                0,
+                                              ),
                                             ],
                                           )
                                         : Center(
@@ -420,7 +439,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                                   ),
                                                   const SizedBox(height: 12),
                                                   Text(
-                                                    posLocale(context).pos18a9e21cb58b((_paymentMethod).toString()),
+                                                    posLocale(
+                                                      context,
+                                                    ).pos18a9e21cb58b(
+                                                      (_paymentMethod)
+                                                          .toString(),
+                                                    ),
                                                     style: const TextStyle(
                                                       fontWeight:
                                                           FontWeight.bold,
@@ -562,7 +586,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                     pendingItem?['nama']?.toString() ??
                                     product!.name;
                                 final itemTotal = pendingItem == null
-                                    ? product!.price * qty
+                                    ? state.unitPriceFor(product!) * qty
                                     : (pendingItem['subtotal'] as num?)
                                               ?.toDouble() ??
                                           ((pendingItem['harga_satuan'] as num?)
@@ -595,7 +619,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             ),
                             child: Column(
                               children: [
-                                _buildSummaryRow(('Subtotal').tr(context), subtotal),
+                                _buildSummaryRow(
+                                  ('Subtotal').tr(context),
+                                  subtotal,
+                                ),
                                 if (discount > 0)
                                   _buildSummaryRow(
                                     ('Diskon').tr(context),
@@ -638,7 +665,26 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                       child: Text(
                                         widget.pendingOrder != null
                                             ? ('Total Invoice').tr(context)
-                                            : posLocale(context).posbd45ba0ddb67((state.totalItems == state.totalItems.truncateToDouble() ? state.totalItems.toStringAsFixed(0) : state.totalItems.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '')).toString()),
+                                            : posLocale(
+                                                context,
+                                              ).posbd45ba0ddb67(
+                                                (state.totalItems ==
+                                                            state.totalItems
+                                                                .truncateToDouble()
+                                                        ? state.totalItems
+                                                              .toStringAsFixed(
+                                                                0,
+                                                              )
+                                                        : state.totalItems
+                                                              .toStringAsFixed(
+                                                                3,
+                                                              )
+                                                              .replaceFirst(
+                                                                RegExp(r'0+$'),
+                                                                '',
+                                                              ))
+                                                    .toString(),
+                                              ),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 15,
@@ -664,151 +710,21 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               padding: const EdgeInsets.all(10),
                               color: AppColors.warningBackground,
                               child: Text(
-                                posLocale(context).pos9e159b1c2295((_money(state.minimumCashTransaction)).toString()),
+                                posLocale(context).pos9e159b1c2295(
+                                  (_money(
+                                    state.minimumCashTransaction,
+                                  )).toString(),
+                                ),
                                 style: const TextStyle(
                                   color: AppColors.warning,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed:
-                                  (state.status == PosStatus.loading ||
-                                      _payingPendingInvoice ||
-                                      belowCashMinimum)
-                                  ? null
-                                  : ((_paymentMethod == 'Pisah Bayar' &&
-                                            (_splitPayments.fold<double>(
-                                                          0,
-                                                          (sum, item) =>
-                                                              sum +
-                                                              (item['jumlah']
-                                                                      as num)
-                                                                  .toDouble(),
-                                                        ) -
-                                                        total)
-                                                    .abs() <
-                                                0.01) ||
-                                        (_paymentMethod != 'Tunai' &&
-                                            _paymentMethod != 'Pisah Bayar') ||
-                                        _cashReceived + 0.5 >= total)
-                                  ? () async {
-                                      final normalizedMethod =
-                                          switch (_paymentMethod) {
-                                            'Tunai' => 'tunai',
-                                            'Transfer' => 'transfer',
-                                            'QRIS' => 'qris',
-                                            'Kartu Debit' => 'debit',
-                                            'E-Wallet' => 'e_wallet',
-                                            'Kartu Kredit' => 'kartu_kredit',
-                                            'Tempo / Piutang' => 'tempo',
-                                            'Pisah Bayar' => 'split',
-                                            _ => '',
-                                          };
-                                      if (normalizedMethod.isEmpty) return;
-                                      if (normalizedMethod == 'tempo' &&
-                                          (_paymentCustomer ??
-                                                  state.selectedCustomer) ==
-                                              null) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: PosText(
-                                              'Pilih pelanggan terlebih dahulu untuk penjualan tempo.',
-                                            ),
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      if (widget.pendingOrder == null &&
-                                          state.orderType == 'reservation') {
-                                        await _createInvoice(
-                                          context,
-                                          state,
-                                          continueToPayment: true,
-                                        );
-                                        return;
-                                      }
-                                      if (!await _ensureServiceOrder(state)) {
-                                        return;
-                                      }
-                                      if (!context.mounted) return;
-                                      if (!await _ensureRequiredCustomer(
-                                        state,
-                                      )) {
-                                        return;
-                                      }
-                                      if (!context.mounted) return;
-                                      if (widget.pendingOrder != null) {
-                                        _payPendingInvoice(normalizedMethod);
-                                      } else {
-                                        context.read<PosBloc>().add(
-                                          SubmitPayment(
-                                            paymentMethod: normalizedMethod,
-                                            cashReceived: _cashReceived,
-                                            payments: _splitPayments,
-                                            note: _invoiceNote,
-                                            customerOverride:
-                                                _paymentCustomer ??
-                                                widget.initialCustomer,
-                                            serviceOrder: _serviceOrder,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                disabledBackgroundColor: Colors.grey.shade300,
-                                minimumSize: const Size.fromHeight(60),
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.zero,
-                                ),
-                              ),
-                              child:
-                                  state.status == PosStatus.loading ||
-                                      _payingPendingInvoice
-                                  ? const SizedBox(
-                                      height: 24,
-                                      width: 24,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.5,
-                                      ),
-                                    )
-                                  : Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          widget.pendingOrder != null
-                                              ? ('Bayar Invoice').tr(context)
-                                              : ('Proses Bayar').tr(context),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color:
-                                                (_paymentMethod != 'Tunai' ||
-                                                    _cashReceived + 0.5 >=
-                                                        total)
-                                                ? Colors.white
-                                                : Colors.grey,
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.chevron_right,
-                                          color:
-                                              (_paymentMethod != 'Tunai' ||
-                                                  _cashReceived + 0.5 >= total)
-                                              ? Colors.white
-                                              : Colors.grey,
-                                        ),
-                                      ],
-                                    ),
-                            ),
+                          _buildPaymentSubmitButton(
+                            state,
+                            total,
+                            belowCashMinimum,
                           ),
                         ],
                       ),
@@ -850,7 +766,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               TextField(
                 controller: usernameController,
                 autofocus: true,
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Username supervisor').tr(dialogContext),
                 ),
               ),
@@ -860,14 +776,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration:  InputDecoration(labelText: ('PIN supervisor').tr(dialogContext)),
+                decoration: InputDecoration(
+                  labelText: ('PIN supervisor').tr(dialogContext),
+                ),
               ),
               TextField(
                 controller: reasonController,
                 minLines: 2,
                 maxLines: 4,
                 maxLength: 500,
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Alasan penjualan').tr(dialogContext),
                   hintText: ('Minimal 5 karakter').tr(dialogContext),
                 ),
@@ -974,7 +892,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             width: 520,
             height: 620,
             title: Text(
-              profile == 'laundry' ? ('Detail cucian').tr(context) : ('Detail layanan').tr(context),
+              profile == 'laundry'
+                  ? ('Detail cucian').tr(context)
+                  : ('Detail layanan').tr(context),
             ),
             content: SizedBox(
               width: 520,
@@ -990,7 +910,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     if (profile == 'laundry') ...[
                       DropdownButtonFormField<String>(
                         initialValue: mode,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Model layanan').tr(context),
                         ),
                         items: const [
@@ -1027,7 +947,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
-                              decoration:  InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: ('Berat (kg)').tr(context),
                               ),
                             ),
@@ -1037,7 +957,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             child: TextField(
                               controller: pieces,
                               keyboardType: TextInputType.number,
-                              decoration:  InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: ('Jumlah item').tr(context),
                               ),
                             ),
@@ -1047,7 +967,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: tag,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Tag kantong').tr(context),
                         ),
                       ),
@@ -1078,8 +998,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                 controller: vehicleNo,
                                 textCapitalization:
                                     TextCapitalization.characters,
-                                decoration:  InputDecoration(
-                                  labelText: ('No. polisi / ID unit').tr(context),
+                                decoration: InputDecoration(
+                                  labelText: ('No. polisi / ID unit').tr(
+                                    context,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1087,7 +1009,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             Expanded(
                               child: TextField(
                                 controller: vehicleModel,
-                                decoration:  InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: ('Model / tipe').tr(context),
                                 ),
                               ),
@@ -1099,8 +1021,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: technician,
-                          decoration:  InputDecoration(
-                            labelText: ('Teknisi / staf penanggung jawab').tr(context),
+                          decoration: InputDecoration(
+                            labelText: ('Teknisi / staf penanggung jawab').tr(
+                              context,
+                            ),
                           ),
                         ),
                       ],
@@ -1120,7 +1044,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                                 ? ('Pilih jadwal layanan').tr(context)
                                 : DateFormat(
                                     'dd MMM yyyy · HH:mm',
-                                    AppLanguageController.instance.effectiveLocale.languageCode,
+                                    AppLanguageController
+                                        .instance
+                                        .effectiveLocale
+                                        .languageCode,
                                   ).format(appointmentAt!),
                           ),
                           trailing: appointmentAt == null
@@ -1448,7 +1375,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     child: TextField(
                       autofocus: true,
                       onChanged: (value) => setSheetState(() => query = value),
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Cari pelanggan').tr(context),
                         hintText: ('Nama atau nomor telepon').tr(context),
                         prefixIcon: Icon(Icons.search),
@@ -1482,7 +1409,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   const Divider(height: 1),
                   Expanded(
                     child: filtered.isEmpty
-                        ? const Center(child: PosText('Pelanggan tidak ditemukan'))
+                        ? const Center(
+                            child: PosText('Pelanggan tidak ditemukan'),
+                          )
                         : ListView.separated(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -1590,8 +1519,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       return ('Produk Kedaluwarsa').trCurrent();
     }
     if (normalized.contains('stok')) return ('Stok Tidak Cukup').trCurrent();
-    if (normalized.contains('uang diterima')) return ('Pembayaran Tidak Cukup').trCurrent();
-    if (normalized.contains('shift')) return ('Shift Kasir Bermasalah').trCurrent();
+    if (normalized.contains('uang diterima')) {
+      return ('Pembayaran Tidak Cukup').trCurrent();
+    }
+    if (normalized.contains('shift')) {
+      return ('Shift Kasir Bermasalah').trCurrent();
+    }
     return ('Transaksi Ditolak').trCurrent();
   }
 
@@ -1604,6 +1537,514 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     if (normalized.contains('stok')) return Icons.inventory_2_outlined;
     if (normalized.contains('uang diterima')) return Icons.payments_outlined;
     return Icons.warning_amber_rounded;
+  }
+
+  Widget _mobilePaymentPanel(Widget child) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE4E7EC)),
+    ),
+    child: child,
+  );
+
+  Widget _buildMobilePayment(
+    PosState state,
+    double total,
+    double subtotal,
+    double discount,
+    double tax,
+    bool belowCashMinimum,
+  ) {
+    final busy =
+        state.status == PosStatus.loading ||
+        _payingPendingInvoice ||
+        _creatingInvoice;
+    final cash = _paymentMethod == 'Tunai';
+    final english = Localizations.localeOf(context).languageCode == 'en';
+    final itemCount = widget.pendingOrder?.items.length ?? state.cart.length;
+    final suggestions = <double>{
+      total,
+      (total / 50000).ceil() * 50000.0,
+      (total / 100000).ceil() * 100000.0,
+    }.where((n) => n > 0).toList();
+    return Column(
+      key: const Key('payment_mobile_layout'),
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: const Key('payment_mobile_scroll'),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: IgnorePointer(
+              ignoring: busy,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _mobilePaymentPanel(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const PosText(
+                          'Total Tagihan',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _money(total),
+                            key: const Key('payment_mobile_total'),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.heading,
+                            ),
+                          ),
+                        ),
+                        if (cash && _cashReceived > 0) ...[
+                          const Divider(height: 24),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _mobileBalance(
+                                  'Sisa Tagihan',
+                                  (total - _cashReceived)
+                                      .clamp(0, double.infinity)
+                                      .toDouble(),
+                                  color: _cashReceived < total
+                                      ? AppColors.danger
+                                      : AppColors.heading,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _mobileBalance(
+                                  'Kembalian',
+                                  (_cashReceived - total)
+                                      .clamp(0, double.infinity)
+                                      .toDouble(),
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: ListTile(
+                      key: const Key('payment_mobile_customer'),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      leading: const Icon(
+                        Icons.person_outline,
+                        color: AppColors.textSecondary,
+                      ),
+                      title: Text(
+                        _customerLabel(state).tr(context),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: widget.pendingOrder == null
+                          ? null
+                          : Text(
+                              widget.pendingOrder!.invoice,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      trailing: const Icon(Icons.edit_outlined, size: 20),
+                      onTap: () => _selectPaymentCustomer(state),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const PosText(
+                    'Metode Pembayaran',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final method in [
+                        'Tunai',
+                        'QRIS',
+                        'Transfer',
+                        'Kartu Debit',
+                        'E-Wallet',
+                        'Kartu Kredit',
+                        'Tempo / Piutang',
+                      ])
+                        ChoiceChip(
+                          key: ValueKey('payment_mobile_method:$method'),
+                          label: Text(
+                            method.tr(context),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _paymentMethod == method
+                                  ? AppColors.primary
+                                  : AppColors.heading,
+                              fontWeight: _paymentMethod == method
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          selected: _paymentMethod == method,
+                          backgroundColor: Colors.white,
+                          selectedColor: AppColors.primary.withValues(
+                            alpha: 0.08,
+                          ),
+                          checkmarkColor: AppColors.primary,
+                          side: BorderSide(
+                            color: _paymentMethod == method
+                                ? AppColors.primary
+                                : const Color(0xFFD0D5DD),
+                          ),
+                          showCheckmark: true,
+                          materialTapTargetSize: MaterialTapTargetSize.padded,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          onSelected: (_) {
+                            if (_paymentMethod == method) return;
+                            setState(() {
+                              _paymentMethod = method;
+                              _cashReceived = 0;
+                              _splitPayments = [];
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (cash) ...[
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        key: const Key('payment_mobile_cash_input'),
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _enterCustomCash,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const PosText(
+                                      'Uang diterima',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        _money(_cashReceived),
+                                        style: const TextStyle(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(
+                                Icons.edit_outlined,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(
+                      builder: (context, constraints) => Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final amount in suggestions)
+                            SizedBox(
+                              width: (constraints.maxWidth - 12) / 2,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  minHeight: 56,
+                                ),
+                                child: _buildCashOption(
+                                  amount == total ? 'Uang Pas' : _money(amount),
+                                  amount,
+                                ),
+                              ),
+                            ),
+                          SizedBox(
+                            width: (constraints.maxWidth - 12) / 2,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minHeight: 56),
+                              child: _buildCashOption('Lainnya', 0),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (_paymentMethod == 'Pisah Bayar')
+                    _mobilePaymentPanel(_buildSplitSummary(total))
+                  else
+                    _mobilePaymentPanel(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _paymentMethod.tr(context),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const PosText(
+                            'Pastikan pembayaran sudah diterima pada perangkat atau rekening merchant sebelum memproses transaksi. POS mencatat metode pembayaran dan tidak menjalankan payment gateway otomatis.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    key: const Key('payment_mobile_split'),
+                    onPressed: () => _configureSplitPayment(total),
+                    icon: const Icon(Icons.call_split),
+                    label: const PosText('Pisah Bayar'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      foregroundColor: AppColors.primary,
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFFD0D5DD)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    clipBehavior: Clip.antiAlias,
+                    child: ExpansionTile(
+                      key: const Key('payment_mobile_summary'),
+                      title: Text(
+                        english ? 'Order summary' : 'Ringkasan pesanan',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text('$itemCount item'),
+                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      children: [
+                        for (var index = 0; index < itemCount; index++)
+                          _mobilePaymentItem(state, index),
+                        const Divider(height: 24),
+                        _buildSummaryRow('Subtotal', subtotal),
+                        if (discount > 0)
+                          _buildSummaryRow(
+                            'Diskon',
+                            -discount,
+                            color: AppColors.primary,
+                          ),
+                        if (tax > 0) _buildSummaryRow('Pajak', tax),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _editNote,
+                        icon: const Icon(Icons.edit_note),
+                        label: PosText(
+                          _invoiceNote.isEmpty ? 'Catatan' : 'Catatan ✓',
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed:
+                            _creatingInvoice || widget.pendingOrder != null
+                            ? null
+                            : () => _createInvoice(context, state),
+                        icon: const Icon(Icons.receipt_long_outlined),
+                        label: PosText(
+                          state.orderType == 'dine_in'
+                              ? 'Simpan ke Meja'
+                              : 'Buat Pesanan / Ambil Nanti',
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_invoiceNote.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        _invoiceNote,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFE4E7EC))),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (belowCashMinimum)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        posLocale(context).pos9e159b1c2295(
+                          (_money(state.minimumCashTransaction)).toString(),
+                        ),
+                        style: const TextStyle(color: AppColors.warning),
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: PosText(
+                          'Total Tagihan',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            _money(total),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _buildPaymentSubmitButton(
+                      state,
+                      total,
+                      belowCashMinimum,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mobileBalance(String label, double value, {required Color color}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PosText(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _money(value),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      );
+
+  Widget _mobilePaymentItem(PosState state, int index) {
+    final pending = widget.pendingOrder?.items[index];
+    final product = pending == null ? state.cart.keys.elementAt(index) : null;
+    final qty = pending?['qty'] as num? ?? state.cart[product]!;
+    final name = pending?['nama']?.toString() ?? product!.name;
+    final amount = pending == null
+        ? state.unitPriceFor(product!) * qty
+        : (pending['subtotal'] as num?)?.toDouble() ??
+              ((pending['harga_satuan'] as num?)?.toDouble() ?? 0) * qty;
+    final unitPrice = pending == null
+        ? state.unitPriceFor(product!)
+        : (pending['harga_satuan'] as num?)?.toDouble() ??
+              (qty > 0 ? amount / qty : 0.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  '${_quantityText(qty.toDouble())} × ${_money(unitPrice)}',
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(child: Text(_money(amount), textAlign: TextAlign.right)),
+        ],
+      ),
+    );
   }
 
   Widget _buildAmountBlock(String label, double amount, Color color) {
@@ -1652,12 +2093,21 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          PosText(label, style: const TextStyle(color: Colors.black54)),
-          Text(
-            _money(amount),
-            style: TextStyle(
-              color: color ?? Colors.black87,
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: PosText(
+              label,
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              _money(amount),
+              style: TextStyle(
+                color: color ?? Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.right,
             ),
           ),
         ],
@@ -1691,32 +2141,41 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     final controller = TextEditingController(text: _invoiceNote);
     final result = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const PosText('Catatan transaksi'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 500,
-          maxLines: 4,
-          decoration:  InputDecoration(
-            hintText: ('Contoh: pesanan tanpa sambal, referensi pembayaran…').tr(dialogContext),
-            border: OutlineInputBorder(),
+      builder: (dialogContext) => _PaymentFormLifetime(
+        onDispose: controller.dispose,
+        child: AlertDialog(
+          scrollable: true,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
           ),
+          title: const PosText('Catatan transaksi'),
+          content: TextField(
+            key: const Key('payment_note_value'),
+            controller: controller,
+            autofocus: true,
+            maxLength: 500,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: ('Contoh: pesanan tanpa sambal, referensi pembayaran…')
+                  .tr(dialogContext),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const PosText('Batal'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
+              child: const PosText('Simpan'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const PosText('Batal'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const PosText('Simpan'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
     if (result != null && mounted) setState(() => _invoiceNote = result);
   }
 
@@ -1812,7 +2271,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                             ],
-                            decoration:  InputDecoration(
+                            decoration: InputDecoration(
                               labelText: ('Jumlah tamu').tr(context),
                             ),
                           ),
@@ -1827,7 +2286,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                             inputFormatters: const [
                               RupiahInputFormatter(decimalDigits: 2),
                             ],
-                            decoration:  InputDecoration(
+                            decoration: InputDecoration(
                               labelText: ('Deposit diminta').tr(context),
                             ),
                           ),
@@ -1941,10 +2400,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           ),
           content: Text(
             continueToPayment
-                ? ('Jadwal reservasi diperiksa sebelum pembayaran. Jika pembayaran dibatalkan, reservasi tetap tersedia di Pesanan Aktif untuk dilanjutkan.').tr(dialogContext)
+                ? ('Jadwal reservasi diperiksa sebelum pembayaran. Jika pembayaran dibatalkan, reservasi tetap tersedia di Pesanan Aktif untuk dilanjutkan.')
+                      .tr(dialogContext)
                 : state.orderType == 'dine_in'
-                ? posLocale(dialogContext).pos3b458bf929ac((state.selectedTableName).toString())
-                : ('Pesanan operasional disimpan untuk disiapkan dan dibayar kemudian. Bukan invoice piutang Finance. Buka dari Pesanan atau Riwayat Transaksi; untuk keranjang sementara gunakan Simpan pesanan.').tr(dialogContext),
+                ? posLocale(
+                    dialogContext,
+                  ).pos3b458bf929ac((state.selectedTableName).toString())
+                : ('Pesanan operasional disimpan untuk disiapkan dan dibayar kemudian. Bukan invoice piutang Finance. Buka dari Pesanan atau Riwayat Transaksi; untuk keranjang sementara gunakan Simpan pesanan.')
+                      .tr(dialogContext),
           ),
           actions: [
             TextButton(
@@ -2051,13 +2514,149 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     }
   }
 
+  Widget _buildPaymentSubmitButton(
+    PosState state,
+    double total,
+    bool belowCashMinimum,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        key: const Key('payment_submit'),
+        onPressed:
+            (state.status == PosStatus.loading ||
+                _payingPendingInvoice ||
+                _creatingInvoice ||
+                belowCashMinimum)
+            ? null
+            : ((_paymentMethod == 'Pisah Bayar' &&
+                      (_splitPayments.fold<double>(
+                                    0,
+                                    (sum, item) =>
+                                        sum +
+                                        (item['jumlah'] as num).toDouble(),
+                                  ) -
+                                  total)
+                              .abs() <
+                          0.01) ||
+                  (_paymentMethod != 'Tunai' &&
+                      _paymentMethod != 'Pisah Bayar') ||
+                  _cashReceived + 0.5 >= total)
+            ? () async {
+                final normalizedMethod = switch (_paymentMethod) {
+                  'Tunai' => 'tunai',
+                  'Transfer' => 'transfer',
+                  'QRIS' => 'qris',
+                  'Kartu Debit' => 'debit',
+                  'E-Wallet' => 'e_wallet',
+                  'Kartu Kredit' => 'kartu_kredit',
+                  'Tempo / Piutang' => 'tempo',
+                  'Pisah Bayar' => 'split',
+                  _ => '',
+                };
+                if (normalizedMethod.isEmpty) return;
+                if (normalizedMethod == 'tempo' &&
+                    (_paymentCustomer ?? state.selectedCustomer) == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: PosText(
+                        'Pilih pelanggan terlebih dahulu untuk penjualan tempo.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                if (widget.pendingOrder == null &&
+                    state.orderType == 'reservation') {
+                  await _createInvoice(context, state, continueToPayment: true);
+                  return;
+                }
+                if (!await _ensureServiceOrder(state)) {
+                  return;
+                }
+                if (!mounted) return;
+                if (!await _ensureRequiredCustomer(state)) {
+                  return;
+                }
+                if (!mounted) return;
+                if (widget.pendingOrder != null) {
+                  _payPendingInvoice(normalizedMethod);
+                } else {
+                  context.read<PosBloc>().add(
+                    SubmitPayment(
+                      paymentMethod: normalizedMethod,
+                      cashReceived: _cashReceived,
+                      payments: _splitPayments,
+                      note: _invoiceNote,
+                      customerOverride:
+                          _paymentCustomer ?? widget.initialCustomer,
+                      serviceOrder: _serviceOrder,
+                    ),
+                  );
+                }
+              }
+            : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          disabledBackgroundColor: Colors.grey.shade300,
+          minimumSize: const Size.fromHeight(60),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        child:
+            state.status == PosStatus.loading ||
+                _payingPendingInvoice ||
+                _creatingInvoice
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.pendingOrder != null
+                          ? ('Bayar Invoice').tr(context)
+                          : ('Proses Bayar').tr(context),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color:
+                            (_paymentMethod != 'Tunai' ||
+                                _cashReceived + 0.5 >= total)
+                            ? Colors.white
+                            : Colors.grey,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color:
+                        (_paymentMethod != 'Tunai' ||
+                            _cashReceived + 0.5 >= total)
+                        ? Colors.white
+                        : Colors.grey,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
   Future<void> _enterCustomCash() async {
     var cashInput = '';
     final result = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         title: const PosText('Uang diterima'),
         content: TextField(
+          key: const Key('payment_custom_cash_value'),
           autofocus: true,
           keyboardType: TextInputType.number,
           inputFormatters: const [RupiahInputFormatter()],
@@ -2099,147 +2698,116 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             _SplitPaymentDraft(method: 'tunai'),
             _SplitPaymentDraft(method: 'qris'),
           ];
+    final removedDrafts = <_SplitPaymentDraft>[];
     final result = await showDialog<List<Map<String, dynamic>>>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          double paid() => drafts.fold(0, (sum, draft) => sum + draft.amount);
-          final difference = total - paid();
-          final isValid =
-              drafts.length >= 2 &&
-              drafts.every((draft) => draft.amount > 0) &&
-              difference.abs() < 0.01;
-          return PosKeyboardStableFormDialog(
-            width: 560,
-            height: 590,
-            title: const PosText('Pisah Bayar'),
-            content: SizedBox(
+      builder: (dialogContext) => _PaymentFormLifetime(
+        onDispose: () {
+          for (final draft in [...drafts, ...removedDrafts]) {
+            draft.dispose();
+          }
+        },
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            double paid() => drafts.fold(0, (sum, draft) => sum + draft.amount);
+            final difference = total - paid();
+            final isValid =
+                drafts.length >= 2 &&
+                drafts.every((draft) => draft.amount > 0) &&
+                difference.abs() < 0.01;
+            return PosKeyboardStableFormDialog(
               width: 560,
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.viewInsetsOf(context).bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var index = 0; index < drafts.length; index++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 4,
-                              child: DropdownButtonFormField<String>(
-                                initialValue: drafts[index].method,
-                                decoration:  InputDecoration(
-                                  labelText: ('Metode').tr(context),
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: _splitPaymentMethods.entries
-                                    .map(
-                                      (entry) => DropdownMenuItem(
-                                        value: entry.key,
-                                        child: PosText(entry.value),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) => setDialogState(
-                                  () => drafts[index].method = value!,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 5,
-                              child: TextField(
-                                controller: drafts[index].controller,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: const [RupiahInputFormatter()],
-                                decoration:  InputDecoration(
-                                  labelText: ('Jumlah').tr(context),
-                                  prefixText: 'Rp ',
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (_) => setDialogState(() {}),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: ('Hapus metode').tr(context),
-                              onPressed: drafts.length <= 2
-                                  ? null
-                                  : () => setDialogState(() {
-                                      drafts.removeAt(index).dispose();
-                                    }),
-                              icon: const Icon(Icons.remove_circle_outline),
-                            ),
-                          ],
-                        ),
-                      ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: () => setDialogState(
-                          () => drafts.add(_SplitPaymentDraft()),
-                        ),
-                        icon: const Icon(Icons.add),
-                        label: const PosText('Tambah metode pembayaran'),
-                      ),
-                    ),
-                    const Divider(),
-                    _buildSplitTotalRow(('Total tagihan').tr(context), total),
-                    _buildSplitTotalRow(('Sudah dialokasikan').tr(context), paid()),
-                    _buildSplitTotalRow(
-                      difference >= 0 ? 'Sisa' : 'Kelebihan',
-                      difference.abs(),
-                      color: isValid ? AppColors.success : AppColors.danger,
-                    ),
-                    if (!isValid)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: PosText(
-                          'Minimal 2 metode, setiap jumlah harus lebih dari 0, dan total harus tepat.',
-                          style: TextStyle(
-                            color: AppColors.danger,
-                            fontSize: 12,
+              height: 590,
+              title: const PosText('Pisah Bayar'),
+              content: SizedBox(
+                width: 560,
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var index = 0; index < drafts.length; index++)
+                        Padding(
+                          key: ObjectKey(drafts[index]),
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildSplitDraftFields(
+                            drafts[index],
+                            onChanged: () => setDialogState(() {}),
+                            onRemove: drafts.length <= 2
+                                ? null
+                                : () => setDialogState(() {
+                                    removedDrafts.add(drafts.removeAt(index));
+                                  }),
                           ),
                         ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => setDialogState(
+                            () => drafts.add(_SplitPaymentDraft()),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: const PosText('Tambah metode pembayaran'),
+                        ),
                       ),
-                  ],
+                      const Divider(),
+                      _buildSplitTotalRow(('Total tagihan').tr(context), total),
+                      _buildSplitTotalRow(
+                        ('Sudah dialokasikan').tr(context),
+                        paid(),
+                      ),
+                      _buildSplitTotalRow(
+                        difference >= 0 ? 'Sisa' : 'Kelebihan',
+                        difference.abs(),
+                        color: isValid ? AppColors.success : AppColors.danger,
+                      ),
+                      if (!isValid)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: PosText(
+                            'Minimal 2 metode, setiap jumlah harus lebih dari 0, dan total harus tepat.',
+                            style: TextStyle(
+                              color: AppColors.danger,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const PosText('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: isValid
-                    ? () => Navigator.pop(
-                        dialogContext,
-                        drafts
-                            .map(
-                              (draft) => {
-                                'metode': draft.method,
-                                'jumlah': draft.amount,
-                              },
-                            )
-                            .toList(),
-                      )
-                    : null,
-                child: const PosText('Gunakan'),
-              ),
-            ],
-          );
-        },
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const PosText('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: isValid
+                      ? () => Navigator.pop(
+                          dialogContext,
+                          drafts
+                              .map(
+                                (draft) => {
+                                  'metode': draft.method,
+                                  'jumlah': draft.amount,
+                                },
+                              )
+                              .toList(),
+                        )
+                      : null,
+                  child: const PosText('Gunakan'),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
-    for (final draft in drafts) {
-      draft.dispose();
-    }
-    if (result == null) return;
+    if (result == null || !mounted) return;
     setState(() {
       _paymentMethod = 'Pisah Bayar';
       _splitPayments = result;
@@ -2252,16 +2820,97 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     });
   }
 
+  Widget _buildSplitDraftFields(
+    _SplitPaymentDraft draft, {
+    required VoidCallback onChanged,
+    required VoidCallback? onRemove,
+  }) {
+    final method = DropdownButtonFormField<String>(
+      initialValue: draft.method,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: ('Metode').tr(context),
+        border: const OutlineInputBorder(),
+      ),
+      items: _splitPaymentMethods.entries
+          .map(
+            (entry) => DropdownMenuItem(
+              value: entry.key,
+              child: PosText(
+                entry.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        draft.method = value;
+        onChanged();
+      },
+    );
+    final amount = TextField(
+      controller: draft.controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: const [RupiahInputFormatter()],
+      decoration: InputDecoration(
+        labelText: ('Jumlah').tr(context),
+        prefixText: 'Rp ',
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: (_) => onChanged(),
+    );
+    final remove = IconButton(
+      tooltip: ('Hapus metode').tr(context),
+      onPressed: onRemove,
+      icon: const Icon(Icons.remove_circle_outline),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 420) {
+          return Column(
+            children: [
+              method,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: amount),
+                  const SizedBox(width: 4),
+                  remove,
+                ],
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(flex: 4, child: method),
+            const SizedBox(width: 12),
+            Expanded(flex: 5, child: amount),
+            remove,
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSplitTotalRow(String label, double amount, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          PosText(label),
-          Text(
-            posLocale(context).pos70272f418def((formatRupiahAmount(amount)).toString()),
-            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          Expanded(child: PosText(label)),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              posLocale(
+                context,
+              ).pos70272f418def((formatRupiahAmount(amount)).toString()),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color),
+              textAlign: TextAlign.right,
+            ),
           ),
         ],
       ),
@@ -2278,12 +2927,16 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             child: ListTile(
               title: Text(item['metode'].toString().toUpperCase()),
               trailing: Text(
-                posLocale(context).pos70272f418def((formatRupiahAmount((item['jumlah'] as num))).toString()),
+                posLocale(context).pos70272f418def(
+                  (formatRupiahAmount((item['jumlah'] as num))).toString(),
+                ),
               ),
             ),
           ),
         Text(
-          posLocale(context).pos1b58713d0d0e((formatRupiahAmount(total)).toString()),
+          posLocale(
+            context,
+          ).pos1b58713d0d0e((formatRupiahAmount(total)).toString()),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ],
@@ -2296,6 +2949,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       onTap: () => setState(() {
         _paymentMethod = method;
         _cashReceived = 0; // reset
+        _splitPayments = [];
       }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -2310,7 +2964,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           ),
         ),
         child: Text(
-          method,
+          method.tr(context),
           style: TextStyle(
             color: Colors.black87,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -2361,6 +3015,26 @@ const _splitPaymentMethods = <String, String>{
   'kartu_kredit': 'Kartu Kredit',
   'tempo': 'Tempo / Piutang',
 };
+
+/// A dialog future resolves before its exit animation finishes. Controllers
+/// remain owned by the route's subtree until its fields have actually unmounted.
+class _PaymentFormLifetime extends StatefulWidget {
+  const _PaymentFormLifetime({required this.child, required this.onDispose});
+  final Widget child;
+  final VoidCallback onDispose;
+  @override
+  State<_PaymentFormLifetime> createState() => _PaymentFormLifetimeState();
+}
+
+class _PaymentFormLifetimeState extends State<_PaymentFormLifetime> {
+  @override
+  Widget build(BuildContext context) => widget.child;
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+}
 
 class _SplitPaymentDraft {
   _SplitPaymentDraft({this.method = 'tunai', double amount = 0})

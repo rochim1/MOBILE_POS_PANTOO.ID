@@ -63,11 +63,13 @@ void main() {
         final service = PosPushService(repository: repository, prefs: prefs);
         await service.initialize();
         final subscription = FirebaseMessaging.onMessage.listen((message) {
-          if (message.data['qa_case'] == 'background')
+          if (message.data['qa_case'] == 'background') {
             backgroundDeliveredToForeground = true;
+          }
           if (message.data['qa_case'] == 'foreground' &&
-              !foreground.isCompleted)
+              !foreground.isCompleted) {
             foreground.complete();
+          }
         });
         try {
           await service.activate();
@@ -78,8 +80,9 @@ void main() {
             while (DateTime.now().isBefore(deadline)) {
               final active = await FlutterLocalNotificationsPlugin()
                   .getActiveNotifications();
-              if (active.any((notification) => notification.title == title))
+              if (active.any((notification) => notification.title == title)) {
                 return;
+              }
               await Future<void>.delayed(const Duration(milliseconds: 500));
             }
             fail('Android did not post $title');

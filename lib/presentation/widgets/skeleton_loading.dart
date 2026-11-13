@@ -1,3 +1,4 @@
+import 'pos_metric_card.dart';
 import 'package:flutter/material.dart';
 
 /// A shimmering skeleton box used as a placeholder while content loads.
@@ -168,40 +169,8 @@ class SkeletonSummaryCard extends StatelessWidget {
   const SkeletonSummaryCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 260,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.04),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const SkeletonBox(width: 52, height: 52, borderRadius: 14),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                SkeletonBox(width: 80, height: 12),
-                SizedBox(height: 10),
-                SkeletonBox(width: 100, height: 20),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      const SizedBox(width: 260, child: PosMetricCardSkeleton());
 }
 
 /// Skeleton for a product card in grid view
@@ -296,7 +265,7 @@ class PosPageSkeleton extends StatelessWidget {
       children: [
         // Summary cards skeleton
         SizedBox(
-          height: 100,
+          height: 180,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
@@ -320,12 +289,13 @@ class PosPageSkeleton extends StatelessWidget {
               const SizedBox(height: 12),
               const SkeletonBox(height: 48, borderRadius: 14),
               const SizedBox(height: 12),
-              Row(
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: List.generate(
                   4,
-                  (_) => Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: SkeletonBox(width: 70, height: 32, borderRadius: 16),
+                  (_) => const SkeletonBox(
+                    width: 70, height: 32, borderRadius: 16,
                   ),
                 ),
               ),

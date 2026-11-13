@@ -11578,4 +11578,685 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get signInAction => 'Masuk';
+
+  @override
+  String get reportPreviousPeriod => 'Dibanding periode sebelumnya';
+
+  @override
+  String get reportAverageTransaction => 'Nilai rata-rata setiap transaksi';
+
+  @override
+  String get reportTopProductQuantity =>
+      'Jumlah item pada daftar produk teratas';
+
+  @override
+  String get dashboardCatalogProducts => 'Produk yang tersedia dalam katalog';
+
+  @override
+  String get financialProfitLoss => 'Laba Rugi';
+
+  @override
+  String get financialReportSubtitle =>
+      'Pendapatan dan beban yang sudah dibukukan';
+
+  @override
+  String get financialScope => 'Seluruh usaha dalam instansi ini';
+
+  @override
+  String get financialScopeNote =>
+      'Gabungan semua toko/cabang. Bukan laporan toko yang sedang aktif.';
+
+  @override
+  String get financialBasisNote =>
+      'Laporan memakai jurnal terposting. Biaya atau transaksi yang belum dicatat belum termasuk.';
+
+  @override
+  String get financialCostNote =>
+      'HPP mengikuti biaya historis dalam jurnal, bukan harga beli katalog saat ini. Kelengkapan semua biaya usaha belum dapat dipastikan otomatis.';
+
+  @override
+  String get financialNetSales => 'Penjualan Bersih';
+
+  @override
+  String get financialCogs => 'Harga Pokok Penjualan';
+
+  @override
+  String get financialGrossProfit => 'Laba Kotor Tercatat';
+
+  @override
+  String get financialNetProfit => 'Laba/Rugi Tercatat';
+
+  @override
+  String get financialRecorded => 'Sesuai jurnal terposting';
+
+  @override
+  String get financialUnavailable => 'Belum dapat dihitung';
+
+  @override
+  String get financialDetails => 'Rincian per akun';
+
+  @override
+  String get financialOperatingExpenses => 'Biaya Operasional';
+
+  @override
+  String get financialOtherRevenue => 'Pendapatan Lain';
+
+  @override
+  String get financialOtherExpenses => 'Beban Lain';
+
+  @override
+  String get financialUnclassifiedRevenue => 'Pendapatan Belum Dipetakan';
+
+  @override
+  String get financialUnclassifiedExpenses => 'Beban Belum Dipetakan';
+
+  @override
+  String get financialTotalRevenue => 'Total Pendapatan Tercatat';
+
+  @override
+  String get financialTotalExpenses => 'Total Beban Tercatat';
+
+  @override
+  String get financialReview => 'Data perlu diperiksa';
+
+  @override
+  String get financialNoEntries =>
+      'Belum ada jurnal terposting pada periode ini.';
+
+  @override
+  String get financialDenied => 'Akses laporan keuangan belum tersedia';
+
+  @override
+  String get financialDeniedNote =>
+      'Minta admin memberikan izin laporan Finance. Izin laporan penjualan tidak otomatis membuka laba rugi seluruh usaha.';
+
+  @override
+  String get financialFailed => 'Laporan belum dapat dimuat';
+
+  @override
+  String get financialFailedNote =>
+      'Periksa koneksi dan coba lagi. Data lama tidak ditampilkan sebagai laporan terbaru.';
+
+  @override
+  String get financialRetry => 'Coba lagi';
+
+  @override
+  String get financialRefresh => 'Perbarui laporan';
+
+  @override
+  String get financialPeriod => 'Periode laporan';
+
+  @override
+  String get financialToday => 'Hari ini';
+
+  @override
+  String get financialSevenDays => '7 hari terakhir';
+
+  @override
+  String get financialThisMonth => 'Bulan ini';
+
+  @override
+  String get financialLastMonth => 'Bulan lalu';
+
+  @override
+  String get financialCustomPeriod => 'Pilih rentang tanggal';
+
+  @override
+  String get financialInvalidRange =>
+      'Pilih periode maksimal 366 hari dan tidak melewati hari ini.';
+
+  @override
+  String get financialUpdated => 'Diperbarui';
+
+  @override
+  String get financialMissingMapping =>
+      'Ada akun yang belum dipetakan atau tidak ditemukan. Periksa klasifikasi akun di Finance.';
+
+  @override
+  String get financialMissingCogs =>
+      'Pemetaan akun HPP belum tersedia. HPP dan laba kotor belum dapat dipastikan.';
+
+  @override
+  String get financialUnpostedSales => 'Transaksi POS belum dibukukan';
+
+  @override
+  String get financialUnpostedReturns => 'Retur POS belum dibukukan';
+
+  @override
+  String get financialDraftJournals => 'Jurnal masih berupa draf';
+
+  @override
+  String get financialUnpostedCogs =>
+      'Transaksi dengan biaya historis belum memiliki jurnal HPP pada periode ini';
+
+  @override
+  String get financialHeaderPosting =>
+      'Ada pencatatan langsung pada akun kelompok. Periksa jurnal sumber.';
+
+  @override
+  String get financialUnknownIssue =>
+      'Ada keterbatasan data yang perlu diperiksa di Finance.';
+
+  @override
+  String get financialLedgerDenied =>
+      'Rincian jurnal memerlukan izin buku besar Finance.';
+
+  @override
+  String get financialLedger => 'Rincian jurnal';
+
+  @override
+  String get financialPrevious => 'Sebelumnya';
+
+  @override
+  String get financialNext => 'Berikutnya';
+
+  @override
+  String get financialDebit => 'Debit';
+
+  @override
+  String get financialCredit => 'Kredit';
+
+  @override
+  String get financialCogsMismatch =>
+      'Nilai jurnal HPP berbeda dari biaya historis transaksi';
+
+  @override
+  String get financialSessionChanged => 'Sesi atau akses laporan berubah';
+
+  @override
+  String get financialSessionNote =>
+      'Muat ulang laporan dengan sesi yang aktif. Data dari sesi sebelumnya sudah dihapus.';
+
+  @override
+  String get businessCashFlow => 'Arus Kas';
+
+  @override
+  String get businessAging => 'Piutang & Utang';
+
+  @override
+  String get businessReceivables => 'Piutang Pelanggan';
+
+  @override
+  String get businessPayables => 'Utang Pemasok';
+
+  @override
+  String get businessInventory => 'Persediaan';
+
+  @override
+  String get businessMovement => 'Pergerakan Stok';
+
+  @override
+  String get businessRestock => 'Kebutuhan Restok';
+
+  @override
+  String get businessCutoff => 'Posisi per tanggal';
+
+  @override
+  String get businessRange => 'Periode pergerakan';
+
+  @override
+  String get businessSearch => 'Cari nomor dokumen atau nama';
+
+  @override
+  String get businessAllSources => 'Seluruh sumber yang didukung';
+
+  @override
+  String get businessPosSources => 'Hanya invoice POS';
+
+  @override
+  String get businessSources => 'Sumber tagihan';
+
+  @override
+  String get businessOpeningCash => 'Saldo Awal Kas';
+
+  @override
+  String get businessCashIn => 'Uang Masuk';
+
+  @override
+  String get businessCashOut => 'Uang Keluar';
+
+  @override
+  String get businessClosingCash => 'Saldo Akhir Kas';
+
+  @override
+  String get businessCashChange => 'Perubahan Bersih Kas';
+
+  @override
+  String get businessOutstanding => 'Sisa Tagihan';
+
+  @override
+  String get businessOverdue => 'Lewat Jatuh Tempo';
+
+  @override
+  String get businessNotDue => 'Belum Jatuh Tempo';
+
+  @override
+  String get businessUnknownDue => 'Jatuh Tempo Belum Diketahui';
+
+  @override
+  String get businessOpenDocuments => 'Dokumen Terbuka';
+
+  @override
+  String get businessExcludedDocuments => 'Sumber Belum Didukung';
+
+  @override
+  String get businessStockValue => 'Nilai Persediaan';
+
+  @override
+  String get businessBookValue => 'Saldo Jurnal Persediaan';
+
+  @override
+  String get businessDifference => 'Selisih Nilai Stok';
+
+  @override
+  String get businessProductsEvidence => 'Produk dengan Bukti';
+
+  @override
+  String get businessOpeningStockValue => 'Nilai Stok Awal';
+
+  @override
+  String get businessClosingStockValue => 'Nilai Stok Akhir';
+
+  @override
+  String get businessStockValueChange => 'Perubahan Nilai Stok';
+
+  @override
+  String get businessStockProducts => 'Produk Stok';
+
+  @override
+  String get businessLowStock => 'Stok Rendah';
+
+  @override
+  String get businessOutOfStock => 'Stok Habis';
+
+  @override
+  String get businessReorderProducts => 'Perlu Restok';
+
+  @override
+  String get businessReference => 'Referensi';
+
+  @override
+  String get businessParty => 'Pelanggan / Pemasok';
+
+  @override
+  String get businessDate => 'Tanggal';
+
+  @override
+  String get businessDueDate => 'Jatuh Tempo';
+
+  @override
+  String get businessBucket => 'Kelompok Umur';
+
+  @override
+  String get businessAmount => 'Nilai Dokumen';
+
+  @override
+  String get businessPaid => 'Pembayaran pada Cutoff';
+
+  @override
+  String get businessCredited => 'Kredit / Retur pada Cutoff';
+
+  @override
+  String get businessName => 'Nama Produk';
+
+  @override
+  String get businessAccount => 'Akun';
+
+  @override
+  String get businessQuantity => 'Kuantitas';
+
+  @override
+  String get businessValue => 'Nilai';
+
+  @override
+  String get businessStatus => 'Status Bukti';
+
+  @override
+  String get businessUnit => 'Satuan Dasar';
+
+  @override
+  String get businessMinimum => 'Batas Minimum';
+
+  @override
+  String get businessReorder => 'Titik Restok';
+
+  @override
+  String get businessOpeningQuantity => 'Kuantitas Awal';
+
+  @override
+  String get businessIncoming => 'Barang Masuk';
+
+  @override
+  String get businessOutgoing => 'Barang Keluar';
+
+  @override
+  String get businessAdjustment => 'Penyesuaian';
+
+  @override
+  String get businessOtherMovement => 'Perubahan Lain';
+
+  @override
+  String get businessClosingQuantity => 'Kuantitas Akhir';
+
+  @override
+  String get businessDescription => 'Keterangan';
+
+  @override
+  String get businessActivity => 'Aktivitas';
+
+  @override
+  String get businessOperating => 'Operasional';
+
+  @override
+  String get businessInvesting => 'Investasi';
+
+  @override
+  String get businessFinancing => 'Pendanaan';
+
+  @override
+  String get businessUnclassified => 'Belum Terklasifikasi';
+
+  @override
+  String get businessCurrent => 'Belum jatuh tempo';
+
+  @override
+  String get businessDays30 => 'Terlambat 1–30 hari';
+
+  @override
+  String get businessDays60 => 'Terlambat 31–60 hari';
+
+  @override
+  String get businessDays90 => 'Terlambat 61–90 hari';
+
+  @override
+  String get businessDaysMore90 => 'Terlambat lebih dari 90 hari';
+
+  @override
+  String get businessComplete => 'Bukti yang diperiksa lengkap';
+
+  @override
+  String get businessPartial => 'Sebagian sumber belum lengkap';
+
+  @override
+  String get businessUnknown => 'Bukti belum dapat dipastikan';
+
+  @override
+  String get businessDiscrepancy => 'Ada selisih yang perlu diperiksa';
+
+  @override
+  String get businessEmpty =>
+      'Tidak ada rincian sesuai filter. Periksa juga catatan cakupan sumber.';
+
+  @override
+  String get businessDetails => 'Rincian laporan';
+
+  @override
+  String get businessSourceNotes => 'Catatan sumber dan cakupan';
+
+  @override
+  String get businessPage => 'Halaman';
+
+  @override
+  String get businessRows => 'baris';
+
+  @override
+  String get businessDenied =>
+      'Laporan ini memerlukan izin Finance dan izin sumber terkait. Persediaan historis memerlukan izin jurnal; restok gabungan memerlukan akses seluruh lokasi.';
+
+  @override
+  String get businessCashMissing =>
+      'Akun kas/bank belum dipetakan. Saldo tidak dianggap nol.';
+
+  @override
+  String get businessGrossAmbiguous =>
+      'Ada jurnal gabungan yang belum dapat dipisahkan menjadi penerimaan dan pengeluaran bruto. Saldo bersih tetap mengikuti buku besar.';
+
+  @override
+  String get businessAgingBasis =>
+      'Sisa tagihan dan pembayaran direkonstruksi sampai akhir tanggal cutoff, bukan saldo hari ini.';
+
+  @override
+  String get businessAgingExclusions =>
+      'Total hanya mencakup sumber yang dapat direkonstruksi. Rincian yang dikeluarkan tercantum pada catatan sumber.';
+
+  @override
+  String get businessPosOnly =>
+      'Hanya invoice yang berasal dari transaksi POS; pesanan belum dibayar tidak otomatis menjadi piutang Finance.';
+
+  @override
+  String get businessTradeAR =>
+      'Piutang pelanggan dari sumber yang didukung. Bukan seluruh aset piutang perusahaan.';
+
+  @override
+  String get businessTradeAP =>
+      'Utang dagang pemasok dari sumber yang didukung. Pinjaman, utang gaji, dan pajak tidak termasuk.';
+
+  @override
+  String get businessHistoricalStock =>
+      'Saldo dan nilai stok mengikuti bukti historis seluruh lokasi, bukan harga katalog saat ini.';
+
+  @override
+  String get businessStockMissing =>
+      'Baseline atau rantai bukti belum lengkap. Stok hari ini tidak dipakai sebagai saldo masa lalu.';
+
+  @override
+  String get businessMovementBasis =>
+      'Kuantitas per produk menggunakan satuan dasar. Saldo awal + masuk − keluar + penyesuaian + perubahan lain = saldo akhir.';
+
+  @override
+  String get businessMovementMissing =>
+      'Mutasi bruto memerlukan baseline yang sama dan rantai perubahan terverifikasi sepanjang periode. Bukti cutoff terpisah saja tidak membuktikan seluruh mutasi.';
+
+  @override
+  String get businessRestockLive =>
+      'Daftar restok menunjukkan kondisi hari ini dan ambang minimum/reorder saat ini; bukan laporan historis.';
+
+  @override
+  String get businessExport => 'Ekspor laporan';
+
+  @override
+  String get businessCsv => 'CSV / Excel';
+
+  @override
+  String get businessPdf => 'PDF';
+
+  @override
+  String get businessExportChanged =>
+      'Data berubah. Perbarui laporan sebelum mengekspor agar seluruh baris konsisten.';
+
+  @override
+  String get businessExportLimit =>
+      'Ekspor terlalu besar. Persempit periode atau pencarian.';
+
+  @override
+  String get businessExportFailed =>
+      'Ekspor belum berhasil. Coba lagi setelah memperbarui laporan.';
+
+  @override
+  String get businessPdfGlyph =>
+      'PDF belum mendukung sebagian karakter pada data ini. Gunakan CSV agar seluruh nama tetap utuh.';
+
+  @override
+  String get businessExportScope => 'Cakupan';
+
+  @override
+  String get businessExportCurrency => 'Mata uang';
+
+  @override
+  String get businessExportCoverage => 'Cakupan bukti';
+
+  @override
+  String get businessExportAllRows =>
+      'Ekspor mencakup seluruh halaman untuk filter ini.';
+
+  @override
+  String get businessWithheld => 'Potongan Pajak';
+
+  @override
+  String get businessCashReconciliation => 'Selisih Rekonsiliasi Kas';
+
+  @override
+  String get businessOpenSource => 'Buka dokumen terkini';
+
+  @override
+  String get businessSourceFailed =>
+      'Dokumen sumber tidak dapat dibuka. Periksa izin akses lalu coba lagi.';
+
+  @override
+  String get posPreparingSales => 'Mempersiapkan penjualan...';
+
+  @override
+  String get posCashierNavigationShortcuts =>
+      'Alt+1 / Alt+2 Kasir · Alt+3 Katalog';
+
+  @override
+  String get tradeTitle => 'Utang & Piutang';
+
+  @override
+  String get tradeCreate => 'Catat Tagihan Manual';
+
+  @override
+  String get tradeNewBill => 'Tagihan baru';
+
+  @override
+  String get tradeOpening => 'Saldo awal belum tercatat';
+
+  @override
+  String get tradeManualNote =>
+      'Untuk tagihan uang tanpa rincian stok atau pajak. Jangan mencatat ulang invoice yang sudah ada di Finance.';
+
+  @override
+  String get tradeOpeningNote =>
+      'Hanya saldo yang belum pernah dicatat di Finance. Saldo awal masuk ke ekuitas dan tidak menjadi pendapatan atau beban baru.';
+
+  @override
+  String get tradeCustomer => 'Nama pelanggan';
+
+  @override
+  String get tradeSupplier => 'Nama pemasok';
+
+  @override
+  String get tradeExistingCustomer => 'Pelanggan terdaftar (opsional)';
+
+  @override
+  String get tradeNewCustomer => 'Gunakan nama pelanggan';
+
+  @override
+  String get tradeControl => 'Kelompok tagihan';
+
+  @override
+  String get tradeCounter => 'Kategori pencatatan';
+
+  @override
+  String get tradeSave => 'Simpan Tagihan';
+
+  @override
+  String get tradePay => 'Catat Pembayaran';
+
+  @override
+  String get tradeReceive => 'Catat Penerimaan';
+
+  @override
+  String get tradePaymentNote =>
+      'Pencatatan online ke akun Finance. Ini bukan penjualan baru dan tidak mengubah uang laci shift.';
+
+  @override
+  String get tradeCash => 'Tunai — kas Finance';
+
+  @override
+  String get tradeTransfer => 'Transfer bank';
+
+  @override
+  String get tradeCashAccount => 'Akun kas penerimaan';
+
+  @override
+  String get tradeBank => 'Rekening bank';
+
+  @override
+  String get tradePending => 'Permintaan belum terkonfirmasi';
+
+  @override
+  String get tradePendingNote =>
+      'Jangan membuat pencatatan atau pembayaran pengganti. Konfirmasi kembali menggunakan permintaan yang sama.';
+
+  @override
+  String get tradeRetrySame => 'Konfirmasi ulang';
+
+  @override
+  String get tradeCreateSuccess => 'Tagihan dan jurnal berhasil dicatat.';
+
+  @override
+  String get tradePaySuccess => 'Pembayaran dan jurnal berhasil dicatat.';
+
+  @override
+  String get tradeDetails => 'Rincian tagihan';
+
+  @override
+  String get tradeHistory => 'Riwayat pembayaran';
+
+  @override
+  String get tradeNoHistory => 'Belum ada pembayaran.';
+
+  @override
+  String get tradeLastHistory => 'Menampilkan maksimal 50 pembayaran terakhir.';
+
+  @override
+  String get tradeConfirm => 'Konfirmasi pencatatan';
+
+  @override
+  String get tradeConfirmNote =>
+      'Periksa kembali pihak, nominal, tanggal dan kategori. Tindakan ini membentuk jurnal serta memperbarui saldo Finance.';
+
+  @override
+  String get tradeCancel => 'Batal';
+
+  @override
+  String get tradeContinue => 'Ya, catat';
+
+  @override
+  String get tradeRequired => 'Wajib diisi.';
+
+  @override
+  String get tradeInvalidAmount =>
+      'Masukkan Rupiah bulat positif sesuai sisa tagihan.';
+
+  @override
+  String get tradeInvalidDate => 'Tanggal atau jatuh tempo tidak valid.';
+
+  @override
+  String get tradeNoAccounts =>
+      'Kategori akun belum tersedia. Lengkapi pemetaan akun melalui Finance terlebih dahulu.';
+
+  @override
+  String get tradeSettled => 'Tampilkan yang sudah selesai';
+
+  @override
+  String get tradeSearch => 'Cari pihak atau nomor dokumen';
+
+  @override
+  String get tradeNoAccess =>
+      'Akses utang/piutang belum tersedia untuk pengguna ini.';
+
+  @override
+  String get tradePOSScope =>
+      'Hanya piutang POS pada toko yang diizinkan. Pencatatan manual memerlukan akses Finance seluruh instansi.';
+
+  @override
+  String get tradeProof => 'Bukti pencatatan';
+
+  @override
+  String get tradeJournal => 'Nomor jurnal';
+
+  @override
+  String get tradeUnverified => 'Bukti jurnal belum dapat dipastikan.';
+
+  @override
+  String get tradeNotes => 'Catatan (opsional)';
+
+  @override
+  String get tradeSavedCustomer => 'Pelanggan terpilih';
+
+  @override
+  String get tradeUnknown =>
+      'Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.';
 }

@@ -113,8 +113,9 @@ void main() {
         .setMockMethodCallHandler(platform, (call) async {
           calls.add(call);
           if (call.method == 'initialize') return true;
-          if (call.method == 'getNotificationAppLaunchDetails')
+          if (call.method == 'getNotificationAppLaunchDetails') {
             return {'notificationLaunchedApp': false};
+          }
           return null;
         });
     service =

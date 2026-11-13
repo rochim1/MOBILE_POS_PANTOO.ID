@@ -42,7 +42,7 @@ void main() {
       'features': <String, dynamic>{'use_tables': false, 'track_stock': false},
     };
 
-    expect(canOpenPosKeyboardDestination(config, 0), isTrue);
+    expect(canOpenPosKeyboardDestination(config, 0), isFalse);
     expect(canOpenPosKeyboardDestination(config, 1), isTrue);
     expect(canOpenPosKeyboardDestination(config, 2), isFalse);
     expect(canOpenPosKeyboardDestination(config, 5), isTrue);

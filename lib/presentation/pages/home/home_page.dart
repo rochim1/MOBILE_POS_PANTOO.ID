@@ -13,6 +13,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_order.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/pos_metric_card.dart';
 
 class HomePage extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
@@ -128,7 +129,10 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  posLocale(context).pos28da64abd533((profile == 'restoran' ? ('restoran').tr(context) : profile).toString()),
+                  posLocale(context).pos28da64abd533(
+                    (profile == 'restoran' ? ('restoran').tr(context) : profile)
+                        .toString(),
+                  ),
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 12),
@@ -249,7 +253,8 @@ class _HomePageState extends State<HomePage> {
                         if (usingOfflineSnapshot) ...[
                           data?['_offline_estimate'] == true
                               ? _buildDashboardStatusNotice(
-                                  ('Mode offline · Angka ini hanya perkiraan dari riwayat yang tersimpan di perangkat.').tr(context),
+                                  ('Mode offline · Angka ini hanya perkiraan dari riwayat yang tersimpan di perangkat.')
+                                      .tr(context),
                                 )
                               : _buildOfflineSnapshotNotice(offlineCachedAt),
                           const SizedBox(height: 16),
@@ -274,7 +279,9 @@ class _HomePageState extends State<HomePage> {
                             onTap: () => widget.onNavigate?.call(15),
                             borderRadius: BorderRadius.circular(10),
                             child: _buildDashboardStatusNotice(
-                              posLocale(context).pos2b8d8622ab16((widget.offlineUnresolved).toString()),
+                              posLocale(context).pos2b8d8622ab16(
+                                (widget.offlineUnresolved).toString(),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -302,7 +309,6 @@ class _HomePageState extends State<HomePage> {
                         // Section 1: Compact Stat Cards
                         if (_widgetVisible('summary') && !dashboardUnavailable)
                           _buildStatCardsSection(
-                            isTablet: isTablet,
                             todayRevenue: todayRevenue,
                             todayTransactions: todayTransactions,
                             todayAvgOrder: todayAvgOrder,
@@ -370,7 +376,8 @@ class _HomePageState extends State<HomePage> {
                         if (_widgetVisible('orders')) ...[
                           if (usingOfflineSnapshot && state.orders.isEmpty)
                             _buildDashboardStatusNotice(
-                              ('Riwayat pesanan belum tersimpan untuk mode offline.').tr(context),
+                              ('Riwayat pesanan belum tersimpan untuk mode offline.')
+                                  .tr(context),
                             )
                           else
                             _buildRecentOrders(state.orders, isTablet),
@@ -379,7 +386,8 @@ class _HomePageState extends State<HomePage> {
 
                         if (state.activeShift?['_offline_snapshot'] == true)
                           _buildDashboardStatusNotice(
-                            ('Status shift berasal dari data terakhir yang tersimpan. Transaksi offline tetap menunggu verifikasi server saat sinkronisasi.').tr(context),
+                            ('Status shift berasal dari data terakhir yang tersimpan. Transaksi offline tetap menunggu verifikasi server saat sinkronisasi.')
+                                .tr(context),
                           ),
 
                         // Section 4: Active Shift
@@ -476,7 +484,10 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              posLocale(context).pos49f816b08de3((name == null || name.isEmpty ? ('Pengguna').tr(context) : name).toString()),
+              posLocale(context).pos49f816b08de3(
+                (name == null || name.isEmpty ? ('Pengguna').tr(context) : name)
+                    .toString(),
+              ),
               style: TextStyle(
                 fontSize: isTablet ? 28 : 23,
                 fontWeight: FontWeight.w800,
@@ -599,7 +610,8 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Text(
               issues.isEmpty
-                  ? ('Konfigurasi POS belum siap. Tarik untuk mencoba memuat ulang.').tr(context)
+                  ? ('Konfigurasi POS belum siap. Tarik untuk mencoba memuat ulang.')
+                        .tr(context)
                   : issues.join('\n'),
               style: const TextStyle(
                 color: AppColors.warning,
@@ -613,7 +625,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildStatCardsSection({
-    required bool isTablet,
     required double todayRevenue,
     required int todayTransactions,
     required double todayAvgOrder,
@@ -623,175 +634,42 @@ class _HomePageState extends State<HomePage> {
     required bool isLoading,
   }) {
     final cards = [
-      _StatCardData(
+      PosMetricCard(
         title: _selectedDays == 1
             ? ('Pendapatan Hari Ini').tr(context)
             : posLocale(context).pos14401dca7861((_periodLabel).toString()),
         value: _formatCurrency(todayRevenue),
         icon: Icons.account_balance_wallet_outlined,
-        color: AppColors.primary,
+        description: posLocale(context).reportPreviousPeriod,
         growth: revenueGrowth,
       ),
-      _StatCardData(
+      PosMetricCard(
         title: _selectedDays == 1
             ? ('Transaksi Hari Ini').tr(context)
             : posLocale(context).posb9fb0286e5f6((_periodLabel).toString()),
         value: '$todayTransactions',
         icon: Icons.receipt_long_outlined,
-        color: AppColors.info,
+        description: posLocale(context).reportPreviousPeriod,
         growth: transactionGrowth,
       ),
-      _StatCardData(
+      PosMetricCard(
         title: ('Rata-rata Order').tr(context),
         value: _formatCurrency(todayAvgOrder),
         icon: Icons.show_chart_outlined,
-        color: AppColors.warning,
-        growth: null,
+        description: posLocale(context).reportAverageTransaction,
       ),
-      _StatCardData(
+      PosMetricCard(
         title: ('Total Produk').tr(context),
         value: '$totalProducts',
         icon: Icons.inventory_2_outlined,
-        color: AppColors.neutral,
-        growth: null,
+        description: posLocale(context).dashboardCatalogProducts,
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 760
-            ? 4
-            : constraints.maxWidth >= 420
-            ? 2
-            : 1;
-        const spacing = 12.0;
-        final cardWidth =
-            (constraints.maxWidth - spacing * (columns - 1)) / columns;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: List.generate(4, (index) {
-            return SizedBox(
-              width: cardWidth,
-              height: 116,
-              child: isLoading
-                  ? _buildShimmerCard()
-                  : _buildStatCard(cards[index]),
-            );
-          }),
-        );
-      },
-    );
-  }
-
-  Widget _buildShimmerCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 80,
-            height: 12,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: 100,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: data.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(data.icon, color: data.color, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: PosText(
-                  data.title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (data.growth != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        (data.growth! >= 0
-                                ? AppColors.success
-                                : AppColors.danger)
-                            .withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${data.growth! >= 0 ? '+' : '-'}${data.growth!.abs().toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: data.growth! >= 0
-                          ? AppColors.success
-                          : AppColors.danger,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            data.value,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
-              color: AppColors.heading,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+    return PosMetricGrid(
+      children: isLoading
+          ? List.generate(4, (_) => const PosMetricCardSkeleton())
+          : cards,
     );
   }
 
@@ -1144,7 +1022,9 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            posLocale(context).pos67fdbcba215b((qtySold).toString()),
+                            posLocale(
+                              context,
+                            ).pos67fdbcba215b((qtySold).toString()),
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey.shade500,
@@ -1205,7 +1085,8 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      state.activeShift!['toko']?['nama_toko'] ?? ('Toko Kasir').tr(context),
+                      state.activeShift!['toko']?['nama_toko'] ??
+                          ('Toko Kasir').tr(context),
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -1213,7 +1094,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      posLocale(context).pos13585ecae7e3((state.activeShift!['opened_at'] ?? '-').toString()),
+                      posLocale(context).pos13585ecae7e3(
+                        (state.activeShift!['opened_at'] ?? '-').toString(),
+                      ),
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 12,
@@ -1291,7 +1174,9 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              posLocale(context).poscda259d82b9a((lowStockProducts.length).toString()),
+              posLocale(
+                context,
+              ).poscda259d82b9a((lowStockProducts.length).toString()),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -1418,20 +1303,4 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-}
-
-class _StatCardData {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final double? growth;
-
-  const _StatCardData({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    this.growth,
-  });
 }

@@ -19,7 +19,8 @@ import 'pos_customer_page.dart';
 import 'pos_outlet_page.dart';
 import 'pos_shift_page.dart';
 import 'pos_return_page.dart';
-import 'pos_receivables_page.dart';
+import 'pos_trade_workspace_page.dart';
+import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
 import 'pos_printer_page.dart';
 import 'pos_offline_queue_page.dart';
 import 'pos_promo_page.dart';
@@ -36,7 +37,6 @@ import 'widgets/pos_setup_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
 import 'utils/pos_order_workspace_policy.dart';
-import '../home/home_page.dart';
 import '../login/login_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
@@ -53,12 +53,12 @@ import '../../widgets/pos_employee_avatar.dart';
 import '../../widgets/pos_customer_display_pairing.dart';
 
 class PosShellPage extends StatefulWidget {
-  final bool prepareDashboard;
+  final bool prepareSalesData;
   final bool showSetupGuide;
 
   const PosShellPage({
     super.key,
-    this.prepareDashboard = false,
+    this.prepareSalesData = false,
     this.showSetupGuide = false,
   });
 
@@ -68,9 +68,9 @@ class PosShellPage extends StatefulWidget {
 
 class _PosShellPageState extends State<PosShellPage>
     with WidgetsBindingObserver {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
   // Asal halaman sekunder untuk tombol kembali di mobile.
-  int _secondaryOriginIndex = 4;
+  int _secondaryOriginIndex = 1;
   int _tableOrdersRefresh = 0;
   // 0 = expanded, 1 = icons only, 2 = completely hidden.
   int _sidebarMode = 1;
@@ -108,7 +108,8 @@ class _PosShellPageState extends State<PosShellPage>
   bool get _railExpanded => _sidebarMode == 0;
 
   static const _destinations = <({String label, IconData icon})>[
-    (label: 'Dashboard', icon: Icons.dashboard_outlined),
+    // Reserved legacy index; dashboard is no longer a destination.
+    (label: 'Kasir', icon: Icons.point_of_sale_outlined),
     (label: 'Kasir', icon: Icons.point_of_sale_outlined),
     (label: 'Katalog Penjualan', icon: Icons.inventory_2_outlined),
     (label: 'Riwayat', icon: Icons.receipt_long_outlined),
@@ -121,14 +122,14 @@ class _PosShellPageState extends State<PosShellPage>
     (label: 'Pelanggan', icon: Icons.people_outline),
     (label: 'Toko', icon: Icons.storefront_outlined),
     (label: 'Shift Kasir', icon: Icons.schedule_outlined),
-    (label: 'Laporan Penjualan', icon: Icons.bar_chart_outlined),
+    (label: 'Laporan', icon: Icons.bar_chart_outlined),
     (label: 'Retur Penjualan', icon: Icons.keyboard_return_outlined),
     (label: 'Pengaturan Printer', icon: Icons.print_outlined),
     (label: 'Antrean Transaksi Offline', icon: Icons.cloud_sync_outlined),
     (label: 'Retur ke Supplier', icon: Icons.assignment_return_outlined),
     (label: 'Pengaturan POS', icon: Icons.settings_outlined),
     (label: 'Tampilan Dapur', icon: Icons.soup_kitchen_outlined),
-    (label: 'Piutang & Pelunasan', icon: Icons.account_balance_wallet_outlined),
+    (label: 'Utang & Piutang', icon: Icons.account_balance_wallet_outlined),
   ];
 
   @override
@@ -139,20 +140,23 @@ class _PosShellPageState extends State<PosShellPage>
     _setupCompleted = PosOnboardingPage.isOperationalSetupCompleted(
       sl<SharedPreferences>(),
     );
-    if (widget.prepareDashboard) {
+    if (widget.prepareSalesData) {
       _posDataRequested = true;
       _showUnlockLoading = true;
-      _posBloc.add(const LoadDashboardSnapshot());
-      _posBloc.add(LoadDashboardData());
       _posBloc.add(LoadPosData());
       sl<SyncService>().syncOfflineTransactions();
     }
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        if (context.read<AppLockCubit>().state.status ==
+            AppLockStatus.unlocked) {
+          _loadPOSAfterUnlock();
+        }
         _loadNavbarNotifications();
-        if (sl.isRegistered<PosPushService>())
+        if (sl.isRegistered<PosPushService>()) {
           unawaited(sl<PosPushService>().activate());
+        }
         _refreshOfflineQueueSummary();
         unawaited(sl<PosRepository>().syncPendingFavoriteProductIds());
       }
@@ -161,8 +165,9 @@ class _PosShellPageState extends State<PosShellPage>
       results,
     ) {
       if (!results.contains(ConnectivityResult.none)) {
-        if (sl.isRegistered<PosPushService>())
+        if (sl.isRegistered<PosPushService>()) {
           unawaited(sl<PosPushService>().activate());
+        }
         sl<SyncService>().syncOfflineTransactions().whenComplete(
           _refreshOfflineQueueSummary,
         );
@@ -375,26 +380,22 @@ class _PosShellPageState extends State<PosShellPage>
     }
   }
 
-  void _loadPOSAfterUnlock(BuildContext context) {
+  void _loadPOSAfterUnlock() {
     if (_posDataRequested) return;
     _posDataRequested = true;
     setState(() => _showUnlockLoading = true);
-    context.read<PosBloc>().add(const LoadDashboardSnapshot());
-    context.read<PosBloc>().add(LoadDashboardData());
-    context.read<PosBloc>().add(LoadPosData());
+    _posBloc.add(LoadPosData());
     sl<SyncService>().syncOfflineTransactions();
   }
 
   void _finishUnlockLoading(PosState state) {
     if (!_showUnlockLoading) return;
-    // A cached dashboard is not enough to reveal the shell: its sidebar and
-    // destinations also depend on the runtime config, stores, and products.
-    final dashboardReady =
-        state.status == PosStatus.success && state.dashboardData != null;
-    if (dashboardReady || state.status == PosStatus.failure) {
+    // Wait for verified permissions, stores and catalog, without loading sales statistics.
+    final salesReady = state.status == PosStatus.success;
+    if (salesReady || state.status == PosStatus.failure) {
       setState(() {
         _showUnlockLoading = false;
-        if (dashboardReady && _setupCompleted && !_showSetupGuide) {
+        if (salesReady && !_showSetupGuide) {
           final activeStores = state.stores
               .where((store) => store.status.toLowerCase() == 'active')
               .toList(growable: false);
@@ -402,11 +403,9 @@ class _PosShellPageState extends State<PosShellPage>
             state.runtimeConfig,
             hasStore: activeStores.isNotEmpty,
             hasShift: state.activeShift != null,
-            offline:
-                state.dashboardData?['_offline_snapshot'] == true ||
-                state.dashboardData?['_offline_unavailable'] == true,
+            offline: state.runtimeConfig['_offline_snapshot'] == true,
           );
-          _secondaryOriginIndex = 0;
+          _secondaryOriginIndex = _mobilePrimaryIndex;
           _returnToCashierAfterShiftOpen = _selectedIndex == 11;
         }
       });
@@ -542,16 +541,8 @@ class _PosShellPageState extends State<PosShellPage>
   }
 
   List<Widget> get _pages => [
-    HomePage(
-      offlineUnresolved: _offlineUnresolved,
-      onNavigate: (index) {
-        if (!mounted || index < 0 || index >= _destinations.length) return;
-        setState(() {
-          if (index >= 5) _secondaryOriginIndex = 0;
-          _selectedIndex = index;
-        });
-      },
-    ),
+    // Keep legacy page indices stable for setup links and secondary destinations.
+    const PosPage(),
     PosPage(
       tourTargets: _cashierTourTargets,
       onOpenTableOrders: () => setState(() {
@@ -643,24 +634,20 @@ class _PosShellPageState extends State<PosShellPage>
     ),
     const PosKitchenDisplayPage(),
     if (_posBloc.state.runtimeConfig['permissions']?['view_receivables'] ==
-        true)
-      PosReceivablesPage(
-        key: ValueKey(
-          'receivables:${context.read<AppLockCubit>().state.activeEmployeeId}:${_posBloc.state.runtimeConfig['instansi_id']}',
-        ),
-        canCollect:
-            _posBloc
-                .state
-                .runtimeConfig['permissions']?['collect_receivables'] ==
-            true,
+            true ||
+        _posBloc.state.runtimeConfig['permissions']?['view_payables'] == true)
+      PosTradeWorkspacePage(
+        key: ValueKey((
+          'trade',
+          context.read<AppLockCubit>().state.activeEmployeeId,
+          _posBloc.state.runtimeConfig['instansi_id'],
+          _posBloc.state.runtimeConfig['permissions'],
+          sl<GraphQLClientProvider>().client,
+        )),
         operatorId: context.read<AppLockCubit>().state.activeEmployeeId ?? '',
       )
     else
-      const Center(
-        child: PosText(
-          'Piutang hanya tersedia bagi operator yang memiliki izin Finance.',
-        ),
-      ),
+      Center(child: Text(posLocale(context).tradeNoAccess)),
   ];
 
   void _openMoreDestination(int index) {
@@ -675,10 +662,17 @@ class _PosShellPageState extends State<PosShellPage>
     });
   }
 
+  int get _mobilePrimaryIndex =>
+      (_posBloc.state.runtimeConfig['permissions'] as Map?)?['use_cashier'] ==
+          true
+      ? 1
+      : 4;
+
   void _backWithinMobileShell() {
     final destination = mobilePosBackDestination(
       _selectedIndex,
       _secondaryOriginIndex,
+      primaryIndex: _mobilePrimaryIndex,
     );
     if (destination == null) return;
     setState(() => _selectedIndex = destination);
@@ -1051,7 +1045,7 @@ class _PosShellPageState extends State<PosShellPage>
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const PosText('Shortcut keyboard Pantoo POS'),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -1060,7 +1054,7 @@ class _PosShellPageState extends State<PosShellPage>
                 'Navigasi: Tab / Shift+Tab untuk berpindah, Enter atau Spasi untuk memilih.',
               ),
               SizedBox(height: 10),
-              PosText('Alt+1 Dashboard · Alt+2 Kasir · Alt+3 Katalog'),
+              PosText(posLocale(context).posCashierNavigationShortcuts),
               PosText('Alt+4 Pesanan & Meja · Alt+5 Inventori · Alt+6 Riwayat'),
               SizedBox(height: 10),
               PosText(
@@ -1089,7 +1083,7 @@ class _PosShellPageState extends State<PosShellPage>
   Widget _withKeyboardNavigation(Widget child) => CallbackShortcuts(
     bindings: <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.digit1, alt: true): () =>
-          _navigateWithKeyboard(0),
+          _navigateWithKeyboard(1),
       const SingleActivator(LogicalKeyboardKey.digit2, alt: true): () =>
           _navigateWithKeyboard(1),
       const SingleActivator(LogicalKeyboardKey.digit3, alt: true): () =>
@@ -1114,7 +1108,11 @@ class _PosShellPageState extends State<PosShellPage>
     return PopScope(
       canPop:
           !isMobile ||
-          mobilePosBackDestination(_selectedIndex, _secondaryOriginIndex) ==
+          mobilePosBackDestination(
+                _selectedIndex,
+                _secondaryOriginIndex,
+                primaryIndex: _mobilePrimaryIndex,
+              ) ==
               null,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && isMobile) _backWithinMobileShell();
@@ -1141,7 +1139,7 @@ class _PosShellPageState extends State<PosShellPage>
                       _showSetupGuide = true;
                     });
                   }
-                  _loadPOSAfterUnlock(context);
+                  _loadPOSAfterUnlock();
                   _loadNavbarNotifications();
                 } else {
                   _posDataRequested = false;
@@ -1156,10 +1154,12 @@ class _PosShellPageState extends State<PosShellPage>
                   if (_selectedIndex == 19 &&
                       state.runtimeConfig.isNotEmpty &&
                       state.runtimeConfig['permissions']?['view_receivables'] !=
+                          true &&
+                      state.runtimeConfig['permissions']?['view_payables'] !=
                           true) {
                     setState(() {
                       _selectedIndex = 4;
-                      _secondaryOriginIndex = 0;
+                      _secondaryOriginIndex = _mobilePrimaryIndex;
                     });
                   }
                 },
@@ -1725,10 +1725,10 @@ class _PosShellPageState extends State<PosShellPage>
                                       children: [
                                         Expanded(
                                           child: _buildBottomNavItem(
-                                            icon: Icons.home_outlined,
-                                            selectedIcon: Icons.home,
-                                            label: ('Beranda').tr(context),
-                                            index: 0,
+                                            icon: Icons.bar_chart_outlined,
+                                            selectedIcon: Icons.bar_chart,
+                                            label: ('Laporan').tr(context),
+                                            index: 12,
                                           ),
                                         ),
                                         Expanded(
@@ -1791,8 +1791,8 @@ class _PosShellPageState extends State<PosShellPage>
                                     ),
                                   ),
                                   const SizedBox(height: 14),
-                                  const PosText(
-                                    'Mempersiapkan dashboard...',
+                                  PosText(
+                                    posLocale(context).posPreparingSales,
                                     textScaler: TextScaler.noScaling,
                                     style: TextStyle(
                                       fontSize: 14,
@@ -1937,7 +1937,6 @@ class _PosShellPageState extends State<PosShellPage>
 
     return [
       _sidebarSection('POINT OF SALE'),
-      if (can('view_dashboard')) _sidebarItem(0),
       if (can('use_cashier')) _sidebarItem(1),
       // Order dan manajemen meja sudah dilebur dalam satu workspace. Tampilkan
       // satu menu bila pengguna memiliki salah satu hak akses terkait.
@@ -1956,7 +1955,7 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('view_transactions')) _sidebarItem(3),
       if (can('view_reports')) _sidebarItem(12),
       if (can('view_returns')) _sidebarItem(13),
-      if (can('view_receivables')) _sidebarItem(19),
+      if (can('view_receivables') || can('view_payables')) _sidebarItem(19),
       _sidebarSection('PENGATURAN'),
       if (can('view_settings')) _sidebarItem(17),
       if (can('view_receipt')) _sidebarItem(14),
@@ -2077,21 +2076,29 @@ class _PosShellPageState extends State<PosShellPage>
     required int index,
   }) {
     final isSelected = index == 4
-        ? _selectedIndex == 4 || _selectedIndex >= 5
+        ? _selectedIndex == 4 || (_selectedIndex >= 5 && _selectedIndex != 12)
         : _selectedIndex == index;
     final color = isSelected ? AppColors.primary : Colors.black54;
     return MaterialButton(
       minWidth: 0,
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      onPressed: () {
-        if (index == 4) {
-          _posBloc.add(const RefreshPosRuntimeConfig(preserveCheckout: true));
-        }
-        setState(() {
-          _showSetupGuide = false;
-          _selectedIndex = index;
-        });
-      },
+      onPressed:
+          index == 12 &&
+              (_posBloc.state.runtimeConfig['permissions']
+                      as Map?)?['view_reports'] !=
+                  true
+          ? null
+          : () {
+              if (index == 4) {
+                _posBloc.add(
+                  const RefreshPosRuntimeConfig(preserveCheckout: true),
+                );
+              }
+              setState(() {
+                _showSetupGuide = false;
+                _selectedIndex = index;
+              });
+            },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

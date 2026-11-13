@@ -29,7 +29,7 @@ void main() {
           hasShift: false,
           offline: false,
         ),
-        0,
+        4,
       );
       expect(
         mobilePosUnlockDestination(
@@ -55,7 +55,7 @@ void main() {
           hasShift: false,
           offline: true,
         ),
-        0,
+        4,
       );
       expect(
         mobilePosUnlockDestination(
@@ -84,14 +84,24 @@ void main() {
   test('Back dari halaman sekunder kembali ke asal', () {
     expect(mobilePosBackDestination(5, 4), 4); // Lainnya → Pesanan
     expect(mobilePosBackDestination(5, 1), 1); // Kasir → Pesanan
-    expect(mobilePosBackDestination(7, 0), 0); // Beranda → Inventori
+    expect(mobilePosBackDestination(7, 0), 1); // Tujuan lama → Inventori
   });
 
-  test('Back dari tab utama kembali ke beranda lalu keluar', () {
-    expect(mobilePosBackDestination(4, 4), 0);
-    expect(mobilePosBackDestination(1, 4), 0);
-    expect(mobilePosBackDestination(0, 4), isNull);
+  test('Back dari tab utama kembali ke kasir lalu keluar', () {
+    expect(mobilePosBackDestination(4, 4), 1);
+    expect(mobilePosBackDestination(1, 4), isNull);
+    expect(mobilePosBackDestination(0, 4), 1);
   });
+
+  test(
+    'report returns to cashier and operators without checkout can exit their menu',
+    () {
+      expect(mobilePosBackDestination(12, 4), 1);
+      expect(mobilePosBackDestination(7, 12), 12);
+      expect(mobilePosBackDestination(4, 4, primaryIndex: 4), isNull);
+      expect(mobilePosBackDestination(12, 4, primaryIndex: 4), 4);
+    },
+  );
 
   test('asal halaman sekunder yang tidak valid jatuh ke Lainnya', () {
     expect(mobilePosBackDestination(18, -1), 4);

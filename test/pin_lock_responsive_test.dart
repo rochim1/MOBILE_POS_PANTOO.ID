@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -73,12 +76,104 @@ class TestLockCubit extends AppLockCubit {
 }
 
 void main() {
+  setUpAll(() async {
+    final font = FontLoader('Roboto')
+      ..addFont(rootBundle.load('assets/fonts/roboto-regular.ttf'));
+    await font.load();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await icons.load();
+  });
   setUp(() {
     sl.registerSingleton<PosRepository>(TestPosRepository());
   });
   tearDown(() async {
     await sl.reset();
   });
+  testWidgets(
+    'carousel changes only the left panel while PIN stays usable on the right',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final cubit = TestLockCubit()..seedLocked();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        BlocProvider<AppLockCubit>.value(
+          value: cubit,
+          child: MaterialApp(
+            theme: ThemeData(fontFamily: 'Roboto'),
+            home: const RepaintBoundary(
+              key: Key('pin_carousel_preview'),
+              child: PinLockScreen(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        final context = tester.element(
+          find.byKey(const Key('pin_marketing_carousel')),
+        );
+        await precacheImage(
+          const AssetImage('assets/images/pin_bni_edc_promo.jpg'),
+          context,
+        );
+        if (!context.mounted) return;
+        await precacheImage(
+          const AssetImage('assets/images/pantoo_brand_ambassador.png'),
+          context,
+        );
+      });
+      await tester.pumpAndSettle();
+      final panelBefore = tester.getRect(find.byKey(posPinSetupTourTarget));
+      final carousel = tester.getRect(
+        find.byKey(const Key('pin_marketing_carousel')),
+      );
+      expect(carousel.right, lessThanOrEqualTo(600));
+      expect(panelBefore.left, greaterThanOrEqualTo(600));
+      expect(find.byKey(const Key('pin_bni_promo')), findsOneWidget);
+      final preview = Platform.environment['PANTOO_PIN_CAROUSEL_PREVIEW'];
+      if (preview != null) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const Key('pin_carousel_preview')),
+        );
+        await tester.runAsync(() async {
+          final snapshot = await boundary.toImage(pixelRatio: 1);
+          final bytes = await snapshot.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+          await File(preview).writeAsBytes(bytes!.buffer.asUint8List());
+          snapshot.dispose();
+        });
+      }
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.tap(find.byKey(const Key('pin_marketing_next')));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byKey(posPinSetupTourTarget)), panelBefore);
+      for (final key in [
+        LogicalKeyboardKey.digit2,
+        LogicalKeyboardKey.digit3,
+        LogicalKeyboardKey.digit4,
+        LogicalKeyboardKey.digit5,
+        LogicalKeyboardKey.digit6,
+      ]) {
+        await tester.sendKeyEvent(key);
+      }
+      await tester.pump();
+      expect(cubit.enteredPins, ['123456']);
+      await tester.drag(
+        find.byKey(const Key('pin_marketing_slides')),
+        const Offset(500, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byKey(posPinSetupTourTarget)), panelBefore);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('PIN tidak menutupi intro atau login tanpa sesi autentikasi', (
     tester,
   ) async {
@@ -123,6 +218,7 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('pin_marketing_carousel')), findsNothing);
     expect(find.text('Pantoo POS'), findsNothing);
     expect(find.text('Aplikasi Kasir Online'), findsNothing);
     expect(find.text('Akses Kasir'), findsOneWidget);

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show Color;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -145,16 +144,18 @@ class PosPushService with WidgetsBindingObserver {
       await deactivate();
     }
     if ((prefs.getString('user_id') ?? '').isEmpty ||
-        (prefs.getString('instansi_id') ?? '').isEmpty)
+        (prefs.getString('instansi_id') ?? '').isEmpty) {
       return;
+    }
     final expectedSession = _session;
     final startGeneration = _generation;
     await initialize();
     if (!_initialized ||
         _disposed ||
         expectedSession != _session ||
-        startGeneration != _generation)
+        startGeneration != _generation) {
       return;
+    }
     if (_scope != _session) {
       _generation++;
       _savedToken = null;
@@ -177,10 +178,11 @@ class PosPushService with WidgetsBindingObserver {
       final token = await _messaging!.getToken();
       if (token != null &&
           generation == _generation &&
-          version == _refreshVersion)
+          version == _refreshVersion) {
         await _register(token);
-      else if (version != _refreshVersion)
+      } else if (version != _refreshVersion) {
         await _writes;
+      }
       if (_pendingOpen && _authenticated && generation == _generation) {
         _pendingOpen = false;
         onOpen?.call();
@@ -197,8 +199,9 @@ class PosPushService with WidgetsBindingObserver {
           _disposed ||
           generation != _generation ||
           _scope != _session ||
-          token.isEmpty)
+          token.isEmpty) {
         return;
+      }
       if (_savedToken == token) return;
       try {
         _attemptedToken = token;
@@ -223,8 +226,9 @@ class PosPushService with WidgetsBindingObserver {
     if (!_authenticated ||
         !_permissionGranted ||
         _scope != _session ||
-        _disposed)
+        _disposed) {
       return;
+    }
     final notification = message.notification;
     if (notification == null) return;
     final id = message.messageId;

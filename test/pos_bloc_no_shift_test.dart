@@ -13,6 +13,12 @@ class _NoShiftRepository extends Fake implements PosRepository {
 
   final bool allowOutOfShift;
   int customerFetches = 0;
+  int dashboardFetches = 0;
+  @override
+  Future<Map<String, dynamic>> getDashboardData({int days = 7}) async {
+    dashboardFetches++;
+    return {};
+  }
 
   @override
   String get activeOperatorId => 'qa-cashier';
@@ -134,6 +140,8 @@ void main() {
         (s) => s.status == PosStatus.success || s.status == PosStatus.failure,
       );
       expect(loaded.status, PosStatus.success);
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.dashboardFetches, 0);
       expect(repository.catalogFetches, 0);
       expect(loaded.stores.single.id, 'store-qa');
       expect(loaded.checkoutSyncFailed, isFalse);

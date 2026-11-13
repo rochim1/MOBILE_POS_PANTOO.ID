@@ -1,9 +1,15 @@
 /// Tujuan tombol kembali di shell mobile. Null berarti halaman utama boleh
 /// ditutup oleh sistem.
-int? mobilePosBackDestination(int selectedIndex, int secondaryOriginIndex) {
-  if (selectedIndex == 0) return null;
-  if (selectedIndex < 5) return 0;
-  if (secondaryOriginIndex < 0 || secondaryOriginIndex > 4) return 4;
+int? mobilePosBackDestination(
+  int selectedIndex,
+  int secondaryOriginIndex, {
+  int primaryIndex = 1,
+}) {
+  if (selectedIndex == primaryIndex) return null;
+  if (selectedIndex < 5 || selectedIndex == 12) return primaryIndex;
+  if (secondaryOriginIndex == 0) return primaryIndex;
+  if (secondaryOriginIndex == 12) return 12;
+  if (secondaryOriginIndex < 1 || secondaryOriginIndex > 4) return 4;
   return secondaryOriginIndex;
 }
 
@@ -14,7 +20,7 @@ int mobilePosUnlockDestination(
   required bool offline,
 }) {
   final p = runtime['permissions'] as Map? ?? const {};
-  final fallback = p['view_dashboard'] == true ? 0 : 4;
+  const fallback = 4;
   final withoutShift = runtime['allow_out_of_shift'] == true;
   if (p['use_cashier'] != true || (p['view_shifts'] != true && !withoutShift)) {
     return fallback;

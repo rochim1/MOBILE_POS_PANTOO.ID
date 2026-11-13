@@ -1,3 +1,4 @@
+import '../../widgets/pos_metric_card.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
@@ -392,7 +393,6 @@ class _PosStockViewState extends State<_PosStockView> {
         'Total Produk',
         stats != null ? formatter.format(stats.totalInventaris) : '-',
         Icons.inventory_2,
-        AppColors.neutral,
       ),
       (
         'Nilai Stok',
@@ -400,108 +400,28 @@ class _PosStockViewState extends State<_PosStockView> {
             ? 'Rp ${_formatCurrency(stats.totalNilaiInventaris)}'
             : '-',
         Icons.account_balance_wallet,
-        AppColors.neutral,
       ),
       (
         'Stok Rendah',
         stats != null ? formatter.format(stats.lowStockCount) : '-',
         Icons.warning_amber_rounded,
-        AppColors.warning,
       ),
       (
         'Stok Habis',
         stats != null ? formatter.format(stats.outOfStockCount) : '-',
         Icons.error_outline,
-        AppColors.danger,
       ),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 760
-              ? 4
-              : constraints.maxWidth >= 420
-              ? 2
-              : 1;
-          const spacing = 12.0;
-          final width =
-              (constraints.maxWidth - (spacing * (columns - 1))) / columns;
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: cards
-                .map(
-                  (card) => SizedBox(
-                    width: width,
-                    height: 112,
-                    child: _buildStatCard(card.$1, card.$2, card.$3, card.$4),
-                  ),
-                )
-                .toList(),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E9EE)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: PosMetricGrid(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 19, color: color),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: PosText(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF667085),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          if (value == '-')
-            const SkeletonBox(width: 84, height: 22, borderRadius: 5)
-          else
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF172033),
-                ),
-              ),
+          for (final card in cards)
+            PosMetricCard(
+              title: card.$1.tr(context),
+              value: card.$2,
+              icon: card.$3,
+              isLoading: stats == null,
             ),
         ],
       ),

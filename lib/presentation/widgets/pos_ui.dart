@@ -1,3 +1,4 @@
+import 'pos_metric_card.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -35,7 +36,10 @@ class PosAppBarTitle extends StatelessWidget {
           const SizedBox(width: 5),
           Flexible(
             child: Text(
-              subtitle ?? (online ? 'Status: Online'.tr(context) : 'Status: Offline'.tr(context)),
+              subtitle ??
+                  (online
+                      ? 'Status: Online'.tr(context)
+                      : 'Status: Offline'.tr(context)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -116,62 +120,22 @@ class PosStatCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  final Color color;
+  final String description;
 
   const PosStatCard({
     super.key,
     required this.label,
     required this.value,
     required this.icon,
-    this.color = AppColors.primary,
+    this.description = '',
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.grey.shade200),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0A0F172A),
-          blurRadius: 18,
-          offset: Offset(0, 6),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: .1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              PosText(label, style: TextStyle(color: AppColors.grey.shade600)),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => PosMetricCard(
+    title: label,
+    value: value,
+    icon: icon,
+    description: description,
   );
 }
 

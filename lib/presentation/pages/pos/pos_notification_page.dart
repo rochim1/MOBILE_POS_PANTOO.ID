@@ -105,8 +105,9 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                   valueListenable: sl<PosPushService>().status,
                   builder: (context, status, _) {
                     if (status != PosPushStatus.denied &&
-                        status != PosPushStatus.error)
+                        status != PosPushStatus.error) {
                       return const SizedBox.shrink();
+                    }
                     final strings = AppLocalizations.of(context)!;
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),

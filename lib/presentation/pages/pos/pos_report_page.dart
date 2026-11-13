@@ -1,3 +1,11 @@
+import 'pos_business_report_page.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_business_report.dart';
+import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_financial_report_repository.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
+import 'pos_profit_loss_page.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:math' as math;
@@ -16,6 +24,7 @@ import '../../bloc/pos_report/pos_report_state.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_category_navigation.dart';
 import '../../widgets/pos_ui.dart';
+import '../../widgets/pos_metric_card.dart';
 
 class PosReportPage extends StatelessWidget {
   const PosReportPage({super.key});
@@ -31,6 +40,10 @@ class PosReportPage extends StatelessWidget {
 
 enum _Section {
   summary,
+  profitLoss,
+  cashFlow,
+  aging,
+  inventory,
   topReports,
   commission,
   voidSales,
@@ -76,77 +89,139 @@ class _ReportViewState extends State<_ReportView> {
       builder: (context, state) {
         final wide = MediaQuery.sizeOf(context).width >= 900;
         final content = _content(context, state, wide);
+        final layout = wide
+            ? Row(
+                children: [
+                  _categories(),
+                  Expanded(child: content),
+                ],
+              )
+            : content;
+        if ([
+          _Section.profitLoss,
+          _Section.cashFlow,
+          _Section.aging,
+          _Section.inventory,
+        ].contains(_section)) {
+          return layout;
+        }
         return RefreshIndicator(
           onRefresh: () => _reload(context, state),
-          child: wide
-              ? Row(
-                  children: [
-                    _categories(),
-                    Expanded(child: content),
-                  ],
-                )
-              : content,
+          child: layout,
         );
       },
     ),
   );
 
-  Widget _content(
-    BuildContext context,
-    PosReportState state,
-    bool wide,
-  ) => ListView(
-    physics: const AlwaysScrollableScrollPhysics(),
-    padding: EdgeInsets.fromLTRB(wide ? 24 : 16, 16, wide ? 24 : 16, 40),
-    children: [
-      if (!wide) ...[_mobileCategories(), const SizedBox(height: 14)],
-      _header(),
-      const SizedBox(height: 16),
-      _filters(context, state),
-      const SizedBox(height: 18),
-      if (state.status == PosReportStatus.loading ||
-          state.status == PosReportStatus.initial)
-        const _Skeleton()
-      else if (state.reportData case final data?)
-        switch (_section) {
-          _Section.summary => _summary(data, state.selectedPeriod, wide),
-          _Section.topReports => _topReports(data),
-          _Section.commission => _notAvailable(
-            icon: Icons.percent_rounded,
-            title: ('Laporan Komisi').tr(context),
-            message: 'Komisi belum tercatat pada transaksi POS di periode ini.',
+  Widget _content(BuildContext context, PosReportState state, bool wide) {
+    if ([
+      _Section.profitLoss,
+      _Section.cashFlow,
+      _Section.aging,
+      _Section.inventory,
+    ].contains(_section)) {
+      final pos = context.watch<PosBloc>().state;
+      final lock = context.watch<AppLockCubit>().state;
+      return Column(
+        children: [
+          if (!wide)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _mobileCategories(),
+            ),
+          Expanded(
+            child: lock.status != AppLockStatus.unlocked
+                ? const Center(child: Icon(Icons.lock_outline))
+                : _financialPage(pos.runtimeConfig, lock.activeEmployeeId),
           ),
-          _Section.voidSales => _notAvailable(
-            icon: Icons.block_outlined,
-            title: ('Laporan Void').tr(context),
-            message:
-                'Belum ada data transaksi void yang tersedia pada laporan.',
-          ),
-          _Section.cashier => _cashierReport(data.cashierPerformance),
-          _Section.cash => _cashReport(data.paymentBreakdown),
-          _Section.products => _products(data.topProducts),
-          _Section.payments => _payments(data.paymentBreakdown),
-          _Section.satisfaction => _notAvailable(
-            icon: Icons.sentiment_satisfied_alt_outlined,
-            title: ('Kepuasan Pelanggan').tr(context),
-            message:
-                'Belum ada penilaian pelanggan yang tercatat pada transaksi POS.',
-          ),
-          _Section.others => _otherReport(data),
-          _Section.deposits => _notAvailable(
-            icon: Icons.savings_outlined,
-            title: ('Penjualan Deposit').tr(context),
-            message:
-                'Belum ada transaksi deposit yang tercatat pada periode ini.',
-          ),
-        }
-      else
-        _error(context, state),
-    ],
-  );
+        ],
+      );
+    }
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(wide ? 24 : 16, 16, wide ? 24 : 16, 40),
+      children: [
+        if (!wide) ...[_mobileCategories(), const SizedBox(height: 14)],
+        _header(),
+        const SizedBox(height: 16),
+        _filters(context, state),
+        const SizedBox(height: 18),
+        if (state.status == PosReportStatus.loading ||
+            state.status == PosReportStatus.initial)
+          const _Skeleton()
+        else if (state.reportData case final data?)
+          switch (_section) {
+            _Section.profitLoss ||
+            _Section.cashFlow ||
+            _Section.aging ||
+            _Section.inventory => const SizedBox.shrink(),
+            _Section.summary => _summary(data, state.selectedPeriod, wide),
+            _Section.topReports => _topReports(data),
+            _Section.commission => _notAvailable(
+              icon: Icons.percent_rounded,
+              title: ('Laporan Komisi').tr(context),
+              message:
+                  'Komisi belum tercatat pada transaksi POS di periode ini.',
+            ),
+            _Section.voidSales => _notAvailable(
+              icon: Icons.block_outlined,
+              title: ('Laporan Void').tr(context),
+              message:
+                  'Belum ada data transaksi void yang tersedia pada laporan.',
+            ),
+            _Section.cashier => _cashierReport(data.cashierPerformance),
+            _Section.cash => _cashReport(data.paymentBreakdown),
+            _Section.products => _products(data.topProducts),
+            _Section.payments => _payments(data.paymentBreakdown),
+            _Section.satisfaction => _notAvailable(
+              icon: Icons.sentiment_satisfied_alt_outlined,
+              title: ('Kepuasan Pelanggan').tr(context),
+              message:
+                  'Belum ada penilaian pelanggan yang tercatat pada transaksi POS.',
+            ),
+            _Section.others => _otherReport(data),
+            _Section.deposits => _notAvailable(
+              icon: Icons.savings_outlined,
+              title: ('Penjualan Deposit').tr(context),
+              message:
+                  'Belum ada transaksi deposit yang tercatat pada periode ini.',
+            ),
+          }
+        else
+          _error(context, state),
+      ],
+    );
+  }
+
+  Widget _financialPage(Map<String, dynamic> config, String? employeeId) {
+    final key = ValueKey((
+      _section,
+      config['instansi_id'],
+      config['permissions'],
+      employeeId,
+      sl<GraphQLClientProvider>().client,
+    ));
+    final repo = sl<PosFinancialReportRepository>();
+    if (_section == _Section.profitLoss) {
+      return PosProfitLossPage(key: key, repository: repo);
+    }
+    return PosBusinessReportPage(
+      key: key,
+      repository: repo,
+      initialKind: switch (_section) {
+        _Section.cashFlow => PosBusinessReportKind.cashFlow,
+        _Section.aging => PosBusinessReportKind.receivables,
+        _ => PosBusinessReportKind.inventory,
+      },
+    );
+  }
 
   Widget _header() {
     final title = switch (_section) {
+      _Section.profitLoss => posLocale(context).financialProfitLoss,
+      _Section.cashFlow => posLocale(context).businessCashFlow,
+      _Section.aging => posLocale(context).businessAging,
+      _Section.inventory => posLocale(context).businessInventory,
       _Section.summary => 'Ringkasan Penjualan',
       _Section.topReports => '10 Laporan Teratas',
       _Section.commission => 'Komisi',
@@ -205,7 +280,8 @@ class _ReportViewState extends State<_ReportView> {
           decoration: _decoration('Periode', Icons.calendar_today_outlined),
           items: _periods
               .map(
-                (p) => DropdownMenuItem(value: p.label, child: PosText(p.label)),
+                (p) =>
+                    DropdownMenuItem(value: p.label, child: PosText(p.label)),
               )
               .toList(),
           onChanged: (value) {
@@ -290,80 +366,39 @@ class _ReportViewState extends State<_ReportView> {
       0,
       (sum, item) => sum + (item.qtySold ?? 0),
     );
-    final metrics =
-        <
-          ({
-            String title,
-            String value,
-            IconData icon,
-            Color color,
-            double? growth,
-          })
-        >[
-          (
-            title: ('Total Penjualan').tr(context),
-            value: _money.format(stats.todayRevenue ?? 0),
-            icon: Icons.payments_outlined,
-            color: const Color(0xFF087F75),
-            growth: stats.revenueGrowth,
-          ),
-          (
-            title: ('Total Transaksi').tr(context),
-            value: '${stats.todayTransactions ?? 0}',
-            icon: Icons.receipt_long_outlined,
-            color: AppColors.neutral,
-            growth: stats.transactionGrowth,
-          ),
-          (
-            title: ('Rata-rata / Transaksi').tr(context),
-            value: _money.format(stats.todayAvgOrder ?? 0),
-            icon: Icons.analytics_outlined,
-            color: AppColors.info,
-            growth: null,
-          ),
-          (
-            title: ('Item Produk Teratas').tr(context),
-            value: '$topQty item',
-            icon: Icons.inventory_2_outlined,
-            color: const Color(0xFFC88916),
-            growth: null,
-          ),
-          (
-            title: ('Pertumbuhan Omzet').tr(context),
-            value: '${(stats.revenueGrowth ?? 0).toStringAsFixed(1)}%',
-            icon: Icons.trending_up,
-            color: AppColors.info,
-            growth: null,
-          ),
-          (
-            title: ('Pertumbuhan Transaksi').tr(context),
-            value: '${(stats.transactionGrowth ?? 0).toStringAsFixed(1)}%',
-            icon: Icons.show_chart_rounded,
-            color: AppColors.warning,
-            growth: null,
-          ),
-        ];
+    final metrics = [
+      PosMetricCard(
+        title: 'Total Penjualan'.tr(context),
+        value: _money.format(stats.todayRevenue ?? 0),
+        icon: Icons.payments_outlined,
+        description: posLocale(context).reportPreviousPeriod,
+        growth: stats.revenueGrowth,
+      ),
+      PosMetricCard(
+        title: 'Total Transaksi'.tr(context),
+        value: NumberFormat.decimalPattern(
+          'id_ID',
+        ).format(stats.todayTransactions ?? 0),
+        icon: Icons.receipt_long_outlined,
+        description: posLocale(context).reportPreviousPeriod,
+        growth: stats.transactionGrowth,
+      ),
+      PosMetricCard(
+        title: 'Rata-rata / Transaksi'.tr(context),
+        value: _money.format(stats.todayAvgOrder ?? 0),
+        icon: Icons.analytics_outlined,
+        description: posLocale(context).reportAverageTransaction,
+      ),
+      PosMetricCard(
+        title: 'Item Produk Teratas'.tr(context),
+        value: NumberFormat.decimalPattern('id_ID').format(topQty),
+        icon: Icons.inventory_2_outlined,
+        description: posLocale(context).reportTopProductQuantity,
+      ),
+    ];
     return Column(
       children: [
-        LayoutBuilder(
-          builder: (context, box) {
-            final columns = box.maxWidth >= 1000 ? 3 : 2;
-            const gap = 12.0;
-            final width = (box.maxWidth - gap * (columns - 1)) / columns;
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: metrics
-                  .map(
-                    (m) => SizedBox(
-                      width: width,
-                      child: _Metric(data: m),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
-        ),
+        PosMetricGrid(children: metrics),
         const SizedBox(height: 18),
         _chart(data.dailySales, period),
         const SizedBox(height: 18),
@@ -409,7 +444,7 @@ class _ReportViewState extends State<_ReportView> {
       child: SizedBox(
         height: 240,
         child: sales.isEmpty
-            ?  _Empty(
+            ? _Empty(
                 icon: Icons.show_chart,
                 text: ('Belum ada tren penjualan').tr(context),
               )
@@ -487,10 +522,11 @@ class _ReportViewState extends State<_ReportView> {
 
   Widget _payments(List<PosPaymentBreakdown> items) => _Card(
     title: ('Jenis Pembayaran').tr(context),
-    subtitle:
-        posLocale(context).pos3badc0263682((items.fold<int>(0, (sum, e) => sum + (e.count ?? 0))).toString()),
+    subtitle: posLocale(context).pos3badc0263682(
+      (items.fold<int>(0, (sum, e) => sum + (e.count ?? 0))).toString(),
+    ),
     child: items.isEmpty
-        ?  _Empty(
+        ? _Empty(
             icon: Icons.payments_outlined,
             text: ('Belum ada pembayaran pada periode ini').tr(context),
           )
@@ -519,7 +555,9 @@ class _ReportViewState extends State<_ReportView> {
                           ),
                         ),
                         Text(
-                          posLocale(context).pos971fbc291672((item.count ?? 0).toString()),
+                          posLocale(
+                            context,
+                          ).pos971fbc291672((item.count ?? 0).toString()),
                           style: const TextStyle(fontSize: 11),
                         ),
                         const SizedBox(width: 10),
@@ -553,7 +591,7 @@ class _ReportViewState extends State<_ReportView> {
     title: ('Produk Terlaris').tr(context),
     subtitle: ('Diurutkan berdasarkan omzet').tr(context),
     child: items.isEmpty
-        ?  _Empty(
+        ? _Empty(
             icon: Icons.inventory_2_outlined,
             text: ('Belum ada produk terjual pada periode ini').tr(context),
           )
@@ -595,7 +633,10 @@ class _ReportViewState extends State<_ReportView> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            posLocale(context).posf6026f00f33e((item.qtySold ?? 0).toString(), (item.kode ?? 'Tanpa kode').toString()),
+                            posLocale(context).posf6026f00f33e(
+                              (item.qtySold ?? 0).toString(),
+                              (item.kode ?? 'Tanpa kode').toString(),
+                            ),
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -635,24 +676,17 @@ class _ReportViewState extends State<_ReportView> {
     final count = cash.fold<int>(0, (sum, item) => sum + (item.count ?? 0));
     return Column(
       children: [
-        Row(
+        PosMetricGrid(
           children: [
-            Expanded(
-              child: PosStatCard(
-                label: ('Penerimaan Tunai').tr(context),
-                value: _money.format(total),
-                icon: Icons.payments_outlined,
-                color: const Color(0xFF087F75),
-              ),
+            PosStatCard(
+              label: ('Penerimaan Tunai').tr(context),
+              value: _money.format(total),
+              icon: Icons.payments_outlined,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: PosStatCard(
-                label: ('Transaksi Tunai').tr(context),
-                value: '$count',
-                icon: Icons.receipt_long_outlined,
-                color: AppColors.info,
-              ),
+            PosStatCard(
+              label: ('Transaksi Tunai').tr(context),
+              value: '$count',
+              icon: Icons.receipt_long_outlined,
             ),
           ],
         ),
@@ -666,7 +700,7 @@ class _ReportViewState extends State<_ReportView> {
     title: ('Performa Kasir').tr(context),
     subtitle: posLocale(context).posa8b15dbf49a2((items.length).toString()),
     child: items.isEmpty
-        ?  _Empty(
+        ? _Empty(
             icon: Icons.person_outline_rounded,
             text: ('Belum ada transaksi kasir pada periode ini').tr(context),
           )
@@ -705,7 +739,10 @@ class _ReportViewState extends State<_ReportView> {
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           Text(
-                            posLocale(context).posc86080cde078((item.transactions).toString(), (_money.format(item.avgOrder)).toString()),
+                            posLocale(context).posc86080cde078(
+                              (item.transactions).toString(),
+                              (_money.format(item.avgOrder)).toString(),
+                            ),
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -743,9 +780,11 @@ class _ReportViewState extends State<_ReportView> {
 
   Widget _otherReport(PosReportData data) => _Card(
     title: ('Aktivitas Penjualan Harian').tr(context),
-    subtitle: posLocale(context).pos8d46fa4132ae((data.dailySales.length).toString()),
+    subtitle: posLocale(
+      context,
+    ).pos8d46fa4132ae((data.dailySales.length).toString()),
     child: data.dailySales.isEmpty
-        ?  _Empty(
+        ? _Empty(
             icon: Icons.event_note_outlined,
             text: ('Belum ada aktivitas penjualan').tr(context),
           )
@@ -759,7 +798,11 @@ class _ReportViewState extends State<_ReportView> {
                   child: const Icon(Icons.calendar_today_outlined, size: 17),
                 ),
                 title: Text(day.label ?? day.date ?? '-'),
-                subtitle: Text(posLocale(context).pos3badc0263682((day.transactions).toString())),
+                subtitle: Text(
+                  posLocale(
+                    context,
+                  ).pos3badc0263682((day.transactions).toString()),
+                ),
                 trailing: Text(
                   _money.format(day.revenue),
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -809,7 +852,15 @@ class _ReportViewState extends State<_ReportView> {
     items: _categoryItems,
     selected: _section,
     onSelected: (value) => setState(() => _section = value),
-    footer: ('Laporan diperbarui langsung dari transaksi POS.').tr(context),
+    footer:
+        [
+          _Section.profitLoss,
+          _Section.cashFlow,
+          _Section.aging,
+          _Section.inventory,
+        ].contains(_section)
+        ? posLocale(context).financialScope
+        : ('Laporan diperbarui langsung dari transaksi POS.').tr(context),
   );
 
   Widget _mobileCategories() => PosCategoryDropdown<_Section>(
@@ -829,8 +880,28 @@ class _ReportViewState extends State<_ReportView> {
       )
       .toList();
 
-  List<(_Section, IconData, String)> get _sectionOptions => const [
+  List<(_Section, IconData, String)> get _sectionOptions => [
     (_Section.summary, Icons.dashboard_outlined, 'Ringkasan Penjualan'),
+    (
+      _Section.profitLoss,
+      Icons.account_balance_outlined,
+      posLocale(context).financialProfitLoss,
+    ),
+    (
+      _Section.cashFlow,
+      Icons.account_balance_wallet_outlined,
+      posLocale(context).businessCashFlow,
+    ),
+    (
+      _Section.aging,
+      Icons.receipt_long_outlined,
+      posLocale(context).businessAging,
+    ),
+    (
+      _Section.inventory,
+      Icons.inventory_2_outlined,
+      posLocale(context).businessInventory,
+    ),
     (_Section.topReports, Icons.leaderboard_outlined, '10 Laporan Teratas'),
     (_Section.cashier, Icons.person_outline_rounded, 'Kasir'),
     (_Section.cash, Icons.point_of_sale_outlined, 'Kas Kasir'),
@@ -871,7 +942,10 @@ class _ReportViewState extends State<_ReportView> {
       .days;
   String _rangeLabel(int days) {
     final end = DateTime.now(), start = end.subtract(Duration(days: days - 1));
-    final fmt = DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode);
+    final fmt = DateFormat(
+      'dd MMM yyyy',
+      AppLanguageController.instance.effectiveLocale.languageCode,
+    );
     return days == 1
         ? fmt.format(end)
         : '${fmt.format(start)} – ${fmt.format(end)}';
@@ -886,92 +960,6 @@ class _ReportViewState extends State<_ReportView> {
     'e_wallet' => AppColors.primaryDark,
     _ => Colors.grey,
   };
-}
-
-class _Metric extends StatelessWidget {
-  final ({
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    double? growth,
-  })
-  data;
-  const _Metric({required this.data});
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 116,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE1E5E9)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: data.color.withValues(alpha: .10),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(data.icon, color: data.color, size: 19),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: PosText(
-                data.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF737B89),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (data.growth case final growth?)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color:
-                      (growth >= 0 ? const Color(0xFF087F75) : AppColors.danger)
-                          .withValues(alpha: .09),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${growth >= 0 ? '+' : '-'}${growth.abs().toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: growth >= 0
-                        ? const Color(0xFF06665F)
-                        : AppColors.danger,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const Spacer(),
-        Text(
-          data.value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF172033),
-          ),
-        ),
-        const SizedBox(height: 7),
-        Container(height: 2, color: data.color),
-      ],
-    ),
-  );
 }
 
 class _Card extends StatelessWidget {
@@ -1087,54 +1075,10 @@ class _SkeletonState extends State<_Skeleton>
           borderRadius: BorderRadius.circular(6),
         ),
       );
-      Widget stat() => Container(
-        height: 116,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE1E5E9)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                bar(90, 12),
-              ],
-            ),
-            const Spacer(),
-            bar(120, 20),
-            const SizedBox(height: 7),
-            bar(double.infinity, 2),
-          ],
-        ),
-      );
       return Column(
         children: [
-          LayoutBuilder(
-            builder: (context, box) {
-              final columns = box.maxWidth >= 1000 ? 3 : 2;
-              const gap = 12.0;
-              final width = (box.maxWidth - gap * (columns - 1)) / columns;
-              return Wrap(
-                spacing: gap,
-                runSpacing: gap,
-                children: List.generate(
-                  6,
-                  (_) => SizedBox(width: width, child: stat()),
-                ),
-              );
-            },
+          PosMetricGrid(
+            children: List.generate(4, (_) => const PosMetricCardSkeleton()),
           ),
           const SizedBox(height: 18),
           Container(
