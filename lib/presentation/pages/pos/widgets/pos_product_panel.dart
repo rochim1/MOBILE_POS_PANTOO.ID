@@ -18,6 +18,7 @@ import '../../../../domain/repositories/pos_table_repository.dart';
 import '../../../../injections.dart';
 import '../pos_barcode_scanner_page.dart';
 import 'pos_quick_customer_dialog.dart';
+import 'pos_service_price_dialog.dart';
 import 'pos_catalog_category_picker.dart';
 
 class PosProductPanel extends StatefulWidget {
@@ -293,7 +294,10 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             ),
                             Flexible(
                               child: Text(
-                                posLocale(context).posddeedb7fc620((_catalogPage).toString(), (_catalogTotal).toString()),
+                                posLocale(context).posddeedb7fc620(
+                                  (_catalogPage).toString(),
+                                  (_catalogTotal).toString(),
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -441,7 +445,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
                 child: TextField(
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
-                    hintText: ('Cari nama, kode, SKU, atau barcode...').tr(context),
+                    hintText: ('Cari nama, kode, SKU, atau barcode...').tr(
+                      context,
+                    ),
                     hintStyle: const TextStyle(
                       fontSize: 13,
                       color: Colors.black38,
@@ -607,7 +613,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }) {
     final orderTypes = _availableOrderTypes(state);
     return PopupMenuButton<String>(
-      tooltip: posLocale(context).pos0a10d64b8683((_orderTypeLabel(selectedOrderType)).toString()),
+      tooltip: posLocale(
+        context,
+      ).pos0a10d64b8683((_orderTypeLabel(selectedOrderType)).toString()),
       initialValue: selectedOrderType,
       onSelected: (value) async {
         if (value == 'dine_in') {
@@ -664,16 +672,19 @@ class _PosProductPanelState extends State<PosProductPanel> {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
-           PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: '__served_by',
             child: _OrderMenuRow(
               icon: Icons.badge_outlined,
               label: ('Dilayani Oleh').tr(context),
             ),
           ),
-           PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: '__reset',
-            child: _OrderMenuRow(icon: Icons.sync, label: ('Reset').tr(context)),
+            child: _OrderMenuRow(
+              icon: Icons.sync,
+              label: ('Reset').tr(context),
+            ),
           ),
         ];
       },
@@ -712,7 +723,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   child: Text(
                     selectedOrderType == 'dine_in' &&
                             state.selectedTableName != null
-                        ? posLocale(context).posc617cc586a0c((state.selectedTableName).toString())
+                        ? posLocale(context).posc617cc586a0c(
+                            (state.selectedTableName).toString(),
+                          )
                         : _orderTypeLabel(selectedOrderType),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -866,7 +879,10 @@ class _PosProductPanelState extends State<PosProductPanel> {
     );
   }
 
-  void _addProductToCart(BuildContext context, PosProduct product) {
+  Future<void> _addProductToCart(
+    BuildContext context,
+    PosProduct product,
+  ) async {
     final bloc = context.read<PosBloc>();
     final state = bloc.state;
     if (_isUnavailable(product, state)) {
@@ -882,7 +898,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
       AppToast.warning(context, 'Stok ${product.name} tidak mencukupi');
       return;
     }
-    bloc.add(AddToCart(product));
+    double? price = state.manualUnitPrices[product.id];
+    if (product.isFlexibleService && !state.cart.containsKey(product)) {
+      price = await showServicePriceDialog(context, product);
+      if (price == null || !context.mounted) return;
+    }
+    bloc.add(AddToCart(product, unitPrice: price));
     AppToast.info(context, '${product.name} ditambahkan ke keranjang');
   }
 
@@ -937,7 +958,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
             Expanded(
               flex: 2,
               child: Text(
-                posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString()),
+                product.isFlexibleService
+                    ? 'Isi tarif'
+                    : posLocale(context).pos70272f418def(
+                        (formatRupiahAmount(product.price)).toString(),
+                      ),
                 style: const TextStyle(color: Colors.black87),
                 textAlign: TextAlign.right,
               ),
@@ -1037,7 +1062,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 120),
                     child: Text(
-                      posLocale(context).pos70272f418def((formatRupiahInput(product.price)).toString()),
+                      product.isFlexibleService
+                          ? 'Isi tarif'
+                          : posLocale(context).pos70272f418def(
+                              (formatRupiahInput(product.price)).toString(),
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
@@ -1056,8 +1085,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
                     children: [
                       IconButton(
                         tooltip: state.favoriteProductIds.contains(product.id)
-                            ? posLocale(context).posb45b8e526f3f((product.name).toString())
-                            : posLocale(context).pos954c7b7880aa((product.name).toString()),
+                            ? posLocale(
+                                context,
+                              ).posb45b8e526f3f((product.name).toString())
+                            : posLocale(
+                                context,
+                              ).pos954c7b7880aa((product.name).toString()),
                         onPressed: () => context.read<PosBloc>().add(
                           ToggleFavoriteProduct(product.id),
                         ),
@@ -1076,8 +1109,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       ),
                       IconButton(
                         tooltip: unavailable
-                            ? posLocale(context).pos0137b35ee82f((product.name).toString())
-                            : posLocale(context).posee8ce59373ea((product.name).toString()),
+                            ? posLocale(
+                                context,
+                              ).pos0137b35ee82f((product.name).toString())
+                            : posLocale(
+                                context,
+                              ).posee8ce59373ea((product.name).toString()),
                         onPressed: () => _addProductToCart(context, product),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(
@@ -1243,7 +1280,13 @@ class _PosProductPanelState extends State<PosProductPanel> {
                       children: [
                         Expanded(
                           child: Text(
-                            posLocale(context).pos70272f418def((formatRupiahAmount(product.price)).toString()),
+                            product.isFlexibleService
+                                ? 'Isi tarif'
+                                : posLocale(context).pos70272f418def(
+                                    (formatRupiahAmount(
+                                      product.price,
+                                    )).toString(),
+                                  ),
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppColors.primary,
@@ -1254,7 +1297,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         ),
                         if (product.tracksStock)
                           Text(
-                            posLocale(context).pos0f3c48a06258((_formatStock(product.stock)).toString()),
+                            posLocale(context).pos0f3c48a06258(
+                              (_formatStock(product.stock)).toString(),
+                            ),
                             style: TextStyle(
                               color: product.stock <= 0
                                   ? AppColors.danger
@@ -1311,8 +1356,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
       AppToast.warning(context, 'Stok ${product.name} habis');
       return;
     }
-    context.read<PosBloc>().add(AddToCart(product));
-    AppToast.success(context, '${product.name} ditambahkan');
+    await _addProductToCart(context, product);
   }
 
   Future<void> _selectCustomer(BuildContext context) async {
@@ -1365,7 +1409,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
                           onChanged: (value) =>
                               setSheetState(() => query = value),
                           decoration: InputDecoration(
-                            hintText: ('Cari nama atau nomor telepon...').tr(context),
+                            hintText: ('Cari nama atau nomor telepon...').tr(
+                              context,
+                            ),
                             prefixIcon: const Icon(Icons.search),
                             filled: true,
                             fillColor: Colors.grey.shade50,
@@ -1528,7 +1574,7 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
               child: TextField(
                 autofocus: true,
                 onChanged: (value) => setState(() => _search = value),
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Cari meja').tr(context),
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
@@ -1594,7 +1640,9 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
                                       ),
                                       const Spacer(),
                                       Text(
-                                        occupied ? ('Terisi').tr(context) : ('Tersedia').tr(context),
+                                        occupied
+                                            ? ('Terisi').tr(context)
+                                            : ('Tersedia').tr(context),
                                         style: TextStyle(
                                           color: occupied
                                               ? Colors.orange.shade800
@@ -1615,7 +1663,9 @@ class _TablePickerSheetState extends State<_TablePickerSheet> {
                                     ),
                                   ),
                                   Text(
-                                    posLocale(context).posc92e889b21e0((table.capacity).toString()),
+                                    posLocale(context).posc92e889b21e0(
+                                      (table.capacity).toString(),
+                                    ),
                                     style: const TextStyle(
                                       color: Colors.black54,
                                       fontSize: 12,

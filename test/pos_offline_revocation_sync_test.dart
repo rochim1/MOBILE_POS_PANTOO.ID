@@ -94,6 +94,7 @@ void main() {
     'salon',
     'jasa',
     'reservation',
+    'flexible',
   ]) {
     test(
       'unpaid $profile persists service/reservation and deduplicates its original ID offline',
@@ -119,12 +120,13 @@ void main() {
         );
         final repo = PosRepository(_Provider(client, prefs), prefs)
           ..setOperatorSessionToken(token('a'));
-        const product = PosProduct(
+        final product = PosProduct(
           id: 'service',
           code: 'SERVICE-QA',
           name: 'QA Service',
           category: '',
           productType: 'service',
+          servicePriceMode: profile == 'flexible' ? 'flexible' : 'fixed',
           tracksStock: false,
           price: 5000,
           stock: 0,
@@ -151,7 +153,8 @@ void main() {
             orderType: profile == 'reservation' ? 'reservation' : 'take_away',
             customerId: 'customer',
             serviceOrder: service,
-            expectedTotal: 5000,
+            itemPrices: profile == 'flexible' ? {'service': 150000} : const {},
+            expectedTotal: profile == 'flexible' ? 150000 : 5000,
             tableId: profile == 'reservation' ? 'qa-table' : null,
             reservationStartAt: profile == 'reservation' ? start : null,
             reservationEndAt: profile == 'reservation'
@@ -171,6 +174,9 @@ void main() {
         expect(row['status'], 'pending');
         final payload = jsonDecode(row['payload'] as String) as Map;
         expect(payload['service_order'], service);
+        if (profile == 'flexible') {
+          expect((payload['items'] as List).single['harga_satuan'], 150000);
+        }
         expect(payload['pelanggan_id'], 'customer');
         expect(payload['shift_id'], 'shift-a');
         expect(payload.containsKey('operator_session_token'), false);

@@ -457,6 +457,8 @@ class PosQueries {
           merchandise_category_id
           merchandise_category_name
           pos_product_type
+          service_price_mode
+          price_floor
           sellable_in_pos
           tracks_stock
           composition_type
@@ -499,6 +501,8 @@ class PosQueries {
         merchandise_category_id
         merchandise_category_name
         pos_product_type
+        service_price_mode
+        price_floor
         sellable_in_pos
         tracks_stock
         composition_type
@@ -823,6 +827,8 @@ class PosQueries {
         merchandise_category_id
         merchandise_category_name
         pos_product_type
+        service_price_mode
+        price_floor
         composition_type
         tracks_stock
         preparation_mode
@@ -895,6 +901,8 @@ class PosQueries {
         merchandise_category_id
         merchandise_category_name
         pos_product_type
+        service_price_mode
+        price_floor
         composition_type
         tracks_stock
         preparation_mode

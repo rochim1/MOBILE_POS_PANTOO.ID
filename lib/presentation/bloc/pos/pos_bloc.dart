@@ -149,6 +149,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         name: event.product.name,
         category: event.product.category,
         productType: current.productType,
+        servicePriceMode: event.product.servicePriceMode,
+        priceFloor: event.product.priceFloor,
         promoEligible: current.promoEligible,
         tracksStock: current.tracksStock,
         price: event.product.price,
@@ -430,6 +432,21 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onAddToCart(AddToCart event, Emitter<PosState> emit) {
+    final price = event.unitPrice ?? state.manualUnitPrices[event.product.id];
+    if (event.product.isFlexibleService &&
+        (price == null ||
+            !price.isFinite ||
+            price <= 0 ||
+            price < event.product.priceFloor)) {
+      emit(
+        state.copyWith(
+          status: PosStatus.failure,
+          errorMessage:
+              'Isi tarif layanan yang valid dan tidak di bawah harga minimum',
+        ),
+      );
+      return;
+    }
     final newCart = Map.of(state.cart);
     final current = newCart[event.product] ?? 0.0;
     final features = state.runtimeConfig['features'] as Map?;
@@ -450,6 +467,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     emit(
       state.copyWith(
         cart: newCart,
+        manualUnitPrices: event.product.isFlexibleService
+            ? {...state.manualUnitPrices, event.product.id: price!}
+            : state.manualUnitPrices,
         status: PosStatus.success,
         clearPricingPreview: true,
       ),
@@ -503,8 +523,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     UpdateCartUnitPrice event,
     Emitter<PosState> emit,
   ) {
-    if (state.runtimeConfig['allow_cashier_price_edit'] != true ||
+    if ((!event.product.isFlexibleService &&
+            state.runtimeConfig['allow_cashier_price_edit'] != true) ||
+        !event.price.isFinite ||
         event.price <= 0 ||
+        event.price < event.product.priceFloor ||
         !state.cart.containsKey(event.product)) {
       return;
     }

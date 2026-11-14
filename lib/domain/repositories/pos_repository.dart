@@ -919,6 +919,9 @@ class PosRepository {
                   : 'Belum dikategorikan',
               categoryId: e['merchandise_category_id']?.toString() ?? '',
               productType: e['pos_product_type']?.toString() ?? 'product',
+              servicePriceMode: e['service_price_mode']?.toString() ?? 'fixed',
+              priceFloor:
+                  double.tryParse((e['price_floor'] ?? 0).toString()) ?? 0,
               compositionType: e['composition_type']?.toString() ?? '',
               promoEligible: e['promo_eligible'] == true,
               tracksStock:
@@ -1131,6 +1134,10 @@ class PosRepository {
                   : 'Belum dikategorikan',
               categoryId: row['merchandise_category_id']?.toString() ?? '',
               productType: row['pos_product_type']?.toString() ?? 'product',
+              servicePriceMode:
+                  row['service_price_mode']?.toString() ?? 'fixed',
+              priceFloor:
+                  double.tryParse((row['price_floor'] ?? 0).toString()) ?? 0,
               compositionType: row['composition_type']?.toString() ?? '',
               promoEligible: row['promo_eligible'] == true,
               tracksStock:

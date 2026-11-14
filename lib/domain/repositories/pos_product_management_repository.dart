@@ -453,6 +453,9 @@ class PosProductManagementRepository {
               'Belum dikategorikan',
           categoryId: data['merchandise_category_id']?.toString() ?? '',
           productType: data['pos_product_type']?.toString() ?? 'product',
+          servicePriceMode: data['service_price_mode']?.toString() ?? 'fixed',
+          priceFloor:
+              double.tryParse((data['price_floor'] ?? 0).toString()) ?? 0,
           compositionType: data['composition_type']?.toString() ?? '',
           tracksStock: data['tracks_stock'] == true,
           description: data['deskripsi']?.toString() ?? '',
@@ -534,6 +537,9 @@ class PosProductManagementRepository {
               'Belum dikategorikan',
           categoryId: data['merchandise_category_id']?.toString() ?? '',
           productType: data['pos_product_type']?.toString() ?? 'product',
+          servicePriceMode: data['service_price_mode']?.toString() ?? 'fixed',
+          priceFloor:
+              double.tryParse((data['price_floor'] ?? 0).toString()) ?? 0,
           compositionType: data['composition_type']?.toString() ?? '',
           tracksStock: data['tracks_stock'] == true,
           description: data['deskripsi']?.toString() ?? '',

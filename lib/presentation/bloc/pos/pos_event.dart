@@ -45,9 +45,10 @@ class LoadMoreOrders extends PosEvent {}
 
 class AddToCart extends PosEvent {
   final PosProduct product;
-  const AddToCart(this.product);
+  final double? unitPrice;
+  const AddToCart(this.product, {this.unitPrice});
   @override
-  List<Object> get props => [product];
+  List<Object?> get props => [product, unitPrice];
 }
 
 class RemoveFromCart extends PosEvent {

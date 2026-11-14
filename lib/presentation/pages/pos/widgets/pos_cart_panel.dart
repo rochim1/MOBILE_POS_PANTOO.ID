@@ -9,6 +9,7 @@ import '../../../bloc/pos/pos_event.dart';
 import '../../../bloc/pos/pos_state.dart';
 import '../../../widgets/app_toast.dart';
 import '../../../../domain/models/pos_product.dart';
+import 'pos_service_price_dialog.dart';
 
 class PosCartPanel extends StatelessWidget {
   const PosCartPanel({super.key});
@@ -40,6 +41,7 @@ class PosCartPanel extends StatelessWidget {
               state.unitPriceFor(product),
               selectedUnit: state.unitFor(product),
               allowPriceEdit:
+                  product.isFlexibleService ||
                   state.runtimeConfig['allow_cashier_price_edit'] == true,
             );
           },
@@ -160,16 +162,26 @@ class PosCartPanel extends StatelessWidget {
                       value: selectedUnit,
                       isExpanded: true,
                       isDense: true,
-                      style: const TextStyle(fontSize: 11, color: Colors.black87),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black87,
+                      ),
                       items: product.saleUnits
-                          .map((unit) => DropdownMenuItem(
-                                value: unit,
-                                child: Text(unit, overflow: TextOverflow.ellipsis),
-                              ))
+                          .map(
+                            (unit) => DropdownMenuItem(
+                              value: unit,
+                              child: Text(
+                                unit,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
                           .toList(),
                       onChanged: (unit) {
                         if (unit != null) {
-                          context.read<PosBloc>().add(UpdateCartUnit(product, unit));
+                          context.read<PosBloc>().add(
+                            UpdateCartUnit(product, unit),
+                          );
                         }
                       },
                     ),
@@ -197,7 +209,9 @@ class PosCartPanel extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              posLocale(context).pos5e6481728b57((formatRupiahAmount(unitPrice)).toString()),
+                              posLocale(context).pos5e6481728b57(
+                                (formatRupiahAmount(unitPrice)).toString(),
+                              ),
                               style: TextStyle(
                                 color: allowPriceEdit
                                     ? AppColors.primary
@@ -220,7 +234,9 @@ class PosCartPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    posLocale(context).pos70272f418def((formatRupiahAmount((unitPrice * quantity))).toString()),
+                    posLocale(context).pos70272f418def(
+                      (formatRupiahAmount((unitPrice * quantity))).toString(),
+                    ),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -251,7 +267,9 @@ class PosCartPanel extends StatelessWidget {
     final quantity = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(posLocale(dialogContext).posfed87456b577((product.name).toString())),
+        title: Text(
+          posLocale(dialogContext).posfed87456b577((product.name).toString()),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -260,8 +278,12 @@ class PosCartPanel extends StatelessWidget {
             FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,3}')),
           ],
           decoration: InputDecoration(
-            labelText: posLocale(dialogContext).pos8109832b1b60((product.baseUnit).toString()),
-            helperText: ('Bisa memakai pecahan, contoh 3,5 kg').tr(dialogContext),
+            labelText: posLocale(
+              dialogContext,
+            ).pos8109832b1b60((product.baseUnit).toString()),
+            helperText: ('Bisa memakai pecahan, contoh 3,5 kg').tr(
+              dialogContext,
+            ),
             border: const OutlineInputBorder(),
           ),
           onSubmitted: (_) {
@@ -304,6 +326,18 @@ class PosCartPanel extends StatelessWidget {
     PosProduct product,
     double currentPrice,
   ) async {
+    if (product.isFlexibleService) {
+      final price = await showServicePriceDialog(
+        context,
+        product,
+        currentPrice: currentPrice,
+        unit: context.read<PosBloc>().state.unitFor(product),
+      );
+      if (price != null && context.mounted) {
+        context.read<PosBloc>().add(UpdateCartUnitPrice(product, price));
+      }
+      return;
+    }
     final controller = TextEditingController(
       text: formatRupiahAmount(currentPrice),
     );
@@ -317,7 +351,9 @@ class PosCartPanel extends StatelessWidget {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: const [RupiahInputFormatter(decimalDigits: 2)],
           decoration: InputDecoration(
-            labelText: posLocale(dialogContext).posba0f270a2974((product.name).toString()),
+            labelText: posLocale(
+              dialogContext,
+            ).posba0f270a2974((product.name).toString()),
             prefixText: 'Rp ',
             border: const OutlineInputBorder(),
           ),
@@ -330,7 +366,9 @@ class PosCartPanel extends StatelessWidget {
           FilledButton(
             onPressed: () {
               final value = parseRupiahAmount(controller.text);
-              if (value <= 0) return;
+              if (!value.isFinite || value <= 0 || value < product.priceFloor) {
+                return;
+              }
               Navigator.pop(dialogContext, value);
             },
             child: const PosText('Terapkan'),

@@ -5,6 +5,10 @@ class PosProduct {
   final String category;
   final String categoryId;
   final String productType;
+  final String servicePriceMode;
+  final double priceFloor;
+  bool get isFlexibleService =>
+      productType == 'service' && servicePriceMode == 'flexible';
   final String compositionType;
   final bool promoEligible;
   final bool tracksStock;
@@ -37,6 +41,8 @@ class PosProduct {
     required this.category,
     this.categoryId = '',
     this.productType = 'product',
+    this.servicePriceMode = 'fixed',
+    this.priceFloor = 0,
     this.compositionType = '',
     this.promoEligible = false,
     this.tracksStock = true,
@@ -108,8 +114,19 @@ class PosProduct {
           json['productType']?.toString() ??
           json['pos_product_type']?.toString() ??
           'product',
-      compositionType: json['compositionType']?.toString() ??
-          json['composition_type']?.toString() ?? '',
+      compositionType:
+          json['compositionType']?.toString() ??
+          json['composition_type']?.toString() ??
+          '',
+      servicePriceMode:
+          json['servicePriceMode']?.toString() ??
+          json['service_price_mode']?.toString() ??
+          'fixed',
+      priceFloor:
+          double.tryParse(
+            (json['priceFloor'] ?? json['price_floor'] ?? 0).toString(),
+          ) ??
+          0,
       promoEligible:
           json['promoEligible'] == true || json['promo_eligible'] == true,
       tracksStock: json.containsKey('tracksStock')
@@ -222,6 +239,8 @@ class PosProduct {
       'category': category,
       'categoryId': categoryId,
       'productType': productType,
+      'servicePriceMode': servicePriceMode,
+      'priceFloor': priceFloor,
       'compositionType': compositionType,
       'promoEligible': promoEligible,
       'tracksStock': tracksStock,
