@@ -78,13 +78,14 @@ void main() {
     ));
     addTearDown(bloc.close);
     bloc.add(const EditActiveOrder(PosOrderDetail(
-      id: 'saved', orderNumber: 'QA', orderType: 'dine_in', tableId: 'table',
+      id: 'saved', orderNumber: 'QA', orderType: 'take_away',
       items: [PosOrderItem(productId: 't', quantity: 2, price: 175000, unit: 'unit')],
     )));
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(bloc.state.unitPriceFor(transport), 175000);
     expect(bloc.state.baseSubtotal, 350000);
     expect(bloc.state.manualUnitPrices, {'t': 175000});
+    expect(bloc.state.orderType, 'take_away');
   });
   testWidgets(
     'mobile catalogue → tariff → cart → edit works with price override disabled',
