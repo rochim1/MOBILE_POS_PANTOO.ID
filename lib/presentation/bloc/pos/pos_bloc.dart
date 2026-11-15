@@ -57,6 +57,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   String? _loadedTerminalUserId;
   int _loadVersion = 0;
   int _ordersRefreshVersion = 0;
+  int _pricingPreviewVersion = 0;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
@@ -852,6 +853,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RefreshPricingPreview event,
     Emitter<PosState> emit,
   ) async {
+    final requestVersion = ++_pricingPreviewVersion;
+    final requestedState = state;
     if (state.cart.isEmpty) {
       emit(state.copyWith(clearPricingPreview: true));
       return;
@@ -875,6 +878,22 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       priceLevel: state.priceLevel,
       customerId: state.selectedCustomer?.id,
     );
+    // Edits can start another preview while an earlier request is in flight.
+    // Never let an old total (or old failure) overwrite the current agreement.
+    if (requestVersion != _pricingPreviewVersion ||
+        requestedState.cart != state.cart ||
+        requestedState.manualUnitPrices != state.manualUnitPrices ||
+        requestedState.selectedUnits != state.selectedUnits ||
+        requestedState.checkoutStore?.id != state.checkoutStore?.id ||
+        requestedState.selectedCustomer?.id != state.selectedCustomer?.id ||
+        requestedState.manualDiscountPercent != state.manualDiscountPercent ||
+        requestedState.promoCode != state.promoCode ||
+        requestedState.discountPolicy != state.discountPolicy ||
+        requestedState.salesChannel != state.salesChannel ||
+        requestedState.customerSegment != state.customerSegment ||
+        requestedState.priceLevel != state.priceLevel) {
+      return;
+    }
     result.fold(
       (failure) => emit(
         state.copyWith(
