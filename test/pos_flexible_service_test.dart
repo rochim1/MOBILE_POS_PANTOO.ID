@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_pos_pantoo/core/error/failures.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
@@ -13,6 +17,26 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 
 class _Repo extends Fake implements PosRepository {}
 
+class _DelayedPricingRepo extends Fake implements PosRepository {
+  final requests = <Completer<Either<Failure, Map<String, dynamic>>>>[];
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #previewPricing) {
+      final request = Completer<Either<Failure, Map<String, dynamic>>>();
+      requests.add(request);
+      return request.future;
+    }
+    return super.noSuchMethod(invocation);
+  }
+}
+
+class _SeededPosBloc extends PosBloc {
+  _SeededPosBloc(PosRepository repository, PosState value)
+    : super(posRepository: repository) {
+    emit(value);
+  }
+}
+
 void main() {
   const transport = PosProduct(
     id: 't',
@@ -26,6 +50,27 @@ void main() {
     priceFloor: 50000,
     tracksStock: false,
   );
+  test('late pricing response cannot restore the tariff before cashier edit', () async {
+    final repo = _DelayedPricingRepo();
+    final bloc = _SeededPosBloc(repo, PosState(
+      stores: const [PosStore(id: 'store', name: 'QA', status: 'active', branchId: 'warehouse')],
+      activeShift: const {'_id': 'shift', 'toko_id': 'store'},
+      cart: {transport: 1}, manualUnitPrices: {'t': 150000},
+    ));
+    addTearDown(bloc.close);
+    bloc.add(RefreshPricingPreview());
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(repo.requests, hasLength(1));
+    bloc.add(const UpdateCartUnitPrice(transport, 175000));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(repo.requests, hasLength(2));
+    repo.requests[1].complete(const Right({'subtotal': 175000, 'total_after_discount': 175000}));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    repo.requests[0].complete(const Right({'subtotal': 150000, 'total_after_discount': 150000}));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(bloc.state.unitPriceFor(transport), 175000);
+    expect(bloc.state.grandTotal, 175000, reason: 'A stale preview must not change the amount collected at checkout');
+  });
   testWidgets(
     'mobile catalogue → tariff → cart → edit works with price override disabled',
     (tester) async {
