@@ -56,9 +56,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   String? _loadedOperatorId;
   String? _loadedTerminalUserId;
   int _loadVersion = 0;
+  int _ordersRefreshVersion = 0;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
+    on<RefreshPosAccess>(_onRefreshPosAccess);
     on<RefreshPosRuntimeConfig>(_onRefreshPosRuntimeConfig);
     on<RefreshProducts>(_onRefreshProducts);
     on<UpsertProductLocally>(_onUpsertProductLocally);
@@ -191,8 +193,17 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RefreshOrders event,
     Emitter<PosState> emit,
   ) async {
+    final version = ++_ordersRefreshVersion;
+    final operator = posRepository.activeOperatorId;
+    final terminal = posRepository.terminalUserId;
+    bool current() =>
+        version == _ordersRefreshVersion &&
+        operator == posRepository.activeOperatorId &&
+        terminal == posRepository.terminalUserId;
+    emit(state.copyWith(ordersRefreshing: true));
     try {
       final page = await posRepository.getOrdersPage();
+      if (!current()) return;
       emit(
         state.copyWith(
           orders: page.items,
@@ -203,12 +214,17 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         ),
       );
     } catch (_) {
+      if (!current()) return;
       emit(
         state.copyWith(
           errorMessage:
               'Gagal memuat riwayat transaksi. Tarik untuk mencoba lagi.',
         ),
       );
+    } finally {
+      if (version == _ordersRefreshVersion) {
+        emit(state.copyWith(ordersRefreshing: false));
+      }
     }
   }
 
@@ -403,6 +419,74 @@ class PosBloc extends Bloc<PosEvent, PosState> {
               : 'Data toko dan shift belum dapat diperiksa. Periksa koneksi atau PIN, lalu coba lagi.',
         ),
       );
+    }
+  }
+
+  Future<void> _onRefreshPosAccess(
+    RefreshPosAccess event,
+    Emitter<PosState> emit,
+  ) async {
+    final revision = ++_loadVersion;
+    final actor = posRepository.activeOperatorId;
+    final terminal = posRepository.terminalUserId;
+    bool current() =>
+        revision == _loadVersion &&
+        actor == posRepository.activeOperatorId &&
+        terminal == posRepository.terminalUserId;
+    try {
+      final runtime = await posRepository.getRuntimeConfig();
+      final stores = await posRepository.getStores();
+      if (!current()) return;
+      final permissions = runtime['permissions'] as Map? ?? const {};
+      final shift = permissions['view_shifts'] == true
+          ? await discoverCheckoutShift(
+              stores: stores,
+              runtimeConfig: runtime,
+              operatorId: actor,
+              terminalUserId: terminal,
+              preferredStoreId: state.checkoutStore?.id,
+              readShift: posRepository.getActiveShiftForStore,
+              isCurrent: current,
+            )
+          : null;
+      if (!current()) return;
+      // Refresh entitlement/store/shift context without resetting the draft,
+      // discount, selected customer or manual unit prices after renewal.
+      emit(
+        state.copyWith(
+          runtimeConfig: runtime,
+          stores: stores,
+          activeShift: shift,
+          clearActiveShift: shift == null,
+          checkoutSyncFailed: false,
+          status: PosStatus.success,
+          errorMessage: '',
+        ),
+      );
+      final store = state.checkoutStore;
+      if (event.refreshProducts &&
+          store != null &&
+          (permissions['use_cashier'] == true ||
+              permissions['view_products'] == true) &&
+          (shift != null || runtime['allow_out_of_shift'] == true)) {
+        final products = await posRepository.getProducts(
+          branchId: store.branchId,
+        );
+        if (current()) {
+          emit(state.copyWith(products: products));
+        }
+      }
+    } catch (_) {
+      if (current()) {
+        emit(
+          state.copyWith(
+            status: PosStatus.failure,
+            checkoutSyncFailed: true,
+            errorMessage:
+                'Data toko dan shift belum dapat diperbarui. Coba lagi.',
+          ),
+        );
+      }
     }
   }
 

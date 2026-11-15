@@ -309,6 +309,18 @@ class PosCustomerDisplayService {
     });
   }
 
+  void publishIdle() {
+    _completedPayment = null;
+    publishCart(
+      items: const [],
+      subtotal: 0,
+      discount: 0,
+      total: 0,
+      storeName: '',
+      status: 'idle',
+    );
+  }
+
   void publishCart({
     required List<Map<String, dynamic>> items,
     required double subtotal,

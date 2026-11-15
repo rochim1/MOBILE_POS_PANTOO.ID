@@ -1,3 +1,4 @@
+import '../../widgets/pos_content_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
@@ -585,7 +586,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
 
   Widget _buildBody(PosTableState state, List<PosTableModel> visibleTables) {
     if (state.status == PosTableStatus.loading && state.tables.isEmpty) {
-      return const PosSkeletonList();
+      return PosTableContentSkeleton(isGridView: widget.isGridView);
     }
 
     if (state.tables.isEmpty && state.status == PosTableStatus.success) {

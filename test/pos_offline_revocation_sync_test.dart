@@ -15,6 +15,9 @@ class _Provider implements GraphQLClientProvider {
   _Provider(this.client, this.sharedPreferences);
   @override
   String endpointUrl = 'https://qa.invalid/graphql';
+  String? subscriptionDenial;
+  @override
+  Future<String?> checkOfflineSubscription() async => subscriptionDenial;
   @override
   String resolveMediaUrl(dynamic value) => '';
   @override
@@ -545,4 +548,70 @@ void main() {
       }
     });
   }
+  test(
+    'subscription expiry preserves pending queue and activation syncs its original ID once',
+    () async {
+      final rowId = await enqueue('a', 'immutable-subscription-sale');
+      var accepted = false, writes = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          writes++;
+          final input = request.variables['input'] as Map;
+          expect(input['client_transaction_id'], 'immutable-subscription-sale');
+          if (!accepted) {
+            yield Response(
+              response: {},
+              errors: [
+                const GraphQLError(
+                  message: 'Langganan tidak aktif',
+                  extensions: {
+                    'code': 'SUBSCRIPTION_REQUIRED',
+                    'access_level': 'read_only',
+                  },
+                ),
+              ],
+            );
+            return;
+          }
+          yield Response(
+            response: {},
+            data: {
+              'ProcessPOSPenjualan': {
+                '_id': 'sub-sale',
+                'invoice': 'INV-SUB',
+                'total': 1000,
+                'sync_status': 'synced',
+              },
+            },
+          );
+        }),
+      );
+      final provider = _Provider(client, prefs);
+      final sync = SyncService(provider)..setOperatorSessionToken(token('a'));
+      await sync.syncOfflineTransactions(force: true);
+      var saved = (await db.query(
+        'offline_transactions',
+        where: 'id = ?',
+        whereArgs: [rowId],
+      )).single;
+      expect(saved['status'], 'pending');
+      expect(saved['resolution'], 'subscription_required');
+      expect(saved['client_transaction_id'], 'immutable-subscription-sale');
+      provider.subscriptionDenial = 'Perpanjang langganan';
+      await sync.syncOfflineTransactions(force: true);
+      expect(writes, 1);
+      provider.subscriptionDenial = null;
+      accepted = true;
+      await sync.syncOfflineTransactions(force: true);
+      await sync.syncOfflineTransactions(force: true);
+      saved = (await db.query(
+        'offline_transactions',
+        where: 'id = ?',
+        whereArgs: [rowId],
+      )).single;
+      expect(saved['status'], 'synced');
+      expect(writes, 2);
+    },
+  );
 }

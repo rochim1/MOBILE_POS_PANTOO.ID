@@ -255,80 +255,226 @@ class SkeletonProductListItem extends StatelessWidget {
   }
 }
 
-/// Full POS page skeleton (header cards + product grid area)
+/// Cashier placeholders follow the same mobile tabs and wide split layout.
 class PosPageSkeleton extends StatelessWidget {
-  const PosPageSkeleton({super.key});
+  const PosPageSkeleton({super.key, this.isGridView = true});
+  final bool isGridView;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final mobile = MediaQuery.sizeOf(context).width < 900;
+    final catalog = Column(
       children: [
-        // Summary cards skeleton
-        SizedBox(
-          height: 180,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 3,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
-            itemBuilder: (_, __) => const SkeletonSummaryCard(),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Search bar skeleton
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Padding(
+          padding: EdgeInsets.all(mobile ? 10 : 16),
+          child: Row(
             children: [
-              const SkeletonBox(width: 80, height: 22),
-              const SizedBox(height: 12),
-              const SkeletonBox(height: 48, borderRadius: 14),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: List.generate(
-                  4,
-                  (_) => const SkeletonBox(
-                    width: 70, height: 32, borderRadius: 16,
+              Expanded(
+                child: SkeletonBox(height: mobile ? 40 : 48, borderRadius: 8),
+              ),
+              ...List.generate(
+                mobile ? 3 : 2,
+                (_) => Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: SkeletonBox(
+                    width: mobile ? 40 : 48,
+                    height: mobile ? 40 : 48,
+                    borderRadius: 8,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        // Product list skeleton
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              PosCashierProductSliverSkeleton(
+                isMobile: mobile,
+                isGridView: isGridView,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    return ExcludeSemantics(
+      child: mobile
+          ? Column(
               children: [
-                const SkeletonBox(width: 120, height: 20),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).width < 600 ? 44 : 52,
+                  child: const Row(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: SkeletonBox(
+                            width: 110,
+                            height: 16,
+                            borderRadius: 4,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: SkeletonBox(
+                            width: 85,
+                            height: 16,
+                            borderRadius: 4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(child: catalog),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 88,
+                  child: ListView.builder(
+                    itemCount: 7,
+                    itemBuilder: (_, index) => const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      child: SkeletonBox(height: 40, borderRadius: 8),
+                    ),
+                  ),
+                ),
+                Expanded(flex: 5, child: catalog),
                 Expanded(
-                  child: ListView.separated(
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: 5,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, __) => const SkeletonProductListItem(),
+                  flex: 3,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: SkeletonBox(height: 40, borderRadius: 8),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: 3,
+                            itemBuilder: (_, index) => const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: SkeletonBox(height: 56, borderRadius: 8),
+                            ),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: SkeletonBox(height: 48, borderRadius: 8),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Shared by the full refresh and catalog requests to keep grid/list geometry.
+class PosCashierProductSliverSkeleton extends StatelessWidget {
+  const PosCashierProductSliverSkeleton({
+    super.key,
+    required this.isMobile,
+    required this.isGridView,
+  });
+  final bool isMobile, isGridView;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isGridView) {
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, index) => Container(
+            height: isMobile ? 82 : 72,
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 12 : 20,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SkeletonBox(width: 160, height: 14, borderRadius: 4),
+                      SizedBox(height: 8),
+                      SkeletonBox(width: 100, height: 10, borderRadius: 4),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(child: SkeletonBox(height: 14, borderRadius: 4)),
+                if (isMobile)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16),
+                    child: SkeletonBox(width: 36, height: 36, borderRadius: 8),
+                  ),
+              ],
+            ),
           ),
+          childCount: 8,
         ),
-      ],
+      );
+    }
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final columns = isMobile
+            ? (constraints.crossAxisExtent < 280 ? 2 : 3)
+            : (constraints.crossAxisExtent / 180).floor().clamp(3, 6);
+        return SliverPadding(
+          padding: EdgeInsets.all(isMobile ? 8 : 16),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: isMobile ? 8 : 16,
+              crossAxisSpacing: isMobile ? 8 : 16,
+              mainAxisExtent: isMobile ? (columns == 2 ? 144 : 118) : null,
+              childAspectRatio: isMobile ? 1 : .8,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (_, index) => Container(
+                padding: EdgeInsets.all(isMobile ? 10 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(height: 14, borderRadius: 4),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 60, height: 10, borderRadius: 4),
+                    Spacer(),
+                    SkeletonBox(width: 80, height: 16, borderRadius: 4),
+                  ],
+                ),
+              ),
+              childCount: columns * 4,
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -223,6 +223,9 @@ void main() {
     expect(find.text('Aplikasi Kasir Online'), findsNothing);
     expect(find.text('Akses Kasir'), findsOneWidget);
     expect(find.text('Logout akun'), findsOneWidget);
+    final numberKey = tester.getRect(find.widgetWithText(TextButton, '1'));
+    expect(numberKey.width, greaterThanOrEqualTo(48));
+    expect(numberKey.height, greaterThanOrEqualTo(48));
   });
 
   testWidgets('PIN entry panel is anchored to the right on a wide screen', (

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'core/subscription/pos_subscription_service.dart';
 import 'domain/repositories/pos_trade_repository.dart';
 import 'domain/repositories/pos_financial_report_repository.dart';
 import 'package:flutter/foundation.dart';
@@ -58,8 +61,49 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
       sl(),
       sl(),
       environment: flavorConfig.environment,
+      onSubscriptionRequired: (extensions, scope) {
+        sl<PosSubscriptionService>().handleRequired(
+          extensions,
+          requestScope: scope,
+        );
+      },
+      subscriptionGuard: (fields) =>
+          sl<PosSubscriptionService>().guardMutation(fields),
+      authorizeOfflineWrite: () =>
+          sl<PosSubscriptionService>().guardOfflineWrite(),
+      onIdentityChanged: () {
+        if (sl.isRegistered<PosSubscriptionService>() &&
+            sl<PosSubscriptionService>().initialized) {
+          unawaited(sl<PosSubscriptionService>().activate());
+        }
+      },
       onUnauthorized: () {
         sl<AuthCubit>().logout();
+      },
+    ),
+  );
+  sl.registerLazySingleton<PosSubscriptionService>(
+    () => PosSubscriptionService(
+      readScope: () => sl<GraphQLClientProvider>().subscriptionScope,
+      storage: sl(),
+      fetch: () async {
+        if (sl<GraphQLClientProvider>().requiresOperatorVerification) {
+          throw StateError(
+            'Verifikasi PIN kasir saat online untuk memperbarui status.',
+          );
+        }
+        final result = await sl<GraphQLClientProvider>().client.query(
+          QueryOptions(
+            document: gql(posSubscriptionQuery),
+            fetchPolicy: FetchPolicy.networkOnly,
+          ),
+        );
+        if (result.hasException) throw result.exception!;
+        final data = result.data?['GetSubscriptionStatus'];
+        if (data is! Map) {
+          throw const FormatException('Status langganan tidak tersedia');
+        }
+        return Map<String, dynamic>.from(data);
       },
     ),
   );

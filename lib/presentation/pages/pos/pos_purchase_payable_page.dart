@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/core/utils/rupiah_input_formatter.dart';
 import 'dart:async';
@@ -1173,7 +1174,16 @@ class _PayableSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(16),
     children: const [
-      SkeletonBox(height: 170, borderRadius: 14),
+      PosRecordCardSkeleton(kind: PosRecordSkeletonKind.notification),
+      SizedBox(height: 14),
+      Card(child: Padding(padding: EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SkeletonBox(width: 160, height: 18, borderRadius: 4), SizedBox(height: 16),
+        Row(children: [Expanded(child: SkeletonBox(height: 12, borderRadius: 4)), SizedBox(width: 40), SkeletonBox(width: 80, height: 14, borderRadius: 4)]),
+        SizedBox(height: 12),
+        Row(children: [Expanded(child: SkeletonBox(height: 12, borderRadius: 4)), SizedBox(width: 40), SkeletonBox(width: 80, height: 14, borderRadius: 4)]),
+        SizedBox(height: 12),
+        Row(children: [Expanded(child: SkeletonBox(height: 12, borderRadius: 4)), SizedBox(width: 40), SkeletonBox(width: 80, height: 14, borderRadius: 4)]),
+      ]))),
       SizedBox(height: 14),
       SkeletonBox(height: 52, borderRadius: 10),
       SizedBox(height: 10),

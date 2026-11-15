@@ -6,6 +6,17 @@ import 'failures.dart';
 class AppErrorHandler {
   static Failure handle(dynamic error) {
     if (error is OperationException) {
+      final subscriptionErrors = [
+        ...error.graphqlErrors,
+        if (error.linkException is ServerException)
+          ...((error.linkException as ServerException).parsedResponse?.errors ??
+              const <GraphQLError>[]),
+      ];
+      for (final entry in subscriptionErrors) {
+        if (entry.extensions?['code'] == 'SUBSCRIPTION_REQUIRED') {
+          return SubscriptionFailure(entry.message);
+        }
+      }
       final rawError = error.toString().toLowerCase();
       if (rawError.contains('unauthorized') ||
           rawError.contains('unauthenticated') ||

@@ -23,6 +23,9 @@ class _PendingAuthRepository extends Fake implements AuthRepository {
   String? getSavedUsername() => 'Kasir';
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<Either<Failure, String>> login(
     String username,
     String password, {
@@ -57,6 +60,17 @@ void main() {
       expect(cubit.state.username, 'Kasir');
     },
   );
+
+  test('late startup recovery cannot reopen workspace after logout', () async {
+    final repository = _PendingAuthRepository();
+    final cubit = AuthCubit(authRepository: repository);
+    addTearDown(cubit.close);
+    final pending = cubit.checkSession();
+    await cubit.logout();
+    repository.session.complete(true);
+    await pending;
+    expect(cubit.state.status, AuthStatus.unauthenticated);
+  });
 
   test('missing saved session ends loading and shows login state', () async {
     final repository = _PendingAuthRepository();

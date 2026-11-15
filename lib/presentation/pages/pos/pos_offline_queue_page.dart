@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -27,7 +28,7 @@ Future<String?> showPosOfflineOperatorVerification(BuildContext context) async {
         obscureText: true,
         keyboardType: TextInputType.number,
         maxLength: 6,
-        decoration:  InputDecoration(
+        decoration: InputDecoration(
           labelText: ('PIN kasir pembuat transaksi').tr(dialogContext),
           helperText: ('Memerlukan verifikasi online.').tr(dialogContext),
         ),
@@ -47,7 +48,8 @@ Future<String?> showPosOfflineOperatorVerification(BuildContext context) async {
 }
 
 class PosOfflineQueuePage extends StatefulWidget {
-  const PosOfflineQueuePage({super.key});
+  const PosOfflineQueuePage({super.key, this.allowSync = true});
+  final bool allowSync;
 
   @override
   State<PosOfflineQueuePage> createState() => _PosOfflineQueuePageState();
@@ -158,6 +160,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   }
 
   Future<void> _sync() async {
+    if (!widget.allowSync) return;
     final completed = await _runQueueMutation(
       () => _syncService.syncOfflineTransactions(force: true),
     );
@@ -167,6 +170,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
   }
 
   Future<void> _retryAll() async {
+    if (!widget.allowSync) return;
     var count = 0;
     final completed = await _runQueueMutation(() async {
       count = await _syncService.retryAllRejected();
@@ -215,6 +219,17 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             padding: EdgeInsets.all(compact ? 12 : 16),
             child: Column(
               children: [
+                if (!widget.allowSync) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      Localizations.localeOf(context).languageCode == 'en'
+                          ? 'The queue is waiting for an active subscription. Saved transactions are preserved.'
+                          : 'Antrean menunggu langganan aktif. Transaksi yang tersimpan tidak dihapus.',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
                 _queueHealthCard(),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
@@ -235,7 +250,9 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _loading ? null : _retryAll,
+                        onPressed: _loading || !widget.allowSync
+                            ? null
+                            : _retryAll,
                         icon: const Icon(Icons.replay),
                         label: const PosText('Coba ulang yang ditolak'),
                       ),
@@ -243,7 +260,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                     SizedBox(width: compact ? 8 : 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _loading ? null : _sync,
+                        onPressed: _loading || !widget.allowSync ? null : _sync,
                         icon: const Icon(Icons.sync),
                         label: const PosText('Sinkronkan sekarang'),
                       ),
@@ -255,7 +272,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           ),
           Expanded(
             child: _loading
-                ? const PosSkeletonList(count: 5)
+                ? PosRecordListSkeleton(kind: PosRecordSkeletonKind.offlineQueue, padding: EdgeInsets.all(compact ? 12 : 16))
                 : _transactions.isEmpty
                 ? PosEmptyState(
                     icon: Icons.cloud_done_outlined,
@@ -336,8 +353,20 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 ),
                 Text(
                   unresolved == 0
-                      ? ('Tidak ada transaksi penjualan yang menunggu.').tr(context)
-                      : posLocale(context).posb9af015b5b3c((unresolved).toString(), (ageLabel == null ? '' : (' • tertua $ageLabel').tr(context)).toString(), (review == 0 ? '' : (' • $review perlu ditinjau').tr(context)).toString()),
+                      ? ('Tidak ada transaksi penjualan yang menunggu.').tr(
+                          context,
+                        )
+                      : posLocale(context).posb9af015b5b3c(
+                          (unresolved).toString(),
+                          (ageLabel == null
+                                  ? ''
+                                  : (' • tertua $ageLabel').tr(context))
+                              .toString(),
+                          (review == 0
+                                  ? ''
+                                  : (' • $review perlu ditinjau').tr(context))
+                              .toString(),
+                        ),
                   style: const TextStyle(fontSize: 12.5),
                 ),
                 if (_networkAvailable)
@@ -409,7 +438,13 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                   Expanded(
                     child: Text(
                       reference?.toString() ??
-                          posLocale(context).pos2e58e983605b((isOrder ? ('Pesanan').tr(context) : ('Transaksi').tr(context)).toString(), (transaction['id']).toString()),
+                          posLocale(context).pos2e58e983605b(
+                            (isOrder
+                                    ? ('Pesanan').tr(context)
+                                    : ('Transaksi').tr(context))
+                                .toString(),
+                            (transaction['id']).toString(),
+                          ),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -417,12 +452,24 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(posLocale(context).posee16580f1d1c((transaction['timestamp'] ?? '-').toString())),
+              Text(
+                posLocale(
+                  context,
+                ).posee16580f1d1c((transaction['timestamp'] ?? '-').toString()),
+              ),
               if (total != null)
                 Text(
-                  posLocale(context).pos1b58713d0d0e((formatRupiahAmount(num.tryParse(total.toString()) ?? 0)).toString()),
+                  posLocale(context).pos1b58713d0d0e(
+                    (formatRupiahAmount(
+                      num.tryParse(total.toString()) ?? 0,
+                    )).toString(),
+                  ),
                 ),
-              Text(posLocale(context).pos7d60a10a7702((transaction['attempts'] ?? 0).toString())),
+              Text(
+                posLocale(
+                  context,
+                ).pos7d60a10a7702((transaction['attempts'] ?? 0).toString()),
+              ),
               if (status != 'synced' &&
                   status != 'syncing' &&
                   !rejectedByOperator &&
@@ -434,7 +481,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                         payload['operator_session_token']?.toString() ?? '',
                       ).isNotEmpty))
                 TextButton.icon(
-                  onPressed: _loading
+                  onPressed: _loading || !widget.allowSync
                       ? null
                       : () => _verifyOperatorAndRetry(transaction),
                   icon: const Icon(Icons.pin_outlined),
@@ -442,7 +489,11 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 ),
               if ((transaction['next_retry_at']?.toString() ?? '').isNotEmpty &&
                   status == 'pending')
-                Text(posLocale(context).posb17d3b472148((transaction['next_retry_at']).toString())),
+                Text(
+                  posLocale(
+                    context,
+                  ).posb17d3b472148((transaction['next_retry_at']).toString()),
+                ),
               if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
                 const SizedBox(height: 6),
                 PosText(
@@ -456,7 +507,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: _loading
+                    onPressed: _loading || !widget.allowSync
                         ? null
                         : () => _runQueueMutation(
                             () => _syncService.retryTransaction(
@@ -496,7 +547,9 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
                         child: const PosText('Tolak transaksi'),
                       ),
                       FilledButton.icon(
-                        onPressed: () => _retryAfterReview(transaction),
+                        onPressed: widget.allowSync
+                            ? () => _retryAfterReview(transaction)
+                            : null,
                         icon: const Icon(Icons.fact_check_outlined),
                         label: const PosText('Tinjau & kirim ulang'),
                       ),
@@ -549,18 +602,46 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
           padding: const EdgeInsets.all(14),
           children: [
             Text(
-              posLocale(context).pos849b319bd7c1((isOrder ? ('pesanan').tr(context) : ('transaksi').tr(context)).toString(), (transaction['id']).toString()),
+              posLocale(context).pos849b319bd7c1(
+                (isOrder ? ('pesanan').tr(context) : ('transaksi').tr(context))
+                    .toString(),
+                (transaction['id']).toString(),
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            Text(posLocale(context).pos52fb707d5447((transaction['status']).toString())),
-            Text(posLocale(context).pos8c29bd885f11((transaction['toko_id'] ?? '-').toString())),
-            Text(posLocale(context).pos98c99bd51ac2((transaction['shift_id'] ?? '-').toString())),
-            Text(posLocale(context).pos919294430196((transaction['attempts'] ?? 0).toString())),
+            Text(
+              posLocale(
+                context,
+              ).pos52fb707d5447((transaction['status']).toString()),
+            ),
+            Text(
+              posLocale(
+                context,
+              ).pos8c29bd885f11((transaction['toko_id'] ?? '-').toString()),
+            ),
+            Text(
+              posLocale(
+                context,
+              ).pos98c99bd51ac2((transaction['shift_id'] ?? '-').toString()),
+            ),
+            Text(
+              posLocale(
+                context,
+              ).pos919294430196((transaction['attempts'] ?? 0).toString()),
+            ),
             if ((transaction['resolution']?.toString() ?? '').isNotEmpty)
-              Text(posLocale(context).pos735eff437800((transaction['resolution']).toString())),
+              Text(
+                posLocale(
+                  context,
+                ).pos735eff437800((transaction['resolution']).toString()),
+              ),
             if ((transaction['server_response']?.toString() ?? '').isNotEmpty)
-              Text(posLocale(context).pos48c3ba336d52((transaction['server_response']).toString())),
+              Text(
+                posLocale(
+                  context,
+                ).pos48c3ba336d52((transaction['server_response']).toString()),
+              ),
             if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
               const SizedBox(height: 12),
               const PosText(
@@ -678,16 +759,20 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
             children: [
               Text(
                 isOrder
-                    ? ('Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.').tr(dialogContext)
-                    : ('Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.').tr(dialogContext),
+                    ? ('Periksa lebih dulu apakah pesanan sudah tercatat di server. Jika belum, pesanan lokal dapat diselesaikan setelah pelanggan diberi tahu. Jejaknya tetap tersimpan pada perangkat.')
+                          .tr(dialogContext)
+                    : ('Periksa lebih dulu apakah invoice sudah tercatat di server. Pastikan uang yang diterima telah dikembalikan atau direkonsiliasi. Jejak transaksi tetap disimpan pada perangkat.')
+                          .tr(dialogContext),
               ),
               const SizedBox(height: 12),
               TextField(
                 minLines: 2,
                 maxLines: 4,
                 maxLength: 500,
-                decoration:  InputDecoration(
-                  labelText: ('Hasil rekonsiliasi / nomor bukti').tr(dialogContext),
+                decoration: InputDecoration(
+                  labelText: ('Hasil rekonsiliasi / nomor bukti').tr(
+                    dialogContext,
+                  ),
                 ),
                 onChanged: (value) =>
                     updateDialog(() => reconciliationNote = value),

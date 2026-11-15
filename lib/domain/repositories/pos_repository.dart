@@ -2860,6 +2860,8 @@ class PosRepository {
     required String shiftId,
     double? expectedTotal,
   }) async {
+    final subscriptionDenial = await _clientProvider.checkOfflineSubscription();
+    if (subscriptionDenial != null) throw StateError(subscriptionDenial);
     final instansiId = _prefs.getString('instansi_id') ?? '';
     final requestId = input['client_request_id']?.toString() ?? '';
     if (instansiId.isEmpty || tokoId.isEmpty || requestId.isEmpty) {
@@ -3080,6 +3082,8 @@ class PosRepository {
     required String shiftId,
     required Map<String, dynamic> clientSnapshot,
   }) async {
+    final subscriptionDenial = await _clientProvider.checkOfflineSubscription();
+    if (subscriptionDenial != null) throw StateError(subscriptionDenial);
     final clientTransactionId = payload['client_transaction_id']?.toString();
     if (clientTransactionId == null || clientTransactionId.isEmpty) {
       throw StateError('Client transaction ID wajib tersedia');

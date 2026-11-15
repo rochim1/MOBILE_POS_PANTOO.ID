@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
+import 'pos_subscription_page.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import '../../../core/notifications/pos_push_service.dart';
 import 'dart:async';
@@ -147,6 +149,11 @@ class _PosShellPageState extends State<PosShellPage>
       sl<SyncService>().syncOfflineTransactions();
     }
     WidgetsBinding.instance.addObserver(this);
+    if (sl.isRegistered<PosSubscriptionService>()) {
+      sl<PosSubscriptionService>().recovered.addListener(
+        _subscriptionRecovered,
+      );
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         if (context.read<AppLockCubit>().state.status ==
@@ -367,8 +374,21 @@ class _PosShellPageState extends State<PosShellPage>
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
     _offlineSyncTimer?.cancel();
+    if (sl.isRegistered<PosSubscriptionService>()) {
+      sl<PosSubscriptionService>().recovered.removeListener(
+        _subscriptionRecovered,
+      );
+    }
     _posBloc.close();
     super.dispose();
+  }
+
+  void _subscriptionRecovered() {
+    if (!mounted || _posBloc.isClosed) return;
+    _posBloc.add(const RefreshPosAccess(refreshProducts: true));
+    sl<SyncService>()
+        .syncOfflineTransactions(force: true)
+        .whenComplete(_refreshOfflineQueueSummary);
   }
 
   @override
@@ -625,7 +645,11 @@ class _PosShellPageState extends State<PosShellPage>
       ),
     ),
     const PosPrinterPage(),
-    const PosOfflineQueuePage(),
+    PosOfflineQueuePage(
+      allowSync:
+          !sl.isRegistered<PosSubscriptionService>() ||
+          sl<PosSubscriptionService>().canSell,
+    ),
     const PosPurchaseReturnPage(),
     PosSettingsPage(
       setupTourKey: _setupTourTargets.settingsSave,
@@ -912,6 +936,24 @@ class _PosShellPageState extends State<PosShellPage>
   }
 
   Widget _buildShellBody(bool isMobile) {
+    if (!sl.isRegistered<PosSubscriptionService>()) {
+      return _buildSubscriptionShellBody(isMobile);
+    }
+    final service = sl<PosSubscriptionService>();
+    return AnimatedBuilder(
+      animation: service,
+      builder: (context, _) {
+        if (service.required &&
+            !service.canSell &&
+            !const {3, 4, 11, 12, 14, 15}.contains(_selectedIndex)) {
+          return PosSubscriptionPage(service: service, embedded: true);
+        }
+        return _buildSubscriptionShellBody(isMobile);
+      },
+    );
+  }
+
+  Widget _buildSubscriptionShellBody(bool isMobile) {
     if (_showSetupGuide) {
       return PosSetupGuidePage(
         onNavigate: _navigateSetupTarget,

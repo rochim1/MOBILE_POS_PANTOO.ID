@@ -2760,7 +2760,11 @@ class _OrderDetailsSheet extends StatelessWidget {
                   builder: (context, state) {
                     if (state.status == PosOrderManagementStatus.loading &&
                         state.orders.isEmpty) {
-                      return const PosSkeletonList(count: 4);
+                      return ListView.separated(
+                        padding: const EdgeInsets.all(16), itemCount: 4,
+                        separatorBuilder: (_, index) => const SizedBox(height: 16),
+                        itemBuilder: (_, index) => const PosOrderTicketSkeleton(),
+                      );
                     }
 
                     if (state.orders.isEmpty) {

@@ -18,7 +18,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_full_width_tabs.dart';
-import '../../widgets/skeleton_loading.dart';
+import '../../widgets/pos_content_skeletons.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_component_picker.dart';
@@ -201,22 +201,11 @@ class _PosProductPageState extends State<PosProductPage> {
     );
   }
 
-  Widget _buildCatalogSkeleton(bool isMobile) {
-    if (!widget.isGridView || isMobile) {
-      return ListView.separated(
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: isMobile ? 5 : 7,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (_, _) => const SkeletonProductListItem(),
-      );
-    }
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: _catalogGridDelegate,
-      itemCount: 8,
-      itemBuilder: (_, _) => const SkeletonProductCard(),
-    );
-  }
+  Widget _buildCatalogSkeleton(bool isMobile) => PosCatalogContentSkeleton(
+    isMobile: isMobile,
+    isGridView: widget.isGridView,
+    gridDelegate: _catalogGridDelegate,
+  );
 
   Widget _buildCatalogSourceNotice() => Container(
     width: double.infinity,

@@ -1,3 +1,4 @@
+import '../../widgets/pos_content_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 
@@ -215,7 +216,7 @@ class _PosDirectPurchasePageState extends State<PosDirectPurchasePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const PosDocumentFormSkeleton(fieldGroups: [6]);
     final policy = Map<String, dynamic>.from(
       (_data['GetDirectPurchasePolicy'] as Map?) ?? const {},
     );

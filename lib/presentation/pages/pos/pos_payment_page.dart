@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
+import 'pos_subscription_page.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
@@ -91,6 +93,28 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!sl.isRegistered<PosSubscriptionService>()) {
+      return _buildPayment(context);
+    }
+    final service = sl<PosSubscriptionService>();
+    return AnimatedBuilder(
+      animation: service,
+      builder: (context, _) {
+        final restricted = service.required && !service.canSell;
+        // Keep the payment listener mounted if expiry happens while an already
+        // accepted response is in flight. Its receipt must still be shown.
+        return Stack(
+          children: [
+            ExcludeFocus(excluding: restricted, child: _buildPayment(context)),
+            if (restricted)
+              Positioned.fill(child: PosSubscriptionPage(service: service)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPayment(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: false,
@@ -168,6 +192,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
+                settings: const RouteSettings(name: 'pos_payment_success'),
                 builder: (_) => PosSuccessPage(
                   transaction: transaction,
                   autoPrint: state.runtimeConfig['auto_print_receipt'] == true,

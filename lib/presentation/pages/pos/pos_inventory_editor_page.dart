@@ -1,3 +1,4 @@
+import '../../widgets/pos_content_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
@@ -3562,7 +3563,7 @@ errorBuilder: posValidationError,
             )
           : null,
       body: _loading && _lookups == null
-          ? const Center(child: CircularProgressIndicator())
+          ? PosDocumentFormSkeleton(fieldGroups: isMobilePurchase ? const [3] : const [3, 4])
           : Column(
               children: [
                 if (isMobilePurchase) _buildPurchaseTabs(),

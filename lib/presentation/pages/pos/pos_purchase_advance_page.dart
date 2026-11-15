@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -381,12 +382,7 @@ class _PosPurchaseAdvancePageState extends State<PosPurchaseAdvancePage> {
           ],
         ),
         if (_loading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            ),
-          )
+          const PosRecordListSkeleton(kind: PosRecordSkeletonKind.purchaseAdvance, embedded: true, padding: EdgeInsets.zero, count: 3)
         else if (_requests.isEmpty)
           const Card(
             child: Padding(

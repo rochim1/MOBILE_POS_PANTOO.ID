@@ -7,7 +7,7 @@ import '../../../domain/models/pos_transfer.dart';
 import '../../../domain/repositories/pos_transfer_repository.dart';
 import '../../../../injections.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/skeleton_loading.dart';
+import '../../widgets/pos_content_skeletons.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import 'widgets/pos_transfer_location_fields.dart';
 
@@ -451,7 +451,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       ),
     ),
     body: loading
-        ? const PosPageSkeleton()
+        ? const PosDocumentFormSkeleton()
         : error != null
         ? Center(
             child: Column(

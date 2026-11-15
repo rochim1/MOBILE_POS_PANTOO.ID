@@ -1,3 +1,5 @@
+import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
 import '../../../widgets/pos_metric_card.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +70,11 @@ class _ShiftSkeleton extends StatelessWidget {
 class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
   String? selectedTokoId;
   bool _followInitialShift = true;
+
+  bool get _canWrite =>
+      !sl.isRegistered<PosSubscriptionService>() ||
+      !sl<PosSubscriptionService>().required ||
+      sl<PosSubscriptionService>().canSell;
 
   @override
   void initState() {
@@ -325,13 +332,21 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  perOperator ? ('Shift per operator PIN').tr(context) : ('Register bersama').tr(context),
+                  perOperator
+                      ? ('Shift per operator PIN').tr(context)
+                      : ('Register bersama').tr(context),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   perOperator
-                      ? posLocale(context).posf749a4f6a690((operatorName?.trim().isNotEmpty == true ? operatorName : ('masukkan PIN kembali').tr(context)).toString())
-                      : ('Satu laci per toko untuk akun yang memiliki akses; identitas kasir tetap tercatat.').tr(context),
+                      ? posLocale(context).posf749a4f6a690(
+                          (operatorName?.trim().isNotEmpty == true
+                                  ? operatorName
+                                  : ('masukkan PIN kembali').tr(context))
+                              .toString(),
+                        )
+                      : ('Satu laci per toko untuk akun yang memiliki akses; identitas kasir tetap tercatat.')
+                            .tr(context),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 ),
               ],
@@ -416,7 +431,11 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 3),
               Text(
                 openedAt != null
-                    ? posLocale(context).pos8e461e69d307((DateFormat('dd MMM, HH:mm').format(openedAt)).toString())
+                    ? posLocale(context).pos8e461e69d307(
+                        (DateFormat(
+                          'dd MMM, HH:mm',
+                        ).format(openedAt)).toString(),
+                      )
                     : ('Waktu buka tidak tersedia').tr(context),
                 style: const TextStyle(
                   color: AppColors.textSecondary,
@@ -457,7 +476,9 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _promptPettyCash(context, 'in', shift['_id']),
+                onPressed: _canWrite
+                    ? () => _promptPettyCash(context, 'in', shift['_id'])
+                    : null,
                 icon: const Icon(Icons.download, color: AppColors.success),
                 label: const PosText(
                   'Kas Masuk',
@@ -475,7 +496,9 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _promptPettyCash(context, 'out', shift['_id']),
+                onPressed: _canWrite
+                    ? () => _promptPettyCash(context, 'out', shift['_id'])
+                    : null,
                 icon: const Icon(Icons.upload, color: AppColors.warning),
                 label: const PosText(
                   'Kas Keluar',
@@ -597,7 +620,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           const SizedBox(height: 16),
           ElevatedButton(
             key: widget.openTourKey,
-            onPressed: selectedTokoId == null
+            onPressed: !_canWrite || selectedTokoId == null
                 ? null
                 : () {
                     context.read<PosShiftBloc>().add(

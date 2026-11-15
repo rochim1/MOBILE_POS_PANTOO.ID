@@ -1,3 +1,6 @@
+import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
+import 'pos_subscription_page.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -137,6 +140,22 @@ class PosMoreMenuPage extends StatelessWidget {
                 _MenuSection(
                   title: ('Akun').tr(context),
                   children: [
+                    if (sl.isRegistered<PosSubscriptionService>())
+                      _MenuTile(
+                        title: subscriptionText(
+                          context,
+                          'Langganan',
+                          'Subscription',
+                        ),
+                        icon: Icons.event_available_outlined,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PosSubscriptionPage(
+                              service: sl<PosSubscriptionService>(),
+                            ),
+                          ),
+                        ),
+                      ),
                     _MenuTile(
                       title: ('Keluar').tr(context),
                       icon: Icons.logout,

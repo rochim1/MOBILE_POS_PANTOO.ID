@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -150,7 +151,9 @@ class _PosOutletPageState extends State<PosOutletPage> {
                 },
               ),
               const SizedBox(height: 16),
-              if (stores.isEmpty)
+              if (state.status == PosStatus.loading)
+                const PosRecordListSkeleton(kind: PosRecordSkeletonKind.notification, embedded: true, padding: EdgeInsets.zero)
+              else if (stores.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(top: 48),
                   child: PosEmptyState(
@@ -160,7 +163,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                         'Tambahkan outlet dan hubungkan ke lokasi inventory agar kasir dapat beroperasi.',
                   ),
                 ),
-              ...stores.map(
+              if (state.status != PosStatus.loading) ...stores.map(
                 (store) => Card(
                   margin: const EdgeInsets.only(bottom: 10),
                   child: ListTile(

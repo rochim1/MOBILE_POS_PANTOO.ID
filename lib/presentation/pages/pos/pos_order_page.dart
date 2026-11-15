@@ -1,3 +1,5 @@
+import '../../widgets/pos_record_skeletons.dart';
+import '../../widgets/pos_content_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
 
@@ -119,7 +121,11 @@ class _PosOrderPageState extends State<PosOrderPage> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: widget.isGridView
+                child: state.ordersRefreshing || (state.status == PosStatus.loading && state.orders.isEmpty)
+                    ? widget.isGridView
+                        ? const PosRecordListSkeleton(kind: PosRecordSkeletonKind.transaction, padding: EdgeInsets.zero)
+                        : const PosDataTableSkeleton(columns: 7, minWidth: 1000)
+                    : widget.isGridView
                     ? _buildOrderCards(
                         filteredOrders,
                         hasMore: state.ordersHasMore,
@@ -361,6 +367,14 @@ class _PosOrderPageState extends State<PosOrderPage> {
     );
   }
 
+  Future<void> _refreshOrders() async {
+    final bloc = context.read<PosBloc>();
+    final completed = bloc.stream.skipWhile((state) => !state.ordersRefreshing)
+        .firstWhere((state) => !state.ordersRefreshing);
+    bloc.add(RefreshOrders());
+    await completed;
+  }
+
   Widget _buildOrderCards(
     List<PosOrder> orders, {
     required bool hasMore,
@@ -377,8 +391,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<PosBloc>().add(RefreshOrders());
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await _refreshOrders();
       },
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -540,8 +553,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
         .toList();
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<PosBloc>().add(RefreshOrders());
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await _refreshOrders();
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),

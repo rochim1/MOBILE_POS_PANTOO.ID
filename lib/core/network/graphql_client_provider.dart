@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import '../subscription/pos_subscription_link.dart';
+import 'pos_operator_identity.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -19,6 +21,23 @@ class GraphQLClientProvider {
 
   final SharedPreferences sharedPreferences;
   final void Function()? onUnauthorized;
+  final void Function(Map<String, dynamic> extensions, String scope)?
+  onSubscriptionRequired;
+  final void Function()? onIdentityChanged;
+  final SubscriptionMutationGuard? subscriptionGuard;
+  final Future<String?> Function()? authorizeOfflineWrite;
+  String get subscriptionScope {
+    final tenant = sharedPreferences.getString('instansi_id') ?? '';
+    final user = sharedPreferences.getString('user_id') ?? '';
+    if (tenant.isEmpty || user.isEmpty) return '';
+    final actor = operatorIdFromToken(_posOperatorToken ?? '');
+    return '$endpointUrl|$tenant|$user|$actor';
+  }
+
+  bool get requiresOperatorVerification =>
+      _posOperatorToken != null && !operatorTokenIsCurrent(_posOperatorToken!);
+  Future<String?> checkOfflineSubscription() async =>
+      await authorizeOfflineWrite?.call();
   final FlutterSecureStorage secureStorage;
   final FlavorEnvironment environment;
   late GraphQLClient client;
@@ -47,6 +66,10 @@ class GraphQLClientProvider {
     this.secureStorage, {
     required this.environment,
     this.onUnauthorized,
+    this.onSubscriptionRequired,
+    this.onIdentityChanged,
+    this.subscriptionGuard,
+    this.authorizeOfflineWrite,
   }) {
     final customEndpoint = _developmentOverride;
     final envUrl = dotenv.env['API_URL'];
@@ -92,6 +115,14 @@ class GraphQLClientProvider {
         final errors = response.errors;
         if (errors != null && errors.isNotEmpty) {
           for (final error in errors) {
+            if (error.extensions?['code'] == 'SUBSCRIPTION_REQUIRED') {
+              onSubscriptionRequired?.call(
+                Map<String, dynamic>.from(error.extensions ?? const {}),
+                request.context.entry<PosSubscriptionRequestScope>()?.scope ??
+                    '',
+              );
+              continue;
+            }
             if (_shouldInvalidateSession(
               error.message,
               error.extensions?['code'],
@@ -109,6 +140,14 @@ class GraphQLClientProvider {
         if (exception is ServerException) {
           final errors = exception.parsedResponse?.errors ?? const [];
           for (final error in errors) {
+            if (error.extensions?['code'] == 'SUBSCRIPTION_REQUIRED') {
+              onSubscriptionRequired?.call(
+                Map<String, dynamic>.from(error.extensions ?? const {}),
+                request.context.entry<PosSubscriptionRequestScope>()?.scope ??
+                    '',
+              );
+              continue;
+            }
             if (_shouldInvalidateSession(
               error.message,
               error.extensions?['code'],
@@ -121,7 +160,12 @@ class GraphQLClientProvider {
       },
     );
 
-    final link = Link.from([errorLink, authLink, httpLink]);
+    final link = Link.from([
+      posSubscriptionLink(() => subscriptionGuard, () => subscriptionScope),
+      errorLink,
+      authLink,
+      httpLink,
+    ]);
 
     client = GraphQLClient(
       cache: GraphQLCache(store: InMemoryStore()),
@@ -152,6 +196,7 @@ class GraphQLClientProvider {
     _posOperatorToken = next;
     // A new operator must never reuse the previous operator's GraphQL cache.
     _initClient();
+    onIdentityChanged?.call();
   }
 
   Stream<Response> _refreshAndRetry(Request request, NextLink forward) async* {

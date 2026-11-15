@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -324,17 +325,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                 style: const TextStyle(color: AppColors.primary),
               ),
             if (_loading)
-              ...List.generate(
-                4,
-                (_) => Container(
-                  height: 72,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              )
+              PosTradeContentSkeleton(detail: invoice != null, showSummary: false)
             else if (invoice == null) ...[
               TextField(
                 controller: _search,

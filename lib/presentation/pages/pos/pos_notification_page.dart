@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -178,8 +179,13 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
               ),
             ),
             if (_loading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                sliver: SliverList.separated(
+                  itemCount: 6,
+                  separatorBuilder: (_, index) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) => const PosRecordCardSkeleton(kind: PosRecordSkeletonKind.notification),
+                ),
               )
             else if (_items.isEmpty)
               const SliverFillRemaining(

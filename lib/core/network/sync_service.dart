@@ -129,6 +129,7 @@ class SyncService {
         return;
       }
 
+      if (await _clientProvider.checkOfflineSubscription() != null) return;
       final db = await PosLocalDatabase.instance.database;
       final instansiId =
           _clientProvider.sharedPreferences.getString('instansi_id') ?? '';
@@ -331,6 +332,23 @@ class SyncService {
               whereArgs: [id],
             );
             appLogger.i('SyncService: Transaksi $id berhasil disinkron.');
+          } else if (_allGraphQLErrors(
+            result.exception,
+          ).any((e) => e.extensions?['code'] == 'SUBSCRIPTION_REQUIRED')) {
+            await db.update(
+              'offline_transactions',
+              {
+                'status': 'pending',
+                'error': 'Menunggu langganan aktif. Transaksi tetap tersimpan.',
+                'resolution': 'subscription_required',
+                'next_retry_at': DateTime.now()
+                    .add(const Duration(minutes: 5))
+                    .toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+            break;
           } else if (_isRetryableNetworkFailure(result.exception)) {
             final attempts = (tx['attempts'] as int? ?? 0) + 1;
             await db.update(

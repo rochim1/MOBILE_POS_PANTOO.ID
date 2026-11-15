@@ -7,15 +7,17 @@ import '../../../core/error/failures.dart';
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository authRepository;
   bool _googleInFlight = false;
+  int _sessionRevision = 0;
   final Future<void> Function()? beforeLogout;
 
   AuthCubit({required this.authRepository, this.beforeLogout})
     : super(const AuthState.checkingSession());
 
   Future<void> checkSession() async {
+    final revision = ++_sessionRevision;
     try {
       final hasSession = await authRepository.checkSession();
-      if (isClosed) return;
+      if (isClosed || revision != _sessionRevision) return;
       if (hasSession) {
         emit(
           AuthState.authenticated(
@@ -26,9 +28,11 @@ class AuthCubit extends Cubit<AuthState> {
         emit(const AuthState.unauthenticated());
       }
     } on Failure catch (failure) {
-      if (!isClosed) emit(AuthState.failure(failure.message));
+      if (!isClosed && revision == _sessionRevision) {
+        emit(AuthState.failure(failure.message));
+      }
     } catch (_) {
-      if (!isClosed) {
+      if (!isClosed && revision == _sessionRevision) {
         emit(
           const AuthState.failure('Sesi belum dapat diverifikasi. Coba lagi.'),
         );
@@ -47,6 +51,7 @@ class AuthCubit extends Cubit<AuthState> {
       return;
     }
 
+    final revision = ++_sessionRevision;
     final captcha = state.captcha;
     emit(AuthState.authenticating(captcha: captcha));
 
@@ -56,7 +61,7 @@ class AuthCubit extends Cubit<AuthState> {
       captchaId: captcha?.captchaId,
       captchaAnswer: captcha == null ? null : captchaAnswer?.trim(),
     );
-    if (isClosed) return;
+    if (isClosed || revision != _sessionRevision) return;
 
     result.fold(
       (failure) => emit(
@@ -83,11 +88,12 @@ class AuthCubit extends Cubit<AuthState> {
     // Keep the current intro/register route mounted for the consent sheet.
     // The Google button owns progress until the server accepts this identity.
     _googleInFlight = true;
+    final revision = ++_sessionRevision;
     try {
       final result = await authRepository
           .loginWithGoogle(token, phone: phone, consent: consent)
           .timeout(const Duration(seconds: 30));
-      if (isClosed) return null;
+      if (isClosed || revision != _sessionRevision) return null;
       return result.fold((failure) => failure, (name) {
         emit(AuthState.authenticated(username: name));
         return null;
@@ -112,13 +118,16 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> logout() async {
+    final revision = ++_sessionRevision;
     try {
       try {
         await beforeLogout?.call();
       } catch (_) {}
       await authRepository.logout();
     } finally {
-      if (!isClosed) emit(const AuthState.unauthenticated());
+      if (!isClosed && revision == _sessionRevision) {
+        emit(const AuthState.unauthenticated());
+      }
     }
   }
 }

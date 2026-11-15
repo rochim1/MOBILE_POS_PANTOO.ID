@@ -20,6 +20,7 @@ class PosState extends Equatable {
   final int ordersPage;
   final bool ordersHasMore;
   final bool ordersLoadingMore;
+  final bool ordersRefreshing;
   final PosCustomer? selectedCustomer;
   final String? editingOrderId;
   final String? editingOrderNumber;
@@ -63,6 +64,7 @@ class PosState extends Equatable {
     this.ordersPage = 0,
     this.ordersHasMore = false,
     this.ordersLoadingMore = false,
+    this.ordersRefreshing = false,
     this.selectedCustomer,
     this.editingOrderId,
     this.editingOrderNumber,
@@ -101,6 +103,7 @@ class PosState extends Equatable {
     int? ordersPage,
     bool? ordersHasMore,
     bool? ordersLoadingMore,
+    bool? ordersRefreshing,
     PosCustomer? selectedCustomer,
     bool clearSelectedCustomer = false,
     String? editingOrderId,
@@ -143,6 +146,7 @@ class PosState extends Equatable {
       ordersPage: ordersPage ?? this.ordersPage,
       ordersHasMore: ordersHasMore ?? this.ordersHasMore,
       ordersLoadingMore: ordersLoadingMore ?? this.ordersLoadingMore,
+      ordersRefreshing: ordersRefreshing ?? this.ordersRefreshing,
       selectedCustomer: clearSelectedCustomer
           ? null
           : (selectedCustomer ?? this.selectedCustomer),
@@ -321,6 +325,7 @@ class PosState extends Equatable {
     ordersPage,
     ordersHasMore,
     ordersLoadingMore,
+    ordersRefreshing,
     selectedCustomer,
     editingOrderId,
     editingOrderNumber,

@@ -6,7 +6,7 @@ import '../../../data/graphql/pos_transfer_queries.dart';
 import '../../../domain/models/pos_transfer.dart';
 import '../../../domain/repositories/pos_transfer_repository.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/skeleton_loading.dart';
+import '../../widgets/pos_content_skeletons.dart';
 import 'widgets/pos_transfer_location_fields.dart';
 
 class PosTransferOperationPage extends StatefulWidget {
@@ -311,7 +311,7 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
       ),
     ),
     body: loading
-        ? const PosPageSkeleton()
+        ? const PosDocumentFormSkeleton(fieldGroups: [3])
         : error != null
         ? Center(
             child: Column(

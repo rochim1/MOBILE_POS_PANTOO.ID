@@ -195,17 +195,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
                 ),
               ],
               if (_remoteSearching && filteredProducts.isEmpty)
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      child: SkeletonProductListItem(),
-                    ),
-                    childCount: 4,
-                  ),
+                PosCashierProductSliverSkeleton(
+                  isMobile: widget.isMobile,
+                  isGridView: state.isGridView,
                 )
               else if (filteredProducts.isEmpty)
                 SliverFillRemaining(

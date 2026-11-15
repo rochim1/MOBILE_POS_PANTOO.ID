@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
@@ -164,7 +165,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
               builder: (context, state) {
                 if (state.status == PosPromoStatus.loading &&
                     state.promos.isEmpty) {
-                  return const PosSkeletonList();
+                  return const PosRecordListSkeleton(kind: PosRecordSkeletonKind.promo);
                 }
 
                 if (state.promos.isEmpty) {

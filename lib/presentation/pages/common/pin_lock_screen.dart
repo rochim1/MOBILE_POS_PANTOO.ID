@@ -811,13 +811,13 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   MainAxisAlignment.spaceEvenly,
                                               children: [
                                                 const SizedBox(
-                                                  width: 64,
-                                                  height: 64,
+                                                  width: 80,
+                                                  height: 80,
                                                 ),
                                                 _buildKeypadButton('0'),
                                                 SizedBox(
-                                                  width: 64,
-                                                  height: 64,
+                                                  width: 80,
+                                                  height: 80,
                                                   child: TextButton(
                                                     onPressed:
                                                         _isVerifying ||
@@ -832,7 +832,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                     ),
                                                     child: const Icon(
                                                       Icons.backspace_outlined,
-                                                      size: 27,
+                                                      size: 30,
                                                     ),
                                                   ),
                                                 ),
@@ -978,8 +978,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   Widget _buildKeypadButton(String text) {
     return SizedBox(
-      width: 64,
-      height: 64,
+      width: 80,
+      height: 80,
       child: TextButton(
         onPressed: _isVerifying || _isPinLocked
             ? null
@@ -991,7 +991,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w400),
+          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -1026,10 +1026,10 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
   @override
   Widget build(BuildContext context) {
     final english = Localizations.localeOf(context).languageCode == 'en';
-    return Column(
+    return Stack(
       key: const Key('pin_marketing_carousel'),
       children: [
-        Expanded(
+        Positioned.fill(
           child: PageView(
             key: const Key('pin_marketing_slides'),
             controller: _controller,
@@ -1050,45 +1050,54 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
             ],
           ),
         ),
-        Material(
-          color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton.filledTonal(
-                  key: const Key('pin_marketing_previous'),
-                  tooltip: english ? 'Previous image' : 'Gambar sebelumnya',
-                  onPressed: () => _show((_page - 1 + 2) % 2),
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                const SizedBox(width: 8),
-                for (var index = 0; index < 2; index++)
-                  Semantics(
-                    label: english
-                        ? 'Image ${index + 1} of 2'
-                        : 'Gambar ${index + 1} dari 2',
-                    selected: index == _page,
-                    child: IconButton(
-                      onPressed: () => _show(index),
-                      icon: Icon(
-                        Icons.circle,
-                        size: index == _page ? 10 : 7,
-                        color: index == _page
-                            ? AppColors.primary
-                            : const Color(0xFF98A2B3),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 8,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton.filledTonal(
+                    key: const Key('pin_marketing_previous'),
+                    tooltip: english ? 'Previous image' : 'Gambar sebelumnya',
+                    onPressed: () => _show((_page - 1 + 2) % 2),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  const SizedBox(width: 8),
+                  for (var index = 0; index < 2; index++)
+                    Semantics(
+                      label: english
+                          ? 'Image ${index + 1} of 2'
+                          : 'Gambar ${index + 1} dari 2',
+                      selected: index == _page,
+                      child: IconButton(
+                        onPressed: () => _show(index),
+                        icon: Icon(
+                          Icons.circle,
+                          size: index == _page ? 10 : 7,
+                          color: _page == 0
+                              ? (index == _page
+                                    ? AppColors.primary
+                                    : const Color(0xFF667085))
+                              : (index == _page
+                                    ? Colors.white
+                                    : Colors.white60),
+                        ),
                       ),
                     ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    key: const Key('pin_marketing_next'),
+                    tooltip: english ? 'Next image' : 'Gambar berikutnya',
+                    onPressed: () => _show((_page + 1) % 2),
+                    icon: const Icon(Icons.chevron_right),
                   ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  key: const Key('pin_marketing_next'),
-                  tooltip: english ? 'Next image' : 'Gambar berikutnya',
-                  onPressed: () => _show((_page + 1) % 2),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -1,3 +1,4 @@
+import '../../widgets/pos_content_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import '../../../../domain/models/pos_remote_profile_catalog.dart';
@@ -14,7 +15,6 @@ import '../../bloc/pos_settings/pos_settings_state.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/pos/pos_event.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/loading_indicator_widget.dart';
 import '../../widgets/pos_category_navigation.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_forced_profile_change_dialog.dart';
@@ -575,10 +575,6 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           }
         },
         builder: (context, state) {
-          if (state.status == PosSettingsStatus.loading ||
-              state.status == PosSettingsStatus.initial) {
-            return const Center(child: LoadingIndicatorWidget());
-          }
 
           final canManage = context.select<PosBloc, bool>((bloc) {
             final permissions = Map<String, dynamic>.from(
@@ -586,7 +582,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             );
             return permissions['manage_settings'] == true;
           });
-          final content = _settingsContent(state, canManage: canManage);
+          final content = state.status == PosSettingsStatus.loading || state.status == PosSettingsStatus.initial
+              ? const PosDocumentFormSkeleton(fieldGroups: [3], showItems: false)
+              : _settingsContent(state, canManage: canManage);
           return LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth >= 760) {

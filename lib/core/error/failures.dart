@@ -20,6 +20,10 @@ class InventoryRequestRejectedFailure extends ServerFailure {
   const InventoryRequestRejectedFailure(super.message);
 }
 
+class SubscriptionFailure extends ServerFailure {
+  const SubscriptionFailure(super.message);
+}
+
 class NetworkFailure extends Failure {
   const NetworkFailure([
     super.message =

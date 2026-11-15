@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -43,6 +44,7 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
       _settled = false,
       _initialOpened = false;
   String _error = '', _message = '', _pendingError = '';
+  bool _loadingDetail = false;
   int _generation = 0;
   @override
   void initState() {
@@ -102,6 +104,7 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
     final ticket = ++_generation;
     setState(() {
       _loading = true;
+      _loadingDetail = false;
       _page = null;
       _document = null;
       _error = '';
@@ -145,6 +148,7 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
     final generation = ticket ?? ++_generation;
     setState(() {
       _loading = true;
+      _loadingDetail = false;
       _page = null;
       _document = null;
       _error = '';
@@ -178,6 +182,7 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
     final ticket = ++_generation;
     setState(() {
       _loading = true;
+      _loadingDetail = true;
       _document = null;
       _error = '';
     });
@@ -447,7 +452,9 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
                   ),
                 ),
             ],
-            if (_loading || _sending)
+            if (_loading)
+              PosTradeContentSkeleton(detail: _loadingDetail || (!_initialOpened && widget.initialDocumentId != null)),
+            if (_sending)
               const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),

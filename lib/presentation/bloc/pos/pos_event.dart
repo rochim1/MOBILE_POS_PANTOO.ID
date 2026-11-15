@@ -23,6 +23,13 @@ class RefreshPosRuntimeConfig extends PosEvent {
   List<Object> get props => [preserveCheckout];
 }
 
+class RefreshPosAccess extends PosEvent {
+  const RefreshPosAccess({this.refreshProducts = false});
+  final bool refreshProducts;
+  @override
+  List<Object> get props => [refreshProducts];
+}
+
 class RefreshProducts extends PosEvent {}
 
 class UpsertProductLocally extends PosEvent {

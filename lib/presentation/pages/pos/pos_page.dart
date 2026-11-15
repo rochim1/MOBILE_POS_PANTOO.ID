@@ -259,7 +259,9 @@ class _PosPageViewState extends State<PosPageView> {
                         ),
                       ],
                     ),
-                    content: const PosText('Transaksi telah berhasil diproses.'),
+                    content: const PosText(
+                      'Transaksi telah berhasil diproses.',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
@@ -327,7 +329,7 @@ class _PosPageViewState extends State<PosPageView> {
                       ...state.products.map((product) => product.category),
                     }.where((category) => category.trim().isNotEmpty).toList();
                     if (state.status == PosStatus.loading) {
-                      return const PosPageSkeleton();
+                      return PosPageSkeleton(isGridView: state.isGridView);
                     }
                     if (state.status == PosStatus.failure &&
                         state.checkoutSyncFailed) {
@@ -341,7 +343,9 @@ class _PosPageViewState extends State<PosPageView> {
                                 final confirmed = await showDialog<bool>(
                                   context: context,
                                   builder: (dialogContext) => AlertDialog(
-                                    title: const PosText('Kosongkan keranjang?'),
+                                    title: const PosText(
+                                      'Kosongkan keranjang?',
+                                    ),
                                     content: const PosText(
                                       'Barang dalam keranjang akan dihapus dari keranjang, bukan dari stok. Setelah itu toko dan shift diperiksa kembali.',
                                     ),
@@ -406,16 +410,23 @@ class _PosPageViewState extends State<PosPageView> {
                                                 ? 44
                                                 : 52,
                                             tabs: [
-                                               PosFullWidthTab(
+                                              PosFullWidthTab(
                                                 icon: Icons.storefront_outlined,
-                                                label: ('Katalog Produk').tr(context),
+                                                label: ('Katalog Produk').tr(
+                                                  context,
+                                                ),
                                               ),
                                               PosFullWidthTab(
                                                 icon: Icons
                                                     .shopping_cart_outlined,
                                                 label: state.cart.isEmpty
                                                     ? ('Keranjang').tr(context)
-                                                    : posLocale(context).pos541eb83e5a0c((cartQuantityLabel).toString()),
+                                                    : posLocale(
+                                                        context,
+                                                      ).pos541eb83e5a0c(
+                                                        (cartQuantityLabel)
+                                                            .toString(),
+                                                      ),
                                               ),
                                             ],
                                           ),
@@ -549,7 +560,9 @@ class _PosPageViewState extends State<PosPageView> {
                         const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            posLocale(context).posc1d0cd74f8ec((state.heldOrders.length).toString()),
+                            posLocale(context).posc1d0cd74f8ec(
+                              (state.heldOrders.length).toString(),
+                            ),
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w700,
@@ -610,7 +623,9 @@ class _PosPageViewState extends State<PosPageView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Tooltip(
-                      message: ('Atur diskon manual dan kode promo').tr(context),
+                      message: ('Atur diskon manual dan kode promo').tr(
+                        context,
+                      ),
                       child: OutlinedButton(
                         onPressed: state.cart.isEmpty
                             ? null
@@ -646,8 +661,10 @@ class _PosPageViewState extends State<PosPageView> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child:  Tooltip(
-                          message: ('Channel, level harga, pajak dan promo').tr(context),
+                        child: Tooltip(
+                          message: ('Channel, level harga, pajak dan promo').tr(
+                            context,
+                          ),
                           child: Icon(
                             Icons.tune_outlined,
                             color: AppColors.primary,
@@ -662,7 +679,8 @@ class _PosPageViewState extends State<PosPageView> {
                     child: KeyedSubtree(
                       key: widget.tourTargets?.saveOrder,
                       child: Tooltip(
-                        message: ('Simpan sementara untuk dilanjutkan nanti').tr(context),
+                        message: ('Simpan sementara untuk dilanjutkan nanti')
+                            .tr(context),
                         child: OutlinedButton(
                           onPressed:
                               state.cart.isEmpty || state.editingOrderId != null
@@ -878,13 +896,17 @@ class _PosPageViewState extends State<PosPageView> {
             TextField(
               controller: discountController,
               keyboardType: TextInputType.number,
-              decoration:  InputDecoration(labelText: ('Diskon manual (%)').tr(dialogContext)),
+              decoration: InputDecoration(
+                labelText: ('Diskon manual (%)').tr(dialogContext),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: promoController,
               textCapitalization: TextCapitalization.characters,
-              decoration:  InputDecoration(labelText: ('Kode promo').tr(dialogContext)),
+              decoration: InputDecoration(
+                labelText: ('Kode promo').tr(dialogContext),
+              ),
             ),
           ],
         ),
@@ -941,13 +963,18 @@ class _PosPageViewState extends State<PosPageView> {
                   title: Text(
                     order.notes.isNotEmpty
                         ? order.notes
-                        : posLocale(sheetContext).pose27a8b678805((order.customer?.name ?? 'tersimpan').toString()),
+                        : posLocale(sheetContext).pose27a8b678805(
+                            (order.customer?.name ?? 'tersimpan').toString(),
+                          ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   subtitle: Text(
-                    posLocale(sheetContext).posa6e5135e1c96((order.id).toString(), (order.cart.length).toString()),
+                    posLocale(sheetContext).posa6e5135e1c96(
+                      (order.id).toString(),
+                      (order.cart.length).toString(),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

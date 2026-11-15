@@ -1,3 +1,4 @@
+import '../../widgets/pos_content_skeletons.dart';
 import 'pos_business_report_page.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_business_report.dart';
 import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
@@ -148,7 +149,7 @@ class _ReportViewState extends State<_ReportView> {
         const SizedBox(height: 18),
         if (state.status == PosReportStatus.loading ||
             state.status == PosReportStatus.initial)
-          const _Skeleton()
+          _loadingReport()
         else if (state.reportData case final data?)
           switch (_section) {
             _Section.profitLoss ||
@@ -192,6 +193,21 @@ class _ReportViewState extends State<_ReportView> {
       ],
     );
   }
+
+  Widget _loadingReport() => switch (_section) {
+    _Section.summary => const _Skeleton(),
+    _Section.topReports => const Column(children: [
+      PosReportRowsSkeleton(),
+      SizedBox(height: 18),
+      PosReportRowsSkeleton(),
+    ]),
+    _Section.cash => Column(children: [
+      PosMetricGrid(children: List.generate(2, (_) => const PosMetricCardSkeleton())),
+      const SizedBox(height: 18),
+      const PosReportRowsSkeleton(),
+    ]),
+    _ => const PosReportRowsSkeleton(),
+  };
 
   Widget _financialPage(Map<String, dynamic> config, String? employeeId) {
     final key = ValueKey((

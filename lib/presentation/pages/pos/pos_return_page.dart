@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
@@ -212,7 +213,7 @@ class _PosReturnViewState extends State<PosReturnView> {
               builder: (context, state) {
                 if (state.status == PosReturnStatus.loading &&
                     state.returns.isEmpty) {
-                  return const PosSkeletonList();
+                  return const PosRecordListSkeleton(kind: PosRecordSkeletonKind.salesReturn);
                 }
 
                 if (state.returns.isEmpty) {

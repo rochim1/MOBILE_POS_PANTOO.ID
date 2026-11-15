@@ -1,3 +1,5 @@
+import 'core/subscription/pos_subscription_service.dart';
+import 'presentation/widgets/pos_subscription_boundary.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'core/notifications/pos_push_service.dart';
@@ -51,6 +53,7 @@ class App extends StatelessWidget {
 
   static final GlobalKey<NavigatorState> navigatorKey =
       ChuckerFlutter.navigatorKey;
+  static final subscriptionRoutes = PosSubscriptionRouteObserver();
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +77,7 @@ class App extends StatelessWidget {
           localeResolutionCallback: (device, _) =>
               AppLanguageController.resolve(device),
           navigatorKey: navigatorKey,
+          navigatorObservers: [subscriptionRoutes],
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
             final compactMobile = mediaQuery.size.width < 600;
@@ -86,6 +90,12 @@ class App extends StatelessWidget {
                   final needsWorkspace =
                       prefs.getBool('needs_workspace_setup') == true ||
                       (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
+                  if (!needsWorkspace) {
+                    await sl<PosSubscriptionService>().activate();
+                  }
+                  if (!context.mounted || !identical(authCubit.state, state)) {
+                    return;
+                  }
                   await finishPosLoginNavigation(
                     needsWorkspace: needsWorkspace,
                     readLockEnabled: () async =>
@@ -120,6 +130,7 @@ class App extends StatelessWidget {
                     unawaited(push.activate());
                   }
                 } else if (state.status == AuthStatus.unauthenticated) {
+                  sl<PosSubscriptionService>().deactivate();
                   await sl<PosCustomerDisplayService>().disconnect();
                   if (!context.mounted) return;
                   context.read<AppLockCubit>().reset();
@@ -136,9 +147,18 @@ class App extends StatelessWidget {
                 }
               },
               child: BlocBuilder<AuthCubit, AuthState>(
-                builder: (context, authState) => InactivityWrapper(
+                builder: (context, authState) => PosSubscriptionBoundary(
+                  service: sl<PosSubscriptionService>(),
                   authenticated: authState.isAuthenticated,
-                  child: child!,
+                  navigatorKey: navigatorKey,
+                  receiptVisible: subscriptionRoutes.receiptVisible,
+                  onLogout: () => context.read<AuthCubit>().logout(),
+                  onRestricted: () =>
+                      sl<PosCustomerDisplayService>().publishIdle(),
+                  child: InactivityWrapper(
+                    authenticated: authState.isAuthenticated,
+                    child: child!,
+                  ),
                 ),
               ),
             );

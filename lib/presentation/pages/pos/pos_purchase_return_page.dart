@@ -1,3 +1,4 @@
+import '../../widgets/pos_record_skeletons.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
@@ -378,7 +379,9 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: _load,
-              child: _items.isEmpty && !_loading
+              child: _loading
+                  ? const PosRecordListSkeleton(kind: PosRecordSkeletonKind.trade)
+                  : _items.isEmpty
                   ? ListView(
                       children: const [
                         SizedBox(height: 100),
@@ -1292,7 +1295,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           ),
         ),
         body: _loading && data == null
-            ? const Center(child: CircularProgressIndicator())
+            ? const SingleChildScrollView(padding: EdgeInsets.all(16), child: PosTradeContentSkeleton(detail: true))
             : data == null
             ? const Center(child: PosText('Data tidak ditemukan'))
             : RefreshIndicator(
