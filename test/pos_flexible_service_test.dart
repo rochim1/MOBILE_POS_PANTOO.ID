@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/core/error/failures.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_store.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_order_detail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
@@ -70,6 +71,20 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(bloc.state.unitPriceFor(transport), 175000);
     expect(bloc.state.grandTotal, 175000, reason: 'A stale preview must not change the amount collected at checkout');
+  });
+  test('opening a saved order restores agreed prices instead of master or unrelated cart prices', () async {
+    final bloc = _SeededPosBloc(_Repo(), const PosState(
+      products: [transport], manualUnitPrices: {'t': 999000, 'unrelated': 12},
+    ));
+    addTearDown(bloc.close);
+    bloc.add(const EditActiveOrder(PosOrderDetail(
+      id: 'saved', orderNumber: 'QA', orderType: 'dine_in', tableId: 'table',
+      items: [PosOrderItem(productId: 't', quantity: 2, price: 175000, unit: 'unit')],
+    )));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(bloc.state.unitPriceFor(transport), 175000);
+    expect(bloc.state.baseSubtotal, 350000);
+    expect(bloc.state.manualUnitPrices, {'t': 175000});
   });
   testWidgets(
     'mobile catalogue → tariff → cart → edit works with price override disabled',
