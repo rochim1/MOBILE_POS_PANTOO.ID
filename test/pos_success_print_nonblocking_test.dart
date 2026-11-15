@@ -9,6 +9,69 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  for (final method in [
+    'qris',
+    'transfer',
+    'debit',
+    'e_wallet',
+    'kartu_kredit',
+    'credit_card',
+    'split',
+    'tunai',
+    'cash',
+    'tempo',
+  ]) {
+    testWidgets('success shows the correct received amount for $method', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      sl.registerSingleton<SharedPreferences>(
+        await SharedPreferences.getInstance(),
+      );
+      addTearDown(() async {
+        await sl.reset();
+      });
+      final cash = method == 'cash' || method == 'tunai';
+      final credit = method == 'tempo';
+      final transaction = PosTransactionResult(
+        id: 'payment-$method',
+        invoice: 'QA-001',
+        subtotal: 1000,
+        discount: 0,
+        promoDiscount: 0,
+        tax: 0,
+        total: 1000,
+        cashReceived: cash
+            ? 2000
+            : method == 'split'
+            ? 400
+            : 0,
+        change: cash ? 1000 : 0,
+        paymentMethod: method,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: PosSuccessPage(transaction: transaction)),
+      );
+      await tester.pumpAndSettle();
+      final label = find.text(method.toUpperCase());
+      final row = find.ancestor(of: label, matching: find.byType(Row)).first;
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.text(
+            cash
+                ? 'Rp2.000'
+                : credit
+                ? 'Rp0'
+                : 'Rp1.000',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('auto print tanpa printer tidak menahan halaman sukses', (
     tester,
   ) async {

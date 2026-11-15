@@ -123,7 +123,16 @@ class PosSuccessPage extends StatelessWidget {
                               const SizedBox(height: 16),
                               _buildRow(
                                 transaction.paymentMethod.toUpperCase(),
-                                _currency(transaction.cashReceived),
+                                _currency(switch (transaction.paymentMethod) {
+                                  'qris' ||
+                                  'transfer' ||
+                                  'debit' ||
+                                  'e_wallet' ||
+                                  'kartu_kredit' ||
+                                  'credit_card' ||
+                                  'split' => transaction.total,
+                                  _ => transaction.cashReceived,
+                                }),
                               ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 24),
