@@ -1,7 +1,6 @@
 // Specialized cross-client scenario (outside default *_test.dart collection).
 // Run through backend npm run test:pos-flexible-checkout-clients.
 // Real HTTP/schema/database; fixture context replaces login only.
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dartz/dartz.dart';
@@ -161,10 +160,11 @@ void main() {
     final network = HttpLink(fixture['endpoint'] as String);
     final gate = Link.function((request, [forward]) async* {
       networkRequests.add(Map<String, dynamic>.from(request.variables));
-      if (offline)
+      if (offline) {
         throw const ServerException(
           originalException: SocketException('Network is unreachable'),
         );
+      }
       yield* forward!(request);
     });
     final client = GraphQLClient(
