@@ -12,6 +12,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:mobile_pos_pantoo/core/error/failures.dart';
 import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
 import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
+import 'package:mobile_pos_pantoo/core/network/pos_financial_request_store.dart';
+import 'package:mobile_pos_pantoo/data/graphql/pos_receivable_queries.dart';
 import 'package:mobile_pos_pantoo/data/datasources/local/pos_local_database.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_customer.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
@@ -67,6 +69,7 @@ void main() {
   late PosProduct product;
   late PosBloc bloc;
   var offline = false;
+  var loseNextResponse = false;
   final networkRequests = <Map<String, dynamic>>[];
   Future<Map<String, dynamic>> jsonRequest(
     String route, [
@@ -145,6 +148,7 @@ void main() {
   });
   setUp(() async {
     offline = false;
+    loseNextResponse = false;
     networkRequests.clear();
     fixture = await jsonRequest('/fixture');
     SharedPreferences.setMockInitialValues({
@@ -165,7 +169,17 @@ void main() {
           originalException: SocketException('Network is unreachable'),
         );
       }
-      yield* forward!(request);
+      await for (final response in forward!(request)) {
+        if (loseNextResponse) {
+          loseNextResponse = false;
+          throw const ServerException(
+            originalException: SocketException(
+              'Response lost after server commit',
+            ),
+          );
+        }
+        yield response;
+      }
     });
     final client = GraphQLClient(
       cache: GraphQLCache(),
@@ -397,6 +411,135 @@ void main() {
       final saved = await summary();
       expect(saved['invoices'], isEmpty);
       expect(saved['sales'], isEmpty);
+    },
+  );
+  test(
+    'mobile lost cash response replays the original edited tariff without a duplicate',
+    () async {
+      loseNextResponse = true;
+      bloc.add(const SubmitPayment(paymentMethod: 'tunai', cashReceived: 350));
+      await settle(
+        () =>
+            bloc.state.status == PosStatus.paymentSuccess ||
+            bloc.state.status == PosStatus.failure,
+      );
+      expect(
+        bloc.state.status,
+        PosStatus.paymentSuccess,
+        reason: bloc.state.errorMessage,
+      );
+      expect(bloc.state.lastTransaction!.pendingSync, true);
+      final rows = await db.query(
+        'offline_transactions',
+        where: 'instansi_id = ?',
+        whereArgs: [fixture['tenant']],
+      );
+      final input = jsonDecode(rows.single['payload'] as String);
+      expect(input['items'][0]['harga_jual'], 175);
+      expect((await summary())['sales'], hasLength(1));
+      await PosLocalDatabase.instance.close();
+      db = await PosLocalDatabase.instance.database;
+      await changeMaster();
+      final sync = SyncService(provider);
+      await sync.syncOfflineTransactions(force: true);
+      await sync.syncOfflineTransactions(force: true);
+      final saved = await summary();
+      expect(saved['sales'], hasLength(1));
+      expect(saved['journals'], hasLength(1));
+      expect(
+        saved['sales'][0]['client_transaction_id'],
+        input['client_transaction_id'],
+      );
+      expect(saved['sales'][0]['items'][0]['harga_jual'], 175);
+      expect(saved['sales'][0]['total'], 350);
+    },
+  );
+  test(
+    'mobile edited-service receivable partial/full collection recovers the same durable request after response loss',
+    () async {
+      bloc.add(const SubmitPayment(paymentMethod: 'tempo'));
+      await settle(
+        () =>
+            bloc.state.status == PosStatus.paymentSuccess ||
+            bloc.state.status == PosStatus.failure,
+      );
+      expect(
+        bloc.state.status,
+        PosStatus.paymentSuccess,
+        reason: bloc.state.errorMessage,
+      );
+      final initial = await summary();
+      checkReceivable(initial);
+      final invoice = (initial['invoices'] as List).single as Map;
+      final id = invoice['_id'] as String;
+      final scope = '${fixture['tenant']}:${fixture['actor']}';
+      var requests = PosFinancialRequestStore(prefs, scope);
+      final date = DateTime.now().toIso8601String().substring(0, 10);
+      final input = await requests.begin(id, {
+        'invoice_id': id,
+        'date': date,
+        'amount': 100,
+        'payment_method': 'cash',
+        'cash_account_code': '1001',
+        'reference': 'QA-PARTIAL',
+      });
+      Future<QueryResult> collect(Map<String, dynamic> payload) =>
+          provider.client.mutate(
+            MutationOptions(
+              document: gql(PosReceivableQueries.payment),
+              variables: {'input': payload},
+            ),
+          );
+      final denied = await collect(input);
+      expect(
+        denied.exception?.graphqlErrors.single.message,
+        contains('receivables.view'),
+      );
+      expect((await summary())['invoices'][0]['paid_amount'], 0);
+      await jsonRequest('/collector/${fixture['tenant']}', {});
+      loseNextResponse = true;
+      expect((await collect(input)).hasException, true);
+      requests = PosFinancialRequestStore(prefs, scope);
+      final retry = await requests.begin(id, {'amount': 350});
+      expect(retry, input);
+      final response = await collect(retry);
+      expect(response.exception, isNull);
+      final partial = response.data!['RecordPOSReceivablePayment'] as Map;
+      expect(partial['paid_amount'], 100);
+      expect(partial['outstanding_amount'], 250);
+      expect(partial['payments'], hasLength(1));
+      await requests.acknowledge(id);
+      final last = await requests.begin(id, {
+        'invoice_id': id,
+        'date': date,
+        'amount': 250,
+        'payment_method': 'cash',
+        'cash_account_code': '1001',
+        'reference': 'QA-FINAL',
+      });
+      final finalResponse = await collect(last);
+      expect(finalResponse.exception, isNull);
+      expect((await collect(last)).exception, isNull);
+      await requests.acknowledge(id);
+      final paid = finalResponse.data!['RecordPOSReceivablePayment'] as Map;
+      expect(paid['status'], 'paid');
+      expect(paid['paid_amount'], 350);
+      expect(paid['outstanding_amount'], 0);
+      expect(paid['payments'], hasLength(2));
+      final saved = await summary();
+      expect(saved['sales'], hasLength(1));
+      expect(saved['journals'], hasLength(3));
+      expect(saved['invoices'][0]['lines'][0]['unit_price'], 175);
+      num net(String code) => (saved['journals'] as List)
+          .expand((j) => j['lines'] as List)
+          .where((l) => l['account_code'] == code)
+          .fold<num>(
+            0,
+            (sum, l) => sum + (l['debit'] as num) - (l['credit'] as num),
+          );
+      expect(net(invoice['ar_account_code'] as String), 0);
+      expect(net('1001'), 350);
+      expect(requests.pendingInvoiceIds, isEmpty);
     },
   );
 }
