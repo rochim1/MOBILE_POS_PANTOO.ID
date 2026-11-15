@@ -721,11 +721,13 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onEditActiveOrder(EditActiveOrder event, Emitter<PosState> emit) {
     final order = event.order;
+    final savedOrderType = order.orderType?.trim();
     final productsById = {
       for (final product in state.products) product.id: product,
     };
     final cart = <PosProduct, double>{};
     final selectedUnits = <String, String>{};
+    final manualUnitPrices = <String, double>{};
     for (final item in order.items) {
       final product =
           productsById[item.productId] ??
@@ -744,6 +746,15 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       final quantity = item.quantity ?? 0.0;
       if (product != null && quantity > 0) {
         cart[product] = quantity;
+        // Restore the service agreement, not the catalogue starting price or
+        // an override left behind by a different cart.
+        final agreedPrice = item.price;
+        if (product.isFlexibleService &&
+            agreedPrice != null &&
+            agreedPrice.isFinite &&
+            agreedPrice > 0) {
+          manualUnitPrices[product.id] = agreedPrice;
+        }
         final unit = item.unit?.trim().toLowerCase();
         if (unit != null && product.saleUnits.contains(unit)) {
           selectedUnits[product.id] = unit;
@@ -757,7 +768,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       state.copyWith(
         cart: cart,
         selectedUnits: selectedUnits,
-        orderType: 'dine_in',
+        manualUnitPrices: manualUnitPrices,
+        orderType: savedOrderType != null && savedOrderType.isNotEmpty
+            ? savedOrderType
+            : (order.tableId?.isNotEmpty == true ? 'dine_in' : 'take_away'),
         selectedTableId: order.tableId,
         selectedTableName: order.tableName,
         selectedCustomer: matchingCustomers.firstOrNull,

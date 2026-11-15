@@ -431,6 +431,8 @@ void main() {
         'kode_inventaris': id,
         'nama_inventaris': id,
         'pos_product_type': 'product',
+        'service_price_mode': 'fixed',
+        'price_floor': null,
         'tracks_stock': true,
         'promo_eligible': false,
         'harga_beli': 100,

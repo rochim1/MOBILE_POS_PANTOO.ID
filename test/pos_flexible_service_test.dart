@@ -51,42 +51,187 @@ void main() {
     priceFloor: 50000,
     tracksStock: false,
   );
-  test('late pricing response cannot restore the tariff before cashier edit', () async {
+  for (final oldRequestFails in [false, true]) {
+    test(
+      'late pricing ${oldRequestFails ? 'failure' : 'response'} cannot restore the tariff before cashier edit',
+      () async {
+        final repo = _DelayedPricingRepo();
+        final bloc = _SeededPosBloc(
+          repo,
+          PosState(
+            stores: const [
+              PosStore(
+                id: 'store',
+                name: 'QA',
+                status: 'active',
+                branchId: 'warehouse',
+              ),
+            ],
+            activeShift: const {'_id': 'shift', 'toko_id': 'store'},
+            cart: {transport: 1},
+            manualUnitPrices: {'t': 150000},
+          ),
+        );
+        addTearDown(bloc.close);
+        bloc.add(RefreshPricingPreview());
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(repo.requests, hasLength(1));
+        bloc.add(const UpdateCartUnitPrice(transport, 175000));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(repo.requests, hasLength(2));
+        repo.requests[1].complete(
+          const Right({'subtotal': 175000, 'total_after_discount': 175000}),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        repo.requests[0].complete(
+          oldRequestFails
+              ? const Left(NetworkFailure('Old request failed'))
+              : const Right({
+                  'subtotal': 150000,
+                  'total_after_discount': 150000,
+                }),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(bloc.state.unitPriceFor(transport), 175000);
+        expect(
+          bloc.state.grandTotal,
+          175000,
+          reason:
+              'A stale preview must not change the amount collected at checkout',
+        );
+      },
+    );
+  }
+  test('clearing cart invalidates an in-flight pricing response', () async {
     final repo = _DelayedPricingRepo();
-    final bloc = _SeededPosBloc(repo, PosState(
-      stores: const [PosStore(id: 'store', name: 'QA', status: 'active', branchId: 'warehouse')],
-      activeShift: const {'_id': 'shift', 'toko_id': 'store'},
-      cart: {transport: 1}, manualUnitPrices: {'t': 150000},
-    ));
+    final bloc = _SeededPosBloc(
+      repo,
+      PosState(
+        stores: const [
+          PosStore(
+            id: 'store',
+            name: 'QA',
+            status: 'active',
+            branchId: 'warehouse',
+          ),
+        ],
+        cart: {transport: 1},
+        manualUnitPrices: const {'t': 175000},
+      ),
+    );
     addTearDown(bloc.close);
     bloc.add(RefreshPricingPreview());
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(repo.requests, hasLength(1));
-    bloc.add(const UpdateCartUnitPrice(transport, 175000));
+    bloc.add(ClearCart());
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(repo.requests, hasLength(2));
-    repo.requests[1].complete(const Right({'subtotal': 175000, 'total_after_discount': 175000}));
+    repo.requests.single.complete(
+      const Right({'subtotal': 175000, 'total_after_discount': 175000}),
+    );
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    repo.requests[0].complete(const Right({'subtotal': 150000, 'total_after_discount': 150000}));
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(bloc.state.unitPriceFor(transport), 175000);
-    expect(bloc.state.grandTotal, 175000, reason: 'A stale preview must not change the amount collected at checkout');
+    expect(bloc.state.cart, isEmpty);
+    expect(bloc.state.pricingPreview, isNull);
+    expect(bloc.state.grandTotal, 0);
   });
-  test('opening a saved order restores agreed prices instead of master or unrelated cart prices', () async {
-    final bloc = _SeededPosBloc(_Repo(), const PosState(
-      products: [transport], manualUnitPrices: {'t': 999000, 'unrelated': 12},
-    ));
-    addTearDown(bloc.close);
-    bloc.add(const EditActiveOrder(PosOrderDetail(
-      id: 'saved', orderNumber: 'QA', orderType: 'take_away',
-      items: [PosOrderItem(productId: 't', quantity: 2, price: 175000, unit: 'unit')],
-    )));
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(bloc.state.unitPriceFor(transport), 175000);
-    expect(bloc.state.baseSubtotal, 350000);
-    expect(bloc.state.manualUnitPrices, {'t': 175000});
-    expect(bloc.state.orderType, 'take_away');
-  });
+  test(
+    'opening a saved order restores agreed prices instead of master or unrelated cart prices',
+    () async {
+      final bloc = _SeededPosBloc(
+        _Repo(),
+        const PosState(
+          products: [transport],
+          manualUnitPrices: {'t': 999000, 'unrelated': 12},
+        ),
+      );
+      addTearDown(bloc.close);
+      bloc.add(
+        const EditActiveOrder(
+          PosOrderDetail(
+            id: 'saved',
+            orderNumber: 'QA',
+            orderType: 'take_away',
+            items: [
+              PosOrderItem(
+                productId: 't',
+                quantity: 2,
+                price: 175000,
+                unit: 'unit',
+              ),
+            ],
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.unitPriceFor(transport), 175000);
+      expect(bloc.state.baseSubtotal, 350000);
+      expect(bloc.state.manualUnitPrices, {'t': 175000});
+      expect(bloc.state.orderType, 'take_away');
+    },
+  );
+  test(
+    'saved order outside the catalogue page retains its snapshot and legacy table type',
+    () async {
+      final bloc = _SeededPosBloc(
+        _Repo(),
+        const PosState(manualUnitPrices: {'t': 999000}),
+      );
+      addTearDown(bloc.close);
+      bloc.add(
+        const EditActiveOrder(
+          PosOrderDetail(
+            id: 'saved',
+            tableId: 'table',
+            items: [
+              PosOrderItem(
+                productId: 't',
+                productName: 'Transport',
+                quantity: 2,
+                price: 175000,
+                unit: 'unit',
+              ),
+            ],
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.baseSubtotal, 350000);
+      expect(bloc.state.manualUnitPrices, isEmpty);
+      expect(bloc.state.orderType, 'dine_in');
+    },
+  );
+  test(
+    'current pricing failure keeps edited tariff available offline',
+    () async {
+      final repo = _DelayedPricingRepo();
+      final bloc = _SeededPosBloc(
+        repo,
+        PosState(
+          stores: const [
+            PosStore(
+              id: 'store',
+              name: 'QA',
+              status: 'active',
+              branchId: 'warehouse',
+            ),
+          ],
+          cart: {transport: 1},
+          manualUnitPrices: const {'t': 175000},
+        ),
+      );
+      addTearDown(bloc.close);
+      bloc.add(RefreshPricingPreview());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      repo.requests.single.complete(const Left(NetworkFailure('Offline')));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.unitPriceFor(transport), 175000);
+      expect(bloc.state.grandTotal, 175000);
+      expect(bloc.state.status, PosStatus.success);
+      bloc.add(ClearCart());
+      bloc.add(RefreshPricingPreview());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.pricingPreview, isNull);
+    },
+  );
   testWidgets(
     'mobile catalogue → tariff → cart → edit works with price override disabled',
     (tester) async {
