@@ -105,7 +105,9 @@ class GraphQLPosTradeRepository implements PosTradeRepository {
           (e) => e.extensions?['financial_write_rejected'] == true,
         )) {
           return Left(
-            PosTradeRejectedFailure(errors.map((e) => e.message).toSet().join('\n')),
+            PosTradeRejectedFailure(
+              errors.map((e) => e.message).toSet().join('\n'),
+            ),
           );
         }
         if (mutation) return const Left(PosTradeUnconfirmedFailure());

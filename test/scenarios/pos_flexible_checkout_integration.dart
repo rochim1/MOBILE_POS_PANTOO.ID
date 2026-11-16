@@ -18,6 +18,8 @@ import 'package:mobile_pos_pantoo/data/datasources/local/pos_local_database.dart
 import 'package:mobile_pos_pantoo/domain/models/pos_customer.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_order_detail.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_trade.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_trade_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_event.dart';
@@ -540,6 +542,105 @@ void main() {
       expect(net(invoice['ar_account_code'] as String), 0);
       expect(net('1001'), 350);
       expect(requests.pendingInvoiceIds, isEmpty);
+    },
+  );
+  test(
+    'current mobile trade workspace API lists POS debt and settles it with durable retry',
+    () async {
+      bloc.add(const SubmitPayment(paymentMethod: 'tempo'));
+      await settle(
+        () =>
+            bloc.state.status == PosStatus.paymentSuccess ||
+            bloc.state.status == PosStatus.failure,
+      );
+      expect(
+        bloc.state.status,
+        PosStatus.paymentSuccess,
+        reason: bloc.state.errorMessage,
+      );
+      final initial = await summary();
+      final invoice = (initial['invoices'] as List).single as Map;
+      final id = invoice['_id'] as String;
+      await jsonRequest('/collector/${fixture['tenant']}', {});
+      final trade = GraphQLPosTradeRepository(provider);
+      final options = right(await trade.options());
+      expect(options.viewAR, true);
+      final list = right(
+        await trade.list(
+          PosTradeKind.receivable,
+          search: invoice['invoice_number'] as String,
+        ),
+      );
+      expect(list.items.single.id, id);
+      final document = right(await trade.detail(PosTradeKind.receivable, id));
+      expect(document.canPay, true);
+      expect(document.outstanding, 350);
+      final requests = PosFinancialRequestStore(
+        prefs,
+        'current-trade:${fixture['tenant']}',
+      );
+      final key = 'pay:receivable:$id';
+      final http400 = HttpLink('${fixture['endpoint']}?errors_http=400');
+      final http400Client = GraphQLClient(cache: GraphQLCache(), link: http400);
+      addTearDown(http400.dispose);
+      final http400Trade = GraphQLPosTradeRepository.withClient(
+        () => http400Client,
+        tenant: () => fixture['tenant'] as String,
+      );
+      final rejected = await http400Trade.pay({
+        'kind': 'receivable',
+        'document_id': id,
+        'request_id': 'http400-overpay-$id',
+        'amount': 999,
+        'date': options.today,
+        'method': 'cash',
+        'cash_account': '1001',
+        'reference': 'OVERPAY-REJECTED',
+      });
+      expect(
+        rejected.fold((f) => f, (_) => null),
+        isA<PosTradeRejectedFailure>(),
+      );
+      expect((await summary())['invoices'][0]['paid_amount'], 0);
+      final input = await requests.begin(key, {
+        'kind': 'receivable',
+        'document_id': id,
+        'amount': 100,
+        'date': options.today,
+        'method': 'cash',
+        'cash_account': '1001',
+        'reference': 'CURRENT-PARTIAL',
+      });
+      loseNextResponse = true;
+      expect(
+        (await trade.pay(input)).fold((f) => f, (_) => null),
+        isA<PosTradeUnconfirmedFailure>(),
+      );
+      final retry = await requests.begin(key, {'amount': 350});
+      expect(retry, input);
+      final partial = right(await trade.pay(retry));
+      expect(partial.paid, 100);
+      expect(partial.outstanding, 250);
+      await requests.acknowledge(key);
+      final last = await requests.begin(key, {
+        'kind': 'receivable',
+        'document_id': id,
+        'amount': 250,
+        'date': options.today,
+        'method': 'cash',
+        'cash_account': '1001',
+        'reference': 'CURRENT-FINAL',
+      });
+      final paid = right(await trade.pay(last));
+      expect(paid.outstanding, 0);
+      expect(paid.paid, 350);
+      expect(paid.paymentCount, 2);
+      expect(right(await trade.pay(last)).paymentCount, 2);
+      await requests.acknowledge(key);
+      final saved = await summary();
+      expect(saved['sales'], hasLength(1));
+      expect(saved['journals'], hasLength(3));
+      expect(saved['invoices'][0]['lines'][0]['unit_price'], 175);
     },
   );
 }

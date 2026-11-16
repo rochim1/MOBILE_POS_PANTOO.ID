@@ -39,6 +39,7 @@ PosTradeDocument document({
 
 class TradeRepository implements PosTradeRepository {
   bool createAllowed = true, uncertain = false;
+  Failure? paymentFailure;
   final List<Map<String, dynamic>> writes = [];
   @override
   Future<Either<Failure, PosTradeOptions>> options() async => Right(
@@ -100,6 +101,7 @@ class TradeRepository implements PosTradeRepository {
     Map<String, dynamic> input,
   ) async {
     writes.add(Map.of(input));
+    if (paymentFailure != null) return Left(paymentFailure!);
     return uncertain
         ? const Left(PosTradeUnconfirmedFailure())
         : Right(
@@ -141,6 +143,65 @@ Widget app(
 void main() {
   setUpAll(() async => initializeDateFormatting());
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  testWidgets(
+    'customer collection can be corrected after a confirmed rejection',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = TradeRepository()
+        ..paymentFailure = const PosTradeRejectedFailure(
+          'Nominal ditolak server',
+        );
+      final store = PosFinancialRequestStore(
+        await SharedPreferences.getInstance(),
+        'qa',
+      );
+      final original = await store.begin('pay:receivable:doc', {
+        'kind': 'receivable',
+        'document_id': 'doc',
+        'amount': 40000,
+        'date': '2026-11-13',
+        'method': 'cash',
+        'cash_account': '1001',
+        'reference': 'REJECTED',
+      });
+      await tester.pumpWidget(
+        app(repo, store, kind: PosTradeKind.receivable, id: 'doc'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Konfirmasi ulang').first);
+      await tester.pumpAndSettle();
+      expect(store.pendingInvoiceIds, isEmpty);
+      expect(find.text('Nominal ditolak server'), findsOneWidget);
+      repo.paymentFailure = null;
+      final receive = find.text('Catat Penerimaan');
+      await tester.scrollUntilVisible(
+        receive,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(receive);
+      await tester.pumpAndSettle();
+      await tester.tap(receive);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(0), '20000');
+      await tester.enterText(find.byType(TextFormField).at(1), 'CORRECTED');
+      await tester.scrollUntilVisible(
+        receive.last,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(receive.last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, catat'));
+      await tester.pumpAndSettle();
+      expect(repo.writes.last['amount'], 20000);
+      expect(repo.writes.last['cash_account'], '1001');
+      expect(repo.writes.last['request_id'], isNot(original['request_id']));
+      expect(store.pendingInvoiceIds, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'narrow phone shows unified ledger and hides unauthorized manual creation',
     (tester) async {
