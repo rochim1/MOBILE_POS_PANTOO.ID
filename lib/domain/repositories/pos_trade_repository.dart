@@ -82,7 +82,14 @@ class GraphQLPosTradeRepository implements PosTradeRepository {
         return const Left(AuthFailure());
       }
       if (result.hasException) {
-        final errors = result.exception!.graphqlErrors;
+        final exception = result.exception!;
+        // HttpLink wraps GraphQL decisions on HTTP 4xx in ServerException.
+        // These are server responses, not an uncertain connection loss.
+        final link = exception.linkException;
+        final errors = <GraphQLError>[
+          ...exception.graphqlErrors,
+          if (link is ServerException) ...?link.parsedResponse?.errors,
+        ];
         if (errors.any(
           (e) => [
             'UNAUTHORIZED',
@@ -98,7 +105,7 @@ class GraphQLPosTradeRepository implements PosTradeRepository {
           (e) => e.extensions?['financial_write_rejected'] == true,
         )) {
           return Left(
-            PosTradeRejectedFailure(errors.map((e) => e.message).join('\n')),
+            PosTradeRejectedFailure(errors.map((e) => e.message).toSet().join('\n')),
           );
         }
         if (mutation) return const Left(PosTradeUnconfirmedFailure());
