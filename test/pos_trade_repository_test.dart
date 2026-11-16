@@ -5,6 +5,25 @@ import 'package:mobile_pos_pantoo/domain/repositories/pos_trade_repository.dart'
 import 'package:mobile_pos_pantoo/core/error/failures.dart';
 
 void main() {
+  for (final code in ['FORBIDDEN', 'UNAUTHENTICATED', 'BAD_USER_INPUT']) {
+    test('HTTP-wrapped $code preserves the financial decision instead of freezing the request', () async {
+      final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
+        throw ServerException(parsedResponse: Response(response: const {}, errors: [
+          GraphQLError(message: 'Request rejected by server', extensions: {
+            'code': code, if (code == 'BAD_USER_INPUT') 'financial_write_rejected': true,
+          }),
+        ]));
+      }));
+      final failure = (await GraphQLPosTradeRepository.withClient(() => client).pay({})).fold((f) => f, (_) => null);
+      if (code == 'FORBIDDEN') {
+        expect(failure, isA<PosTradeAccessFailure>());
+      } else if (code == 'UNAUTHENTICATED') {
+        expect(failure, isA<AuthFailure>());
+      } else {
+        expect(failure, isA<PosTradeRejectedFailure>());
+      }
+    });
+  }
   test(
     'uncertain financial mutations are never retried automatically',
     () async {
