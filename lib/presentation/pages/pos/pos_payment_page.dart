@@ -1053,7 +1053,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           ),
                         ),
                       ],
-                      if (features?['use_appointments'] == true) ...[
+                      // Reservation owns its schedule in one dedicated form.
+                      // Direct jasa has no booking date; other service profiles
+                      // may still record an optional appointment.
+                      if (features?['use_appointments'] == true &&
+                          state.orderType != 'reservation' &&
+                          profile != 'jasa') ...[
                         const SizedBox(height: 12),
                         ListTile(
                           contentPadding: const EdgeInsets.symmetric(
@@ -1066,7 +1071,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                           leading: const Icon(Icons.event_outlined),
                           title: Text(
                             appointmentAt == null
-                                ? ('Pilih jadwal layanan').tr(context)
+                                ? ('Jadwal layanan (opsional)').tr(context)
                                 : DateFormat(
                                     'dd MMM yyyy · HH:mm',
                                     AppLanguageController
@@ -1167,20 +1172,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       profile == 'laundry' &&
                       serviceEntries.isNotEmpty &&
                       (billedQuantity - serviceQuantity).abs() > 0.000001;
-                  final reservationRequiresSchedule =
-                      state.orderType == 'reservation' && appointmentAt == null;
                   if ((profile == 'laundry' && kg <= 0 && count <= 0) ||
                       quantityMismatch ||
                       (profile != 'laundry' &&
                           subject.text.trim().isEmpty &&
-                          notes.text.trim().isEmpty) ||
-                      reservationRequiresSchedule) {
+                          notes.text.trim().isEmpty)) {
                     setDialogState(() {
                       validationMessage = quantityMismatch
                           ? 'Berat/jumlah harus sama dengan jumlah layanan di keranjang '
                                 '(${_quantityText(serviceQuantity)}).'
-                          : reservationRequiresSchedule
-                          ? 'Jadwal layanan wajib dipilih untuk reservasi.'
                           : 'Lengkapi detail layanan sebelum melanjutkan.';
                     });
                     return;
@@ -2081,8 +2081,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           style: const TextStyle(color: Colors.black54, fontSize: 14),
         ),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PosText(
@@ -2102,6 +2104,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               ),
             ),
           ],
+          ),
         ),
       ],
     );
@@ -2206,6 +2209,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
 
   Future<bool> _ensureReservationDetails(PosState state) async {
     if (state.orderType != 'reservation') return true;
+    if (_reservationStartAt != null && _reservationEndAt != null) return true;
     final guests = TextEditingController(
       text: _reservationGuestCount.toString(),
     );
@@ -2219,11 +2223,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         (_serviceOrder?['appointment_at'] != null
             ? DateTime.tryParse(_serviceOrder!['appointment_at'].toString())
             : null);
-    var end = _reservationEndAt;
+    var end = _reservationEndAt ?? start?.add(const Duration(hours: 2));
     String error = '';
+    ModalRoute<bool>? reservationDialogRoute;
     final result = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext) {
+        reservationDialogRoute = ModalRoute.of<bool>(dialogContext);
+        return StatefulBuilder(
         builder: (context, setDialogState) {
           Future<void> pickDateTime(bool isStart) async {
             final current = (isStart ? start : end) ?? DateTime.now();
@@ -2258,7 +2265,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
 
           String dateLabel(DateTime? value) => value == null
               ? 'Pilih tanggal & waktu'
-              : DateFormat('dd MMM yyyy, HH:mm').format(value);
+              : DateFormat('dd MMM yyyy, HH:mm').format(value.toLocal());
           return PosKeyboardStableFormDialog(
             width: 480,
             height: 520,
@@ -2282,11 +2289,12 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const PosText('Selesai reservasi *'),
+                      title: const PosText('Selesai reservasi (opsional)'),
                       subtitle: PosText(dateLabel(end)),
                       trailing: const Icon(Icons.event_available_outlined),
                       onTap: () => pickDateTime(false),
                     ),
+                    const PosText('Jika tidak diubah, durasi awal reservasi 2 jam.'),
                     Row(
                       children: [
                         Expanded(
@@ -2342,6 +2350,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                       end == null ||
                       !end!.isAfter(start!) ||
                       guestCount < 1 ||
+                      !depositAmount.isFinite ||
                       depositAmount < 0) {
                     setDialogState(
                       () => error =
@@ -2366,8 +2375,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             ],
           );
         },
-      ),
+        );
+      },
     );
+    await reservationDialogRoute?.completed;
     guests.dispose();
     deposit.dispose();
     return result == true;

@@ -38,7 +38,9 @@ class PosProfileDefinition {
       if (required != null && !features.containsKey(required)) continue;
       options.add({
         'value': option['value'].toString(),
-        'label': option['label']?.toString() ?? option['value'].toString(),
+        'label': value == 'jasa' && option['value'] == 'take_away'
+            ? 'Layanan Langsung'
+            : option['label']?.toString() ?? option['value'].toString(),
         'required_feature': required,
       });
     }
@@ -151,7 +153,8 @@ class PosRemoteProfileCatalog {
                     .map(
                       (type) => <String, String?>{
                         'value': type,
-                        'label': _orderLabels[type]!,
+                        'label': value == 'jasa' && type == 'take_away'
+                            ? 'Layanan Langsung' : _orderLabels[type]!,
                         'required_feature': _orderRequirements[type],
                       },
                     )
