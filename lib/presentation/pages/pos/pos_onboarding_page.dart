@@ -167,8 +167,9 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
       },
       (settings) async {
         final completed = settings.onboardingCompleted == true;
-        if (completed)
+        if (completed) {
           await prefs.remove(PosOnboardingPage.pendingProfileKey(prefs));
+        }
         await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), completed);
         if (!completed) {
           // Reset dari Web Admin/database harus menang terhadap cache perangkat.
@@ -306,8 +307,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       if (_requiresTracking) _features['track_stock'] = true;
       _fulfillment = settings.defaultTipePesanan ?? 'take_away';
       if (_fulfillment == 'online_delivery') _fulfillment = 'delivery';
-      if (!catalog.orderTypes(_profile, _features).contains(_fulfillment))
+      if (!catalog.orderTypes(_profile, _features).contains(_fulfillment)) {
         _fulfillment = 'take_away';
+      }
       final pending = sl<SharedPreferences>().getString(_scope);
       final shouldComplete =
           pending != null && catalog.profile(pending) != null && _canManage;
@@ -348,8 +350,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
         !_canManage ||
         !_sameScope ||
         _issues.isNotEmpty ||
-        !_validTax)
+        !_validTax) {
       return;
+    }
     setState(() {
       _saving = true;
       _error = null;

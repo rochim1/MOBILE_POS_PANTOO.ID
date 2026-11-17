@@ -75,7 +75,7 @@ class _Settings extends Fake implements PosSettingsRepository {
   }
 }
 
-Future<void> open(
+Future<void> _open(
   WidgetTester tester,
   _Settings settings, {
   _Runtime? runtime,
@@ -112,7 +112,7 @@ Future<void> open(
   await tester.pumpAndSettle();
 }
 
-Future<void> choose(WidgetTester tester, String label) async {
+Future<void> _choose(WidgetTester tester, String label) async {
   await tester.tap(find.byType(DropdownButtonFormField<String>));
   await tester.pumpAndSettle();
   await tester.tap(find.text(label).last);
@@ -125,7 +125,7 @@ void main() {
   testWidgets(
     'incomplete existing workspace only asks business profile, no transaction wizard',
     (tester) async {
-      await open(tester, _Settings());
+      await _open(tester, _Settings());
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
       expect(find.text('Profil usaha'), findsOneWidget);
       expect(find.byType(PageView), findsNothing);
@@ -155,8 +155,8 @@ void main() {
       '$profile saves presets and preserves transaction defaults in one action',
       (tester) async {
         final settings = _Settings();
-        await open(tester, settings);
-        await choose(
+        await _open(tester, settings);
+        await _choose(
           tester,
           profile == 'custom' ? 'Kustom' : posProfileLabels[profile]!,
         );
@@ -195,8 +195,8 @@ void main() {
       final settings = _Settings(
         catalog: PosRemoteProfileCatalog.fromJson(payload),
       );
-      await open(tester, settings);
-      await choose(tester, 'Studio Baru Backend');
+      await _open(tester, settings);
+      await _choose(tester, 'Studio Baru Backend');
       await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
       await tester.pumpAndSettle();
       expect(settings.saved?['business_profile'], 'studio_baru');
@@ -215,7 +215,7 @@ void main() {
             enabledFeatures: {'track_stock': false, 'use_order_queue': true},
           ),
         );
-        await open(tester, settings, runtime: _Runtime(inventory: inventory));
+        await _open(tester, settings, runtime: _Runtime(inventory: inventory));
         await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
         await tester.pumpAndSettle();
         expect(
@@ -231,7 +231,7 @@ void main() {
     'pending business creation auto-applies selection and retries without asking profile again',
     (tester) async {
       final settings = _Settings();
-      await open(tester, settings, pending: 'restoran');
+      await _open(tester, settings, pending: 'restoran');
       expect(settings.saves, 1);
       expect(settings.saved?['business_profile'], 'restoran');
       expect(settings.saved?['default_tipe_pesanan'], 'dine_in');
@@ -252,7 +252,7 @@ void main() {
     'inventory issues still block automatic completion with a visible explanation',
     (tester) async {
       final settings = _Settings();
-      await open(
+      await _open(
         tester,
         settings,
         pending: 'restoran',
@@ -272,7 +272,7 @@ void main() {
   testWidgets(
     'English recovery screen uses the same compact labeled selector',
     (tester) async {
-      await open(tester, _Settings(), english: true);
+      await _open(tester, _Settings(), english: true);
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
       expect(find.byType(PageView), findsNothing);
@@ -286,7 +286,7 @@ void main() {
     (tester) async {
       final settings = _Settings()..succeed = true;
       var completed = 0;
-      await open(
+      await _open(
         tester,
         settings,
         pending: 'restoran',
@@ -318,7 +318,7 @@ void main() {
         ),
       );
       var completed = 0;
-      await open(
+      await _open(
         tester,
         settings,
         pending: 'restoran',
@@ -339,7 +339,7 @@ void main() {
     'loading failure is recoverable without a new business creation',
     (tester) async {
       final settings = _Settings()..failLoad = true;
-      await open(tester, settings);
+      await _open(tester, settings);
       expect(find.text('Koneksi terputus'), findsOneWidget);
       settings.failLoad = false;
       await tester.tap(find.widgetWithText(FilledButton, 'Coba lagi'));
@@ -353,7 +353,7 @@ void main() {
     'cashier without manage permission cannot apply a pending profile',
     (tester) async {
       final settings = _Settings();
-      await open(
+      await _open(
         tester,
         settings,
         pending: 'restoran',
@@ -382,7 +382,7 @@ void main() {
       tester,
     ) async {
       final settings = _Settings(initial: PosSettings(pajakPersen: tax));
-      await open(tester, settings, pending: 'retail');
+      await _open(tester, settings, pending: 'retail');
       expect(settings.saves, 0);
       expect(find.text('Pajak harus antara 0 dan 100 persen'), findsOneWidget);
       expect(
@@ -398,7 +398,7 @@ void main() {
     'pending profile is validated against the catalog before auto-save',
     (tester) async {
       final settings = _Settings();
-      await open(tester, settings, pending: 'untrusted_profile');
+      await _open(tester, settings, pending: 'untrusted_profile');
       expect(settings.saves, 0);
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     },
@@ -409,7 +409,7 @@ void main() {
   ) async {
     final settings = _Settings()
       ..pending = Completer<Either<Failure, PosSettings>>();
-    await open(tester, settings);
+    await _open(tester, settings);
     await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
     await tester.pump();
     expect(settings.saves, 1);
