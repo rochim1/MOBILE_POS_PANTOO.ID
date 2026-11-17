@@ -62,30 +62,51 @@ class _Settings implements PosSettingsRepository {
 
 void main() {
   tearDown(() async => sl.reset());
-  testWidgets('transaction defaults keep dropdown titles and tax label visible', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
-    sl.registerSingleton<PosRepository>(_Runtime());
-    sl.registerSingleton<PosSettingsRepository>(_Settings());
-    await tester.binding.setSurfaceSize(const Size(360, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(MaterialApp(theme: AppTheme.light(), home: const PosOnboardingPage()));
-    await tester.pumpAndSettle();
-    for (var step = 0; step < 2; step++) {
-      await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
+  testWidgets(
+    'transaction defaults keep dropdown titles and tax label visible',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      sl.registerSingleton<SharedPreferences>(
+        await SharedPreferences.getInstance(),
+      );
+      sl.registerSingleton<PosRepository>(_Runtime());
+      sl.registerSingleton<PosSettingsRepository>(_Settings());
+      await tester.binding.setSurfaceSize(const Size(360, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light(), home: const PosOnboardingPage()),
+      );
       await tester.pumpAndSettle();
-    }
-    for (final title in ['Channel penjualan', 'Tipe pemenuhan', 'Level harga']) {
-      expect(find.text(title), findsOneWidget);
-    }
-    final tax = find.byWidgetPredicate((w) => w is InputDecorator && w.decoration.labelText == 'Pajak transaksi (%)');
-    expect(tester.widget<InputDecorator>(tax).decoration.floatingLabelBehavior, FloatingLabelBehavior.always);
-    await tester.enterText(find.byType(TextFormField), '7.5');
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pumpAndSettle();
-    expect(tester.widget<InputDecorator>(tax).decoration.floatingLabelBehavior, FloatingLabelBehavior.always);
-    expect(tester.takeException(), isNull);
-  });
+      for (var step = 0; step < 2; step++) {
+        await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
+        await tester.pumpAndSettle();
+      }
+      for (final title in [
+        'Channel penjualan',
+        'Tipe pemenuhan',
+        'Level harga',
+      ]) {
+        expect(find.text(title), findsOneWidget);
+      }
+      final tax = find.byWidgetPredicate(
+        (w) =>
+            w is InputDecorator &&
+            w.decoration.labelText == 'Pajak transaksi (%)',
+      );
+      expect(
+        tester.widget<InputDecorator>(tax).decoration.floatingLabelBehavior,
+        FloatingLabelBehavior.always,
+      );
+      await tester.enterText(find.byType(TextFormField), '7.5');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<InputDecorator>(tax).decoration.floatingLabelBehavior,
+        FloatingLabelBehavior.always,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('GraphQL metadata is never copied into POS feature input', () {
     final settings = PosSettings.fromJson({
       'enabled_features': {

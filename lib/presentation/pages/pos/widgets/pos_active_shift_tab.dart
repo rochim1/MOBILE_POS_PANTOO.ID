@@ -595,6 +595,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Kas Awal (Rp)').tr(context),
               filled: true,
               fillColor: Colors.white,
@@ -607,6 +608,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           const SizedBox(height: 12),
           TextField(
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Catatan Buka Shift').tr(context),
               filled: true,
               fillColor: Colors.white,
@@ -686,6 +688,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 keyboardType: TextInputType.number,
                 inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   labelText: ('Jumlah (Rp)').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -696,6 +699,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 12),
               TextField(
                 decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   labelText: ('Keterangan').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -770,6 +774,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
                 keyboardType: TextInputType.number,
                 inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   labelText: ('Kas Fisik Aktual (Saat Tutup)').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -780,6 +785,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               const SizedBox(height: 12),
               TextField(
                 decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   labelText: ('Catatan Tutup Shift').tr(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

@@ -782,6 +782,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: nameCtrl,
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Nama Produk').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -792,6 +793,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: skuCtrl,
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('SKU').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -804,6 +806,7 @@ class _PosProductPageState extends State<PosProductPage> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Harga').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1078,6 +1081,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: nameCtrl,
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Nama Produk').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1088,6 +1092,7 @@ class _PosProductPageState extends State<PosProductPage> {
           TextField(
             controller: skuCtrl,
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('SKU').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1100,6 +1105,7 @@ class _PosProductPageState extends State<PosProductPage> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Harga').tr(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1110,6 +1116,7 @@ class _PosProductPageState extends State<PosProductPage> {
             const SizedBox(height: 12),
             InputDecorator(
               decoration: InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.always,
                 labelText: ('Stok (hanya baca)').tr(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1495,6 +1502,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           autofocus: true,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: ('Nama kategori').tr(dialogContext),
             hintText: ('Contoh: Minuman').tr(dialogContext),
             border: OutlineInputBorder(),
@@ -1929,6 +1937,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           controller: _name,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: ('Nama produk *').tr(context),
             border: OutlineInputBorder(),
           ),
@@ -1937,6 +1946,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       TextField(
         controller: _sku,
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelText: ('SKU internal').tr(context),
           hintText: _generatingIdentifiers
               ? ('Sedang membuat SKU...').tr(context)
@@ -1962,6 +1972,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         controller: _brand,
         textCapitalization: TextCapitalization.words,
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelText: ('Merek').tr(context),
           hintText: ('Opsional').tr(context),
           border: OutlineInputBorder(),
@@ -1972,6 +1983,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         minLines: 1,
         maxLines: 3,
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelText: ('Deskripsi produk').tr(context),
           hintText: ('Opsional').tr(context),
           border: OutlineInputBorder(),
@@ -1984,6 +1996,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         inputFormatters: const [RupiahInputFormatter()],
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelText: ('Harga beli / HPP (opsional)').tr(context),
           prefixText: 'Rp ',
           helperText: widget.product?.purchasePriceSource == 'avco'
@@ -1996,6 +2009,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         DropdownButtonFormField<String>(
           initialValue: _servicePriceMode,
           decoration: const InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: 'Tipe harga layanan',
             border: OutlineInputBorder(),
           ),
@@ -2012,6 +2026,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: const InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: 'Tarif minimum (opsional)',
               prefixText: 'Rp ',
               helperText: 'Kasir mengisi tarif tanpa wajib mengisi HPP',
@@ -2027,6 +2042,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           inputFormatters: const [RupiahInputFormatter()],
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText:
                 (_productType == 'service' && _servicePriceMode == 'flexible'
                         ? 'Tarif awal (opsional)'
@@ -2042,6 +2058,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         child: DropdownButtonFormField<String>(
           initialValue: _productType,
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: ('Bentuk penjualan *').tr(context),
             border: OutlineInputBorder(),
           ),
@@ -2090,6 +2107,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                   ? _categoryId
                   : null,
               decoration: InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.always,
                 labelText: ('Kategori barang').tr(context),
                 border: const OutlineInputBorder(),
                 suffixIcon: _loadingCategories
@@ -2156,6 +2174,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               DropdownButtonFormField<String>(
                 initialValue: _preparationMode,
                 decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   labelText: ('Cara persiapan *').tr(context),
                   border: OutlineInputBorder(),
                 ),
@@ -2194,6 +2213,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                       ? _productionStationId
                       : null,
                   decoration: InputDecoration(
+                    floatingLabelBehavior: FloatingLabelBehavior.always,
                     labelText: ('Stasiun produksi *').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -2215,6 +2235,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                   controller: _prepTime,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
+                    floatingLabelBehavior: FloatingLabelBehavior.always,
                     labelText: ('Estimasi waktu persiapan').tr(context),
                     suffixText: 'menit',
                     border: OutlineInputBorder(),
@@ -2272,6 +2293,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
+                    floatingLabelBehavior: FloatingLabelBehavior.always,
                     labelText: product?.name ?? ('Komponen').tr(context),
                     suffixText: product?.saleUnit ?? 'unit',
                     border: const OutlineInputBorder(),
@@ -2317,6 +2339,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                 ? _baseUnit.text.toLowerCase()
                 : null,
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Satuan dasar *').tr(context),
               helperText: ('Stok selalu disimpan dalam satuan ini.').tr(
                 context,
@@ -2373,6 +2396,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                             ? row.unit.text
                             : null,
                         decoration: InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Satuan').tr(context),
                           border: OutlineInputBorder(),
                         ),
@@ -2398,6 +2422,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
                           decimal: true,
                         ),
                         decoration: InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Isi satuan dasar').tr(context),
                           border: OutlineInputBorder(),
                         ),
@@ -2422,6 +2447,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           controller: _minimumStock,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: ('Peringatan stok minimum').tr(context),
             border: OutlineInputBorder(),
           ),
@@ -2432,6 +2458,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           controller: _reorderPoint,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: ('Titik pemesanan ulang').tr(context),
             helperText: ('Saran jumlah stok saat perlu melakukan pembelian').tr(
               context,
@@ -2445,6 +2472,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           controller: _maximumStock,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             labelText: ('Stok maksimum').tr(context),
             helperText: ('Opsional, untuk membatasi kelebihan persediaan').tr(
               context,
@@ -2455,6 +2483,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       TextField(
         controller: _barcode,
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelText: ('Barcode').tr(context),
           hintText: _generatingIdentifiers
               ? ('Sedang membuat barcode...').tr(context)

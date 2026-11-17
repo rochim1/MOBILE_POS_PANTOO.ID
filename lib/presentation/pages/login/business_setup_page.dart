@@ -107,6 +107,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           autofocus: true,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
                             labelText: ('Nama Usaha/Organisasi').tr(context),
                             hintText:
                                 ('Contoh: Toko Pantoo Jaya atau Koperasi Maju')
@@ -129,6 +130,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           ],
                           maxLength: 15,
                           decoration: InputDecoration(
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
                             labelText: ('Nomor Telepon Usaha/Organisasi').tr(
                               context,
                             ),

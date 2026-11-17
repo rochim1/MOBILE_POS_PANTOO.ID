@@ -296,6 +296,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                       child: TextField(
                         controller: name,
                         decoration:  InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Nama outlet').tr(context),
                         ),
                       ),
@@ -304,19 +305,26 @@ class _PosOutletPageState extends State<PosOutletPage> {
                     TextField(
                       controller: code,
                       decoration:  InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
                         labelText: ('Kode outlet').tr(context),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: address,
-                      decoration:  InputDecoration(labelText: ('Alamat').tr(context)),
+                      decoration: InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        labelText: ('Alamat').tr(context),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: phone,
                       keyboardType: TextInputType.phone,
-                      decoration:  InputDecoration(labelText: ('Telepon').tr(context)),
+                      decoration: InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        labelText: ('Telepon').tr(context),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -325,6 +333,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                         initialValue: selectedWarehouseId,
                         isExpanded: true,
                         decoration:  InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Lokasi penjualan / warehouse').tr(context),
                           helperText:
                               ('Hanya warehouse aktif dengan capability Lokasi Penjualan').tr(context),
@@ -349,6 +358,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                       initialValue: shiftMode,
                       isExpanded: true,
                       decoration:  InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
                         labelText: ('Mode shift kasir').tr(context),
                         helperText:
                             ('Register bersama: satu laci per toko untuk akun yang memiliki akses. Per operator: rekonsiliasi tiap PIN terpisah.').tr(context),

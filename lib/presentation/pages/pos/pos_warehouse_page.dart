@@ -305,6 +305,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       child: TextField(
                         controller: name,
                         decoration:  InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Nama warehouse *').tr(context),
                         ),
                       ),
@@ -314,6 +315,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       controller: code,
                       textCapitalization: TextCapitalization.characters,
                       decoration:  InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
                         labelText: ('Kode warehouse').tr(context),
                       ),
                     ),
@@ -321,13 +323,19 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     TextField(
                       controller: address,
                       maxLines: 2,
-                      decoration:  InputDecoration(labelText: ('Alamat *').tr(context)),
+                      decoration: InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        labelText: ('Alamat *').tr(context),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: phone,
                       keyboardType: TextInputType.phone,
-                      decoration:  InputDecoration(labelText: ('Telepon').tr(context)),
+                      decoration: InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        labelText: ('Telepon').tr(context),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -335,6 +343,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       child: DropdownButtonFormField<String>(
                         initialValue: type,
                         decoration:  InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Tipe warehouse').tr(context),
                         ),
                         items: const [
@@ -373,6 +382,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                         initialValue: linkedOutletId.isEmpty ? '' : linkedOutletId,
                         isExpanded: true,
                         decoration:  InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Outlet POS terkait').tr(context),
                           helperText: ('Wajib untuk pemindahan stok gudang toko ↔ display.').tr(context),
                         ),

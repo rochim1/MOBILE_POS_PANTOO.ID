@@ -136,6 +136,7 @@ class _ShiftManagementPanelState extends State<ShiftManagementPanel> {
                           keyboardType: TextInputType.number,
                           inputFormatters: const [RupiahInputFormatter()],
                           decoration: InputDecoration(
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
                             labelText: ('Uang Modal Awal (Rp)').tr(context),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),

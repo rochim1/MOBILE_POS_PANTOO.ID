@@ -510,6 +510,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
         const SizedBox(height: 7),
         DropdownButtonFormField<String>(
           initialValue: options.contains(value) ? value : options.first,
+          isExpanded: true,
           decoration: InputDecoration(
             hintText: posLocale(
               context,
@@ -521,8 +522,14 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
           ),
           items: options
               .map(
-                (item) =>
-                    DropdownMenuItem(value: item, child: PosText(_label(item))),
+                (item) => DropdownMenuItem(
+                  value: item,
+                  child: PosText(
+                    _label(item),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               )
               .toList(),
           onChanged: _canManage
@@ -735,6 +742,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                           TextFormField(
                             controller: _taxController,
                             decoration: InputDecoration(
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.always,
                               labelText: ('Pajak transaksi (%)').tr(context),
                             ),
                             keyboardType: const TextInputType.numberWithOptions(
