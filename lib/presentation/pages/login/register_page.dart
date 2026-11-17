@@ -12,6 +12,7 @@ import '../../../injections.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../bloc/auth/register_cubit.dart';
 import '../../bloc/auth/register_state.dart';
+import '../../bloc/auth/auth_cubit.dart';
 import '../../widgets/login/legal_links.dart';
 import '../../widgets/login/google_account_button.dart';
 
@@ -87,7 +88,11 @@ class _RegisterViewState extends State<_RegisterView> {
   }
 
   Future<void> _submit() async {
-    if (_googleBusy || context.read<RegisterCubit>().state.isSubmitting) return;
+    if (_googleBusy || context.read<RegisterCubit>().state.isSubmitting ||
+        context.read<AuthCubit>().state.canRetrySubscription ||
+        context.read<AuthCubit>().state.isAuthenticating) {
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -165,6 +170,8 @@ class _RegisterViewState extends State<_RegisterView> {
 
   @override
   Widget build(BuildContext context) {
+    final loginPending = context.select((AuthCubit cubit) =>
+      cubit.state.canRetrySubscription || cubit.state.isAuthenticating || cubit.state.isAuthenticated);
     return BlocConsumer<RegisterCubit, RegisterState>(
       listenWhen: (previous, current) => previous.status != current.status,
       listener: (context, state) async {
@@ -483,7 +490,7 @@ errorBuilder: posValidationError,
                                       child: FilledButton(
                                         onPressed:
                                             state.isSubmitting ||
-                                                _googleBusy ||
+                                                _googleBusy || loginPending ||
                                                 !_acceptedLegal
                                             ? null
                                             : _submit,

@@ -91,10 +91,8 @@ class App extends StatelessWidget {
                       prefs.getBool('needs_workspace_setup') == true ||
                       (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
                   await prefs.setBool('has_seen_intro', true);
-                  // PosSubscriptionBoundary activates access checks on auth
-                  // changes and blocks unknown/restricted access. Do not wait
-                  // for its IO here: login/register must reach the central PIN
-                  // navigation even when the subscription endpoint is slow.
+                  // AuthCubit completes bounded subscription verification on
+                  // the login form before this single, PIN-safe redirect.
                   if (!context.mounted || !identical(authCubit.state, state)) {
                     return;
                   }
@@ -180,7 +178,9 @@ class App extends StatelessWidget {
               // Keep the branded startup view until the saved session and POS
               // lock have finished loading. Login submissions stay on LoginPage
               // so their progress remains on the button.
-              if (state.isCheckingSession || state.isAuthenticated) {
+              if (state.isCheckingSession ||
+                  state.isAuthenticated ||
+                  (state.isCheckingSubscription && state.restoringSession)) {
                 return const _StartupSplash();
               }
               if (state.isAuthenticating) {

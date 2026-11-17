@@ -44,6 +44,15 @@ import 'presentation/bloc/pos_order_management/pos_order_management_bloc.dart';
 
 final sl = GetIt.instance;
 
+Future<bool> preparePosLoginSession() async {
+  final prefs = sl<SharedPreferences>();
+  if (prefs.getBool('needs_workspace_setup') == true ||
+      (prefs.getString('instansi_id')?.trim().isEmpty ?? true)) {
+    return true;
+  }
+  return sl<PosSubscriptionService>().prepareLogin();
+}
+
 Future<void> initLocator(FlavorConfig flavorConfig) async {
   // Core
   final sharedPreferences = await SharedPreferences.getInstance();
@@ -164,6 +173,7 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(
       authRepository: sl<AuthRepository>(),
+      prepareSession: preparePosLoginSession,
       beforeLogout: () => sl<PosPushService>().deactivate(),
     ),
   );

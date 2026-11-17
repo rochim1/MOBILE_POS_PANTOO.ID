@@ -261,13 +261,27 @@ class _PosSubscriptionBoundaryState extends State<PosSubscriptionBoundary>
               child: Material(
                 child: HeroControllerScope.none(
                   child: Navigator(
-                    key: ValueKey(_recoveryDestination),
+                    key: ValueKey((
+                      _recoveryDestination,
+                      _recoveryDestination == null &&
+                          !service.canRead &&
+                          !service.recoveryOnly,
+                    )),
                     onGenerateRoute: (_) => MaterialPageRoute<void>(
                       builder: (_) => _recoveryDestination != null
                           ? _SubscriptionRecoveryTools(
                               destination: _recoveryDestination!,
                               onBack: () =>
                                   setState(() => _recoveryDestination = null),
+                            )
+                          : !service.canRead && !service.recoveryOnly
+                          ? _SubscriptionVerification(
+                              service: service,
+                              onLogout: widget.onLogout,
+                              onCloseShift: () =>
+                                  setState(() => _recoveryDestination = 11),
+                              onViewQueue: () =>
+                                  setState(() => _recoveryDestination = 15),
                             )
                           : PosSubscriptionPage(
                               service: service,
@@ -285,6 +299,92 @@ class _PosSubscriptionBoundaryState extends State<PosSubscriptionBoundary>
         ],
       );
     },
+  );
+}
+
+/// A verification failure is not a billing decision. Keep writes blocked.
+class _SubscriptionVerification extends StatelessWidget {
+  const _SubscriptionVerification({
+    required this.service,
+    required this.onLogout,
+    required this.onCloseShift,
+    required this.onViewQueue,
+  });
+  final PosSubscriptionService service;
+  final VoidCallback onLogout, onCloseShift, onViewQueue;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: service,
+    builder: (context, _) => Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/pantoo_pos_icon.png',
+                  width: 96,
+                  height: 96,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  subscriptionText(
+                    context,
+                    'Menyiapkan akses POS',
+                    'Preparing POS access',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  subscriptionText(
+                    context,
+                    'Status akses belum dapat dipastikan. Periksa koneksi lalu coba lagi.',
+                    'Access has not been confirmed. Check your connection and try again.',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: service.checking ? null : () => service.refresh(),
+                  child: service.checking
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(subscriptionText(context, 'Coba lagi', 'Retry')),
+                ),
+                TextButton(
+                  onPressed: onCloseShift,
+                  child: Text(
+                    subscriptionText(context, 'Tutup shift', 'Close shift'),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onViewQueue,
+                  child: Text(
+                    subscriptionText(
+                      context,
+                      'Lihat antrean offline',
+                      'View offline queue',
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onLogout,
+                  child: Text(
+                    subscriptionText(context, 'Keluar akun', 'Sign out'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 

@@ -9,9 +9,51 @@ class AuthCubit extends Cubit<AuthState> {
   bool _googleInFlight = false;
   int _sessionRevision = 0;
   final Future<void> Function()? beforeLogout;
+  final Future<bool> Function()? prepareSession;
 
-  AuthCubit({required this.authRepository, this.beforeLogout})
-    : super(const AuthState.checkingSession());
+  AuthCubit({
+    required this.authRepository,
+    this.beforeLogout,
+    this.prepareSession,
+  }) : super(const AuthState.checkingSession());
+
+  Future<void> _finishLogin(
+    String username,
+    int revision, {
+    bool restoring = false,
+  }) async {
+    if (isClosed || revision != _sessionRevision) return;
+    if (prepareSession != null) {
+      emit(
+        AuthState.checkingSubscription(
+          username: username,
+          restoringSession: restoring,
+        ),
+      );
+      var ready = false;
+      try {
+        ready = await prepareSession!().timeout(const Duration(seconds: 20));
+      } catch (_) {
+        // Keep the accepted session and drafts. Retry verification, not login.
+      }
+      if (isClosed || revision != _sessionRevision) return;
+      if (!ready) {
+        emit(
+          AuthState.subscriptionFailure(
+            'Status langganan belum dapat diperiksa. Periksa koneksi lalu coba lagi.',
+            username: username,
+          ),
+        );
+        return;
+      }
+    }
+    emit(AuthState.authenticated(username: username));
+  }
+
+  Future<void> retrySubscription() async {
+    if (!state.canRetrySubscription || _googleInFlight) return;
+    await _finishLogin(state.username!, ++_sessionRevision);
+  }
 
   Future<void> checkSession() async {
     final revision = ++_sessionRevision;
@@ -19,10 +61,10 @@ class AuthCubit extends Cubit<AuthState> {
       final hasSession = await authRepository.checkSession();
       if (isClosed || revision != _sessionRevision) return;
       if (hasSession) {
-        emit(
-          AuthState.authenticated(
-            username: authRepository.getSavedUsername() ?? 'Pengguna',
-          ),
+        await _finishLogin(
+          authRepository.getSavedUsername() ?? 'Pengguna',
+          revision,
+          restoring: true,
         );
       } else {
         emit(const AuthState.unauthenticated());
@@ -45,7 +87,10 @@ class AuthCubit extends Cubit<AuthState> {
     String password, {
     String? captchaAnswer,
   }) async {
-    if (_googleInFlight) return;
+    if (_googleInFlight || state.isAuthenticating || state.isAuthenticated) {
+      return;
+    }
+    if (state.canRetrySubscription) return retrySubscription();
     if (username.isEmpty || password.isEmpty) {
       emit(const AuthState.failure('Username dan password wajib diisi'));
       return;
@@ -63,14 +108,14 @@ class AuthCubit extends Cubit<AuthState> {
     );
     if (isClosed || revision != _sessionRevision) return;
 
-    result.fold(
-      (failure) => emit(
+    await result.fold<Future<void>>(
+      (failure) async => emit(
         AuthState.failure(
           failure.message,
           captcha: failure is LoginCaptchaFailure ? failure : null,
         ),
       ),
-      (name) => emit(AuthState.authenticated(username: name)),
+      (name) => _finishLogin(name, revision),
     );
   }
 
@@ -79,6 +124,10 @@ class AuthCubit extends Cubit<AuthState> {
     String? phone,
     bool consent = false,
   }) async {
+    if (state.canRetrySubscription) {
+      await retrySubscription();
+      return null;
+    }
     if (_googleInFlight ||
         state.isCheckingSession ||
         state.isAuthenticating ||
@@ -96,8 +145,10 @@ class AuthCubit extends Cubit<AuthState> {
           // bootstrap and secure session persistence to finish as well.
           .timeout(const Duration(seconds: 45));
       if (isClosed || revision != _sessionRevision) return null;
-      return result.fold((failure) => failure, (name) {
-        emit(AuthState.authenticated(username: name));
+      return await result.fold<Future<Failure?>>((failure) async => failure, (
+        name,
+      ) async {
+        await _finishLogin(name, revision);
         return null;
       });
     } on TimeoutException {

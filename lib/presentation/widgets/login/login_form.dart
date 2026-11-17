@@ -52,6 +52,10 @@ class _LoginFormState extends State<LoginForm> {
 
   void _onLoginTap() {
     final status = context.read<AuthCubit>().state;
+    if (status.canRetrySubscription) {
+      context.read<AuthCubit>().retrySubscription();
+      return;
+    }
     if (status.isCheckingSession ||
         status.isAuthenticating ||
         status.isAuthenticated) {
@@ -79,7 +83,7 @@ class _LoginFormState extends State<LoginForm> {
           title: const PosText('Dev: Custom Endpoint'),
           content: TextField(
             controller: controller,
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               hintText: (GraphQLClientProvider.developmentEndpoint).tr(context),
               labelText: ('GraphQL Endpoint').tr(context),
             ),
@@ -133,7 +137,10 @@ class _LoginFormState extends State<LoginForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Align(alignment: Alignment.centerRight, child: LanguagePicker()),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: LanguagePicker(),
+            ),
             Stack(
               alignment: Alignment.center,
               children: [
@@ -187,9 +194,12 @@ class _LoginFormState extends State<LoginForm> {
               child: Column(
                 children: [
                   TextFormField(
-errorBuilder: posValidationError,
+                    errorBuilder: posValidationError,
                     controller: _usernameController,
-                    decoration:  InputDecoration(labelText: ('Username').tr(context)),
+                    readOnly: isLoading || state.canRetrySubscription,
+                    decoration: InputDecoration(
+                      labelText: ('Username').tr(context),
+                    ),
                     textInputAction: TextInputAction.next,
                     onChanged: (_) {
                       if (context.read<AuthCubit>().state.captcha != null) {
@@ -206,8 +216,9 @@ errorBuilder: posValidationError,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
-errorBuilder: posValidationError,
+                    errorBuilder: posValidationError,
                     controller: _passwordController,
+                    readOnly: isLoading || state.canRetrySubscription,
                     decoration: InputDecoration(
                       labelText: ('Password').tr(context),
                       suffixIcon: IconButton(
@@ -262,12 +273,14 @@ errorBuilder: posValidationError,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
-errorBuilder: posValidationError,
+                      errorBuilder: posValidationError,
                       controller: _captchaController,
                       focusNode: _captchaFocusNode,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Kode CAPTCHA').tr(context),
-                        hintText: ('Ketik enam karakter pada gambar').tr(context),
+                        hintText: ('Ketik enam karakter pada gambar').tr(
+                          context,
+                        ),
                       ),
                       autocorrect: false,
                       enableSuggestions: false,
@@ -290,18 +303,40 @@ errorBuilder: posValidationError,
                     child: ElevatedButton(
                       onPressed: isLoading ? null : _onLoginTap,
                       child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: PosText(
+                                    state.isCheckingSubscription
+                                        ? 'Memeriksa langganan…'
+                                        : 'Memproses login…',
+                                  ),
+                                ),
+                              ],
                             )
-                          : const PosText('Masuk'),
+                          : PosText(
+                              state.canRetrySubscription
+                                  ? 'Coba lagi'
+                                  : 'Masuk',
+                            ),
                     ),
                   ),
                   const SizedBox(height: 14),
+                  if (state.canRetrySubscription)
+                    TextButton(
+                      onPressed: () => context.read<AuthCubit>().logout(),
+                      child: const PosText('Ganti akun'),
+                    ),
                   Wrap(
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -315,7 +350,7 @@ errorBuilder: posValidationError,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        onPressed: isLoading
+                        onPressed: isLoading || state.canRetrySubscription
                             ? null
                             : () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(

@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../core/error/failures.dart';
 import '../../bloc/auth/auth_cubit.dart';
+import '../../bloc/auth/auth_state.dart';
 import '../../../core/auth/google_identity_service.dart';
 import 'google_registration_details.dart';
 import 'google_button_stub.dart'
@@ -121,6 +122,11 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
     if (_busy || !widget.enabled) return;
     _setBusy(true);
     try {
+      final cubit = context.read<AuthCubit>();
+      if (cubit.state.canRetrySubscription) {
+        await cubit.retrySubscription();
+        return;
+      }
       await widget.prepareEndpoint?.call().timeout(const Duration(seconds: 15));
       await GoogleIdentityService.initialize(
         GetIt.I<AuthRepository>(),
@@ -207,74 +213,95 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
   @override
   Widget build(BuildContext context) => !_supported
       ? const SizedBox.shrink()
-      : Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_ready && kIsWeb)
-              IgnorePointer(
-                ignoring: _busy || !widget.enabled,
-                child: LayoutBuilder(
-                  builder: (_, constraints) =>
-                      Center(child: web.googleWebButton(constraints.maxWidth)),
-                ),
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: !widget.enabled || _busy
-                    ? null
-                    : _ready
-                    ? _authenticate
-                    : _error == null
-                    ? null
-                    : _initialize,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                icon: const Icon(Icons.g_mobiledata),
-                label: Text(
-                  _error == null
-                      ? ('Lanjutkan dengan Google').tr(context)
-                      : ('Coba hubungkan Google').tr(context),
-                ),
-              ),
-            if (_busy || (!_ready && _error == null))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Column(
-                    children: [
-                      const LinearProgressIndicator(),
-                      const SizedBox(height: 8),
-                      Text(
-                        _busy ? _progress : ('Menyiapkan login Google…').tr(context),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+      : BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, state) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_ready && kIsWeb && !state.canRetrySubscription)
+                IgnorePointer(
+                  ignoring:
+                      _busy ||
+                      !widget.enabled ||
+                      state.isAuthenticating ||
+                      state.isAuthenticated,
+                  child: LayoutBuilder(
+                    builder: (_, constraints) => Center(
+                      child: web.googleWebButton(constraints.maxWidth),
+                    ),
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed:
+                      !widget.enabled ||
+                          _busy ||
+                          state.isAuthenticating ||
+                          state.isAuthenticated
+                      ? null
+                      : state.canRetrySubscription || _ready
+                      ? _authenticate
+                      : _error == null
+                      ? null
+                      : _initialize,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  icon: const Icon(Icons.g_mobiledata),
+                  label: Text(
+                    state.canRetrySubscription
+                        ? ('Coba lagi').tr(context)
+                        : state.isCheckingSubscription
+                        ? ('Memeriksa langganan…').tr(context)
+                        : _error == null
+                        ? ('Lanjutkan dengan Google').tr(context)
+                        : ('Coba hubungkan Google').tr(context),
                   ),
                 ),
-              ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: PosText(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            const SizedBox(height: 16),
-            const Row(
-              children: [
-                Expanded(child: Divider()),
+              if (_busy ||
+                  state.isCheckingSubscription ||
+                  (!_ready && _error == null))
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: PosText('atau dengan email'),
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Column(
+                      children: [
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 8),
+                        Text(
+                          state.isCheckingSubscription
+                              ? ('Memeriksa langganan…').tr(context)
+                              : _busy
+                              ? _progress
+                              : ('Menyiapkan login Google…').tr(context),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
+              if (_error != null || state.canRetrySubscription)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: PosText(
+                    state.canRetrySubscription ? state.error! : _error!,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              const SizedBox(height: 16),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: PosText('atau dengan email'),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         );
 }

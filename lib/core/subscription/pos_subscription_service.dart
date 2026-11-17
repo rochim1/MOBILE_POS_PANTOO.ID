@@ -92,6 +92,14 @@ class PosSubscriptionService extends ChangeNotifier {
     return future;
   }
 
+  /// Known restrictions may open billing/recovery. An unknown status must not
+  /// be mistaken for expiry or expose the private workspace on first login.
+  Future<bool> prepareLogin() async {
+    if (!required) return true;
+    await activate();
+    return canSell || accessLevel == 'read_only' || recoveryOnly;
+  }
+
   Future<void> _activateScope() async {
     final next = readScope();
     if (_scope != next) {

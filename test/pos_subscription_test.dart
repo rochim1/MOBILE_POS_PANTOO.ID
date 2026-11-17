@@ -58,22 +58,75 @@ void main() {
     await initializeDateFormatting('id');
   });
 
-  testWidgets('pending verification is not a subscription billing page', (tester) async {
+  test(
+    'login preparation distinguishes known restriction from unverified access',
+    () async {
+      for (final level in ['full', 'read_only', 'billing_only', 'blocked']) {
+        final s = service(() async => status(level: level));
+        expect(await s.prepareLogin(), true, reason: level);
+        s.dispose();
+      }
+      final unknown = service(() async => throw StateError('offline'));
+      expect(await unknown.prepareLogin(), false);
+      expect(unknown.canSell, false);
+      unknown.dispose();
+      final noScope = service(
+        () async => throw StateError('not called'),
+        scope: () => '',
+      );
+      expect(await noScope.prepareLogin(), true);
+      noScope.dispose();
+    },
+  );
+
+  test(
+    'offline login preparation keeps a valid trusted cached grant',
+    () async {
+      var online = true;
+      Future<Map<String, dynamic>> fetch() async {
+        if (!online) throw StateError('offline');
+        return status();
+      }
+
+      final first = service(fetch);
+      expect(await first.prepareLogin(), true);
+      first.dispose();
+      online = false;
+      final restored = service(fetch);
+      expect(await restored.prepareLogin(), true);
+      expect(restored.offline, true);
+      expect(restored.canSell, true);
+      restored.dispose();
+    },
+  );
+
+  testWidgets('pending verification is not a subscription billing page', (
+    tester,
+  ) async {
     final pending = Completer<Map<String, dynamic>>();
     final s = service(() => pending.future);
     final nav = GlobalKey<NavigatorState>();
     final receipt = ValueNotifier(false);
-    await tester.pumpWidget(MaterialApp(
-      navigatorKey: nav,
-      builder: (_, child) => PosSubscriptionBoundary(
-        service: s, authenticated: true, navigatorKey: nav,
-        receiptVisible: receipt, onLogout: () {}, child: child!,
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: nav,
+        builder: (_, child) => PosSubscriptionBoundary(
+          service: s,
+          authenticated: true,
+          navigatorKey: nav,
+          receiptVisible: receipt,
+          onLogout: () {},
+          child: child!,
+        ),
+        home: const Scaffold(body: Text('private cashier')),
       ),
-      home: const Scaffold(body: Text('private cashier')),
-    ));
+    );
     await tester.pump();
-    expect(find.byType(PosSubscriptionPage), findsNothing,
-      reason: 'An unfinished check is not evidence of an expired subscription');
+    expect(
+      find.byType(PosSubscriptionPage),
+      findsNothing,
+      reason: 'An unfinished check is not evidence of an expired subscription',
+    );
     expect(s.canSell, isFalse);
     pending.complete(status());
     await tester.pumpAndSettle();
@@ -81,6 +134,58 @@ void main() {
     receipt.dispose();
     s.dispose();
   });
+
+  testWidgets(
+    'unverified access retries in neutral overlay and only then shows billing',
+    (tester) async {
+      var online = false;
+      var privateTaps = 0;
+      final response = Completer<Map<String, dynamic>>();
+      final s = service(() {
+        if (!online) throw StateError('offline');
+        return response.future;
+      });
+      await s.activate();
+      final nav = GlobalKey<NavigatorState>();
+      final receipt = ValueNotifier(false);
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: nav,
+          builder: (_, child) => PosSubscriptionBoundary(
+            service: s,
+            authenticated: true,
+            navigatorKey: nav,
+            receiptVisible: receipt,
+            onLogout: () {},
+            child: child!,
+          ),
+          home: Scaffold(
+            body: TextButton(
+              onPressed: () => privateTaps++,
+              child: const Text('private'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(PosSubscriptionPage), findsNothing);
+      await tester.tap(find.text('private'), warnIfMissed: false);
+      final retry = find.byType(FilledButton);
+      expect(tester.widget<FilledButton>(retry).onPressed, isNotNull);
+      online = true;
+      await tester.tap(retry);
+      await tester.pump();
+      expect(tester.widget<FilledButton>(retry).onPressed, isNull);
+      expect(s.canSell, false);
+      expect(privateTaps, 0);
+      response.complete(status(level: 'billing_only', state: 'recovery'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PosSubscriptionPage), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      s.dispose();
+      receipt.dispose();
+    },
+  );
 
   test('model switches access at exact server deadlines', () {
     final value = PosSubscription.fromJson(
