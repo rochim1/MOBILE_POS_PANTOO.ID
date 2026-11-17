@@ -412,10 +412,15 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   Future<void> _openPos() async {
+    if (!_sameScope) return;
     final prefs = sl<SharedPreferences>();
     await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), true);
     if (!mounted || !_sameScope) return;
     if (widget.onCompleted case final completed?) {
+      setState(() {
+        _loading = false;
+        _saving = false;
+      });
       completed();
       return;
     }
@@ -450,7 +455,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                       const Center(child: CircularProgressIndicator()),
                       const SizedBox(height: 12),
                       const PosText(
-                        'Menyiapkan POS...',
+                        'Menyiapkan Pantoo POS…',
                         textAlign: TextAlign.center,
                       ),
                     ] else ...[
