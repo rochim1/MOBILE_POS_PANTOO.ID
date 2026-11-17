@@ -149,6 +149,41 @@ void main() {
       await cubit.close();
     },
   );
+  testWidgets('verified Google session redirects even if runtime bootstrap never replies', (tester) async {
+    final provider = _Provider();
+    final bootstrap = Completer<Response>();
+    bool bootstrapStarted = false;
+    provider.client = GraphQLClient(
+      cache: GraphQLCache(),
+      queryRequestTimeout: const Duration(minutes: 2),
+      link: Link.function((request, [forward]) async* {
+        if (request.operation.operationName == 'Login') {
+          yield Response(data: {'Login': {
+            'token': 'pantoo-session', 'refresh_token': 'pantoo-refresh',
+            'user': {'_id': 'google-user', 'name': 'Kasir', 'instansi_id': {'_id': 'tenant'}},
+          }}, response: {});
+        } else {
+          bootstrapStarted = true;
+          yield await bootstrap.future;
+        }
+      }),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final cubit = AuthCubit(authRepository: AuthRepository(provider, prefs, const FlutterSecureStorage()));
+    // checkSession would inspect an empty storage; isolate submission state.
+    await cubit.checkSession();
+    final login = cubit.loginGoogle('verified-proof');
+    for (var i = 0; i < 50 && !bootstrapStarted; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(bootstrapStarted, isTrue);
+    await tester.pump(const Duration(seconds: 10));
+    expect(cubit.state.isAuthenticated, isTrue,
+        reason: 'Optional bootstrap must not consume the entire Google login timeout after credentials were persisted');
+    bootstrap.complete(Response(data: {'GetPOSRuntimeConfig': null}, response: {}));
+    await login;
+    await cubit.close();
+  });
   testWidgets('registration requires phone and unchecked-by-default consent', (
     tester,
   ) async {
