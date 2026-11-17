@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import '../../../../core/_core.dart';
 import '../../../../injections.dart';
 import '../../../../domain/repositories/pos_repository.dart';
+import '../../../../domain/repositories/pos_business_profile_repository.dart';
+import '../../widgets/pos_business_profile_form.dart';
 import '../../bloc/pos_settings/pos_settings_bloc.dart';
 import '../../bloc/pos_settings/pos_settings_event.dart';
 import '../../bloc/pos_settings/pos_settings_state.dart';
@@ -19,7 +21,7 @@ import '../../widgets/pos_category_navigation.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_forced_profile_change_dialog.dart';
 
-enum _SettingsSection { transaction, finance, cashier }
+enum _SettingsSection { business, transaction, finance, cashier }
 
 class PosSettingsPage extends StatelessWidget {
   final GlobalKey? setupTourKey;
@@ -119,6 +121,12 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   }
 
   static const _sections = <PosCategoryItem<_SettingsSection>>[
+    PosCategoryItem(
+      value: _SettingsSection.business,
+      icon: Icons.storefront_outlined,
+      label: 'Profil Usaha',
+      group: 'Usaha',
+    ),
     PosCategoryItem(
       value: _SettingsSection.transaction,
       icon: Icons.tune_outlined,
@@ -629,6 +637,13 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   }
 
   Widget _settingsContent(PosSettingsState state, {required bool canManage}) {
+    if (_selectedSection == _SettingsSection.business) {
+      return PosBusinessProfileForm(
+        repository: sl<PosBusinessProfileRepository>(),
+        canEdit: canManage,
+        onSaved: () => context.read<PosBloc>().add(RefreshPosRuntimeConfig()),
+      );
+    }
     final section = switch (_selectedSection) {
       _SettingsSection.finance => _buildSection(
         title: ('Pajak & Keuangan').tr(context),
@@ -649,7 +664,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           ),
         ],
       ),
-      _SettingsSection.transaction => _buildSection(
+      _SettingsSection.business || _SettingsSection.transaction => _buildSection(
         title: ('Transaksi & Penjualan').tr(context),
         icon: Icons.tune_outlined,
         children: [
@@ -919,11 +934,13 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             children: [
               Icon(icon, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              PosText(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              Expanded(
+                child: PosText(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -983,6 +1000,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           const SizedBox(height: 7),
           DropdownButtonFormField<String>(
             initialValue: safeValue,
+            isExpanded: true,
             decoration: InputDecoration(
               hintText: posLocale(context).pos42aa2abf5ad3((label).toString()),
               border: OutlineInputBorder(
@@ -997,7 +1015,11 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                 .map(
                   (item) => DropdownMenuItem(
                     value: item,
-                    child: PosText(_optionLabel(item)),
+                    child: PosText(
+                      _optionLabel(item),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(),

@@ -4,8 +4,12 @@ import 'package:mobile_pos_pantoo/presentation/pages/login/business_setup_page.d
 import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
 
 void main() {
-  testWidgets('business setup offers an optional business logo', (tester) async {
-    await tester.pumpWidget(MaterialApp(theme: AppTheme.light(), home: const BusinessSetupPage()));
+  testWidgets('business setup offers an optional business logo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light(), home: const BusinessSetupPage()),
+    );
     expect(find.text('Logo usaha'), findsOneWidget);
     expect(find.byTooltip('Pilih logo usaha'), findsOneWidget);
   });

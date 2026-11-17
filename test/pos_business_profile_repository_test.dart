@@ -67,17 +67,31 @@ void main() {
     provider = _Provider();
   });
 
-  test('multipart headers preserve the selected PIN operator rather than using only the login owner', () async {
-    dotenv.loadFromString(envString: 'API_URL=http://localhost:8080/graphql\n');
-    FlutterSecureStorage.setMockInitialValues({});
-    final real = GraphQLClientProvider(prefs, const FlutterSecureStorage(), environment: FlavorEnvironment.development);
-    real.setAccessToken('fixture-session');
-    real.setPOSOperatorToken('fixture-operator');
-    final headers = await real.authenticatedRequestHeaders();
-    expect(headers['x-pos-operator-token'], 'fixture-operator');
-    real.setPOSOperatorToken(null);
-    expect((await real.authenticatedRequestHeaders()).containsKey('x-pos-operator-token'), false);
-  });
+  test(
+    'multipart headers preserve the selected PIN operator rather than using only the login owner',
+    () async {
+      dotenv.loadFromString(
+        envString: 'API_URL=http://localhost:8080/graphql\n',
+      );
+      FlutterSecureStorage.setMockInitialValues({});
+      final real = GraphQLClientProvider(
+        prefs,
+        const FlutterSecureStorage(),
+        environment: FlavorEnvironment.development,
+      );
+      real.setAccessToken('fixture-session');
+      real.setPOSOperatorToken('fixture-operator');
+      final headers = await real.authenticatedRequestHeaders();
+      expect(headers['x-pos-operator-token'], 'fixture-operator');
+      real.setPOSOperatorToken(null);
+      expect(
+        (await real.authenticatedRequestHeaders()).containsKey(
+          'x-pos-operator-token',
+        ),
+        false,
+      );
+    },
+  );
   void response(Map<String, dynamic> data) {
     provider.client = GraphQLClient(
       cache: GraphQLCache(),

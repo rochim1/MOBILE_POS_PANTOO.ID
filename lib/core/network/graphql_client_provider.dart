@@ -335,6 +335,7 @@ class GraphQLClientProvider {
       'X-API-Key': dotenv.env['MOBILE_API_KEY'] ?? '',
       'apps': 'pos',
       'x-iid': sharedPreferences.getString('instansi_id') ?? '',
+      if (_posOperatorToken != null) 'x-pos-operator-token': _posOperatorToken!,
       if (token != null && token.trim().isNotEmpty)
         'Authorization': 'Bearer ${token.trim()}',
     };

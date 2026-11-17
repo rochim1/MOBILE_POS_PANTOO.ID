@@ -8,11 +8,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../injections.dart';
 import '../../../domain/repositories/auth_repository.dart';
+import '../../../domain/repositories/pos_business_profile_repository.dart';
+import '../../../core/utils/product_image_picker.dart';
+import '../../widgets/pos_business_logo_picker.dart';
 import '../../bloc/lock/lock_cubit.dart';
 import '../pos/pos_onboarding_page.dart';
 
 class BusinessSetupPage extends StatefulWidget {
-  const BusinessSetupPage({super.key});
+  const BusinessSetupPage({super.key, this.pickLogo});
+  final Future<PickedProductImage?> Function()? pickLogo;
 
   @override
   State<BusinessSetupPage> createState() => _BusinessSetupPageState();
@@ -23,6 +27,9 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   final _businessName = TextEditingController();
   final _phone = TextEditingController();
   bool _saving = false;
+  bool _workspaceCreated = false;
+  PickedProductImage? _logo;
+  String? _logoError;
 
   @override
   void dispose() {
@@ -35,33 +42,61 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
     if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
-    final result = await sl<AuthRepository>().createWorkspace(
-      businessName: _businessName.text.trim(),
-      phone: _phone.text.trim(),
-    );
-    if (!mounted) return;
-    setState(() => _saving = false);
-    result.fold(
-      (failure) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: PosText(failure.message),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      ),
-      (_) {
-        // The workspace now exists, so PIN setup/verification can safely load
-        // its operator list. After unlock the user continues to POS onboarding.
-        context.read<AppLockCubit>().lock();
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const PosOnboardingGate()),
-          (route) => false,
+    if (!_workspaceCreated) {
+      final result = await sl<AuthRepository>().createWorkspace(
+        businessName: _businessName.text.trim(),
+        phone: _phone.text.trim(),
+      );
+      if (!mounted) return;
+      if (result.isLeft()) {
+        setState(() => _saving = false);
+        result.fold(
+          (failure) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: PosText(failure.message),
+              backgroundColor: AppColors.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          ),
+          (_) {},
         );
-        if (sl.isRegistered<PosPushService>()) {
-          unawaited(sl<PosPushService>().activate());
-        }
-      },
+        return;
+      }
+      _workspaceCreated = true;
+    }
+    if (_logo != null) {
+      final result = await sl<PosBusinessProfileRepository>().save(
+        name: _businessName.text.trim(),
+        phone: _phone.text.trim(),
+        logo: _logo,
+      );
+      if (!mounted) return;
+      if (result.isLeft()) {
+        setState(() {
+          _saving = false;
+          result.fold(
+            (failure) => _logoError =
+                'Profil usaha sudah dibuat, tetapi logo belum tersimpan. ${failure.message}',
+            (_) {},
+          );
+        });
+        return;
+      }
+    }
+    if (mounted) _continue();
+  }
+
+  void _continue() {
+    // The workspace now exists, so PIN setup/verification can safely load
+    // its operator list. After unlock the user continues to POS onboarding.
+    context.read<AppLockCubit>().lock();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const PosOnboardingGate()),
+      (route) => false,
     );
+    if (sl.isRegistered<PosPushService>()) {
+      unawaited(sl<PosPushService>().activate());
+    }
   }
 
   @override
@@ -101,9 +136,25 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
                         const SizedBox(height: 24),
+                        PosBusinessLogoPicker(
+                          value: _logo,
+                          enabled: !_saving,
+                          pickImage: widget.pickLogo,
+                          onChanged: (image) => setState(() {
+                            _logo = image;
+                            _logoError = null;
+                          }),
+                          onRemove: () => setState(() {
+                            _logo = null;
+                            _logoError = null;
+                          }),
+                        ),
+                        const SizedBox(height: 22),
                         TextFormField(
                           errorBuilder: posValidationError,
                           controller: _businessName,
+                          readOnly: _saving || _workspaceCreated,
+                          maxLength: 160,
                           autofocus: true,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
@@ -123,6 +174,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                         TextFormField(
                           errorBuilder: posValidationError,
                           controller: _phone,
+                          readOnly: _saving || _workspaceCreated,
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.done,
                           inputFormatters: [
@@ -176,6 +228,19 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           ),
                         ),
                         const SizedBox(height: 22),
+                        if (_logoError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: PosText(
+                              _logoError!,
+                              style: const TextStyle(color: AppColors.danger),
+                            ),
+                          ),
+                        if (_workspaceCreated && !_saving)
+                          TextButton(
+                            onPressed: _continue,
+                            child: const PosText('Lanjutkan tanpa logo'),
+                          ),
                         SizedBox(
                           height: 50,
                           child: FilledButton(
@@ -189,7 +254,13 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const PosText('Buat Profil & Lanjutkan'),
+                                : PosText(
+                                    _workspaceCreated
+                                        ? (_logo == null
+                                              ? 'Lanjutkan'
+                                              : 'Coba unggah logo lagi')
+                                        : 'Buat Profil & Lanjutkan',
+                                  ),
                           ),
                         ),
                       ],
