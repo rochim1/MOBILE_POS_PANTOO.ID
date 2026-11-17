@@ -15,7 +15,11 @@ import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_onboarding_page.dart';
 
 class _Runtime extends Fake implements PosRepository {
-  _Runtime({this.inventory = 'simple', this.issues = const [], this.canManage = true});
+  _Runtime({
+    this.inventory = 'simple',
+    this.issues = const [],
+    this.canManage = true,
+  });
   final String inventory;
   final List<String> issues;
   final bool canManage;
@@ -35,39 +39,68 @@ class _Settings extends Fake implements PosSettingsRepository {
   int saves = 0;
   Map<String, dynamic>? saved;
   @override
-  Future<PosRemoteProfileCatalog> getProfileCatalog() async => catalog ?? PosRemoteProfileCatalog.bundled();
+  Future<PosRemoteProfileCatalog> getProfileCatalog() async =>
+      catalog ?? PosRemoteProfileCatalog.bundled();
   @override
-  Future<Either<Failure, PosSettings>> getSettings() async => Right(initial ?? const PosSettings(
-    businessProfile: 'jasa',
-    enabledFeatures: {'use_service_order': true, 'track_stock': true, '__typename': false},
-    pajakPersen: 5.5, autoPrintReceipt: true,
-    defaultChannelPenjualan: 'retail', defaultPriceLevel: 'retail', defaultTipePesanan: 'take_away',
-  ));
+  Future<Either<Failure, PosSettings>> getSettings() async => Right(
+    initial ??
+        const PosSettings(
+          businessProfile: 'jasa',
+          enabledFeatures: {
+            'use_service_order': true,
+            'track_stock': true,
+            '__typename': false,
+          },
+          pajakPersen: 5.5,
+          autoPrintReceipt: true,
+          defaultChannelPenjualan: 'retail',
+          defaultPriceLevel: 'retail',
+          defaultTipePesanan: 'take_away',
+        ),
+  );
   @override
-  Future<Either<Failure, PosSettings>> updateSettings(Map<String, dynamic> input) async {
+  Future<Either<Failure, PosSettings>> updateSettings(
+    Map<String, dynamic> input,
+  ) async {
     saves++;
     saved = input;
     return const Left(ServerFailure('Gagal menyimpan, silakan coba lagi'));
   }
 }
 
-Future<void> open(WidgetTester tester, _Settings settings, { _Runtime? runtime, String? pending, bool english = false }) async {
+Future<void> open(
+  WidgetTester tester,
+  _Settings settings, {
+  _Runtime? runtime,
+  String? pending,
+  bool english = false,
+}) async {
   SharedPreferences.setMockInitialValues({
-    'instansi_id': 'tenant', 'user_id': 'user',
+    'instansi_id': 'tenant',
+    'user_id': 'user',
     if (pending != null) 'pos_initial_business_profile_v1:tenant:user': pending,
-    'pos_runtime_config': jsonEncode({'permissions': {'manage_settings': true}}),
+    'pos_runtime_config': jsonEncode({
+      'permissions': {'manage_settings': true},
+    }),
   });
-  sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+  sl.registerSingleton<SharedPreferences>(
+    await SharedPreferences.getInstance(),
+  );
   sl.registerSingleton<PosRepository>(runtime ?? _Runtime());
   sl.registerSingleton<PosSettingsRepository>(settings);
   await tester.binding.setSurfaceSize(const Size(390, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(MaterialApp(
-    theme: AppTheme.light(), locale: english ? const Locale('en') : null,
-    localizationsDelegates: english ? AppLocalizations.localizationsDelegates : null,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: const PosOnboardingPage(),
-  ));
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light(),
+      locale: english ? const Locale('en') : null,
+      localizationsDelegates: english
+          ? AppLocalizations.localizationsDelegates
+          : null,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const PosOnboardingPage(),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -81,94 +114,162 @@ Future<void> choose(WidgetTester tester, String label) async {
 void main() {
   tearDown(() async => sl.reset());
 
-  testWidgets('incomplete existing workspace only asks business profile, no transaction wizard', (tester) async {
-    await open(tester, _Settings());
-    expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
-    expect(find.text('Profil usaha'), findsOneWidget);
-    expect(find.byType(PageView), findsNothing);
-    expect(find.text('Default transaksi'), findsNothing);
-    expect(find.text('Kebutuhan operasional'), findsNothing);
-    expect(find.text('Channel penjualan'), findsNothing);
-    expect(find.byType(TextFormField), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'incomplete existing workspace only asks business profile, no transaction wizard',
+    (tester) async {
+      await open(tester, _Settings());
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      expect(find.text('Profil usaha'), findsOneWidget);
+      expect(find.byType(PageView), findsNothing);
+      expect(find.text('Default transaksi'), findsNothing);
+      expect(find.text('Kebutuhan operasional'), findsNothing);
+      expect(find.text('Channel penjualan'), findsNothing);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   test('GraphQL metadata is not a supported POS feature', () {
-    expect(PosSettings.fromJson({'enabled_features': {'track_stock': true, '__typename': 'flags', 'future': true}}).enabledFeatures, {'track_stock': true});
+    expect(
+      PosSettings.fromJson({
+        'enabled_features': {
+          'track_stock': true,
+          '__typename': 'flags',
+          'future': true,
+        },
+      }).enabledFeatures,
+      {'track_stock': true},
+    );
   });
 
   for (final profile in posProfileIds) {
-    testWidgets('$profile saves presets and preserves transaction defaults in one action', (tester) async {
-      final settings = _Settings();
-      await open(tester, settings);
-      await choose(tester, profile == 'custom' ? 'Kustom' : posProfileLabels[profile]!);
-      await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
-      await tester.pumpAndSettle();
-      expect(settings.saves, 1);
-      expect(settings.saved?['business_profile'], profile);
-      expect(settings.saved?['enabled_features'], posProfileFeatures(profile, current: posProfileFeatures('jasa')));
-      expect(settings.saved?['pajak_persen'], 5.5);
-      expect(settings.saved?['auto_print_receipt'], isTrue);
-      expect(settings.saved?['default_channel_penjualan'], 'retail');
-      expect(settings.saved?['default_price_level'], 'retail');
-      expect(settings.saved?['onboarding_completed'], isTrue);
-      expect(find.text('Gagal menyimpan, silakan coba lagi'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      '$profile saves presets and preserves transaction defaults in one action',
+      (tester) async {
+        final settings = _Settings();
+        await open(tester, settings);
+        await choose(
+          tester,
+          profile == 'custom' ? 'Kustom' : posProfileLabels[profile]!,
+        );
+        await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
+        await tester.pumpAndSettle();
+        expect(settings.saves, 1);
+        expect(settings.saved?['business_profile'], profile);
+        expect(
+          settings.saved?['enabled_features'],
+          posProfileFeatures(profile, current: posProfileFeatures('jasa')),
+        );
+        expect(settings.saved?['pajak_persen'], 5.5);
+        expect(settings.saved?['auto_print_receipt'], isTrue);
+        expect(settings.saved?['default_channel_penjualan'], 'retail');
+        expect(settings.saved?['default_price_level'], 'retail');
+        expect(settings.saved?['onboarding_completed'], isTrue);
+        expect(find.text('Gagal menyimpan, silakan coba lagi'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
-  testWidgets('backend-only profile still appears and saves reservation default', (tester) async {
-    final payload = PosRemoteProfileCatalog.bundled().toJson();
-    final profiles = payload['profiles'] as List;
-    profiles.add({...Map<String, dynamic>.from(profiles.firstWhere((p) => p['value'] == 'salon')), 'value': 'studio_baru', 'label': 'Studio Baru Backend', 'default_order_type': 'reservation'});
-    final settings = _Settings(catalog: PosRemoteProfileCatalog.fromJson(payload));
-    await open(tester, settings);
-    await choose(tester, 'Studio Baru Backend');
-    await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
-    await tester.pumpAndSettle();
-    expect(settings.saved?['business_profile'], 'studio_baru');
-    expect(settings.saved?['default_tipe_pesanan'], 'reservation');
-    expect(settings.saved?['enabled_features']['use_appointments'], isTrue);
-  });
+  testWidgets(
+    'backend-only profile still appears and saves reservation default',
+    (tester) async {
+      final payload = PosRemoteProfileCatalog.bundled().toJson();
+      final profiles = payload['profiles'] as List;
+      profiles.add({
+        ...Map<String, dynamic>.from(
+          profiles.firstWhere((p) => p['value'] == 'salon'),
+        ),
+        'value': 'studio_baru',
+        'label': 'Studio Baru Backend',
+        'default_order_type': 'reservation',
+      });
+      final settings = _Settings(
+        catalog: PosRemoteProfileCatalog.fromJson(payload),
+      );
+      await open(tester, settings);
+      await choose(tester, 'Studio Baru Backend');
+      await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
+      await tester.pumpAndSettle();
+      expect(settings.saved?['business_profile'], 'studio_baru');
+      expect(settings.saved?['default_tipe_pesanan'], 'reservation');
+      expect(settings.saved?['enabled_features']['use_appointments'], isTrue);
+    },
+  );
 
   for (final inventory in ['simple', 'centralized', 'advanced', 'custom']) {
-    testWidgets('$inventory keeps hidden tracking safe without resetting custom flags', (tester) async {
-      final settings = _Settings(initial: const PosSettings(businessProfile: 'custom', enabledFeatures: {'track_stock': false, 'use_order_queue': true}));
-      await open(tester, settings, runtime: _Runtime(inventory: inventory));
-      await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
-      await tester.pumpAndSettle();
-      expect(settings.saved?['enabled_features']['track_stock'], inventory != 'simple');
-      expect(settings.saved?['enabled_features']['use_order_queue'], isTrue);
-    });
+    testWidgets(
+      '$inventory keeps hidden tracking safe without resetting custom flags',
+      (tester) async {
+        final settings = _Settings(
+          initial: const PosSettings(
+            businessProfile: 'custom',
+            enabledFeatures: {'track_stock': false, 'use_order_queue': true},
+          ),
+        );
+        await open(tester, settings, runtime: _Runtime(inventory: inventory));
+        await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
+        await tester.pumpAndSettle();
+        expect(
+          settings.saved?['enabled_features']['track_stock'],
+          inventory != 'simple',
+        );
+        expect(settings.saved?['enabled_features']['use_order_queue'], isTrue);
+      },
+    );
   }
 
-  testWidgets('pending business creation auto-applies selection and retries without asking profile again', (tester) async {
-    final settings = _Settings();
-    await open(tester, settings, pending: 'restoran');
-    expect(settings.saves, 1);
-    expect(settings.saved?['business_profile'], 'restoran');
-    expect(settings.saved?['default_tipe_pesanan'], 'dine_in');
-    expect(sl<SharedPreferences>().getString('pos_initial_business_profile_v1:tenant:user'), 'restoran');
-    await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
-    await tester.pumpAndSettle();
-    expect(settings.saves, 2);
-    expect(settings.saved?['business_profile'], 'restoran');
-  });
+  testWidgets(
+    'pending business creation auto-applies selection and retries without asking profile again',
+    (tester) async {
+      final settings = _Settings();
+      await open(tester, settings, pending: 'restoran');
+      expect(settings.saves, 1);
+      expect(settings.saved?['business_profile'], 'restoran');
+      expect(settings.saved?['default_tipe_pesanan'], 'dine_in');
+      expect(
+        sl<SharedPreferences>().getString(
+          'pos_initial_business_profile_v1:tenant:user',
+        ),
+        'restoran',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
+      await tester.pumpAndSettle();
+      expect(settings.saves, 2);
+      expect(settings.saved?['business_profile'], 'restoran');
+    },
+  );
 
-  testWidgets('inventory issues still block automatic completion with a visible explanation', (tester) async {
-    final settings = _Settings();
-    await open(tester, settings, pending: 'restoran', runtime: _Runtime(issues: ['Lokasi stok belum valid']));
-    expect(settings.saves, 0);
-    expect(find.textContaining('Lokasi stok belum valid'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Simpan')).onPressed, isNull);
-  });
+  testWidgets(
+    'inventory issues still block automatic completion with a visible explanation',
+    (tester) async {
+      final settings = _Settings();
+      await open(
+        tester,
+        settings,
+        pending: 'restoran',
+        runtime: _Runtime(issues: ['Lokasi stok belum valid']),
+      );
+      expect(settings.saves, 0);
+      expect(find.textContaining('Lokasi stok belum valid'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Simpan'))
+            .onPressed,
+        isNull,
+      );
+    },
+  );
 
-  testWidgets('English recovery screen uses the same compact labeled selector', (tester) async {
-    await open(tester, _Settings(), english: true);
-    expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
-    expect(find.byType(PageView), findsNothing);
-    expect(find.text('Default transaksi'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'English recovery screen uses the same compact labeled selector',
+    (tester) async {
+      await open(tester, _Settings(), english: true);
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+      expect(find.byType(PageView), findsNothing);
+      expect(find.text('Default transaksi'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

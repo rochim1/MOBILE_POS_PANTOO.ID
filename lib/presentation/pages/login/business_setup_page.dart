@@ -11,6 +11,9 @@ import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/pos_business_profile_repository.dart';
 import '../../../core/utils/product_image_picker.dart';
 import '../../widgets/pos_business_logo_picker.dart';
+import '../../widgets/pos_business_profile_selector.dart';
+import '../../../domain/models/pos_remote_profile_catalog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/lock/lock_cubit.dart';
 import '../pos/pos_onboarding_page.dart';
 
@@ -30,6 +33,8 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   bool _workspaceCreated = false;
   PickedProductImage? _logo;
   String? _logoError;
+  String _profile = 'retail';
+  final _profileCatalog = PosRemoteProfileCatalog.bundled();
 
   @override
   void dispose() {
@@ -64,6 +69,10 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
       }
       _workspaceCreated = true;
     }
+    // Persist the selection before optional logo upload, so a restart can
+    // finish configuring this workspace instead of asking to create another.
+    await _rememberProfile();
+    if (!mounted) return;
     if (_logo != null) {
       final result = await sl<PosBusinessProfileRepository>().save(
         name: _businessName.text.trim(),
@@ -83,10 +92,18 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
         return;
       }
     }
-    if (mounted) _continue();
+    if (mounted) await _continue();
   }
 
-  void _continue() {
+  Future<void> _rememberProfile() => sl<SharedPreferences>().setString(
+    PosOnboardingPage.pendingProfileKey(sl<SharedPreferences>()),
+    _profile,
+  );
+
+  Future<void> _continue() async {
+    setState(() => _saving = true);
+    await _rememberProfile();
+    if (!mounted) return;
     // The workspace now exists, so PIN setup/verification can safely load
     // its operator list. After unlock the user continues to POS onboarding.
     context.read<AppLockCubit>().lock();
@@ -205,6 +222,14 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                           },
                         ),
                         const SizedBox(height: 12),
+                        PosBusinessProfileSelector(
+                          value: _profile,
+                          catalog: _profileCatalog,
+                          onChanged: _saving
+                              ? null
+                              : (profile) => setState(() => _profile = profile),
+                        ),
+                        const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
