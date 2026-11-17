@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,33 +38,39 @@ class _Settings extends Fake implements PosSettingsRepository {
   final PosRemoteProfileCatalog? catalog;
   final PosSettings? initial;
   int saves = 0;
+  bool succeed = false, failLoad = false;
+  Completer<Either<Failure, PosSettings>>? pending;
   Map<String, dynamic>? saved;
   @override
   Future<PosRemoteProfileCatalog> getProfileCatalog() async =>
       catalog ?? PosRemoteProfileCatalog.bundled();
   @override
-  Future<Either<Failure, PosSettings>> getSettings() async => Right(
-    initial ??
-        const PosSettings(
-          businessProfile: 'jasa',
-          enabledFeatures: {
-            'use_service_order': true,
-            'track_stock': true,
-            '__typename': false,
-          },
-          pajakPersen: 5.5,
-          autoPrintReceipt: true,
-          defaultChannelPenjualan: 'retail',
-          defaultPriceLevel: 'retail',
-          defaultTipePesanan: 'take_away',
-        ),
-  );
+  Future<Either<Failure, PosSettings>> getSettings() async => failLoad
+      ? const Left(NetworkFailure('Koneksi terputus'))
+      : Right(
+          initial ??
+              const PosSettings(
+                businessProfile: 'jasa',
+                enabledFeatures: {
+                  'use_service_order': true,
+                  'track_stock': true,
+                  '__typename': false,
+                },
+                pajakPersen: 5.5,
+                autoPrintReceipt: true,
+                defaultChannelPenjualan: 'retail',
+                defaultPriceLevel: 'retail',
+                defaultTipePesanan: 'take_away',
+              ),
+        );
   @override
   Future<Either<Failure, PosSettings>> updateSettings(
     Map<String, dynamic> input,
   ) async {
     saves++;
     saved = input;
+    if (pending != null) return pending!.future;
+    if (succeed) return Right(PosSettings.fromJson(input));
     return const Left(ServerFailure('Gagal menyimpan, silakan coba lagi'));
   }
 }
@@ -74,6 +81,7 @@ Future<void> open(
   _Runtime? runtime,
   String? pending,
   bool english = false,
+  VoidCallback? onCompleted,
 }) async {
   SharedPreferences.setMockInitialValues({
     'instansi_id': 'tenant',
@@ -98,7 +106,7 @@ Future<void> open(
           ? AppLocalizations.localizationsDelegates
           : null,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: const PosOnboardingPage(),
+      home: PosOnboardingPage(onCompleted: onCompleted),
     ),
   );
   await tester.pumpAndSettle();
@@ -272,4 +280,144 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'new business automatically finishes with selected profile and no extra prompt',
+    (tester) async {
+      final settings = _Settings()..succeed = true;
+      var completed = 0;
+      await open(
+        tester,
+        settings,
+        pending: 'restoran',
+        onCompleted: () => completed++,
+      );
+      expect(completed, 1);
+      expect(settings.saves, 1);
+      final prefs = sl<SharedPreferences>();
+      expect(
+        prefs.containsKey(PosOnboardingPage.pendingProfileKey(prefs)),
+        isFalse,
+      );
+      expect(PosOnboardingPage.isCompleted(prefs), isTrue);
+      final runtime = jsonDecode(prefs.getString('pos_runtime_config')!) as Map;
+      expect(runtime['business_profile'], 'restoran');
+      expect(runtime['default_order_type'], 'dine_in');
+      expect(runtime['features']['use_kitchen_flow'], isTrue);
+      expect(runtime['tax_percent'], 5.5);
+    },
+  );
+
+  testWidgets(
+    'lost save response reopens committed setup without overwriting it',
+    (tester) async {
+      final settings = _Settings(
+        initial: const PosSettings(
+          onboardingCompleted: true,
+          businessProfile: 'laundry',
+        ),
+      );
+      var completed = 0;
+      await open(
+        tester,
+        settings,
+        pending: 'restoran',
+        onCompleted: () => completed++,
+      );
+      expect(completed, 1);
+      expect(settings.saves, 0);
+      final prefs = sl<SharedPreferences>();
+      expect(
+        prefs.containsKey(PosOnboardingPage.pendingProfileKey(prefs)),
+        isFalse,
+      );
+      expect(PosOnboardingPage.isCompleted(prefs), isTrue);
+    },
+  );
+
+  testWidgets(
+    'loading failure is recoverable without a new business creation',
+    (tester) async {
+      final settings = _Settings()..failLoad = true;
+      await open(tester, settings);
+      expect(find.text('Koneksi terputus'), findsOneWidget);
+      settings.failLoad = false;
+      await tester.tap(find.widgetWithText(FilledButton, 'Coba lagi'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      expect(settings.saves, 0);
+    },
+  );
+
+  testWidgets(
+    'cashier without manage permission cannot apply a pending profile',
+    (tester) async {
+      final settings = _Settings();
+      await open(
+        tester,
+        settings,
+        pending: 'restoran',
+        runtime: _Runtime(canManage: false),
+      );
+      expect(settings.saves, 0);
+      expect(
+        tester
+            .widget<DropdownButtonFormField<String>>(
+              find.byType(DropdownButtonFormField<String>),
+            )
+            .onChanged,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Simpan'))
+            .onPressed,
+        isNull,
+      );
+    },
+  );
+
+  for (final tax in [-1.0, 101.0, double.nan]) {
+    testWidgets('invalid stored tax $tax cannot silently finish setup', (
+      tester,
+    ) async {
+      final settings = _Settings(initial: PosSettings(pajakPersen: tax));
+      await open(tester, settings, pending: 'retail');
+      expect(settings.saves, 0);
+      expect(find.text('Pajak harus antara 0 dan 100 persen'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Simpan'))
+            .onPressed,
+        isNull,
+      );
+    });
+  }
+
+  testWidgets(
+    'pending profile is validated against the catalog before auto-save',
+    (tester) async {
+      final settings = _Settings();
+      await open(tester, settings, pending: 'untrusted_profile');
+      expect(settings.saves, 0);
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+    },
+  );
+
+  testWidgets('pending save shows progress and cannot submit twice', (
+    tester,
+  ) async {
+    final settings = _Settings()
+      ..pending = Completer<Either<Failure, PosSettings>>();
+    await open(tester, settings);
+    await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
+    await tester.pump();
+    expect(settings.saves, 1);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Simpan'), findsNothing);
+    settings.pending!.complete(const Left(NetworkFailure('Koneksi terputus')));
+    await tester.pumpAndSettle();
+    expect(find.text('Koneksi terputus'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Simpan'), findsOneWidget);
+  });
 }

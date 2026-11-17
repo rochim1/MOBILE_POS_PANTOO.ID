@@ -357,12 +357,22 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Usaha Uji');
       await tester.enterText(find.byType(TextFormField).at(1), '081234567890');
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Restoran / Cafe').last);
+      await tester.pumpAndSettle();
       final submit = find.text('Buat Profil & Lanjutkan');
       await tester.ensureVisible(submit);
       await tester.tap(submit);
       await tester.pumpAndSettle();
       expect(auth.creates, 1);
       expect(profiles.saves, 1);
+      expect(
+        sl<SharedPreferences>().getString(
+          PosOnboardingPage.pendingProfileKey(sl<SharedPreferences>()),
+        ),
+        'restoran',
+      );
       expect(
         find.textContaining('Profil usaha sudah dibuat, tetapi logo belum'),
         findsOneWidget,

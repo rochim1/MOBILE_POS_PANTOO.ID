@@ -15,7 +15,10 @@ import '../login/business_setup_page.dart';
 import '../../widgets/pos_business_profile_selector.dart';
 
 class PosOnboardingPage extends StatefulWidget {
-  const PosOnboardingPage({super.key});
+  const PosOnboardingPage({super.key, this.onCompleted});
+
+  /// An embedding host may own navigation after the confirmed setup is saved.
+  final VoidCallback? onCompleted;
 
   static String pendingProfileKey(SharedPreferences prefs) =>
       'pos_initial_business_profile_v1:${prefs.getString('instansi_id') ?? 'unknown-instansi'}:${prefs.getString('user_id') ?? 'unknown-user'}';
@@ -412,6 +415,10 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
     final prefs = sl<SharedPreferences>();
     await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), true);
     if (!mounted || !_sameScope) return;
+    if (widget.onCompleted case final completed?) {
+      completed();
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) =>
