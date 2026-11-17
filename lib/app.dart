@@ -90,9 +90,11 @@ class App extends StatelessWidget {
                   final needsWorkspace =
                       prefs.getBool('needs_workspace_setup') == true ||
                       (prefs.getString('instansi_id')?.trim().isEmpty ?? true);
-                  if (!needsWorkspace) {
-                    await sl<PosSubscriptionService>().activate();
-                  }
+                  await prefs.setBool('has_seen_intro', true);
+                  // PosSubscriptionBoundary activates access checks on auth
+                  // changes and blocks unknown/restricted access. Do not wait
+                  // for its IO here: login/register must reach the central PIN
+                  // navigation even when the subscription endpoint is slow.
                   if (!context.mounted || !identical(authCubit.state, state)) {
                     return;
                   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -395,12 +396,22 @@ class AuthRepository {
           appLogger.i('[Auth] Login success; workspace setup is required');
           return Right(name);
         }
-        final sessionCheck = await _clientProvider.client.query(
-          QueryOptions(
-            document: gql(PosQueries.getPOSRuntimeConfig),
-            fetchPolicy: FetchPolicy.networkOnly,
-          ),
-        );
+        final QueryResult sessionCheck;
+        try {
+          sessionCheck = await _clientProvider.client.query(
+            QueryOptions(
+              document: gql(PosQueries.getPOSRuntimeConfig),
+              fetchPolicy: FetchPolicy.networkOnly,
+            ),
+          ).timeout(const Duration(seconds: 8));
+        } on TimeoutException {
+          // Credentials are already verified and persisted. Optional bootstrap
+          // must not exhaust AuthCubit's Google login deadline and strand a
+          // valid session on Login; the workspace retries with its own guards.
+          await _prefs.remove('pos_runtime_config');
+          appLogger.w('[Auth] Runtime POS lambat; lanjutkan ke pemeriksaan workspace.');
+          return Right(name);
+        }
         if (sessionCheck.hasException) {
           final failure = AppErrorHandler.handle(sessionCheck.exception!);
           if (failure is AuthFailure) {

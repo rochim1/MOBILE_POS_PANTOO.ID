@@ -9,7 +9,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../widgets/login/login_form.dart';
-import '../pos/pos_onboarding_page.dart';
 import '../../widgets/intro/feature_item.dart';
 
 class IntroPage extends StatefulWidget {
@@ -243,17 +242,8 @@ class _IntroPageState extends State<IntroPage> {
                       // Slide 4: Login Form
                       BlocListener<AuthCubit, AuthState>(
                         listener: (context, state) {
-                          if (state.isAuthenticated) {
-                            final prefs = GetIt.I<SharedPreferences>();
-                            prefs.setBool('has_seen_intro', true);
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    PosOnboardingPage.initialDestination(prefs),
-                              ),
-                              (route) => false,
-                            );
-                          }
+                          // App owns successful login navigation and engages
+                          // the PIN lock before replacing the public stack.
                           if (state.isFailure && state.captcha == null) {
                             final message =
                                 state.error ?? 'Login gagal. Coba lagi.';
