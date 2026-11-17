@@ -149,41 +149,139 @@ void main() {
       await cubit.close();
     },
   );
-  testWidgets('verified Google session redirects even if runtime bootstrap never replies', (tester) async {
-    final provider = _Provider();
-    final bootstrap = Completer<Response>();
-    bool bootstrapStarted = false;
-    provider.client = GraphQLClient(
-      cache: GraphQLCache(),
-      queryRequestTimeout: const Duration(minutes: 2),
-      link: Link.function((request, [forward]) async* {
-        if (request.variables.containsKey('input')) {
-          yield Response(data: {'Login': {
-            'token': 'pantoo-session', 'refresh_token': 'pantoo-refresh',
-            'user': {'_id': 'google-user', 'name': 'Kasir', 'instansi_id': {'_id': 'tenant'}},
-          }}, response: {});
-        } else {
-          bootstrapStarted = true;
-          yield await bootstrap.future;
-        }
-      }),
-    );
-    final prefs = await SharedPreferences.getInstance();
-    final cubit = AuthCubit(authRepository: AuthRepository(provider, prefs, const FlutterSecureStorage()));
-    // checkSession would inspect an empty storage; isolate submission state.
+  testWidgets(
+    'verified Google session redirects even if runtime bootstrap never replies',
+    (tester) async {
+      final provider = _Provider();
+      final bootstrap = Completer<Response>();
+      bool bootstrapStarted = false;
+      provider.client = GraphQLClient(
+        cache: GraphQLCache(),
+        queryRequestTimeout: const Duration(minutes: 2),
+        link: Link.function((request, [forward]) async* {
+          if (request.variables.containsKey('input')) {
+            yield Response(
+              data: {
+                'Login': {
+                  'token': 'pantoo-session',
+                  'refresh_token': 'pantoo-refresh',
+                  'user': {
+                    '_id': 'google-user',
+                    'name': 'Kasir',
+                    'instansi_id': {'_id': 'tenant'},
+                  },
+                },
+              },
+              response: {},
+            );
+          } else {
+            bootstrapStarted = true;
+            yield await bootstrap.future;
+          }
+        }),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final cubit = AuthCubit(
+        authRepository: AuthRepository(
+          provider,
+          prefs,
+          const FlutterSecureStorage(),
+        ),
+      );
+      // checkSession would inspect an empty storage; isolate submission state.
+      await cubit.checkSession();
+      final login = cubit.loginGoogle('verified-proof');
+      for (var i = 0; i < 50 && !bootstrapStarted; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(bootstrapStarted, isTrue);
+      await tester.pump(const Duration(seconds: 10));
+      expect(
+        cubit.state.isAuthenticated,
+        isTrue,
+        reason:
+            'Optional bootstrap must not consume the entire Google login timeout after credentials were persisted',
+      );
+      bootstrap.complete(
+        Response(
+          data: {
+            'GetPOSRuntimeConfig': {'instansi_id': 'late-tenant'},
+          },
+          response: {},
+        ),
+      );
+      await login;
+      await tester.pump();
+      expect(prefs.getString('instansi_id'), 'tenant');
+      expect(prefs.getString('pos_runtime_config'), isNull);
+      await cubit.close();
+    },
+  );
+  testWidgets('Google deadline includes verified session storage and bounded bootstrap', (tester) async {
+    final repository = _GoogleRepository();
+    final cubit = AuthCubit(authRepository: repository);
     await cubit.checkSession();
-    final login = cubit.loginGoogle('verified-proof');
-    for (var i = 0; i < 50 && !bootstrapStarted; i++) {
-      await tester.pump(const Duration(milliseconds: 10));
-    }
-    expect(bootstrapStarted, isTrue);
-    await tester.pump(const Duration(seconds: 10));
-    expect(cubit.state.isAuthenticated, isTrue,
-        reason: 'Optional bootstrap must not consume the entire Google login timeout after credentials were persisted');
-    bootstrap.complete(Response(data: {'GetPOSRuntimeConfig': null}, response: {}));
-    await login;
+    final login = cubit.loginGoogle('proof');
+    // The GraphQL transport allows30s; accepted credentials can still need
+    // secure persistence and the bounded8s runtime request afterwards.
+    await tester.pump(const Duration(seconds: 33));
+    repository.pending.complete(const Right('Kasir'));
+    expect(await login, isNull,
+        reason: 'Do not report a false login timeout after valid credentials were saved');
+    expect(cubit.state.isAuthenticated, isTrue);
     await cubit.close();
   });
+  test(
+    'runtime authorization rejection still invalidates Google session',
+    () async {
+      final provider = _Provider();
+      provider.client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          if (request.variables.containsKey('input')) {
+            yield Response(
+              data: {
+                'Login': {
+                  'token': 'pantoo-session',
+                  'refresh_token': 'pantoo-refresh',
+                  'user': {
+                    '_id': 'google-user',
+                    'name': 'Kasir',
+                    'instansi_id': {'_id': 'tenant'},
+                  },
+                },
+              },
+              response: {},
+            );
+          } else {
+            yield Response(
+              errors: [
+                GraphQLError(
+                  message: 'Session revoked',
+                  extensions: {'code': 'UNAUTHORIZED'},
+                ),
+              ],
+              response: {},
+            );
+          }
+        }),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      const storage = FlutterSecureStorage();
+      final result = await AuthRepository(
+        provider,
+        prefs,
+        storage,
+      ).loginWithGoogle('proof');
+      expect(
+        result.fold((failure) => failure, (_) => null),
+        isA<AuthFailure>(),
+      );
+      expect(provider.savedToken, isNull);
+      expect(await storage.read(key: 'auth_token'), isNull);
+      expect(await storage.read(key: 'refresh_token'), isNull);
+    },
+  );
   testWidgets('registration requires phone and unchecked-by-default consent', (
     tester,
   ) async {
