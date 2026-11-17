@@ -58,6 +58,30 @@ void main() {
     await initializeDateFormatting('id');
   });
 
+  testWidgets('pending verification is not a subscription billing page', (tester) async {
+    final pending = Completer<Map<String, dynamic>>();
+    final s = service(() => pending.future);
+    final nav = GlobalKey<NavigatorState>();
+    final receipt = ValueNotifier(false);
+    await tester.pumpWidget(MaterialApp(
+      navigatorKey: nav,
+      builder: (_, child) => PosSubscriptionBoundary(
+        service: s, authenticated: true, navigatorKey: nav,
+        receiptVisible: receipt, onLogout: () {}, child: child!,
+      ),
+      home: const Scaffold(body: Text('private cashier')),
+    ));
+    await tester.pump();
+    expect(find.byType(PosSubscriptionPage), findsNothing,
+      reason: 'An unfinished check is not evidence of an expired subscription');
+    expect(s.canSell, isFalse);
+    pending.complete(status());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    receipt.dispose();
+    s.dispose();
+  });
+
   test('model switches access at exact server deadlines', () {
     final value = PosSubscription.fromJson(
       status(operational: now, readOnly: now.add(const Duration(days: 4))),
