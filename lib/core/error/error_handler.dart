@@ -17,6 +17,19 @@ class AppErrorHandler {
           return SubscriptionFailure(entry.message);
         }
       }
+      // A rejected password challenge does not expire the existing session.
+      // Older SetMyPOSPin servers return UNAUTHORIZED for this exact error.
+      // Only handle a single challenge error so a real simultaneous session
+      // rejection still follows the authentication-failure path below.
+      if (subscriptionErrors.length == 1) {
+        final entry = subscriptionErrors.single;
+        final code = entry.extensions?['code'];
+        if (code == 'INVALID_PASSWORD' ||
+            (code == 'UNAUTHORIZED' &&
+                entry.message == 'Password akun tidak valid')) {
+          return ServerFailure(entry.message);
+        }
+      }
       final rawError = error.toString().toLowerCase();
       if (rawError.contains('unauthorized') ||
           rawError.contains('unauthenticated') ||

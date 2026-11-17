@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:mobile_pos_pantoo/core/error/error_handler.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/common/pin_lock_screen.dart';
@@ -74,6 +76,19 @@ class TestLockCubit extends AppLockCubit {
 
   @override
   Future<void> loadEmployees({String search = ''}) async {}
+}
+
+class _PasswordRejectedLockCubit extends TestLockCubit {
+  int submissions = 0;
+  @override
+  Future<bool> createLoginUserPin({required String password, required String pin}) async {
+    submissions++;
+    final failure = AppErrorHandler.handle(OperationException(graphqlErrors: [
+      GraphQLError(message: 'Password akun tidak valid', extensions: {'code': 'UNAUTHORIZED'}),
+    ]));
+    emit(state.copyWith(errorMessage: failure.message));
+    return false;
+  }
 }
 
 void main() {
@@ -425,6 +440,37 @@ void main() {
     cubit.seedUnlocked();
     await tester.pumpAndSettle();
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('PIN setup password rejection stays in the modal and allows correction', (tester) async {
+    final cubit = _PasswordRejectedLockCubit()..seedLoginWithoutPin();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(BlocProvider<AppLockCubit>.value(
+      value: cubit,
+      child: MaterialApp(theme: AppTheme.light(), home: const PinLockScreen()),
+    ));
+    await tester.pump();
+    await tester.tap(find.text('Buat PIN Akun Ini'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Password akun'), 'test-wrong');
+    await tester.enterText(find.widgetWithText(TextField, 'PIN baru'), '1234');
+    await tester.enterText(find.widgetWithText(TextField, 'Ulangi PIN'), '1234');
+    await tester.tap(find.widgetWithText(FilledButton, 'Buat PIN'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Password akun tidak valid')), findsOneWidget);
+    expect(find.text('Sesi telah berakhir. Silakan login kembali.'), findsNothing);
+    expect(tester.widget<TextField>(find.widgetWithText(TextField, 'PIN baru')).controller?.text, '1234');
+    await tester.enterText(find.widgetWithText(TextField, 'Password akun'), 'test-retry');
+    await tester.tap(find.widgetWithText(FilledButton, 'Buat PIN'));
+    await tester.pumpAndSettle();
+    expect(cubit.submissions, 2);
+    expect(cubit.state.status, AppLockStatus.locked);
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    cubit.seedUnlocked();
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 }
