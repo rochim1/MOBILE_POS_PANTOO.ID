@@ -12,6 +12,7 @@ import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_onboarding_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 
 class _Runtime implements PosRepository {
   _Runtime({this.inventoryProfile = 'simple', this.policy = const {}});
@@ -38,19 +39,20 @@ class _Settings implements PosSettingsRepository {
   Map<String, dynamic>? saved;
   @override
   Future<Either<Failure, PosSettings>> getSettings() async => Right(
-    initial ?? const PosSettings(
-      businessProfile: 'jasa',
-      enabledFeatures: {
-        'use_service_order': true,
-        'track_stock': true,
-        '__typename': false,
-      },
-      pajakPersen: 5.5,
-      autoPrintReceipt: true,
-      defaultChannelPenjualan: 'retail',
-      defaultPriceLevel: 'retail',
-      defaultTipePesanan: 'take_away',
-    ),
+    initial ??
+        const PosSettings(
+          businessProfile: 'jasa',
+          enabledFeatures: {
+            'use_service_order': true,
+            'track_stock': true,
+            '__typename': false,
+          },
+          pajakPersen: 5.5,
+          autoPrintReceipt: true,
+          defaultChannelPenjualan: 'retail',
+          defaultPriceLevel: 'retail',
+          defaultTipePesanan: 'take_away',
+        ),
   );
   @override
   Future<Either<Failure, PosSettings>> updateSettings(
@@ -194,7 +196,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
       await tester.pumpAndSettle();
       expect(find.text('Kebutuhan operasional'), findsNothing);
-      expect(find.widgetWithText(SwitchListTile, 'Teknisi / staf'), findsNothing);
+      expect(
+        find.widgetWithText(SwitchListTile, 'Teknisi / staf'),
+        findsNothing,
+      );
       expect(find.text('Langkah 2 dari 3 · Default Transaksi'), findsOneWidget);
       expect(
         tester
@@ -205,7 +210,10 @@ void main() {
       );
       await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
       await tester.pumpAndSettle();
-      expect(find.text('Langkah 3 dari 3 · Validasi Inventory'), findsOneWidget);
+      expect(
+        find.text('Langkah 3 dari 3 · Validasi Inventory'),
+        findsOneWidget,
+      );
       await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
       await tester.pumpAndSettle();
       expect(repository.saved?['business_profile'], 'salon');
@@ -227,16 +235,23 @@ void main() {
   );
 
   for (final profile in posProfileIds) {
-    testWidgets('$profile uses three steps and preserves safe features', (tester) async {
+    testWidgets('$profile uses three steps and preserves safe features', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({});
-      sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+      sl.registerSingleton<SharedPreferences>(
+        await SharedPreferences.getInstance(),
+      );
       sl.registerSingleton<PosRepository>(_Runtime());
       final repository = _Settings();
       sl.registerSingleton<PosSettingsRepository>(repository);
       await tester.pumpWidget(const MaterialApp(home: PosOnboardingPage()));
       await tester.pumpAndSettle();
       expect(find.text('Langkah 1 dari 3 · Profil Usaha'), findsOneWidget);
-      final choice = find.widgetWithText(ChoiceChip, posProfileLabels[profile]!);
+      final choice = find.widgetWithText(
+        ChoiceChip,
+        profile == 'custom' ? 'Kustom' : posProfileLabels[profile]!,
+      );
       await tester.ensureVisible(choice);
       await tester.tap(choice);
       await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
@@ -248,40 +263,85 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
       await tester.pumpAndSettle();
       expect(repository.saved?['business_profile'], profile);
-      expect(repository.saved?['enabled_features'], posProfileFeatures(profile, current: {
-        ...posProfileFeatures('jasa'),
-        'use_service_order': true,
-        'track_stock': true,
-      }));
+      expect(
+        repository.saved?['enabled_features'],
+        posProfileFeatures(
+          profile,
+          current: {
+            ...posProfileFeatures('jasa'),
+            'use_service_order': true,
+            'track_stock': true,
+          },
+        ),
+      );
       expect(tester.takeException(), isNull);
     });
   }
 
+  testWidgets('English setup translates the three-step flow and deferred settings guidance', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+    sl.registerSingleton<PosRepository>(_Runtime());
+    sl.registerSingleton<PosSettingsRepository>(_Settings());
+    await tester.pumpWidget(const MaterialApp(
+      locale: Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: PosOnboardingPage(),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 1 of 3 · Business Profile'), findsOneWidget);
+    expect(find.text('Operational features follow your business profile. Customize them later in POS Settings → Transactions & Sales.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 2 of 3 · Transaction Defaults'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 3 of 3 · Inventory Validation'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final inventory in ['simple', 'centralized', 'advanced', 'custom']) {
-    testWidgets('hidden tracking stays valid for $inventory inventory without changing profile', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
-      sl.registerSingleton<PosRepository>(_Runtime(
-        inventoryProfile: inventory,
-        policy: const {'use_display_stock': true},
-      ));
-      final repository = _Settings(initial: const PosSettings(
-        businessProfile: 'custom',
-        enabledFeatures: {'track_stock': false, 'use_order_queue': true},
-      ));
-      sl.registerSingleton<PosSettingsRepository>(repository);
-      await tester.pumpWidget(const MaterialApp(home: PosOnboardingPage()));
-      await tester.pumpAndSettle();
-      for (var i = 0; i < 2; i++) {
-        await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
+    testWidgets(
+      'hidden tracking stays valid for $inventory inventory without changing profile',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        sl.registerSingleton<SharedPreferences>(
+          await SharedPreferences.getInstance(),
+        );
+        sl.registerSingleton<PosRepository>(
+          _Runtime(
+            inventoryProfile: inventory,
+            policy: const {'use_display_stock': true},
+          ),
+        );
+        final repository = _Settings(
+          initial: const PosSettings(
+            businessProfile: 'custom',
+            enabledFeatures: {'track_stock': false, 'use_order_queue': true},
+          ),
+        );
+        sl.registerSingleton<PosSettingsRepository>(repository);
+        await tester.pumpWidget(const MaterialApp(home: PosOnboardingPage()));
         await tester.pumpAndSettle();
-      }
-      await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
-      await tester.pumpAndSettle();
-      expect(repository.saved?['enabled_features']['track_stock'], inventory != 'simple');
-      expect(repository.saved?['enabled_features']['use_order_queue'], isTrue);
-      expect(repository.saved?['business_profile'], 'custom');
-      expect(tester.takeException(), isNull);
-    });
+        for (var i = 0; i < 2; i++) {
+          await tester.tap(find.widgetWithText(FilledButton, 'Lanjut'));
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
+        await tester.pumpAndSettle();
+        expect(
+          repository.saved?['enabled_features']['track_stock'],
+          inventory != 'simple',
+        );
+        expect(
+          repository.saved?['enabled_features']['use_order_queue'],
+          isTrue,
+        );
+        expect(repository.saved?['business_profile'], 'custom');
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }
