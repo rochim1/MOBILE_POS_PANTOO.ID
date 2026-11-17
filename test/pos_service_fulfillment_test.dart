@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -118,7 +119,16 @@ void main() {
             .map((e) => e['label']),
         ['Layanan Langsung', 'Reservasi'],
       );
-      final remote = PosRemoteProfileCatalog.fromJson(catalog.toJson());
+      final legacy =
+          jsonDecode(jsonEncode(catalog.toJson())) as Map<String, dynamic>;
+      final jasa = (legacy['profiles'] as List)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((p) => p['value'] == 'jasa');
+      final direct = (jasa['fulfillment_options'] as List)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((o) => o['value'] == 'take_away');
+      direct['label'] = 'Bawa Pulang';
+      final remote = PosRemoteProfileCatalog.fromJson(legacy);
       expect(
         remote.fulfillmentOptions('jasa', {}).single['label'],
         'Layanan Langsung',
@@ -133,7 +143,7 @@ void main() {
     testWidgets(
       'direct service $method has no schedule prompt and preserves agreed tariff',
       (tester) async {
-          final bloc = await _open(
+        final bloc = await _open(
           tester,
           'take_away',
           method: method,
