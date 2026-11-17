@@ -27,7 +27,7 @@ void main() {
           final fields = tester
               .widgetList<InputDecorator>(find.byType(InputDecorator))
               .toList();
-          expect(fields.length, 2);
+          expect(fields.length, 3);
           for (final field in fields) {
             expect(field.decoration.labelText, isNotEmpty);
             expect(
@@ -76,5 +76,19 @@ void main() {
       find.text('Gunakan nomor aktif yang diawali 0 atau 62'),
       findsOneWidget,
     );
+  });
+  testWidgets('business creation includes a labeled business profile selector', (tester) async {
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.light(), home: const BusinessSetupPage()));
+    final selector = find.byType(DropdownButtonFormField<String>);
+    expect(selector, findsOneWidget);
+    expect(find.text('Profil usaha'), findsOneWidget);
+    await tester.ensureVisible(selector);
+    await tester.tap(selector);
+    await tester.pumpAndSettle();
+    expect(find.text('Restoran / Cafe'), findsWidgets);
+    await tester.tap(find.text('Restoran / Cafe').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Restoran / Cafe'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
