@@ -95,6 +95,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             autofocus: true,
             decoration: InputDecoration(
               labelText: ('Password akun').tr(context),
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               prefixIcon: Icon(Icons.password_outlined),
               border: OutlineInputBorder(),
             ),
@@ -108,6 +109,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               labelText: ('PIN baru').tr(context),
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               prefixIcon: Icon(Icons.pin_outlined),
               border: OutlineInputBorder(),
               counterText: '',
@@ -122,6 +124,7 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               labelText: ('Ulangi PIN').tr(context),
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               prefixIcon: Icon(Icons.verified_user_outlined),
               border: OutlineInputBorder(),
               counterText: '',
