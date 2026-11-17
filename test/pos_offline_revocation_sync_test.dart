@@ -96,12 +96,16 @@ void main() {
     'bengkel',
     'salon',
     'jasa',
+    'jasa_reservation',
     'reservation',
     'flexible',
   ]) {
     test(
       'unpaid $profile persists service/reservation and deduplicates its original ID offline',
       () async {
+        final reservation =
+            profile == 'reservation' || profile == 'jasa_reservation';
+        final flexible = profile == 'flexible' || profile == 'jasa_reservation';
         var requests = 0;
         final client = GraphQLClient(
           cache: GraphQLCache(),
@@ -129,13 +133,15 @@ void main() {
           name: 'QA Service',
           category: '',
           productType: 'service',
-          servicePriceMode: profile == 'flexible' ? 'flexible' : 'fixed',
+          servicePriceMode: flexible ? 'flexible' : 'fixed',
           tracksStock: false,
           price: 5000,
           stock: 0,
         );
         final service = <String, dynamic>{
-          'service_type': profile == 'reservation' ? 'salon' : profile,
+          'service_type': profile == 'reservation'
+              ? 'salon'
+              : (profile == 'jasa_reservation' ? 'jasa' : profile),
           'service_subject': 'QA $profile',
           'complaint': 'QA offline',
           if (profile == 'bengkel') 'vehicle_no': 'QA1311A',
@@ -147,20 +153,23 @@ void main() {
           },
         };
         final start = DateTime.parse('2026-11-20T11:00:00+07:00');
+        if (reservation) {
+          service['appointment_at'] = start.toUtc().toIso8601String();
+        }
         for (var attempt = 0; attempt < 2; attempt++) {
           final result = await repo.createUnpaidInvoice(
             clientRequestId: 'unpaid-$profile-original',
             cart: {product: 1},
             tokoId: 'store',
             shiftId: 'shift-a',
-            orderType: profile == 'reservation' ? 'reservation' : 'take_away',
+            orderType: reservation ? 'reservation' : 'take_away',
             customerId: 'customer',
             serviceOrder: service,
-            itemPrices: profile == 'flexible' ? {'service': 150000} : const {},
-            expectedTotal: profile == 'flexible' ? 150000 : 5000,
-            tableId: profile == 'reservation' ? 'qa-table' : null,
-            reservationStartAt: profile == 'reservation' ? start : null,
-            reservationEndAt: profile == 'reservation'
+            itemPrices: flexible ? {'service': 150000} : const {},
+            expectedTotal: flexible ? 150000 : 5000,
+            tableId: reservation ? 'qa-table' : null,
+            reservationStartAt: reservation ? start : null,
+            reservationEndAt: reservation
                 ? start.add(const Duration(hours: 1))
                 : null,
             reservationGuestCount: 2,
@@ -177,7 +186,7 @@ void main() {
         expect(row['status'], 'pending');
         final payload = jsonDecode(row['payload'] as String) as Map;
         expect(payload['service_order'], service);
-        if (profile == 'flexible') {
+        if (flexible) {
           expect((payload['items'] as List).single['harga_satuan'], 150000);
         }
         expect(payload['pelanggan_id'], 'customer');
@@ -188,7 +197,7 @@ void main() {
           jsonDecode(row['client_snapshot'] as String)['operator_user_id'],
           'a',
         );
-        if (profile == 'reservation') {
+        if (reservation) {
           expect(payload['reservation_start_at'], '2026-11-20T04:00:00.000Z');
           expect(payload['reservation_end_at'], '2026-11-20T05:00:00.000Z');
           expect(payload['table_id'], 'qa-table');

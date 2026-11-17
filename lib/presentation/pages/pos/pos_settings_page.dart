@@ -205,19 +205,23 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   PosSetupTourStage(
                     title: ('Pilih operator').tr(context),
                     description:
-                        ('Pilih karyawan yang akan menggunakan kasir POS.').tr(context),
+                        ('Pilih karyawan yang akan menggunakan kasir POS.').tr(
+                          context,
+                        ),
                     target: targets.pinEmployee,
                   ),
                   PosSetupTourStage(
                     title: ('Buat PIN aman').tr(context),
                     description:
-                        ('Masukkan 4–6 digit angka khusus milik operator tersebut.').tr(context),
+                        ('Masukkan 4–6 digit angka khusus milik operator tersebut.')
+                            .tr(context),
                     target: targets.pinValue,
                   ),
                   PosSetupTourStage(
                     title: ('Simpan PIN operator').tr(context),
                     description:
-                        ('Simpan PIN. Setelah itu operator dapat dipilih pada layar akses kasir.').tr(context),
+                        ('Simpan PIN. Setelah itu operator dapat dipilih pada layar akses kasir.')
+                            .tr(context),
                     target: targets.pinSave,
                   ),
                 ],
@@ -243,7 +247,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                     key: widget.setupTourTargets?.pinEmployee,
                     initialValue: selectedId,
                     isExpanded: true,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Operator kasir').tr(context),
                     ),
                     items: users
@@ -275,7 +279,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                       keyboardType: TextInputType.number,
                       maxLength: 6,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('PIN baru (4–6 digit)').tr(context),
                         counterText: '',
                       ),
@@ -350,7 +354,11 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                         );
                       },
                 icon: const Icon(Icons.save_outlined),
-                label: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan PIN').tr(context)),
+                label: Text(
+                  saving
+                      ? ('Menyimpan...').tr(context)
+                      : ('Simpan PIN').tr(context),
+                ),
               ),
             ],
           );
@@ -583,15 +591,19 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           }
         },
         builder: (context, state) {
-
           final canManage = context.select<PosBloc, bool>((bloc) {
             final permissions = Map<String, dynamic>.from(
               bloc.state.runtimeConfig['permissions'] as Map? ?? const {},
             );
             return permissions['manage_settings'] == true;
           });
-          final content = state.status == PosSettingsStatus.loading || state.status == PosSettingsStatus.initial
-              ? const PosDocumentFormSkeleton(fieldGroups: [3], showItems: false)
+          final content =
+              state.status == PosSettingsStatus.loading ||
+                  state.status == PosSettingsStatus.initial
+              ? const PosDocumentFormSkeleton(
+                  fieldGroups: [3],
+                  showItems: false,
+                )
               : _settingsContent(state, canManage: canManage);
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -606,7 +618,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                           setState(() => _selectedSection = value),
                       expandedWidth: 230,
                       footer:
-                          ('Pengaturan berlaku sebagai default operasional POS.').tr(context),
+                          ('Pengaturan berlaku sebagai default operasional POS.')
+                              .tr(context),
                     ),
                     const VerticalDivider(width: 1),
                     Expanded(child: content),
@@ -649,7 +662,11 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         title: ('Pajak & Keuangan').tr(context),
         icon: Icons.account_balance_wallet_outlined,
         children: [
-          _buildTextField(('Pajak (%)').tr(context), _pajakController, isNumber: true),
+          _buildTextField(
+            ('Pajak (%)').tr(context),
+            _pajakController,
+            isNumber: true,
+          ),
           _buildTextField(
             ('Minimal Transaksi Tunai (Rp)').tr(context),
             _minTransaksiTunaiController,
@@ -664,7 +681,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           ),
         ],
       ),
-      _SettingsSection.business || _SettingsSection.transaction => _buildSection(
+      _SettingsSection.business ||
+      _SettingsSection.transaction => _buildSection(
         title: ('Transaksi & Penjualan').tr(context),
         icon: Icons.tune_outlined,
         children: [
@@ -726,7 +744,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           ),
           _buildOptionManager(
             label: ('Channel Penjualan Aktif').tr(context),
-            description: ('Sumber transaksi yang tersedia di kasir.').tr(context),
+            description: ('Sumber transaksi yang tersedia di kasir.').tr(
+              context,
+            ),
             values: _channelOptions,
             controller: _newChannelController,
             onAdd: () => _addOption(channel: true),
@@ -740,7 +760,8 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
           ),
           _buildOptionManager(
             label: ('Level Harga Aktif').tr(context),
-            description: ('Dipakai bersama oleh katalog inventaris dan kasir.').tr(context),
+            description: ('Dipakai bersama oleh katalog inventaris dan kasir.')
+                .tr(context),
             values: _priceLevelOptions,
             controller: _newPriceLevelController,
             onAdd: () => _addOption(channel: false),
@@ -763,7 +784,10 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
             ],
             onChanged: (val) => setState(() => _discountPolicy = val!),
           ),
-          _buildTextField(('Prefix Invoice').tr(context), _invoicePrefixController),
+          _buildTextField(
+            ('Prefix Invoice').tr(context),
+            _invoicePrefixController,
+          ),
           _buildTextField(
             ('Default Catatan').tr(context),
             _defaultCatatanController,
@@ -783,7 +807,11 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         title: ('Kasir & Keamanan').tr(context),
         icon: Icons.point_of_sale_outlined,
         children: [
-          ListTile(leading: const Icon(Icons.language), title: Text(posLocale(context).languageTitle), trailing: const LanguagePicker()),
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(posLocale(context).languageTitle),
+            trailing: const LanguagePicker(),
+          ),
           const SizedBox(height: 12),
           _buildSwitch(
             ('Cetak Struk Otomatis').tr(context),
@@ -1074,7 +1102,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => onAdd(),
                   decoration: InputDecoration(
-                    labelText: posLocale(context).pos56c80ff62e6d((label).toString()),
+                    labelText: posLocale(
+                      context,
+                    ).pos56c80ff62e6d((label).toString()),
                     hintText: ('Contoh: mitra khusus').tr(context),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -1105,6 +1135,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   }
 
   String _optionLabel(String value) {
+    if (value == 'take_away' && _businessProfile == 'jasa') {
+      return 'Layanan Langsung';
+    }
     const labels = <String, String>{
       'retail': 'Retail',
       'restoran': 'Restoran / Kafe',

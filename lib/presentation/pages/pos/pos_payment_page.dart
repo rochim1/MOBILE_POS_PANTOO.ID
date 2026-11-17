@@ -2084,26 +2084,26 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PosText(
-              'Rp ',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PosText(
+                'Rp ',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
-            ),
-            Text(
-              formatRupiahInput(amount),
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
+              Text(
+                formatRupiahInput(amount),
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ],
@@ -2231,150 +2231,154 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       builder: (dialogContext) {
         reservationDialogRoute = ModalRoute.of<bool>(dialogContext);
         return StatefulBuilder(
-        builder: (context, setDialogState) {
-          Future<void> pickDateTime(bool isStart) async {
-            final current = (isStart ? start : end) ?? DateTime.now();
-            final date = await showDatePicker(
-              context: context,
-              initialDate: current,
-              firstDate: DateTime.now().subtract(const Duration(days: 1)),
-              lastDate: DateTime.now().add(const Duration(days: 730)),
-            );
-            if (date == null || !context.mounted) return;
-            final time = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.fromDateTime(current),
-            );
-            if (time == null) return;
-            setDialogState(() {
-              final selected = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                time.hour,
-                time.minute,
+          builder: (context, setDialogState) {
+            Future<void> pickDateTime(bool isStart) async {
+              final current = (isStart ? start : end) ?? DateTime.now();
+              final date = await showDatePicker(
+                context: context,
+                initialDate: current,
+                firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                lastDate: DateTime.now().add(const Duration(days: 730)),
               );
-              if (isStart) {
-                start = selected;
-                end ??= selected.add(const Duration(hours: 2));
-              } else {
-                end = selected;
-              }
-            });
-          }
+              if (date == null || !context.mounted) return;
+              final time = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay.fromDateTime(current),
+              );
+              if (time == null) return;
+              setDialogState(() {
+                final selected = DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  time.hour,
+                  time.minute,
+                );
+                if (isStart) {
+                  start = selected;
+                  end ??= selected.add(const Duration(hours: 2));
+                } else {
+                  end = selected;
+                }
+              });
+            }
 
-          String dateLabel(DateTime? value) => value == null
-              ? 'Pilih tanggal & waktu'
-              : DateFormat('dd MMM yyyy, HH:mm').format(value.toLocal());
-          return PosKeyboardStableFormDialog(
-            width: 480,
-            height: 520,
-            title: const PosText('Detail reservasi'),
-            content: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: SizedBox(
-                width: 480,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const PosText('Mulai reservasi *'),
-                      subtitle: PosText(dateLabel(start)),
-                      trailing: const Icon(Icons.event_outlined),
-                      onTap: () => pickDateTime(true),
-                    ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const PosText('Selesai reservasi (opsional)'),
-                      subtitle: PosText(dateLabel(end)),
-                      trailing: const Icon(Icons.event_available_outlined),
-                      onTap: () => pickDateTime(false),
-                    ),
-                    const PosText('Jika tidak diubah, durasi awal reservasi 2 jam.'),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: guests,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: InputDecoration(
-                              labelText: ('Jumlah tamu').tr(context),
+            String dateLabel(DateTime? value) => value == null
+                ? 'Pilih tanggal & waktu'
+                : DateFormat('dd MMM yyyy, HH:mm').format(value.toLocal());
+            return PosKeyboardStableFormDialog(
+              width: 480,
+              height: 520,
+              title: const PosText('Detail reservasi'),
+              content: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: SizedBox(
+                  width: 480,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const PosText('Mulai reservasi *'),
+                        subtitle: PosText(dateLabel(start)),
+                        trailing: const Icon(Icons.event_outlined),
+                        onTap: () => pickDateTime(true),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const PosText('Selesai reservasi (opsional)'),
+                        subtitle: PosText(dateLabel(end)),
+                        trailing: const Icon(Icons.event_available_outlined),
+                        onTap: () => pickDateTime(false),
+                      ),
+                      const PosText(
+                        'Jika tidak diubah, durasi awal reservasi 2 jam.',
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: guests,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: InputDecoration(
+                                labelText: ('Jumlah tamu').tr(context),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: deposit,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: const [
-                              RupiahInputFormatter(decimalDigits: 2),
-                            ],
-                            decoration: InputDecoration(
-                              labelText: ('Deposit diminta').tr(context),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: deposit,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              inputFormatters: const [
+                                RupiahInputFormatter(decimalDigits: 2),
+                              ],
+                              decoration: InputDecoration(
+                                labelText: ('Deposit diminta').tr(context),
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                      if (error.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        PosText(
+                          error,
+                          style: const TextStyle(color: AppColors.danger),
                         ),
                       ],
-                    ),
-                    if (error.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      PosText(
-                        error,
-                        style: const TextStyle(color: AppColors.danger),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const PosText('Batal'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final guestCount = int.tryParse(guests.text) ?? 0;
-                  final depositAmount = parseRupiahAmount(deposit.text);
-                  if (start == null ||
-                      end == null ||
-                      !end!.isAfter(start!) ||
-                      guestCount < 1 ||
-                      !depositAmount.isFinite ||
-                      depositAmount < 0) {
-                    setDialogState(
-                      () => error =
-                          'Lengkapi waktu yang valid dan jumlah tamu minimal 1.',
-                    );
-                    return;
-                  }
-                  _reservationStartAt = start;
-                  _reservationEndAt = end;
-                  _reservationGuestCount = guestCount;
-                  _reservationDepositAmount = depositAmount;
-                  if (_serviceOrder != null) {
-                    _serviceOrder = {
-                      ..._serviceOrder!,
-                      'appointment_at': start!.toUtc().toIso8601String(),
-                    };
-                  }
-                  Navigator.pop(dialogContext, true);
-                },
-                child: const PosText('Simpan'),
-              ),
-            ],
-          );
-        },
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const PosText('Batal'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final guestCount = int.tryParse(guests.text) ?? 0;
+                    final depositAmount = parseRupiahAmount(deposit.text);
+                    if (start == null ||
+                        end == null ||
+                        !end!.isAfter(start!) ||
+                        guestCount < 1 ||
+                        !depositAmount.isFinite ||
+                        depositAmount < 0) {
+                      setDialogState(
+                        () => error =
+                            'Lengkapi waktu yang valid dan jumlah tamu minimal 1.',
+                      );
+                      return;
+                    }
+                    _reservationStartAt = start;
+                    _reservationEndAt = end;
+                    _reservationGuestCount = guestCount;
+                    _reservationDepositAmount = depositAmount;
+                    if (_serviceOrder != null) {
+                      _serviceOrder = {
+                        ..._serviceOrder!,
+                        'appointment_at': start!.toUtc().toIso8601String(),
+                      };
+                    }
+                    Navigator.pop(dialogContext, true);
+                  },
+                  child: const PosText('Simpan'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

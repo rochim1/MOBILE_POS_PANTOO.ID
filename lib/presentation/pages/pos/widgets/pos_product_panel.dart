@@ -810,8 +810,12 @@ class _PosProductPanelState extends State<PosProductPanel> {
         ),
       (
         value: 'take_away',
-        label: (profile == 'jasa' ? 'Layanan Langsung' : 'Bawa Pulang').tr(context),
-        icon: profile == 'jasa' ? Icons.handyman_outlined : Icons.shopping_bag_outlined,
+        label: (profile == 'jasa' ? 'Layanan Langsung' : 'Bawa Pulang').tr(
+          context,
+        ),
+        icon: profile == 'jasa'
+            ? Icons.handyman_outlined
+            : Icons.shopping_bag_outlined,
       ),
       if (features['use_delivery'] == true)
         (
@@ -846,8 +850,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
     'delivery' || 'online_delivery' => ('Pesan Antar').trCurrent(),
     'quick_service' => ('Layanan Cepat').trCurrent(),
     'reservation' => ('Reservasi').trCurrent(),
-    _ => (context.read<PosBloc>().state.runtimeConfig['business_profile'] == 'jasa'
-        ? 'Layanan Langsung' : 'Bawa Pulang').trCurrent(),
+    _ =>
+      (context.read<PosBloc>().state.runtimeConfig['business_profile'] == 'jasa'
+              ? 'Layanan Langsung'
+              : 'Bawa Pulang')
+          .trCurrent(),
   };
 
   Future<void> _showServedByInfo(BuildContext context, PosState state) {

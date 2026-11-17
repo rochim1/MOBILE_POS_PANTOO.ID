@@ -154,7 +154,8 @@ class PosRemoteProfileCatalog {
                       (type) => <String, String?>{
                         'value': type,
                         'label': value == 'jasa' && type == 'take_away'
-                            ? 'Layanan Langsung' : _orderLabels[type]!,
+                            ? 'Layanan Langsung'
+                            : _orderLabels[type]!,
                         'required_feature': _orderRequirements[type],
                       },
                     )
