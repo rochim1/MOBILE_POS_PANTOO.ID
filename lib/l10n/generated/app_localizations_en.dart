@@ -4817,7 +4817,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pos1416db327cbc => 'Landed Cost';
 
   @override
-  String get pos8aa2435c809f => 'Step 1 of 4 · Business Profile';
+  String get pos8aa2435c809f => 'Step 1 of 3 · Business Profile';
 
   @override
   String get posdc6bcae9bf52 => 'Step 1 · Stock location ready';
@@ -4829,13 +4829,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pos64db087956e5 => 'Step 2 · Active POS store';
 
   @override
-  String get pos553e7bc38201 => 'Step 3 of 4 · Transaction Defaults';
+  String get pos553e7bc38201 => 'Step 2 of 3 · Transaction Defaults';
 
   @override
   String get pos21ebb9cb6982 => 'Step 3 · Sales catalog';
 
   @override
-  String get pos9bffdb32cde8 => 'Step 4 of 4 · Inventory Validation';
+  String get pos9bffdb32cde8 => 'Step 3 of 3 · Inventory Validation';
 
   @override
   String get pos019fc97e4540 => 'Step 6 · Cashier operator PIN';
@@ -7732,7 +7732,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pos741cc223e0db =>
-      'The business profile enables relevant initial settings that can be changed later.';
+      'Operational features follow your business profile. Customize them later in POS Settings → Transactions & Sales.';
 
   @override
   String get pos0c14cf63b0e8 =>

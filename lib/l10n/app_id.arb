@@ -6685,7 +6685,7 @@
   "@pos1416db327cbc": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos8aa2435c809f": "Langkah 1 dari 4 · Profil Usaha",
+  "pos8aa2435c809f": "Langkah 1 dari 3 · Profil Usaha",
   "@pos8aa2435c809f": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -6701,7 +6701,7 @@
   "@pos64db087956e5": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos553e7bc38201": "Langkah 3 dari 4 · Default Transaksi",
+  "pos553e7bc38201": "Langkah 2 dari 3 · Default Transaksi",
   "@pos553e7bc38201": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -6709,7 +6709,7 @@
   "@pos21ebb9cb6982": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos9bffdb32cde8": "Langkah 4 dari 4 · Validasi Inventory",
+  "pos9bffdb32cde8": "Langkah 3 dari 3 · Validasi Inventory",
   "@pos9bffdb32cde8": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -10585,7 +10585,7 @@
   "@posab57b24264e8": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos741cc223e0db": "Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.",
+  "pos741cc223e0db": "Fitur operasional mengikuti profil usaha. Sesuaikan nanti di Pengaturan POS → Transaksi & Penjualan.",
   "@pos741cc223e0db": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },

@@ -4821,7 +4821,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get pos1416db327cbc => 'Landed Cost';
 
   @override
-  String get pos8aa2435c809f => 'Langkah 1 dari 4 · Profil Usaha';
+  String get pos8aa2435c809f => 'Langkah 1 dari 3 · Profil Usaha';
 
   @override
   String get posdc6bcae9bf52 => 'Langkah 1 · Lokasi stok siap';
@@ -4833,13 +4833,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get pos64db087956e5 => 'Langkah 2 · Toko POS aktif';
 
   @override
-  String get pos553e7bc38201 => 'Langkah 3 dari 4 · Default Transaksi';
+  String get pos553e7bc38201 => 'Langkah 2 dari 3 · Default Transaksi';
 
   @override
   String get pos21ebb9cb6982 => 'Langkah 3 · Katalog penjualan';
 
   @override
-  String get pos9bffdb32cde8 => 'Langkah 4 dari 4 · Validasi Inventory';
+  String get pos9bffdb32cde8 => 'Langkah 3 dari 3 · Validasi Inventory';
 
   @override
   String get pos019fc97e4540 => 'Langkah 6 · PIN operator kasir';
@@ -7737,7 +7737,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get pos741cc223e0db =>
-      'Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.';
+      'Fitur operasional mengikuti profil usaha. Sesuaikan nanti di Pengaturan POS → Transaksi & Penjualan.';
 
   @override
   String get pos0c14cf63b0e8 =>

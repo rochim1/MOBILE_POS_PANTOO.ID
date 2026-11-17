@@ -209,6 +209,7 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
 }
 
 class _PosOnboardingPageState extends State<PosOnboardingPage> {
+  static const _stepCount = 3;
   PosRemoteProfileCatalog _profileCatalog = PosRemoteProfileCatalog.bundled();
   final PageController _controller = PageController();
   int _index = 0;
@@ -324,6 +325,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
             ..._profileCatalog.featuresFor(_profile),
             ...settings.enabledFeatures,
           };
+          // Required inventory tracking must not depend on a hidden setup switch.
+          if (_inventoryRequiresStockTracking) _features['track_stock'] = true;
           _channels = <String>{
             'retail',
             ...settings.salesChannelOptions,
@@ -483,7 +486,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   void _next() {
-    if (_index == 3) {
+    if (_index == _stepCount - 1) {
       _save();
       return;
     }
@@ -539,41 +542,6 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               : null,
         ),
       ],
-    ),
-  );
-
-  Widget _switch(String key, String title, String subtitle) => Material(
-    type: MaterialType.transparency,
-    child: SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      value: _features[key] ?? false,
-      onChanged:
-          _canManage &&
-              !(key == 'track_stock' && _inventoryRequiresStockTracking)
-          ? (value) => setState(() {
-              _features[key] = value;
-              if (key == 'use_service_order' && !value) {
-                _features['use_appointments'] = false;
-                _features['use_technicians'] = false;
-                _features['use_vehicle_data'] = false;
-              } else if (value &&
-                  [
-                    'use_appointments',
-                    'use_technicians',
-                    'use_vehicle_data',
-                  ].contains(key)) {
-                _features['use_service_order'] = true;
-              }
-              if (!_fulfillmentOptions.contains(_fulfillment)) {
-                _fulfillment = 'take_away';
-              }
-            })
-          : null,
-      title: PosText(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-      subtitle: PosText(subtitle),
     ),
   );
 
@@ -648,11 +616,11 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                     onPageChanged: (value) => setState(() => _index = value),
                     children: [
                       _Slide(
-                        stepLabel: 'Langkah 1 dari 4 · Profil Usaha',
+                        stepLabel: 'Langkah 1 dari 3 · Profil Usaha',
                         icon: Icons.storefront_outlined,
                         title: ('Pilih profil usaha').tr(context),
                         description:
-                            ('Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.')
+                            ('Fitur operasional mengikuti profil usaha. Sesuaikan nanti di Pengaturan POS → Transaksi & Penjualan.')
                                 .tr(context),
                         children: [
                           if (_profileCatalog.source != 'backend')
@@ -694,27 +662,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         ],
                       ),
                       _Slide(
-                        stepLabel: 'Langkah 2 dari 4 · Fitur Operasional',
-                        icon: Icons.tune_rounded,
-                        title: ('Kebutuhan operasional').tr(context),
-                        description:
-                            ('Aktifkan hanya fitur yang digunakan usaha Anda.')
-                                .tr(context),
-                        children: [
-                          ..._profileCatalog.featureOptions.map(
-                            (option) => _switch(
-                              option['key']!,
-                              option['label']!,
-                              option['key'] == 'track_stock' &&
-                                      _inventoryRequiresStockTracking
-                                  ? 'Wajib aktif untuk profil Inventory saat ini'
-                                  : option['description']!,
-                            ),
-                          ),
-                        ],
-                      ),
-                      _Slide(
-                        stepLabel: 'Langkah 3 dari 4 · Default Transaksi',
+                        stepLabel: 'Langkah 2 dari 3 · Default Transaksi',
                         icon: Icons.point_of_sale_outlined,
                         title: ('Default transaksi').tr(context),
                         description:
@@ -763,7 +711,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                         ],
                       ),
                       _Slide(
-                        stepLabel: 'Langkah 4 dari 4 · Validasi Inventory',
+                        stepLabel: 'Langkah 3 dari 3 · Validasi Inventory',
                         icon: Icons.check_circle_outline_rounded,
                         title: ('Pastikan POS dan Inventory sejalan').tr(
                           context,
@@ -820,7 +768,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
-                        4,
+                        _stepCount,
                         (value) => AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
                           width: value == _index ? 20 : 7,
@@ -858,7 +806,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                                   !_taxPercent.isFinite ||
                                   _taxPercent < 0 ||
                                   _taxPercent > 100 ||
-                                  (_index == 3 && _healthIssues.isNotEmpty)
+                                  (_index == _stepCount - 1 &&
+                                      _healthIssues.isNotEmpty)
                               ? null
                               : _next,
                           icon: _saving
@@ -870,13 +819,13 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
                                   ),
                                 )
                               : Icon(
-                                  _index == 3
+                                  _index == _stepCount - 1
                                       ? Icons.check_rounded
                                       : Icons.arrow_forward_rounded,
                                   size: 18,
                                 ),
                           label: Text(
-                            _index == 3
+                            _index == _stepCount - 1
                                 ? ('Simpan').tr(context)
                                 : ('Lanjut').tr(context),
                           ),

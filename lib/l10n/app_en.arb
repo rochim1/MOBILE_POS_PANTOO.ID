@@ -6685,7 +6685,7 @@
   "@pos1416db327cbc": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos8aa2435c809f": "Step 1 of 4 · Business Profile",
+  "pos8aa2435c809f": "Step 1 of 3 · Business Profile",
   "@pos8aa2435c809f": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -6701,7 +6701,7 @@
   "@pos64db087956e5": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos553e7bc38201": "Step 3 of 4 · Transaction Defaults",
+  "pos553e7bc38201": "Step 2 of 3 · Transaction Defaults",
   "@pos553e7bc38201": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -6709,7 +6709,7 @@
   "@pos21ebb9cb6982": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos9bffdb32cde8": "Step 4 of 4 · Inventory Validation",
+  "pos9bffdb32cde8": "Step 3 of 3 · Inventory Validation",
   "@pos9bffdb32cde8": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -10585,7 +10585,7 @@
   "@posab57b24264e8": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos741cc223e0db": "The business profile enables relevant initial settings that can be changed later.",
+  "pos741cc223e0db": "Operational features follow your business profile. Customize them later in POS Settings → Transactions & Sales.",
   "@pos741cc223e0db": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },

@@ -278,29 +278,41 @@ void main() {
     });
   }
 
-  testWidgets('English setup translates the three-step flow and deferred settings guidance', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
-    sl.registerSingleton<PosRepository>(_Runtime());
-    sl.registerSingleton<PosSettingsRepository>(_Settings());
-    await tester.pumpWidget(const MaterialApp(
-      locale: Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: PosOnboardingPage(),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 1 of 3 · Business Profile'), findsOneWidget);
-    expect(find.text('Operational features follow your business profile. Customize them later in POS Settings → Transactions & Sales.'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 2 of 3 · Transaction Defaults'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 3 of 3 · Inventory Validation'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'English setup translates the three-step flow and deferred settings guidance',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      sl.registerSingleton<SharedPreferences>(
+        await SharedPreferences.getInstance(),
+      );
+      sl.registerSingleton<PosRepository>(_Runtime());
+      sl.registerSingleton<PosSettingsRepository>(_Settings());
+      await tester.pumpWidget(
+        const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PosOnboardingPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Step 1 of 3 · Business Profile'), findsOneWidget);
+      expect(
+        find.text(
+          'Operational features follow your business profile. Customize them later in POS Settings → Transactions & Sales.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Step 2 of 3 · Transaction Defaults'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Step 3 of 3 · Inventory Validation'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final inventory in ['simple', 'centralized', 'advanced', 'custom']) {
     testWidgets(

@@ -8633,7 +8633,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Langkah 1 dari 4 · Profil Usaha'**
+  /// **'Langkah 1 dari 3 · Profil Usaha'**
   String get pos8aa2435c809f;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -8657,7 +8657,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Langkah 3 dari 4 · Default Transaksi'**
+  /// **'Langkah 2 dari 3 · Default Transaksi'**
   String get pos553e7bc38201;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -8669,7 +8669,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Langkah 4 dari 4 · Validasi Inventory'**
+  /// **'Langkah 3 dari 3 · Validasi Inventory'**
   String get pos9bffdb32cde8;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -13853,7 +13853,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Profil usaha mengaktifkan konfigurasi awal yang relevan dan dapat diubah kembali nanti.'**
+  /// **'Fitur operasional mengikuti profil usaha. Sesuaikan nanti di Pengaturan POS → Transaksi & Penjualan.'**
   String get pos741cc223e0db;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
