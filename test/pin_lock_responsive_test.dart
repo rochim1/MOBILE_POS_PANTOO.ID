@@ -11,6 +11,7 @@ import 'package:mobile_pos_pantoo/presentation/pages/common/pin_lock_screen.dart
 import 'package:mobile_pos_pantoo/presentation/widgets/inactivity_wrapper.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_setup_tour.dart';
 
 class TestPosRepository extends Fake implements PosRepository {
@@ -391,7 +392,7 @@ void main() {
     await tester.pumpWidget(
       BlocProvider<AppLockCubit>.value(
         value: cubit,
-        child: const MaterialApp(home: PinLockScreen()),
+        child: MaterialApp(theme: AppTheme.light(), home: const PinLockScreen()),
       ),
     );
     await tester.pump();
@@ -404,6 +405,11 @@ void main() {
     expect(find.widgetWithText(TextField, 'Password akun'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'PIN baru'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Ulangi PIN'), findsOneWidget);
+    for (final label in ['Password akun', 'PIN baru', 'Ulangi PIN']) {
+      final field = tester.widget<TextField>(find.widgetWithText(TextField, label));
+      expect(field.decoration?.floatingLabelBehavior, FloatingLabelBehavior.always,
+          reason: 'Label $label must remain visible with the production theme, including after typing');
+    }
     await tester.enterText(
       find.widgetWithText(TextField, 'PIN baru'),
       '12ab34567',
