@@ -109,8 +109,9 @@ void main() {
       }
       final context = App.navigatorKey.currentContext!;
       await context.read<AuthCubit>().loginGoogle('verified-proof');
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       expect(find.byType(PosOnboardingGate), findsOneWidget,
           reason: 'Verified session must leave both public routes without waiting for subscription IO');
       expect(App.navigatorKey.currentState!.canPop(), isFalse);

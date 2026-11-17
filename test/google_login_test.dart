@@ -157,7 +157,7 @@ void main() {
       cache: GraphQLCache(),
       queryRequestTimeout: const Duration(minutes: 2),
       link: Link.function((request, [forward]) async* {
-        if (request.operation.operationName == 'Login') {
+        if (request.variables.containsKey('input')) {
           yield Response(data: {'Login': {
             'token': 'pantoo-session', 'refresh_token': 'pantoo-refresh',
             'user': {'_id': 'google-user', 'name': 'Kasir', 'instansi_id': {'_id': 'tenant'}},
