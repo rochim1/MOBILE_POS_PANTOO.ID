@@ -217,20 +217,27 @@ void main() {
       await cubit.close();
     },
   );
-  testWidgets('Google deadline includes verified session storage and bounded bootstrap', (tester) async {
-    final repository = _GoogleRepository();
-    final cubit = AuthCubit(authRepository: repository);
-    await cubit.checkSession();
-    final login = cubit.loginGoogle('proof');
-    // The GraphQL transport allows30s; accepted credentials can still need
-    // secure persistence and the bounded8s runtime request afterwards.
-    await tester.pump(const Duration(seconds: 33));
-    repository.pending.complete(const Right('Kasir'));
-    expect(await login, isNull,
-        reason: 'Do not report a false login timeout after valid credentials were saved');
-    expect(cubit.state.isAuthenticated, isTrue);
-    await cubit.close();
-  });
+  testWidgets(
+    'Google deadline includes verified session storage and bounded bootstrap',
+    (tester) async {
+      final repository = _GoogleRepository();
+      final cubit = AuthCubit(authRepository: repository);
+      await cubit.checkSession();
+      final login = cubit.loginGoogle('proof');
+      // The GraphQL transport allows30s; accepted credentials can still need
+      // secure persistence and the bounded8s runtime request afterwards.
+      await tester.pump(const Duration(seconds: 33));
+      repository.pending.complete(const Right('Kasir'));
+      expect(
+        await login,
+        isNull,
+        reason:
+            'Do not report a false login timeout after valid credentials were saved',
+      );
+      expect(cubit.state.isAuthenticated, isTrue);
+      await cubit.close();
+    },
+  );
   test(
     'runtime authorization rejection still invalidates Google session',
     () async {

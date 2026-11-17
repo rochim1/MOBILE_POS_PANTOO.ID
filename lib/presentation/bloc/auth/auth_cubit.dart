@@ -92,7 +92,9 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final result = await authRepository
           .loginWithGoogle(token, phone: phone, consent: consent)
-          .timeout(const Duration(seconds: 30));
+          // The transport itself allows30s. Allow the bounded8s runtime
+          // bootstrap and secure session persistence to finish as well.
+          .timeout(const Duration(seconds: 45));
       if (isClosed || revision != _sessionRevision) return null;
       return result.fold((failure) => failure, (name) {
         emit(AuthState.authenticated(username: name));
