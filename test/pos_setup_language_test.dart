@@ -50,8 +50,8 @@ Future<void> _open(WidgetTester tester, Widget page, {Size size = const Size(390
   await tester.pump(); await tester.pump(const Duration(milliseconds: 300));
 }
 Future<void> _chooseLanguage(WidgetTester tester, String label) async {
-  await tester.tap(find.byType(LanguagePicker)); await tester.pump(const Duration(milliseconds: 300));
-  await tester.tap(find.text(label)); await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.byType(LanguagePicker)); await tester.pump(); await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.text(label)); await tester.pump(); await tester.pump(const Duration(milliseconds: 300));
 }
 void _visiblePicker(WidgetTester tester) {
   expect(find.byType(LanguagePicker), findsOneWidget);

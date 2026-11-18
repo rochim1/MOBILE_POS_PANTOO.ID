@@ -13,6 +13,7 @@ import '../../../../injections.dart';
 import 'pos_shell_page.dart';
 import '../login/business_setup_page.dart';
 import '../../widgets/pos_business_profile_selector.dart';
+import '../../widgets/pos_setup_scaffold.dart';
 
 class PosOnboardingPage extends StatefulWidget {
   const PosOnboardingPage({super.key, this.onCompleted});
@@ -204,16 +205,14 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
   @override
   Widget build(BuildContext context) =>
       _destination ??
-      const Scaffold(
-        body: DecoratedBox(
-          decoration: BoxDecoration(
+      const PosSetupScaffold(
+          backgroundDecoration: BoxDecoration(
             image: DecorationImage(
               image: AssetImage('assets/images/geometric_bg.png'),
               fit: BoxFit.cover,
             ),
           ),
-          child: Center(child: CircularProgressIndicator()),
-        ),
+          body: Center(child: CircularProgressIndicator()),
       );
 }
 
@@ -437,10 +436,9 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => PosSetupScaffold(
     backgroundColor: AppColors.primary,
-    body: SafeArea(
-      child: Center(
+    body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: ConstrainedBox(
@@ -527,7 +525,6 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
             ),
           ),
         ),
-      ),
     ),
   );
 }

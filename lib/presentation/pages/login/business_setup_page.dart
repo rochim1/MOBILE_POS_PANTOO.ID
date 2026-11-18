@@ -12,6 +12,7 @@ import '../../../domain/repositories/pos_business_profile_repository.dart';
 import '../../../core/utils/product_image_picker.dart';
 import '../../widgets/pos_business_logo_picker.dart';
 import '../../widgets/pos_business_profile_selector.dart';
+import '../../widgets/pos_setup_scaffold.dart';
 import '../../../domain/models/pos_remote_profile_catalog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/lock/lock_cubit.dart';
@@ -118,10 +119,9 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PosSetupScaffold(
       backgroundColor: const Color(0xFF087F75),
-      body: SafeArea(
-        child: Center(
+      body: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: ConstrainedBox(
@@ -295,7 +295,6 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
               ),
             ),
           ),
-        ),
       ),
     );
   }
