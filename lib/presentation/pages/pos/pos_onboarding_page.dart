@@ -438,11 +438,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   @override
   Widget build(BuildContext context) => PosSetupScaffold(
     backgroundColor: AppColors.primary,
-    body: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
+    body: PosSetupScrollBody(
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -523,8 +519,6 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
               ),
             ),
           ),
-        ),
-      ),
     ),
   );
 }

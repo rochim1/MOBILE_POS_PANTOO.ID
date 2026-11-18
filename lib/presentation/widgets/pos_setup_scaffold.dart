@@ -34,6 +34,35 @@ class PosSetupScaffold extends StatelessWidget {
   );
 }
 
+/// Fill the viewport before limiting card width: gestures on the surrounding
+/// background must reach the same scrollable as gestures on the form itself.
+class PosSetupScrollBody extends StatelessWidget {
+  const PosSetupScrollBody({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      hitTestBehavior: HitTestBehavior.opaque,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: constraints.hasBoundedHeight
+              ? (constraints.maxHeight - 40).clamp(0, double.infinity)
+              : 0,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: child,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class PosSetupLanguageBar extends StatelessWidget {
   const PosSetupLanguageBar({super.key});
 

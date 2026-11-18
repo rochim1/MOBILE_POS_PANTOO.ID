@@ -121,11 +121,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   Widget build(BuildContext context) {
     return PosSetupScaffold(
       backgroundColor: const Color(0xFF087F75),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
+      body: PosSetupScrollBody(
             child: Card(
               elevation: 7,
               shape: RoundedRectangleBorder(
@@ -293,8 +289,6 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                 ),
               ),
             ),
-          ),
-        ),
       ),
     );
   }
