@@ -1343,9 +1343,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ? ''
           : product.reorderPoint.toStringAsFixed(0),
     );
-    _baseUnit = TextEditingController(
-      text: product?.saleUnit ?? ('unit').tr(context),
-    );
+    // Unit is a persisted key, not display copy. Reading Localizations here
+    // also fails before initState has completed on a newly opened form.
+    _baseUnit = TextEditingController(text: product?.saleUnit ?? 'unit');
     _prepTime = TextEditingController(
       text: product == null || (product.prepTimeMinutes ?? 0) <= 0
           ? ''
@@ -2056,6 +2056,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       Container(
         key: widget.setupTourTargets?.productType,
         child: DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _productType,
           decoration: InputDecoration(
             floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -2172,6 +2173,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _preparationMode,
                 decoration: InputDecoration(
                   floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -2765,14 +2767,15 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 10,
+            runSpacing: 8,
             children: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const PosText('Batal'),
               ),
-              const SizedBox(width: 10),
               FilledButton.icon(
                 key: widget.setupTourTargets?.productSave,
                 onPressed: _uploadingImage || _submitting ? null : _submit,
