@@ -97,8 +97,9 @@ class _InactivityWrapperState extends State<InactivityWrapper>
     if (!mounted ||
         !widget.authenticated ||
         revision != _policyRevision ||
-        _tenantId != tenant)
+        _tenantId != tenant) {
       return;
+    }
     _policyTenantId = tenant;
     final minutes = (config['pos_auto_lock_minutes'] as num?)?.toInt() ?? 5;
     setState(() {
@@ -202,6 +203,7 @@ class _InactivityWrapperState extends State<InactivityWrapper>
           final isLocked =
               widget.authenticated && state.status == AppLockStatus.locked;
           return Stack(
+            fit: StackFit.expand,
             children: [
               // Preserve route/draft state, but never leave its semantics or
               // focus tree active behind the independent PIN navigator.
