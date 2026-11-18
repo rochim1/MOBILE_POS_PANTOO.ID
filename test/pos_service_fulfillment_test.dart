@@ -250,6 +250,26 @@ void main() {
     expect(bloc.state.orderType, 'reservation');
     expect(tester.takeException(), isNull);
   });
+
+  for (final scale in [0.85, 0.98]) {
+    testWidgets('reservation time text entry survives compact scale $scale', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _open(tester, 'reservation', width: 411);
+      await tester.tap(find.text('Proses Bayar'));
+      await tester.pumpAndSettle();
+      await saveIntake(tester);
+      await tester.tap(find.text('Mulai reservasi *'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.byType(TextButton)).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.keyboard_outlined));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+      expect(find.byType(TextFormField), findsNWidgets(2));
+    });
+  }
   test('saved reservation is reused on payment retry, not asked again', () {
     final code = File(
       'lib/presentation/pages/pos/pos_payment_page.dart',
