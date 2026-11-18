@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../widgets/pos_time_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -1986,7 +1987,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     lastDate: DateTime.now().add(const Duration(days: 730)),
                   );
                   if (date == null || !context.mounted) return;
-                  final time = await showTimePicker(
+                  final time = await showPosTimePicker(
                     context: context,
                     initialTime: TimeOfDay.fromDateTime(start),
                   );
@@ -2015,7 +2016,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                     lastDate: DateTime.now().add(const Duration(days: 730)),
                   );
                   if (date == null || !context.mounted) return;
-                  final time = await showTimePicker(
+                  final time = await showPosTimePicker(
                     context: context,
                     initialTime: TimeOfDay.fromDateTime(end),
                   );

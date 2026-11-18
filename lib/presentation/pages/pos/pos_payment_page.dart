@@ -19,6 +19,7 @@ import '../../../../domain/repositories/pos_repository.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
+import '../../widgets/pos_time_picker.dart';
 import '../../../../domain/models/pos_order.dart';
 import '../../../../domain/models/pos_customer.dart';
 import 'widgets/pos_quick_customer_dialog.dart';
@@ -1098,7 +1099,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                               lastDate: now.add(const Duration(days: 730)),
                             );
                             if (date == null || !dialogContext.mounted) return;
-                            final time = await showTimePicker(
+                            final time = await showPosTimePicker(
                               context: dialogContext,
                               initialTime: appointmentAt == null
                                   ? TimeOfDay.now()
@@ -2241,7 +2242,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 lastDate: DateTime.now().add(const Duration(days: 730)),
               );
               if (date == null || !context.mounted) return;
-              final time = await showTimePicker(
+              final time = await showPosTimePicker(
                 context: context,
                 initialTime: TimeOfDay.fromDateTime(current),
               );

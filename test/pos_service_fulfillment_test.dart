@@ -252,7 +252,9 @@ void main() {
   });
 
   for (final scale in [0.85, 0.98]) {
-    testWidgets('reservation time text entry survives compact scale $scale', (tester) async {
+    testWidgets('reservation time text entry survives compact scale $scale', (
+      tester,
+    ) async {
       tester.platformDispatcher.textScaleFactorTestValue = scale;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _open(tester, 'reservation', width: 411);
@@ -261,7 +263,14 @@ void main() {
       await saveIntake(tester);
       await tester.tap(find.text('Mulai reservasi *'));
       await tester.pumpAndSettle();
-      await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.byType(TextButton)).last);
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.byType(TextButton),
+            )
+            .last,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.keyboard_outlined));
       await tester.pumpAndSettle();
