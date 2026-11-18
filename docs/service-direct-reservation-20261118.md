@@ -1,5 +1,7 @@
 # Jasa: layanan langsung dan reservasi — 18 November 2026
 
+Tindak lanjut GUI pada tanggal yang sama: **4/4 pembayaran tunai Android native dan web sudah PASS sampai lunas**, termasuk layanan langsung tanpa jadwal serta reservasi tanpa pertanyaan jadwal ulang. Perbaikan tambahan blur pencarian pelanggan dan mode ketik jam tercatat di [laporan pembayaran GUI](PAYMENT_SERVICE_GUI_ANDROID_WEB_20261118.md). Batas “belum GUI/build APK” di bagian pengujian awal dokumen ini adalah riwayat tahap sebelumnya, bukan status tindak lanjut tersebut.
+
 ## Permintaan dan keputusan
 
 Journeys diturunkan dari permintaan pengguna: profil Jasa memakai Layanan Langsung atau Reservasi; jadwal wajib hanya untuk Reservasi, tidak ditanyakan dua kali; pembayaran, pesanan, piutang, dan offline tidak boleh kehilangan harga atau membuat duplikat.
