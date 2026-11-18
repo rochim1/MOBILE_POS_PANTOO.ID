@@ -76,12 +76,15 @@ class _Profiles extends Fake implements PosBusinessProfileRepository {
 
 class _Auth extends Fake implements AuthRepository {
   int creates = 0;
+  String? profile;
   @override
   Future<Either<Failure, String>> createWorkspace({
     required String businessName,
     required String phone,
+    String businessProfile = 'retail',
   }) async {
     creates++;
+    profile = businessProfile;
     return const Right('tenant');
   }
 }
@@ -366,6 +369,7 @@ void main() {
       await tester.tap(submit);
       await tester.pumpAndSettle();
       expect(auth.creates, 1);
+      expect(auth.profile, 'restoran');
       expect(profiles.saves, 1);
       expect(
         sl<SharedPreferences>().getString(
