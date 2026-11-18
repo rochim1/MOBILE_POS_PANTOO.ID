@@ -3,6 +3,8 @@
 Tanggal: 18 November 2026, Asia/Jakarta.
 Status: **PASS untuk matriks otomatis perubahan ini: 136 tes, 0 gagal; pemeriksaan Flutter 10 berkas tanpa masalah.**
 
+Tindak lanjut GUI pada tanggal yang sama: **web retail dan Android native jasa sudah mencapai kasir**, termasuk pemeriksaan reload/buka ulang dan tidak ada toko/lokasi ganda. Temuan tambahan pada route web, PIN, dan modal katalog sudah diperbaiki. Lihat [hasil GUI Android dan web](SETUP_POS_GUI_ANDROID_WEB_20261118.md) untuk bukti, retest, dan batas cakupannya. Angka 136 di dokumen ini tetap merujuk tahap otomatis sebelumnya, bukan jumlah GUI atau gabungan seluruh run.
+
 ## Hasil untuk pengguna
 
 Usaha POS baru mengisi nama, telepon, dan profil usaha. Server menyiapkan satu toko dengan nama usaha dan satu lokasi `Stok <nama usaha>`. Cabang organisasi/pengelola tetap terpisah dari lokasi stok, sehingga hubungan transaksi dan Finance tidak ditukar. Lokasi awal menjadi default penerimaan pada Inventory sederhana.
@@ -86,7 +88,7 @@ Log lokal: `mobile_POS_Pantoo/output/initial-setup-backend-final.log`, `initial-
 - Tidak ada data produksi yang dibuat/diubah untuk tes ini. Database integrasi bersifat sementara dan dihentikan setelah run.
 - Uji Flutter di atas adalah widget/unit, bukan klaim E2E GUI pada APK terbaru di emulator/HP. Uji Vue menjalankan metode komponen serta kompilasi template, bukan sesi browser checkout produksi.
 - Pembayaran, piutang, retur, dan sinkronisasi offline secara menyeluruh tidak diuji ulang end-to-end pada pekerjaan onboarding ini; tidak boleh menjadikan angka 136 sebagai klaim semua fitur POS telah dites ulang.
-- Belum build APK/AAB, restart layanan produksi, atau deployment. Backend/schema perlu diperbarui sebelum client baru karena client meminta field runtime baru. Tidak perlu backfill penanda untuk instansi lama.
+- Pada tahap 136 tes ini belum build APK/AAB; tindak lanjut GUI membangun dan memasang APK QA debug, bukan artefak rilis. Belum restart layanan produksi atau deployment. Backend/schema perlu diperbarui sebelum client baru karena client meminta field runtime baru. Tidak perlu backfill penanda untuk instansi lama.
 - Penyederhanaan lanjutan form input katalog, pengukuran waktu pengguna sampai transaksi pertama, dan uji visual perangkat nyata merupakan tindak lanjut terpisah dari persiapan toko/lokasi otomatis ini.
 
 ## Pemeriksaan kualitas akhir
