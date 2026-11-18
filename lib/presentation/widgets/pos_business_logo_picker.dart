@@ -101,7 +101,7 @@ class _PosBusinessLogoPickerState extends State<PosBusinessLogoPicker> {
                     runSpacing: 6,
                     children: [
                       Tooltip(
-                        message: 'Pilih logo usaha',
+                        message: 'Pilih logo usaha'.tr(context),
                         child: OutlinedButton.icon(
                           onPressed: widget.enabled && !_picking ? _pick : null,
                           icon: _picking

@@ -7,6 +7,7 @@ import '../bloc/lock/lock_state.dart';
 import '../pages/common/pin_lock_screen.dart';
 import '../../injections.dart';
 import '../../domain/repositories/pos_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InactivityWrapper extends StatefulWidget {
   final Widget child;
@@ -36,6 +37,10 @@ class _InactivityWrapperState extends State<InactivityWrapper>
   bool _lockEnabled = false;
   bool _lockOnBackground = false;
   Duration? _configuredDuration;
+  String? _policyTenantId;
+  int _policyRevision = 0;
+  String get _tenantId =>
+      sl<SharedPreferences>().getString('instansi_id')?.trim() ?? '';
 
   Duration get _inactivityDuration =>
       _configuredDuration ?? widget.inactivityDuration;
@@ -77,8 +82,24 @@ class _InactivityWrapperState extends State<InactivityWrapper>
   }
 
   Future<void> _loadLockPolicy() async {
+    final tenant = _tenantId;
+    final revision = ++_policyRevision;
+    if (tenant.isEmpty) {
+      // A verified new account is not yet a POS tenant. Do not issue a
+      // tenant-scoped request or start an inactivity PIN over business setup.
+      _policyTenantId = '';
+      _lockEnabled = false;
+      _lockOnBackground = false;
+      _timer?.cancel();
+      return;
+    }
     final config = await sl<PosRepository>().getRuntimeConfig();
-    if (!mounted || !widget.authenticated) return;
+    if (!mounted ||
+        !widget.authenticated ||
+        revision != _policyRevision ||
+        _tenantId != tenant)
+      return;
+    _policyTenantId = tenant;
     final minutes = (config['pos_auto_lock_minutes'] as num?)?.toInt() ?? 5;
     setState(() {
       _lockEnabled = config['pos_lock_enabled'] != false;
@@ -170,6 +191,7 @@ class _InactivityWrapperState extends State<InactivityWrapper>
           if (state.status == AppLockStatus.unlocked) {
             _startTimer();
           } else if (state.status == AppLockStatus.locked) {
+            if (_policyTenantId != _tenantId) unawaited(_loadLockPolicy());
             _timer?.cancel();
             // A cashier search/input may still have focus behind the lock.
             // Release it before the PIN route requests keyboard focus.
@@ -181,7 +203,12 @@ class _InactivityWrapperState extends State<InactivityWrapper>
               widget.authenticated && state.status == AppLockStatus.locked;
           return Stack(
             children: [
-              widget.child,
+              // Preserve route/draft state, but never leave its semantics or
+              // focus tree active behind the independent PIN navigator.
+              Offstage(
+                offstage: isLocked,
+                child: ExcludeFocus(excluding: isLocked, child: widget.child),
+              ),
               if (isLocked)
                 Positioned.fill(
                   child: HeroControllerScope.none(

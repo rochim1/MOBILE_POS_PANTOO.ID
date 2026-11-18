@@ -9,6 +9,24 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get setupAutomaticContextHelp =>
+      'Toko dan lokasi stok awal dibuat otomatis. Setelah ini cukup tambahkan produk atau layanan. Pengaturan lain bisa menyusul.';
+
+  @override
+  String get setupBusinessLogo => 'Logo usaha';
+
+  @override
+  String get setupChooseBusinessLogo => 'Pilih logo usaha';
+
+  @override
+  String get setupBusinessLogoFormats =>
+      'Opsional · JPG, PNG, WebP · maksimal 5 MB';
+
+  @override
+  String get setupRemainingRequiredSteps =>
+      'Lengkapi langkah wajib yang belum selesai.';
+
+  @override
   String pos3f03891fda02(String arg1) {
     return '\nBatch $arg1';
   }

@@ -98,6 +98,36 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @setupAutomaticContextHelp.
+  ///
+  /// In id, this message translates to:
+  /// **'Toko dan lokasi stok awal dibuat otomatis. Setelah ini cukup tambahkan produk atau layanan. Pengaturan lain bisa menyusul.'**
+  String get setupAutomaticContextHelp;
+
+  /// No description provided for @setupBusinessLogo.
+  ///
+  /// In id, this message translates to:
+  /// **'Logo usaha'**
+  String get setupBusinessLogo;
+
+  /// No description provided for @setupChooseBusinessLogo.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih logo usaha'**
+  String get setupChooseBusinessLogo;
+
+  /// No description provided for @setupBusinessLogoFormats.
+  ///
+  /// In id, this message translates to:
+  /// **'Opsional · JPG, PNG, WebP · maksimal 5 MB'**
+  String get setupBusinessLogoFormats;
+
+  /// No description provided for @setupRemainingRequiredSteps.
+  ///
+  /// In id, this message translates to:
+  /// **'Lengkapi langkah wajib yang belum selesai.'**
+  String get setupRemainingRequiredSteps;
+
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:

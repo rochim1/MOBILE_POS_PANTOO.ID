@@ -23,9 +23,9 @@ class TestPosRepository extends Fake implements PosRepository {
   Future<Map<String, dynamic>> getRuntimeConfig() async {
     runtimeReads++;
     return {
-    'pos_lock_enabled': true,
-    'pos_lock_on_background': false,
-    'pos_auto_lock_minutes': 5,
+      'pos_lock_enabled': true,
+      'pos_lock_on_background': false,
+      'pos_auto_lock_minutes': 5,
     };
   }
 }
@@ -117,40 +117,82 @@ void main() {
   });
   setUp(() async {
     SharedPreferences.setMockInitialValues({'instansi_id': 'tenant-pin-test'});
-    sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+    sl.registerSingleton<SharedPreferences>(
+      await SharedPreferences.getInstance(),
+    );
     sl.registerSingleton<PosRepository>(TestPosRepository());
   });
   tearDown(() async {
     await sl.reset();
   });
-  testWidgets('new account does not request tenant runtime before workspace exists', (tester) async {
-    await sl<SharedPreferences>().remove('instansi_id');
-    final cubit = TestLockCubit()..seedUnlocked();addTearDown(cubit.close);
-    await tester.pumpWidget(BlocProvider<AppLockCubit>.value(value: cubit, child: MaterialApp(home: InactivityWrapper(authenticated: true, child: const Scaffold(body: Text('Setup usaha'))))));
-    await tester.pump();
-    expect((sl<PosRepository>() as TestPosRepository).runtimeReads, 0);
-    await sl<SharedPreferences>().setString('instansi_id', 'new-tenant');
-    cubit.seedLocked();await tester.pumpAndSettle();
-    expect((sl<PosRepository>() as TestPosRepository).runtimeReads, 1);
-    await tester.pumpWidget(const SizedBox());
-  });
-  testWidgets('PIN excludes underlying route semantics and restores them after unlock', (tester) async {
-    final semantics = tester.ensureSemantics();addTearDown(semantics.dispose);
-    final cubit = TestLockCubit()..seedUnlocked();addTearDown(cubit.close);
-    final navigation = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(BlocProvider<AppLockCubit>.value(value:cubit,child:MaterialApp(navigatorKey:navigation,builder:(context,child)=>InactivityWrapper(authenticated:true,child:child!),home:const Scaffold(body:Text('Private dashboard')))));
-    await tester.pumpAndSettle();
-    expect(find.bySemanticsLabel('Private dashboard'), findsWidgets);
-    cubit.seedLocked();await tester.pumpAndSettle();
-    expect(find.bySemanticsLabel('Private dashboard'), findsNothing);
-    navigation.currentState!.pushReplacement(MaterialPageRoute<void>(builder:(_)=>const Scaffold(body:Text('Private next route'))));
-    await tester.pumpAndSettle();expect(tester.takeException(),isNull);
-    expect(find.bySemanticsLabel('Private next route'), findsNothing);
-    cubit.seedUnlocked();await tester.pumpAndSettle();
-    expect(find.bySemanticsLabel('Private next route'), findsWidgets);
-    expect(tester.takeException(),isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'new account does not request tenant runtime before workspace exists',
+    (tester) async {
+      await sl<SharedPreferences>().remove('instansi_id');
+      final cubit = TestLockCubit()..seedUnlocked();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        BlocProvider<AppLockCubit>.value(
+          value: cubit,
+          child: MaterialApp(
+            home: InactivityWrapper(
+              authenticated: true,
+              child: const Scaffold(body: Text('Setup usaha')),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect((sl<PosRepository>() as TestPosRepository).runtimeReads, 0);
+      await sl<SharedPreferences>().setString('instansi_id', 'new-tenant');
+      cubit.seedLocked();
+      await tester.pumpAndSettle();
+      expect((sl<PosRepository>() as TestPosRepository).runtimeReads, 1);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'PIN excludes underlying route semantics and restores them after unlock',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        final cubit = TestLockCubit()..seedUnlocked();
+        addTearDown(cubit.close);
+        final navigation = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(
+          BlocProvider<AppLockCubit>.value(
+            value: cubit,
+            child: MaterialApp(
+              navigatorKey: navigation,
+              builder: (context, child) =>
+                  InactivityWrapper(authenticated: true, child: child!),
+              home: const Scaffold(body: Text('Private dashboard')),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('Private dashboard'), findsWidgets);
+        cubit.seedLocked();
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('Private dashboard'), findsNothing);
+        navigation.currentState!.pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(body: Text('Private next route')),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.bySemanticsLabel('Private next route'), findsNothing);
+        cubit.seedUnlocked();
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('Private next route'), findsWidgets);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      } finally {
+        semantics.dispose();
+      }
+    },
+  );
   testWidgets(
     'carousel changes only the left panel while PIN stays usable on the right',
     (tester) async {

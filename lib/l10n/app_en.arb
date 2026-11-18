@@ -1,5 +1,10 @@
 {
   "@@locale": "en",
+  "setupAutomaticContextHelp": "Your first store and stock location are created automatically. Next, add products or services. Other settings can wait.",
+  "setupBusinessLogo": "Business logo",
+  "setupChooseBusinessLogo": "Choose business logo",
+  "setupBusinessLogoFormats": "Optional · JPG, PNG, WebP · up to 5 MB",
+  "setupRemainingRequiredSteps": "Complete the remaining required steps.",
   "pos3f03891fda02": "\nBatch {arg1}",
   "@pos3f03891fda02": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data",

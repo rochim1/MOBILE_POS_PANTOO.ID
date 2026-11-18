@@ -9,6 +9,24 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get setupAutomaticContextHelp =>
+      'Your first store and stock location are created automatically. Next, add products or services. Other settings can wait.';
+
+  @override
+  String get setupBusinessLogo => 'Business logo';
+
+  @override
+  String get setupChooseBusinessLogo => 'Choose business logo';
+
+  @override
+  String get setupBusinessLogoFormats =>
+      'Optional · JPG, PNG, WebP · up to 5 MB';
+
+  @override
+  String get setupRemainingRequiredSteps =>
+      'Complete the remaining required steps.';
+
+  @override
   String pos3f03891fda02(String arg1) {
     return '\nBatch $arg1';
   }
