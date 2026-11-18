@@ -206,13 +206,13 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
   Widget build(BuildContext context) =>
       _destination ??
       const PosSetupScaffold(
-          backgroundDecoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/geometric_bg.png'),
-              fit: BoxFit.cover,
-            ),
+        backgroundDecoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/geometric_bg.png'),
+            fit: BoxFit.cover,
           ),
-          body: Center(child: CircularProgressIndicator()),
+        ),
+        body: Center(child: CircularProgressIndicator()),
       );
 }
 
@@ -439,92 +439,92 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   Widget build(BuildContext context) => PosSetupScaffold(
     backgroundColor: AppColors.primary,
     body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset('assets/images/pantoo.png', height: 60),
-                    const SizedBox(height: 20),
-                    if (_loading || _saving) ...[
-                      const Center(child: CircularProgressIndicator()),
-                      const SizedBox(height: 12),
-                      const PosText(
-                        'Menyiapkan Pantoo POS…',
-                        textAlign: TextAlign.center,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/images/pantoo.png', height: 60),
+                  const SizedBox(height: 20),
+                  if (_loading || _saving) ...[
+                    const Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 12),
+                    const PosText(
+                      'Menyiapkan Pantoo POS…',
+                      textAlign: TextAlign.center,
+                    ),
+                  ] else ...[
+                    PosText(
+                      'Pilih profil usaha',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                    ] else ...[
-                      PosText(
-                        'Pilih profil usaha',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const PosText(
-                        'Fitur operasional mengikuti profil usaha. Sesuaikan nanti di Pengaturan POS → Transaksi & Penjualan.',
-                      ),
-                      const SizedBox(height: 22),
-                      if (_settings != null)
-                        PosBusinessProfileSelector(
-                          value: _profile,
-                          catalog: _catalog,
-                          onChanged: !_canManage
-                              ? null
-                              : (value) => setState(() {
-                                  _applyProfile(value);
-                                  _error = null;
-                                }),
-                        ),
-                      if (_issues.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        PosText(
-                          _issues.join('\n'),
-                          style: const TextStyle(color: AppColors.danger),
-                        ),
-                      ],
-                      if (!_validTax) ...[
-                        const SizedBox(height: 16),
-                        const PosText(
-                          'Pajak harus antara 0 dan 100 persen',
-                          style: TextStyle(color: AppColors.danger),
-                        ),
-                      ],
-                      if (_error != null) ...[
-                        const SizedBox(height: 16),
-                        PosText(
-                          _error!,
-                          style: const TextStyle(color: AppColors.danger),
-                        ),
-                      ],
-                      const SizedBox(height: 22),
-                      FilledButton(
-                        onPressed: _settings == null
-                            ? _load
-                            : !_canManage || _issues.isNotEmpty || !_validTax
+                    ),
+                    const SizedBox(height: 12),
+                    const PosText(
+                      'Fitur operasional mengikuti profil usaha. Sesuaikan nanti di Pengaturan POS → Transaksi & Penjualan.',
+                    ),
+                    const SizedBox(height: 22),
+                    if (_settings != null)
+                      PosBusinessProfileSelector(
+                        value: _profile,
+                        catalog: _catalog,
+                        onChanged: !_canManage
                             ? null
-                            : _save,
-                        child: PosText(
-                          _settings == null ? 'Coba lagi' : 'Simpan',
-                        ),
+                            : (value) => setState(() {
+                                _applyProfile(value);
+                                _error = null;
+                              }),
                       ),
-                      TextButton(
-                        onPressed: _openPos,
-                        child: const PosText('Lewati'),
+                    if (_issues.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      PosText(
+                        _issues.join('\n'),
+                        style: const TextStyle(color: AppColors.danger),
                       ),
                     ],
+                    if (!_validTax) ...[
+                      const SizedBox(height: 16),
+                      const PosText(
+                        'Pajak harus antara 0 dan 100 persen',
+                        style: TextStyle(color: AppColors.danger),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 16),
+                      PosText(
+                        _error!,
+                        style: const TextStyle(color: AppColors.danger),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    FilledButton(
+                      onPressed: _settings == null
+                          ? _load
+                          : !_canManage || _issues.isNotEmpty || !_validTax
+                          ? null
+                          : _save,
+                      child: PosText(
+                        _settings == null ? 'Coba lagi' : 'Simpan',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _openPos,
+                      child: const PosText('Lewati'),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
           ),
         ),
+      ),
     ),
   );
 }
