@@ -141,6 +141,8 @@ class PosOnboardingGate extends StatefulWidget {
 
 class _PosOnboardingGateState extends State<PosOnboardingGate> {
   Widget? _destination;
+  String? _setupError;
+  bool _resolving = false;
 
   @override
   void initState() {
@@ -149,7 +151,42 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
   }
 
   Future<void> _resolveDestination() async {
+    if (_resolving) return;
+    _resolving = true;
+    if (mounted) setState(() => _setupError = null);
     final prefs = sl<SharedPreferences>();
+    Map<String, dynamic> runtime = {};
+    try {
+      runtime = Map<String, dynamic>.from(
+        jsonDecode(prefs.getString('pos_runtime_config') ?? '{}') as Map,
+      );
+    } catch (_) {
+      /* Old installations can have no runtime cache. */
+    }
+    final initial = runtime['initial_setup'];
+    if (initial is Map &&
+        initial['automatic'] == true &&
+        initial['status'] == 'pending' &&
+        initial['can_manage'] == true) {
+      final recovery = await sl<PosSettingsRepository>().ensureInitialSetup();
+      if (!mounted) return;
+      if (recovery.isLeft()) {
+        _resolving = false;
+        recovery.fold(
+          (failure) => setState(() => _setupError = failure.message),
+          (_) {},
+        );
+        return;
+      }
+      recovery.fold(
+        (_) {},
+        (value) => runtime['initial_setup'] = {
+          ...Map<String, dynamic>.from(initial),
+          'status': value['status'],
+        },
+      );
+      await prefs.setString('pos_runtime_config', jsonEncode(runtime));
+    }
     final result = await sl<PosSettingsRepository>().getSettings();
     final destination = await result.fold<Future<Widget>>(
       (_) async {
@@ -199,20 +236,38 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
       },
     );
     if (!mounted) return;
+    _resolving = false;
     setState(() => _destination = destination);
   }
 
   @override
   Widget build(BuildContext context) =>
       _destination ??
-      const PosSetupScaffold(
-        backgroundDecoration: BoxDecoration(
+      PosSetupScaffold(
+        backgroundDecoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/geometric_bg.png'),
             fit: BoxFit.cover,
           ),
         ),
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: _setupError == null
+              ? const CircularProgressIndicator()
+              : Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PosText(_setupError!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _resolveDestination,
+                        child: const PosText('Coba lagi'),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
       );
 }
 

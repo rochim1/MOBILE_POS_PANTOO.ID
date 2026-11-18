@@ -24,6 +24,7 @@ class _Auth extends Fake implements AuthRepository {
   Future<Either<Failure, String>> createWorkspace({
     required String businessName,
     required String phone,
+    String businessProfile = 'retail',
   }) {
     creates++;
     return pending.future;

@@ -52,6 +52,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
       final result = await sl<AuthRepository>().createWorkspace(
         businessName: _businessName.text.trim(),
         phone: _phone.text.trim(),
+        businessProfile: _profile,
       );
       if (!mounted) return;
       if (result.isLeft()) {
@@ -150,6 +151,10 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                     style: TextStyle(color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 24),
+                  const PosText(
+                    'Toko dan lokasi stok awal dibuat otomatis. Setelah ini cukup tambahkan produk atau layanan. Pengaturan lain bisa menyusul.',
+                  ),
+                  const SizedBox(height: 16),
                   PosBusinessLogoPicker(
                     value: _logo,
                     enabled: !_saving,

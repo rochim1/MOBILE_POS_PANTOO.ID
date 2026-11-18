@@ -4,6 +4,44 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_onboarding_page.dar
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test(
+    'compact new setup hides completed technical steps but preserves walkthrough IDs',
+    () {
+      final done = [true, true, false, true, true, false, false, false];
+      expect(
+        PosSetupReadiness.visibleStepIds(
+          automatic: true,
+          inventoryProfile: 'simple',
+          completed: done,
+        ),
+        [3, 6, 7, 8],
+      );
+      expect(
+        PosSetupReadiness.visibleStepIds(
+          automatic: false,
+          inventoryProfile: 'simple',
+          completed: done,
+        ),
+        [1, 2, 3, 4, 5, 6, 7, 8],
+      );
+      expect(
+        PosSetupReadiness.visibleStepIds(
+          automatic: true,
+          inventoryProfile: 'advanced',
+          completed: done,
+        ),
+        [1, 2, 3, 4, 5, 6, 7, 8],
+      );
+      expect(
+        PosSetupReadiness.visibleStepIds(
+          automatic: true,
+          inventoryProfile: 'simple',
+          completed: [true, true, false, true, false, false, false, false],
+        ),
+        contains(5),
+      );
+    },
+  );
   const complete = PosSetupReadiness(
     hasStore: true,
     hasStockLocation: true,

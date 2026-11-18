@@ -113,6 +113,7 @@ class AuthRepository {
   Future<Either<Failure, String>> createWorkspace({
     required String businessName,
     required String phone,
+    String businessProfile = 'retail',
   }) async {
     try {
       final result = await _clientProvider.client.mutate(
@@ -124,6 +125,7 @@ class AuthRepository {
               'nama_resmi': businessName.trim(),
               'telpon_number': phone.trim(),
               'primary_product': 'pos',
+              'pos_business_profile': businessProfile,
               'registration_source': 'mobile_pos',
               'requested_trial': 'pantoo_unlimited',
             },

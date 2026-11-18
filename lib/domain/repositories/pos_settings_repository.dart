@@ -8,11 +8,43 @@ import 'package:mobile_pos_pantoo/domain/models/pos_settings.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pos_remote_profile_catalog.dart';
+import '../../data/graphql/pos_queries.dart';
 
 class PosSettingsRepository {
   final GraphQLClientProvider _clientProvider;
 
   PosSettingsRepository(this._clientProvider);
+
+  Future<Either<Failure, Map<String, dynamic>>> ensureInitialSetup() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tenant = prefs.getString('instansi_id');
+      if (tenant == null || tenant.isEmpty) {
+        return const Left(ServerFailure('Profil usaha belum tersedia.'));
+      }
+      final result = await _clientProvider.client
+          .mutate(
+            MutationOptions(
+              document: gql(PosQueries.ensurePOSInitialSetup),
+              variables: {'requestId': 'initial-setup:$tenant'},
+              fetchPolicy: FetchPolicy.networkOnly,
+            ),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (result.hasException) {
+        return Left(AppErrorHandler.handle(result.exception!));
+      }
+      final data = result.data?['EnsurePOSInitialSetup'];
+      if (data is! Map) {
+        return const Left(
+          ServerFailure('Persiapan toko belum dapat dikonfirmasi.'),
+        );
+      }
+      return Right(Map<String, dynamic>.from(data));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    }
+  }
 
   Future<PosRemoteProfileCatalog> getProfileCatalog() async {
     SharedPreferences? prefs;

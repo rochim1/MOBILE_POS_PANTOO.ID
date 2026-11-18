@@ -1,4 +1,11 @@
 class PosQueries {
+  static const String ensurePOSInitialSetup = r'''
+    mutation EnsurePOSInitialSetup($requestId: String!) {
+      EnsurePOSInitialSetup(client_request_id: $requestId) {
+        status version automatic created reason toko_id stock_location_id
+      }
+    }
+  ''';
   static const String catalogPage = r'''
     query GetPOSCatalogPage($branch: ID!, $search: String, $category: String, $type: String, $promo: Boolean, $ids: [ID!], $pagination: pagination) {
       GetPOSCatalogPage(cabang_id: $branch, search: $search, category: $category, product_type: $type, promo_only: $promo, ids: $ids, pagination: $pagination) {
@@ -61,8 +68,10 @@ class PosQueries {
           default_transfer_transit_location_id
         }
         configuration_health { valid issues }
+        initial_setup { automatic status can_manage }
         operational_readiness {
           ready
+          context_ready
           has_sellable_warehouse
           sellable_warehouse_count
           has_linked_store

@@ -13,6 +13,20 @@ import 'pos_onboarding_page.dart';
 import 'widgets/pos_setup_tour.dart';
 
 class PosSetupReadiness {
+  // IDs stay stable for walkthrough routing even when the compact UI hides
+  // technical steps already completed by the server.
+  static List<int> visibleStepIds({
+    required bool automatic,
+    required String inventoryProfile,
+    required List<bool> completed,
+  }) => [
+    for (var id = 1; id <= completed.length; id++)
+      if (!(automatic &&
+          inventoryProfile == 'simple' &&
+          const {1, 2, 4, 5}.contains(id) &&
+          completed[id - 1]))
+        id,
+  ];
   final bool hasStore;
   final bool hasStockLocation;
   final bool hasProducts;
@@ -152,8 +166,9 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
           final productCount =
               sharedReadiness['product_count'] as int? ?? state.products.length;
           final healthy = health['valid'] != false;
-          final needsDisplayPair = (health['issues'] as List? ?? const [])
-              .any((issue) => issue.toString().contains('Isi Rak Display'));
+          final needsDisplayPair = (health['issues'] as List? ?? const []).any(
+            (issue) => issue.toString().contains('Isi Rak Display'),
+          );
           final needsTransitLocation = (health['issues'] as List? ?? const [])
               .any((issue) => issue.toString().contains('Lokasi Transit'));
           final readiness = PosSetupReadiness(
@@ -174,10 +189,14 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
             _SetupStep(
               title: ('Lokasi stok siap').tr(context),
               description: hasStockLocation
-                  ? posLocale(context).pose02d08abae0b((warehouseCount).toString())
+                  ? posLocale(
+                      context,
+                    ).pose02d08abae0b((warehouseCount).toString())
                   : trackStock
-                  ? ('Buat warehouse/lokasi dan pastikan dapat digunakan untuk stok.').tr(context)
-                  : ('Buat lokasi penjualan aktif untuk dihubungkan ke toko POS.').tr(context),
+                  ? ('Buat warehouse/lokasi dan pastikan dapat digunakan untuk stok.')
+                        .tr(context)
+                  : ('Buat lokasi penjualan aktif untuk dihubungkan ke toko POS.')
+                        .tr(context),
               complete: hasStockLocation,
               icon: Icons.warehouse_outlined,
               actionLabel: permissions['view_warehouses'] == true
@@ -185,92 +204,111 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   : null,
               destination: 7,
               section: 'warehouse',
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Buat lokasi operasional').tr(context),
                   description:
-                      ('Tambahkan cabang atau warehouse yang benar-benar menyimpan stok usaha.').tr(context),
+                      ('Tambahkan cabang atau warehouse yang benar-benar menyimpan stok usaha.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Lengkapi hierarki lokasi').tr(context),
                   description:
-                      ('Gedung, ruangan, dan rak bersifat opsional, tetapi membantu pelacakan saldo yang lebih presisi.').tr(context),
+                      ('Gedung, ruangan, dan rak bersifat opsional, tetapi membantu pelacakan saldo yang lebih presisi.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Aktifkan untuk penjualan').tr(context),
                   description:
-                      ('Pastikan lokasi penjualan aktif agar dapat dihubungkan ke toko POS.').tr(context),
+                      ('Pastikan lokasi penjualan aktif agar dapat dihubungkan ke toko POS.')
+                          .tr(context),
                 ),
               ],
             ),
             _SetupStep(
               title: ('Toko POS aktif').tr(context),
               description: hasStore
-                  ? posLocale(context).pos1c13a6636001((linkedStoreCount).toString())
-                  : ('Buat toko POS dan hubungkan dengan lokasi stok.').tr(context),
+                  ? posLocale(
+                      context,
+                    ).pos1c13a6636001((linkedStoreCount).toString())
+                  : ('Buat toko POS dan hubungkan dengan lokasi stok.').tr(
+                      context,
+                    ),
               complete: hasStore,
               icon: Icons.storefront_outlined,
               actionLabel: permissions['view_stores'] == true
                   ? 'Kelola toko'
                   : null,
               destination: 10,
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Buat toko POS').tr(context),
                   description:
-                      ('Isi nama toko dan identitas yang akan tampil pada transaksi serta struk.').tr(context),
+                      ('Isi nama toko dan identitas yang akan tampil pada transaksi serta struk.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Hubungkan lokasi stok').tr(context),
                   description:
-                      ('Pilih warehouse/lokasi penjualan aktif sebagai sumber stok toko.').tr(context),
+                      ('Pilih warehouse/lokasi penjualan aktif sebagai sumber stok toko.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Periksa status toko').tr(context),
                   description:
-                      ('Aktifkan toko dan pastikan profil POS yang benar digunakan oleh kasir.').tr(context),
+                      ('Aktifkan toko dan pastikan profil POS yang benar digunakan oleh kasir.')
+                          .tr(context),
                 ),
               ],
             ),
             _SetupStep(
               title: ('Katalog penjualan').tr(context),
               description: hasProducts
-                  ? posLocale(context).pos9511cddc9569((productCount).toString())
-                  : ('Tambahkan minimal satu produk, layanan, atau paket aktif.').tr(context),
+                  ? posLocale(
+                      context,
+                    ).pos9511cddc9569((productCount).toString())
+                  : ('Tambahkan minimal satu produk, layanan, atau paket aktif.')
+                        .tr(context),
               complete: hasProducts,
               icon: Icons.inventory_2_outlined,
               actionLabel: permissions['view_products'] == true
                   ? 'Kelola katalog'
                   : null,
               destination: 2,
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Pilih jenis produk').tr(context),
                   description:
-                      ('Gunakan produk stok, layanan, atau paket sesuai cara item dijual.').tr(context),
+                      ('Gunakan produk stok, layanan, atau paket sesuai cara item dijual.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Lengkapi informasi jual').tr(context),
                   description:
-                      ('Isi nama, kategori, satuan, harga, SKU/barcode, dan foto bila diperlukan.').tr(context),
+                      ('Isi nama, kategori, satuan, harga, SKU/barcode, dan foto bila diperlukan.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Aktifkan di POS').tr(context),
                   description:
-                      ('Pastikan produk aktif dan ditampilkan pada katalog penjualan.').tr(context),
+                      ('Pastikan produk aktif dan ditampilkan pada katalog penjualan.')
+                          .tr(context),
                 ),
               ],
             ),
             _SetupStep(
               title: ('Konfigurasi operasional').tr(context),
               description: healthy
-                  ? ('Profil inventory dan aturan stok POS sudah konsisten.').tr(context)
+                  ? ('Profil inventory dan aturan stok POS sudah konsisten.')
+                        .tr(context)
                   : ((health['issues'] as List? ?? const [])
                         .map((value) => value.toString())
                         .join(' · ')),
               complete: healthy,
               icon: Icons.tune_outlined,
-              actionLabel: !healthy && needsDisplayPair &&
+              actionLabel:
+                  !healthy &&
+                      needsDisplayPair &&
                       permissions['view_warehouses'] == true
                   ? 'Atur lokasi display'
                   : !healthy && needsTransitLocation
@@ -280,29 +318,35 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   : null,
               destination: needsDisplayPair ? 7 : 17,
               section: needsDisplayPair ? 'warehouse' : null,
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Periksa profil transaksi').tr(context),
                   description:
-                      ('Atur pelanggan wajib, pajak, biaya, pembulatan, dan aturan penjualan sesuai kebutuhan usaha.').tr(context),
+                      ('Atur pelanggan wajib, pajak, biaya, pembulatan, dan aturan penjualan sesuai kebutuhan usaha.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Selaraskan aturan stok').tr(context),
                   description:
-                      ('Pastikan produk yang melacak stok memakai lokasi dan satuan yang konsisten.').tr(context),
+                      ('Pastikan produk yang melacak stok memakai lokasi dan satuan yang konsisten.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Simpan dan validasi').tr(context),
                   description:
-                      ('Simpan perubahan lalu kembali ke ringkasan untuk melihat hasil pemeriksaan terbaru.').tr(context),
+                      ('Simpan perubahan lalu kembali ke ringkasan untuk melihat hasil pemeriksaan terbaru.')
+                          .tr(context),
                 ),
               ],
             ),
             _SetupStep(
               title: ('Stok awal produk').tr(context),
               description: hasInitialStock
-                  ? ('Stok awal produk sudah tersedia untuk mulai berjualan.').tr(context)
-                  : ('Isi stok awal setelah produk selesai dibuat.').tr(context),
+                  ? ('Stok awal produk sudah tersedia untuk mulai berjualan.')
+                        .tr(context)
+                  : ('Isi stok awal setelah produk selesai dibuat.').tr(
+                      context,
+                    ),
               complete: hasInitialStock,
               icon: Icons.inventory_outlined,
               actionLabel:
@@ -312,21 +356,24 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   : null,
               destination: 7,
               section: 'stock',
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Pilih lokasi saldo').tr(context),
                   description:
-                      ('Pilih cabang hingga rak yang benar agar stok awal tercatat di lokasi fisiknya.').tr(context),
+                      ('Pilih cabang hingga rak yang benar agar stok awal tercatat di lokasi fisiknya.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Masukkan stok melalui alur yang tepat').tr(context),
                   description:
-                      ('Gunakan penerimaan pembelian untuk barang datang atau stok awal/koreksi untuk saldo pembukaan.').tr(context),
+                      ('Gunakan penerimaan pembelian untuk barang datang atau stok awal/koreksi untuk saldo pembukaan.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Verifikasi rincian saldo').tr(context),
                   description:
-                      ('Buka detail produk dan pastikan jumlah serta hierarki lokasinya sudah sesuai.').tr(context),
+                      ('Buka detail produk dan pastikan jumlah serta hierarki lokasinya sudah sesuai.')
+                          .tr(context),
                 ),
               ],
             ),
@@ -335,7 +382,9 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
               description: hasPin
                   ? pinRequired
                         ? ('Operator kasir sudah terverifikasi.').tr(context)
-                        : ('Kunci PIN dinonaktifkan sesuai kebijakan POS.').tr(context)
+                        : ('Kunci PIN dinonaktifkan sesuai kebijakan POS.').tr(
+                            context,
+                          )
                   : ('Pilih operator dan buat/masukkan PIN kasir.').tr(context),
               complete: hasPin,
               icon: Icons.pin_outlined,
@@ -343,21 +392,24 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                   ? 'Atur PIN'
                   : null,
               destination: permissions['manage_settings'] == true ? 17 : null,
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Pilih operator kasir').tr(context),
                   description:
-                      ('Hanya pengguna yang berwenang dan memiliki PIN yang dapat membuka sesi kasir.').tr(context),
+                      ('Hanya pengguna yang berwenang dan memiliki PIN yang dapat membuka sesi kasir.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Buat PIN aman').tr(context),
                   description:
-                      ('Gunakan 4–6 digit angka yang mudah diingat operator tetapi tidak mudah ditebak.').tr(context),
+                      ('Gunakan 4–6 digit angka yang mudah diingat operator tetapi tidak mudah ditebak.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Verifikasi akses').tr(context),
                   description:
-                      ('Kunci layar lalu masuk kembali dengan operator dan PIN yang sudah dibuat.').tr(context),
+                      ('Kunci layar lalu masuk kembali dengan operator dan PIN yang sudah dibuat.')
+                          .tr(context),
                 ),
               ],
             ),
@@ -365,63 +417,88 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
               title: ('Shift kasir dibuka').tr(context),
               description: hasShift
                   ? shiftRequired
-                        ? ('Shift aktif dan transaksi dapat dimulai.').tr(context)
-                        : ('Penjualan tanpa shift diizinkan oleh kebijakan POS.').tr(context)
-                  : ('Pilih toko, masukkan modal awal, lalu buka shift.').tr(context),
+                        ? ('Shift aktif dan transaksi dapat dimulai.').tr(
+                            context,
+                          )
+                        : ('Penjualan tanpa shift diizinkan oleh kebijakan POS.')
+                              .tr(context)
+                  : ('Pilih toko, masukkan modal awal, lalu buka shift.').tr(
+                      context,
+                    ),
               complete: hasShift,
               icon: Icons.schedule_outlined,
               actionLabel: permissions['view_shifts'] == true
                   ? 'Buka shift'
                   : null,
               destination: 11,
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Pilih toko operasional').tr(context),
                   description:
-                      ('Pastikan shift dibuka pada toko yang akan melayani transaksi hari ini.').tr(context),
+                      ('Pastikan shift dibuka pada toko yang akan melayani transaksi hari ini.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Catat modal awal').tr(context),
                   description:
-                      ('Masukkan kas awal sesuai uang fisik di laci untuk memudahkan rekonsiliasi.').tr(context),
+                      ('Masukkan kas awal sesuai uang fisik di laci untuk memudahkan rekonsiliasi.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Buka dan pantau shift').tr(context),
                   description:
-                      ('Setelah aktif, transaksi dapat dimulai dan shift ditutup setelah rekonsiliasi.').tr(context),
+                      ('Setelah aktif, transaksi dapat dimulai dan shift ditutup setelah rekonsiliasi.')
+                          .tr(context),
                 ),
               ],
             ),
             _SetupStep(
               title: ('Panduan transaksi kasir').tr(context),
               description: setupCompleted
-                  ? ('Panduan kasir sudah dijalankan dan POS siap digunakan.').tr(context)
+                  ? ('Panduan kasir sudah dijalankan dan POS siap digunakan.')
+                        .tr(context)
                   : ready
-                  ? ('Semua prasyarat siap. Ikuti highlight interaktif di halaman kasir.').tr(context)
-                  : ('Selesaikan tujuh langkah sebelumnya terlebih dahulu.').tr(context),
+                  ? ('Semua prasyarat siap. Ikuti highlight interaktif di halaman kasir.')
+                        .tr(context)
+                  : ('Lengkapi langkah wajib yang belum selesai.').tr(context),
               complete: setupCompleted,
               icon: Icons.explore_outlined,
               actionLabel: ready ? 'Mulai panduan kasir' : null,
               onAction: ready ? widget.onStartCashier : null,
-              walkthrough:  [
+              walkthrough: [
                 _WalkthroughStage(
                   title: ('Kenali area kasir').tr(context),
                   description:
-                      ('Panduan interaktif akan menyorot pencarian produk, keranjang, pelanggan, dan tipe pemenuhan.').tr(context),
+                      ('Panduan interaktif akan menyorot pencarian produk, keranjang, pelanggan, dan tipe pemenuhan.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Simulasikan pesanan').tr(context),
                   description:
-                      ('Ikuti sorotan untuk menambah item, mengatur konteks order, lalu memeriksa total.').tr(context),
+                      ('Ikuti sorotan untuk menambah item, mengatur konteks order, lalu memeriksa total.')
+                          .tr(context),
                 ),
                 _WalkthroughStage(
                   title: ('Simpan atau bayar').tr(context),
                   description:
-                      ('Pelajari cara menyimpan pesanan aktif serta melanjutkan ke pembayaran dan struk.').tr(context),
+                      ('Pelajari cara menyimpan pesanan aktif serta melanjutkan ke pembayaran dan struk.')
+                          .tr(context),
                 ),
               ],
             ),
           ];
+
+          final initial = state.runtimeConfig['initial_setup'];
+          final visibleIds = PosSetupReadiness.visibleStepIds(
+            automatic:
+                initial is Map &&
+                initial['automatic'] == true &&
+                initial['status'] == 'ready',
+            inventoryProfile:
+                state.runtimeConfig['inventory_profile']?.toString() ??
+                'simple',
+            completed: steps.map((step) => step.complete).toList(),
+          );
 
           return ColoredBox(
             color: AppColors.bgPrimary,
@@ -471,8 +548,12 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                                       children: [
                                         Text(
                                           ready
-                                              ? ('POS siap digunakan').tr(context)
-                                              : ('Selesaikan setup POS').tr(context),
+                                              ? ('POS siap digunakan').tr(
+                                                  context,
+                                                )
+                                              : ('Selesaikan setup POS').tr(
+                                                  context,
+                                                ),
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleLarge
@@ -483,8 +564,10 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                                         const SizedBox(height: 3),
                                         Text(
                                           ready
-                                              ? ('Semua kebutuhan utama sudah tersedia. Anda dapat mulai melayani transaksi.').tr(context)
-                                              : ('Selesaikan secara berurutan agar stok, toko, kasir, dan shift tetap selaras.').tr(context),
+                                              ? ('Semua kebutuhan utama sudah tersedia. Anda dapat mulai melayani transaksi.')
+                                                    .tr(context)
+                                              : ('Selesaikan secara berurutan agar stok, toko, kasir, dan shift tetap selaras.')
+                                                    .tr(context),
                                           style: const TextStyle(
                                             color: Colors.black54,
                                             height: 1.35,
@@ -507,7 +590,11 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                posLocale(context).posf627ed309787((steps.where((step) => step.complete).length).toString(), (steps.length).toString()),
+                                posLocale(context).posf627ed309787(
+                                  (steps.where((step) => step.complete).length)
+                                      .toString(),
+                                  (steps.length).toString(),
+                                ),
                                 style: TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
@@ -518,10 +605,11 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        ...steps.indexed.map(
+                        ...visibleIds.indexed.map(
                           (entry) => _SetupStepCard(
                             number: entry.$1 + 1,
-                            step: entry.$2,
+                            walkthroughNumber: entry.$2,
+                            step: steps[entry.$2 - 1],
                             onNavigate: widget.onNavigate,
                             onStartWalkthrough: widget.onStartWalkthrough,
                           ),
@@ -594,6 +682,7 @@ class _WalkthroughStage {
 
 class _SetupStepCard extends StatelessWidget {
   final int number;
+  final int walkthroughNumber;
   final _SetupStep step;
   final void Function(int destination, String? section) onNavigate;
   final Future<void> Function(
@@ -607,6 +696,7 @@ class _SetupStepCard extends StatelessWidget {
 
   const _SetupStepCard({
     required this.number,
+    required this.walkthroughNumber,
     required this.step,
     required this.onNavigate,
     required this.onStartWalkthrough,
@@ -654,7 +744,9 @@ class _SetupStepCard extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Text(
-                step.complete ? ('Selesai').tr(context) : ('Perlu disiapkan').tr(context),
+                step.complete
+                    ? ('Selesai').tr(context)
+                    : ('Perlu disiapkan').tr(context),
                 style: TextStyle(
                   color: step.complete ? AppColors.success : AppColors.warning,
                   fontSize: 12,
@@ -689,12 +781,12 @@ class _SetupStepCard extends StatelessWidget {
         );
         final action = OutlinedButton.icon(
           onPressed: () {
-            if (number == 8 && step.onAction != null) {
+            if (walkthroughNumber == 8 && step.onAction != null) {
               step.onAction!();
               return;
             }
             onStartWalkthrough(
-              number,
+              walkthroughNumber,
               step.title,
               step.destination,
               step.section,
@@ -712,7 +804,11 @@ class _SetupStepCard extends StatelessWidget {
             step.complete ? Icons.replay_rounded : Icons.play_arrow_rounded,
             size: 17,
           ),
-          label: Text(step.complete ? ('Ulangi panduan').tr(context) : ('Mulai panduan').tr(context)),
+          label: Text(
+            step.complete
+                ? ('Ulangi panduan').tr(context)
+                : ('Mulai panduan').tr(context),
+          ),
         );
         return Padding(
           padding: const EdgeInsets.all(14),
@@ -804,7 +900,12 @@ Future<void> showPosCashierTour(BuildContext context) async {
             const SizedBox(height: 18),
             LinearProgressIndicator(value: (index + 1) / steps.length),
             const SizedBox(height: 6),
-            Text(posLocale(context).pos9074e3322f20((index + 1).toString(), (steps.length).toString())),
+            Text(
+              posLocale(context).pos9074e3322f20(
+                (index + 1).toString(),
+                (steps.length).toString(),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -829,7 +930,11 @@ Future<void> showPosCashierTour(BuildContext context) async {
               await prefs.setBool(key, true);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
             },
-            child: Text(index == steps.length - 1 ? ('Selesai').tr(context) : ('Berikutnya').tr(context)),
+            child: Text(
+              index == steps.length - 1
+                  ? ('Selesai').tr(context)
+                  : ('Berikutnya').tr(context),
+            ),
           ),
         ],
       ),
