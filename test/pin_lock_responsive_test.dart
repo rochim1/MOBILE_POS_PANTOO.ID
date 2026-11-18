@@ -15,14 +15,19 @@ import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_setup_tour.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TestPosRepository extends Fake implements PosRepository {
+  int runtimeReads = 0;
   @override
-  Future<Map<String, dynamic>> getRuntimeConfig() async => {
+  Future<Map<String, dynamic>> getRuntimeConfig() async {
+    runtimeReads++;
+    return {
     'pos_lock_enabled': true,
     'pos_lock_on_background': false,
     'pos_auto_lock_minutes': 5,
-  };
+    };
+  }
 }
 
 class TestLockCubit extends AppLockCubit {
@@ -110,11 +115,41 @@ void main() {
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
   });
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({'instansi_id': 'tenant-pin-test'});
+    sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
     sl.registerSingleton<PosRepository>(TestPosRepository());
   });
   tearDown(() async {
     await sl.reset();
+  });
+  testWidgets('new account does not request tenant runtime before workspace exists', (tester) async {
+    await sl<SharedPreferences>().remove('instansi_id');
+    final cubit = TestLockCubit()..seedUnlocked();addTearDown(cubit.close);
+    await tester.pumpWidget(BlocProvider<AppLockCubit>.value(value: cubit, child: MaterialApp(home: InactivityWrapper(authenticated: true, child: const Scaffold(body: Text('Setup usaha'))))));
+    await tester.pump();
+    expect((sl<PosRepository>() as TestPosRepository).runtimeReads, 0);
+    await sl<SharedPreferences>().setString('instansi_id', 'new-tenant');
+    cubit.seedLocked();await tester.pumpAndSettle();
+    expect((sl<PosRepository>() as TestPosRepository).runtimeReads, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('PIN excludes underlying route semantics and restores them after unlock', (tester) async {
+    final semantics = tester.ensureSemantics();addTearDown(semantics.dispose);
+    final cubit = TestLockCubit()..seedUnlocked();addTearDown(cubit.close);
+    final navigation = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(BlocProvider<AppLockCubit>.value(value:cubit,child:MaterialApp(navigatorKey:navigation,builder:(context,child)=>InactivityWrapper(authenticated:true,child:child!),home:const Scaffold(body:Text('Private dashboard')))));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Private dashboard'), findsWidgets);
+    cubit.seedLocked();await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Private dashboard'), findsNothing);
+    navigation.currentState!.pushReplacement(MaterialPageRoute<void>(builder:(_)=>const Scaffold(body:Text('Private next route'))));
+    await tester.pumpAndSettle();expect(tester.takeException(),isNull);
+    expect(find.bySemanticsLabel('Private next route'), findsNothing);
+    cubit.seedUnlocked();await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Private next route'), findsWidgets);
+    expect(tester.takeException(),isNull);
+    await tester.pumpWidget(const SizedBox());
   });
   testWidgets(
     'carousel changes only the left panel while PIN stays usable on the right',
