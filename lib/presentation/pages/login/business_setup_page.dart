@@ -122,173 +122,171 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
     return PosSetupScaffold(
       backgroundColor: const Color(0xFF087F75),
       body: PosSetupScrollBody(
-            child: Card(
-              elevation: 7,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Image.asset('assets/images/pantoo.png', height: 60),
-                      const SizedBox(height: 18),
-                      PosText(
-                        'Siapkan Profil Usaha',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      PosText(
-                        'Profil ini menjadi workspace utama untuk toko atau organisasi, produk, kasir, laporan, dan trial Pantoo Anda.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade700),
-                      ),
-                      const SizedBox(height: 24),
-                      PosBusinessLogoPicker(
-                        value: _logo,
-                        enabled: !_saving,
-                        pickImage: widget.pickLogo,
-                        onChanged: (image) => setState(() {
-                          _logo = image;
-                          _logoError = null;
-                        }),
-                        onRemove: () => setState(() {
-                          _logo = null;
-                          _logoError = null;
-                        }),
-                      ),
-                      const SizedBox(height: 22),
-                      TextFormField(
-                        errorBuilder: posValidationError,
-                        controller: _businessName,
-                        readOnly: _saving || _workspaceCreated,
-                        maxLength: 160,
-                        autofocus: true,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          floatingLabelBehavior: FloatingLabelBehavior.always,
-                          labelText: ('Nama Usaha/Organisasi').tr(context),
-                          hintText:
-                              ('Contoh: Toko Pantoo Jaya atau Koperasi Maju')
-                                  .tr(context),
-                          prefixIcon: Icon(Icons.storefront_outlined),
-                        ),
-                        validator: (value) => (value?.trim().length ?? 0) < 3
-                            ? ('Nama usaha atau organisasi minimal 3 karakter')
-                                  .tr(context)
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        errorBuilder: posValidationError,
-                        controller: _phone,
-                        readOnly: _saving || _workspaceCreated,
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.done,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        maxLength: 15,
-                        decoration: InputDecoration(
-                          floatingLabelBehavior: FloatingLabelBehavior.always,
-                          labelText: ('Nomor Telepon Usaha/Organisasi').tr(
-                            context,
-                          ),
-                          hintText: ('08xxxxxxxxxx').tr(context),
-                          helperText:
-                              ('Boleh memakai nomor penanggung jawab sementara.')
-                                  .tr(context),
-                          helperMaxLines: 2,
-                          prefixIcon: Icon(Icons.phone_outlined),
-                        ),
-                        onFieldSubmitted: (_) => _create(),
-                        validator: (value) {
-                          final phone = value?.trim() ?? '';
-                          return RegExp(
-                                r'^(?:0[0-9]{8,13}|62[0-9]{8,13})$',
-                              ).hasMatch(phone)
-                              ? null
-                              : ('Gunakan nomor aktif yang diawali 0 atau 62')
-                                    .tr(context);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      PosBusinessProfileSelector(
-                        value: _profile,
-                        catalog: _profileCatalog,
-                        onChanged: _saving
-                            ? null
-                            : (profile) => setState(() => _profile = profile),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F4F1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.workspace_premium_outlined,
-                              color: Color(0xFF087F75),
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: PosText(
-                                'Paket trial akan aktif otomatis setelah profil usaha berhasil dibuat.',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      if (_logoError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: PosText(
-                            _logoError!,
-                            style: const TextStyle(color: AppColors.danger),
-                          ),
-                        ),
-                      if (_workspaceCreated && !_saving)
-                        TextButton(
-                          onPressed: _continue,
-                          child: const PosText('Lanjutkan tanpa logo'),
-                        ),
-                      SizedBox(
-                        height: 50,
-                        child: FilledButton(
-                          onPressed: _saving ? null : _create,
-                          child: _saving
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : PosText(
-                                  _workspaceCreated
-                                      ? (_logo == null
-                                            ? 'Lanjutkan'
-                                            : 'Coba unggah logo lagi')
-                                      : 'Buat Profil & Lanjutkan',
-                                ),
-                        ),
-                      ),
-                    ],
+        child: Card(
+          elevation: 7,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Image.asset('assets/images/pantoo.png', height: 60),
+                  const SizedBox(height: 18),
+                  PosText(
+                    'Siapkan Profil Usaha',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  PosText(
+                    'Profil ini menjadi workspace utama untuk toko atau organisasi, produk, kasir, laporan, dan trial Pantoo Anda.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 24),
+                  PosBusinessLogoPicker(
+                    value: _logo,
+                    enabled: !_saving,
+                    pickImage: widget.pickLogo,
+                    onChanged: (image) => setState(() {
+                      _logo = image;
+                      _logoError = null;
+                    }),
+                    onRemove: () => setState(() {
+                      _logo = null;
+                      _logoError = null;
+                    }),
+                  ),
+                  const SizedBox(height: 22),
+                  TextFormField(
+                    errorBuilder: posValidationError,
+                    controller: _businessName,
+                    readOnly: _saving || _workspaceCreated,
+                    maxLength: 160,
+                    autofocus: true,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      labelText: ('Nama Usaha/Organisasi').tr(context),
+                      hintText: ('Contoh: Toko Pantoo Jaya atau Koperasi Maju')
+                          .tr(context),
+                      prefixIcon: Icon(Icons.storefront_outlined),
+                    ),
+                    validator: (value) => (value?.trim().length ?? 0) < 3
+                        ? ('Nama usaha atau organisasi minimal 3 karakter').tr(
+                            context,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    errorBuilder: posValidationError,
+                    controller: _phone,
+                    readOnly: _saving || _workspaceCreated,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 15,
+                    decoration: InputDecoration(
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      labelText: ('Nomor Telepon Usaha/Organisasi').tr(context),
+                      hintText: ('08xxxxxxxxxx').tr(context),
+                      helperText:
+                          ('Boleh memakai nomor penanggung jawab sementara.')
+                              .tr(context),
+                      helperMaxLines: 2,
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                    onFieldSubmitted: (_) => _create(),
+                    validator: (value) {
+                      final phone = value?.trim() ?? '';
+                      return RegExp(
+                            r'^(?:0[0-9]{8,13}|62[0-9]{8,13})$',
+                          ).hasMatch(phone)
+                          ? null
+                          : ('Gunakan nomor aktif yang diawali 0 atau 62').tr(
+                              context,
+                            );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  PosBusinessProfileSelector(
+                    value: _profile,
+                    catalog: _profileCatalog,
+                    onChanged: _saving
+                        ? null
+                        : (profile) => setState(() => _profile = profile),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F4F1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.workspace_premium_outlined,
+                          color: Color(0xFF087F75),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: PosText(
+                            'Paket trial akan aktif otomatis setelah profil usaha berhasil dibuat.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  if (_logoError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: PosText(
+                        _logoError!,
+                        style: const TextStyle(color: AppColors.danger),
+                      ),
+                    ),
+                  if (_workspaceCreated && !_saving)
+                    TextButton(
+                      onPressed: _continue,
+                      child: const PosText('Lanjutkan tanpa logo'),
+                    ),
+                  SizedBox(
+                    height: 50,
+                    child: FilledButton(
+                      onPressed: _saving ? null : _create,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : PosText(
+                              _workspaceCreated
+                                  ? (_logo == null
+                                        ? 'Lanjutkan'
+                                        : 'Coba unggah logo lagi')
+                                  : 'Buat Profil & Lanjutkan',
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ),
       ),
     );
   }

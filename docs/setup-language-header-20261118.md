@@ -46,3 +46,27 @@ flutter analyze --no-pub lib/presentation/widgets/pos_setup_scaffold.dart lib/pr
 Ini pengujian widget/komponen dan repository palsu, bukan uji GUI pada APK perangkat. Tidak ada build APK/AAB, perubahan backend/database, atau reset akun tambahan dalam pekerjaan ini. Login/daftar tetap memakai pemilih bahasa yang sudah ada; kerangka baru dapat dipakai ulang oleh halaman setup berikutnya.
 
 Evaluasi: akurasi 5/5 (output 67 PASS dan analyze bersih); kelengkapan 4/5 (belum diverifikasi lewat APK); kejelasan 5/5 (ruang lingkup header dan batas pengujian eksplisit); kesiapan ditindaklanjuti 4/5 (kode/tes tersedia, pemasangan perangkat belum dilakukan); keringkasan 4/5 (rincian pengujian sengaja dipisahkan dari ringkasan pengguna). Rata-rata 4,4/5; tidak ada aspek ≤2. Peningkatan berikutnya adalah pengecekan visual header pada Android saat keyboard nyata terbuka. Pengguna dapat menerima hasil ini dengan batas pengujian tersebut dijelaskan, tanpa klaim telah diuji pada perangkat.
+
+## Perbaikan lanjutan: scroll dari latar hijau
+
+Keluhan berikutnya: scroll hanya bekerja dari card, bukan latar hijau di sekitarnya. Reproduksi menemukan `Center` di luar scrollable membuat viewport mengikuti lebar card pada tablet/layar lebar.
+
+`PosSetupScrollBody` kini mengisi viewport sebelum membatasi lebar card menjadi 480. Area hijau di kiri/kanan card ikut menerima drag dan mouse wheel. Card pendek tetap di tengah tanpa scroll yang tidak perlu; card panjang tetap dapat digulir. Komponen dipakai pada pembuatan usaha dan konfigurasi profil POS. Header bahasa tetap terpisah dan tidak ikut bergulir.
+
+| Skenario | Hasil |
+|---|---|
+| Drag dari latar hijau kiri dan kanan pada 390×600, 1024×600, 1440×600 | PASS |
+| Mouse wheel pada latar hijau layar lebar | PASS |
+| Scroll dengan keyboard terbuka, tanpa kehilangan isian | PASS |
+| Konten pendek tetap di tengah dan tidak memiliki scroll berlebih | PASS |
+| Regresi scroll, bahasa, setup, logo, profil dan lokalisasi | **73 PASS**, exit 0 |
+| Analisis 4 file yang berubah | **No issues found**, exit 0 |
+
+RED `5b52475`: 2 PASS/3 FAIL pada 5 tes reproduksi (drag tablet/desktop dan wheel gagal). GREEN `481fcaa`: 5 tes tersebut PASS. Setelah penambahan tes konten pendek dan formatting, seluruh 73 tes regresi PASS. Coverage `pos_setup_scaffold.dart`, termasuk komponen scroll baru: **28/28 baris executable (100%)** dalam `output/setup-scroll-lcov.info`.
+
+```text
+flutter test --no-pub --concurrency=1 --coverage --coverage-path=output/setup-scroll-lcov.info test/pos_setup_scroll_test.dart test/pos_setup_language_test.dart test/business_setup_page_test.dart test/pos_onboarding_profile_test.dart test/pos_business_logo_flow_test.dart test/pos_setup_readiness_test.dart test/registration_flow_contract_test.dart test/setup_operational_labels_test.dart test/pos_localization_test.dart test/pos_translation_rescan_test.dart --reporter expanded
+flutter analyze --no-pub lib/presentation/widgets/pos_setup_scaffold.dart lib/presentation/pages/login/business_setup_page.dart lib/presentation/pages/pos/pos_onboarding_page.dart test/pos_setup_scroll_test.dart
+```
+
+Tetap berupa tes widget/gesture, bukan uji GUI perangkat atau build APK baru. Evaluasi lanjutan 4,4/5: akurasi 5 (73 PASS dan analyze terverifikasi), kelengkapan 4 (belum diuji pada APK), kejelasan 5 (penyebab dan batas viewport eksplisit), kesiapan 4 (kode selesai, pemasangan perangkat terpisah), keringkasan 4 (detail disimpan di catatan ini). Tidak ada aspek kritis ≤2; tindak lanjut opsional adalah verifikasi gesture pada perangkat Android nyata. Hasil layak diserahkan dengan batas pengujian tersebut dinyatakan.
