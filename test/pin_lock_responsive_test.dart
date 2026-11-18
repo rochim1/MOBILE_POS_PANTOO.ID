@@ -125,6 +125,23 @@ void main() {
   tearDown(() async {
     await sl.reset();
   });
+  testWidgets('locked overlay fills a subscription column with loose horizontal constraints', (tester) async {
+    final cubit = TestLockCubit()..seedLocked();addTearDown(cubit.close);
+    await tester.pumpWidget(
+      BlocProvider<AppLockCubit>.value(
+        value: cubit,
+        child: MaterialApp(
+          home: Column(children: [
+            Expanded(child: InactivityWrapper(authenticated: true, child: const Scaffold(body: Text('Dashboard')))),
+          ]),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(PinLockScreen)).width, tester.view.physicalSize.width / tester.view.devicePixelRatio);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'new account does not request tenant runtime before workspace exists',
     (tester) async {
