@@ -160,10 +160,11 @@ void main() {
       ('Pesanan & Meja', 5),
       ('Tampilan Dapur', 18),
       ('Promo & Voucher', 8),
-      ('Laporan Penjualan', 12),
+      ('Laporan', 12),
       ('Pengaturan POS', 17),
     ]) {
       await tester.scrollUntilVisible(find.text(label), 100);
+      await tester.pumpAndSettle();
       await tester.tap(find.text(label));
       expect(destination, index);
     }
