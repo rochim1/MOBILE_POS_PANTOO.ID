@@ -58,6 +58,8 @@ class PosSetupReadiness {
 class PosSetupGuidePage extends StatefulWidget {
   final void Function(int destination, String? section) onNavigate;
   final VoidCallback onStartCashier;
+  final VoidCallback onClose;
+  final VoidCallback onOpenCashier;
   final Future<void> Function(
     int stepNumber,
     String title,
@@ -71,6 +73,8 @@ class PosSetupGuidePage extends StatefulWidget {
     super.key,
     required this.onNavigate,
     required this.onStartCashier,
+    required this.onClose,
+    required this.onOpenCashier,
     required this.onStartWalkthrough,
   });
 
@@ -551,9 +555,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                                               ? ('POS siap digunakan').tr(
                                                   context,
                                                 )
-                                              : ('Selesaikan setup POS').tr(
-                                                  context,
-                                                ),
+                                              : ('Panduan POS').tr(context),
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleLarge
@@ -566,7 +568,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                                           ready
                                               ? ('Semua kebutuhan utama sudah tersedia. Anda dapat mulai melayani transaksi.')
                                                     .tr(context)
-                                              : ('Selesaikan secara berurutan agar stok, toko, kasir, dan shift tetap selaras.')
+                                              : ('Panduan ini opsional. Lengkapi sesuai kebutuhan; pengaturan toko tetap dipertahankan.')
                                                     .tr(context),
                                           style: const TextStyle(
                                             color: Colors.black54,
@@ -575,6 +577,11 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                                         ),
                                       ],
                                     ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Tutup panduan',
+                                    onPressed: widget.onClose,
+                                    icon: const Icon(Icons.close),
                                   ),
                                 ],
                               ),
@@ -615,21 +622,22 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: ready ? widget.onStartCashier : null,
-                            icon: const Icon(Icons.point_of_sale_outlined),
-                            label: const PosText('Mulai Berjualan'),
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(52),
+                        if (permissions['use_cashier'] == true)
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: widget.onOpenCashier,
+                              icon: const Icon(Icons.point_of_sale_outlined),
+                              label: const PosText('Buka kasir'),
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size.fromHeight(52),
+                              ),
                             ),
                           ),
-                        ),
                         if (!ready) ...[
                           const SizedBox(height: 8),
                           const PosText(
-                            'Tombol aktif setelah semua kebutuhan wajib selesai. Langkah tanpa akses harus diselesaikan admin POS.',
+                            'PIN, toko, dan shift tetap diperiksa saat membuka kasir. Pengaturan tambahan bisa dilengkapi nanti.',
                             style: TextStyle(
                               color: Colors.black54,
                               fontSize: 12,

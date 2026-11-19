@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +23,7 @@ class _Settings extends Fake implements PosSettingsRepository {
   @override
   Future<Either<Failure, PosSettings>> getSettings() {
     reads++;
-    return Completer<Either<Failure, PosSettings>>().future;
+    return Future.value(const Right(PosSettings()));
   }
 }
 
@@ -44,14 +43,20 @@ void main() {
     );
     final settings = _Settings();
     sl.registerSingleton<PosSettingsRepository>(settings);
-    await tester.pumpWidget(const MaterialApp(home: PosOnboardingGate()));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PosOnboardingGate(
+          shellBuilder: (_) => const Scaffold(body: Text('POS home')),
+        ),
+      ),
+    );
     await tester.pump();
     await tester.pump();
     return settings;
   }
 
   testWidgets(
-    'pending owner context recovers before loading settings and a failed request can retry',
+    'failed pending recovery still loads settings and allows home without retry loop',
     (tester) async {
       final settings = await open(tester, {
         'automatic': true,
@@ -59,14 +64,9 @@ void main() {
         'can_manage': true,
       });
       expect(settings.recoveries, 1);
-      expect(settings.reads, 0);
-      expect(find.textContaining('Koneksi terputus'), findsOneWidget);
-      settings.fail = false;
-      await tester.tap(find.text('Coba lagi'));
-      await tester.pump();
-      await tester.pump();
-      expect(settings.recoveries, 2);
       expect(settings.reads, 1);
+      expect(find.text('POS home'), findsOneWidget);
+      expect(settings.recoveries, 1);
       expect(find.text('Coba lagi'), findsNothing);
     },
   );

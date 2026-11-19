@@ -703,6 +703,14 @@ class _PosShellPageState extends State<PosShellPage>
       ? 1
       : 4;
 
+  void _openCashierWorkspace() {
+    if (_mobilePrimaryIndex != 1) return;
+    setState(() {
+      _showSetupGuide = false;
+      _selectedIndex = 1;
+    });
+  }
+
   void _backWithinMobileShell() {
     final destination = mobilePosBackDestination(
       _selectedIndex,
@@ -970,6 +978,8 @@ class _PosShellPageState extends State<PosShellPage>
         builder: (guideContext) => PosSetupGuidePage(
           onNavigate: _navigateSetupTarget,
           onStartCashier: () => _continueSetup(guideContext),
+          onClose: () => setState(() => _showSetupGuide = false),
+          onOpenCashier: _openCashierWorkspace,
           onStartWalkthrough: _startSetupStepTour,
         ),
       );
@@ -1674,12 +1684,10 @@ class _PosShellPageState extends State<PosShellPage>
                       ),
                       floatingActionButton:
                           isMobile &&
+                              _mobilePrimaryIndex == 1 &&
                               MediaQuery.of(context).viewInsets.bottom == 0
                           ? PosCashierEntryButton(
-                              onOpenCashier: () => setState(() {
-                                _showSetupGuide = false;
-                                _selectedIndex = 1;
-                              }),
+                              onOpenCashier: _openCashierWorkspace,
                             )
                           : null,
                       floatingActionButtonLocation:
