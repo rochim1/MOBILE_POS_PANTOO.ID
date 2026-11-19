@@ -35,6 +35,7 @@ import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_cashier_entry_button.dart';
+import 'widgets/pos_setup_suggestion.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
@@ -578,7 +579,17 @@ class _PosShellPageState extends State<PosShellPage>
       tourController: _productTourController,
     ),
     PosOrderPage(isGridView: _useHistoryGridView),
-    PosMoreMenuPage(onNavigate: _openMoreDestination, onLogout: _confirmLogout),
+    PosMoreMenuPage(
+      onNavigate: _openMoreDestination,
+      onLogout: _confirmLogout,
+      onOpenSetupGuide: () => _openSetupGuide(context),
+      setupSuggestion: _setupCompleted
+          ? null
+          : PosSetupSuggestion(
+              preferences: sl<SharedPreferences>(),
+              onOpenGuide: () => _openSetupGuide(context),
+            ),
+    ),
     PosOrderTableHubPage(
       key: ValueKey('table-orders-$_tableOrdersRefresh'),
       isGridView: _useOrderTableGridView,
@@ -811,7 +822,7 @@ class _PosShellPageState extends State<PosShellPage>
   }
 
   void _openSetupGuide(BuildContext blocContext) {
-    blocContext.read<PosBloc>().add(LoadPosData());
+    _posBloc.add(LoadPosData());
     setState(() => _showSetupGuide = true);
   }
 
@@ -955,10 +966,12 @@ class _PosShellPageState extends State<PosShellPage>
 
   Widget _buildSubscriptionShellBody(bool isMobile) {
     if (_showSetupGuide) {
-      return PosSetupGuidePage(
-        onNavigate: _navigateSetupTarget,
-        onStartCashier: _completeSetupAndStartCashier,
-        onStartWalkthrough: _startSetupStepTour,
+      return Builder(
+        builder: (guideContext) => PosSetupGuidePage(
+          onNavigate: _navigateSetupTarget,
+          onStartCashier: () => _continueSetup(guideContext),
+          onStartWalkthrough: _startSetupStepTour,
+        ),
       );
     }
 
@@ -973,88 +986,7 @@ class _PosShellPageState extends State<PosShellPage>
               Expanded(child: _pages[_selectedIndex]),
             ],
           );
-    if (_setupCompleted) return page;
-
-    return Column(
-      children: [
-        Expanded(child: page),
-        Builder(
-          builder: (bannerContext) => Material(
-            color: const Color(0xFFFFF7E6),
-            child: InkWell(
-              onTap: () => _openSetupGuide(bannerContext),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 12 : 16,
-                  vertical: isMobile ? 6 : 9,
-                ),
-                child: isMobile
-                    ? Row(
-                        children: [
-                          Icon(
-                            Icons.route_outlined,
-                            color: AppColors.warning,
-                            size: 19,
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: PosText(
-                              'Setup POS belum selesai',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: ('Lanjutkan setup').tr(context),
-                            visualDensity: VisualDensity.compact,
-                            constraints: const BoxConstraints.tightFor(
-                              width: 36,
-                              height: 36,
-                            ),
-                            padding: EdgeInsets.zero,
-                            onPressed: () => _continueSetup(bannerContext),
-                            icon: const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 19,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Icon(Icons.route_outlined, color: AppColors.warning),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: PosText(
-                              'Setup POS belum selesai. Simpan langkah ini, lalu kembali ke panduan.',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => _openSetupGuide(bannerContext),
-                            child: const PosText('Ringkasan'),
-                          ),
-                          const SizedBox(width: 4),
-                          FilledButton.icon(
-                            onPressed: () => _continueSetup(bannerContext),
-                            icon: const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 17,
-                            ),
-                            label: const PosText('Selanjutnya'),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    return page;
   }
 
   void _navigateWithKeyboard(int index) {
@@ -1178,7 +1110,6 @@ class _PosShellPageState extends State<PosShellPage>
                   if (!setupCompleted) {
                     setState(() {
                       _setupCompleted = false;
-                      _showSetupGuide = true;
                     });
                   }
                   _loadPOSAfterUnlock();
@@ -1745,10 +1676,10 @@ class _PosShellPageState extends State<PosShellPage>
                           isMobile &&
                               MediaQuery.of(context).viewInsets.bottom == 0
                           ? PosCashierEntryButton(
-                              showSetupGuide: _showSetupGuide,
-                              onContinueSetup: _continueSetup,
-                              onOpenCashier: () =>
-                                  setState(() => _selectedIndex = 1),
+                              onOpenCashier: () => setState(() {
+                                _showSetupGuide = false;
+                                _selectedIndex = 1;
+                              }),
                             )
                           : null,
                       floatingActionButtonLocation:

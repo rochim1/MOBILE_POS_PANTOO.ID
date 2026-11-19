@@ -16,10 +16,14 @@ class PosMoreMenuPage extends StatelessWidget {
     super.key,
     required this.onNavigate,
     required this.onLogout,
+    this.setupSuggestion,
+    this.onOpenSetupGuide,
   });
 
   final ValueChanged<int> onNavigate;
   final VoidCallback onLogout;
+  final Widget? setupSuggestion;
+  final VoidCallback? onOpenSetupGuide;
 
   /// Sama dengan aturan tampil sidebar POS: izin harus diberikan eksplisit.
   static Map<String, List<int>> visibleSections(
@@ -120,6 +124,7 @@ class PosMoreMenuPage extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 const SizedBox(height: 12),
+                if (setupSuggestion != null) setupSuggestion!,
                 for (final section in sections.entries)
                   if (section.value.isNotEmpty)
                     _MenuSection(
@@ -140,6 +145,12 @@ class PosMoreMenuPage extends StatelessWidget {
                 _MenuSection(
                   title: ('Akun').tr(context),
                   children: [
+                    if (onOpenSetupGuide != null)
+                      _MenuTile(
+                        title: 'Panduan POS',
+                        icon: Icons.help_outline,
+                        onTap: onOpenSetupGuide!,
+                      ),
                     if (sl.isRegistered<PosSubscriptionService>())
                       _MenuTile(
                         title: subscriptionText(

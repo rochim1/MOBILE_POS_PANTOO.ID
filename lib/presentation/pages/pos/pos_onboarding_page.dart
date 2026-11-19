@@ -133,7 +133,10 @@ class PosOnboardingPage extends StatefulWidget {
 }
 
 class PosOnboardingGate extends StatefulWidget {
-  const PosOnboardingGate({super.key});
+  const PosOnboardingGate({super.key, this.shellBuilder});
+
+  /// Hosts can embed the POS shell without coupling the setup resolver to it.
+  final WidgetBuilder? shellBuilder;
 
   @override
   State<PosOnboardingGate> createState() => _PosOnboardingGateState();
@@ -141,7 +144,6 @@ class PosOnboardingGate extends StatefulWidget {
 
 class _PosOnboardingGateState extends State<PosOnboardingGate> {
   Widget? _destination;
-  String? _setupError;
   bool _resolving = false;
 
   @override
@@ -153,7 +155,6 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
   Future<void> _resolveDestination() async {
     if (_resolving) return;
     _resolving = true;
-    if (mounted) setState(() => _setupError = null);
     final prefs = sl<SharedPreferences>();
     Map<String, dynamic> runtime = {};
     try {
@@ -168,76 +169,48 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
         initial['automatic'] == true &&
         initial['status'] == 'pending' &&
         initial['can_manage'] == true) {
-      final recovery = await sl<PosSettingsRepository>().ensureInitialSetup();
-      if (!mounted) return;
-      if (recovery.isLeft()) {
-        _resolving = false;
+      try {
+        final recovery = await sl<PosSettingsRepository>()
+            .ensureInitialSetup()
+            .timeout(const Duration(seconds: 15));
+        if (!mounted) return;
         recovery.fold(
-          (failure) => setState(() => _setupError = failure.message),
-          (_) {},
+          (_) {}, // Missing store remains guarded at cashier entry, not home.
+          (value) => runtime['initial_setup'] = {
+            ...Map<String, dynamic>.from(initial),
+            'status': value['status'],
+          },
         );
-        return;
+        await prefs.setString('pos_runtime_config', jsonEncode(runtime));
+      } catch (_) {
+        // Optional recovery can be retried from settings; do not trap the user.
       }
-      recovery.fold(
-        (_) {},
-        (value) => runtime['initial_setup'] = {
-          ...Map<String, dynamic>.from(initial),
-          'status': value['status'],
-        },
-      );
-      await prefs.setString('pos_runtime_config', jsonEncode(runtime));
     }
-    final result = await sl<PosSettingsRepository>().getSettings();
-    final destination = await result.fold<Future<Widget>>(
-      (_) async {
-        // Saat server tidak dapat dijangkau, cache lokal hanya dipakai sebagai
-        // fallback agar kasir yang sudah pernah setup tetap dapat bekerja.
-        if (PosOnboardingPage.isCompleted(prefs) ||
-            PosOnboardingPage.canManageSettings(prefs) == false) {
-          await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), true);
-          return PosShellPage(
-            showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(
-              prefs,
-            ),
-          );
-        }
-        return const PosOnboardingPage();
-      },
-      (settings) async {
-        final completed = settings.onboardingCompleted == true;
-        if (completed) {
-          await prefs.remove(PosOnboardingPage.pendingProfileKey(prefs));
-        }
-        await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), completed);
-        if (!completed) {
-          // Reset dari Web Admin/database harus menang terhadap cache perangkat.
-          await PosOnboardingPage.clearOperationalSetupCompleted(prefs);
-          // Setup awal milik tenant. Operator tanpa izin kelola tetap masuk
-          // POS, bukan terjebak di wizard baca-saja yang tidak dapat mereka simpan.
-          if (PosOnboardingPage.canManageSettings(prefs) == false) {
-            await prefs.setBool(PosOnboardingPage.preferenceKey(prefs), true);
-            return const PosShellPage();
-          }
-          return const PosOnboardingPage();
-        }
+    try {
+      final result = await sl<PosSettingsRepository>().getSettings().timeout(
+        const Duration(seconds: 15),
+      );
+      await result.fold<Future<void>>((_) async {}, (settings) async {
+        await prefs.setBool(
+          PosOnboardingPage.preferenceKey(prefs),
+          settings.onboardingCompleted == true,
+        );
         if (settings.operationalSetupCompleted == true) {
           await prefs.setBool(
             PosOnboardingPage.tenantSetupPreferenceKey(prefs),
             true,
           );
-        } else if (PosOnboardingPage.isOperationalSetupCompleted(prefs)) {
-          // Migrasikan instalasi lama yang sebelumnya hanya menyimpan progres
-          // tour secara lokal ke status per-instansi di server.
-          await sl<PosSettingsRepository>().markOperationalSetupCompleted();
         }
-        return PosShellPage(
-          showSetupGuide: !PosOnboardingPage.isOperationalSetupCompleted(prefs),
-        );
-      },
-    );
+      });
+    } catch (_) {
+      // Home and local data remain accessible offline. No defaults are rewritten.
+    }
     if (!mounted) return;
     _resolving = false;
-    setState(() => _destination = destination);
+    setState(
+      () => _destination =
+          widget.shellBuilder?.call(context) ?? const PosShellPage(),
+    );
   }
 
   @override
@@ -250,24 +223,7 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
             fit: BoxFit.cover,
           ),
         ),
-        body: Center(
-          child: _setupError == null
-              ? const CircularProgressIndicator()
-              : Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      PosText(_setupError!, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _resolveDestination,
-                        child: const PosText('Coba lagi'),
-                      ),
-                    ],
-                  ),
-                ),
-        ),
+        body: Center(child: const CircularProgressIndicator()),
       );
 }
 
@@ -483,8 +439,7 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
     }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) =>
-            const PosShellPage(prepareSalesData: true, showSetupGuide: true),
+        builder: (_) => const PosShellPage(prepareSalesData: true),
       ),
       (_) => false,
     );
