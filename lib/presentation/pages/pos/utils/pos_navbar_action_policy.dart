@@ -43,8 +43,9 @@ class PosNavbarActionPolicy {
       };
   int? get orderDestination {
     if (!_cashier) return null;
-    if (_can('view_tables') && PosOrderWorkspacePolicy(runtime).visible)
+    if (_can('view_tables') && PosOrderWorkspacePolicy(runtime).visible) {
       return 5;
+    }
     return _can('view_transactions') ? 3 : null;
   }
 }

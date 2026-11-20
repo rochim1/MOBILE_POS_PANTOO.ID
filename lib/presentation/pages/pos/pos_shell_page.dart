@@ -35,6 +35,8 @@ import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_cashier_entry_button.dart';
+import 'widgets/pos_navbar_context_actions.dart';
+import 'utils/pos_navbar_action_policy.dart';
 import 'widgets/pos_setup_suggestion.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
@@ -90,6 +92,7 @@ class _PosShellPageState extends State<PosShellPage>
   late bool _showSetupGuide;
   bool _setupCompleted = false;
   String _inventoryInitialSection = 'stock';
+  String? _inventoryActiveSection = 'stock';
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   Timer? _offlineSyncTimer;
   final PosCashierTourTargets _cashierTourTargets = PosCashierTourTargets();
@@ -610,6 +613,11 @@ class _PosShellPageState extends State<PosShellPage>
       key: ValueKey('inventory-$_inventoryInitialSection'),
       isGridView: _stockGridView,
       initialSection: _inventoryInitialSection,
+      onActiveSectionChanged: (section) {
+        if (mounted && _inventoryActiveSection != section) {
+          setState(() => _inventoryActiveSection = section);
+        }
+      },
       warehouseTourKey: _setupTourTargets.warehouseAdd,
       stockTourKey: _setupTourTargets.stockLocation,
       setupTourTargets: _setupTourTargets,
@@ -844,6 +852,7 @@ class _PosShellPageState extends State<PosShellPage>
       }
       if (index == 7 && section != null) {
         _inventoryInitialSection = section;
+        _inventoryActiveSection = section;
       }
       _showSetupGuide = false;
       _selectedIndex = index;
@@ -1343,326 +1352,325 @@ class _PosShellPageState extends State<PosShellPage>
                           },
                         ),
                         actions: [
-                          if (width >= 1200)
-                            IconButton(
-                              tooltip: ('Shortcut keyboard (F1)').tr(context),
-                              icon: const Icon(
-                                Icons.keyboard_alt_outlined,
-                                color: Colors.white,
-                              ),
-                              onPressed: _showKeyboardHelp,
-                            ),
-                          if (!isSmallScreen)
-                            ValueListenableBuilder<PosCustomerDisplayState>(
-                              valueListenable:
-                                  sl<PosCustomerDisplayService>().state,
-                              builder: (context, displayState, _) => IconButton(
-                                tooltip:
-                                    displayState.connection ==
-                                        PosCustomerDisplayConnection.connected
-                                    ? ('Layar pelanggan terhubung').tr(context)
-                                    : ('Hubungkan layar pelanggan').tr(context),
-                                icon: Badge(
-                                  isLabelVisible:
-                                      displayState.connection ==
-                                      PosCustomerDisplayConnection.connected,
-                                  smallSize: 8,
-                                  backgroundColor: AppColors.success,
-                                  child: const Icon(
-                                    Icons.connected_tv_outlined,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                onPressed: () =>
-                                    showPosCustomerDisplayPairing(context),
-                              ),
-                            ),
-                          if (!isSmallScreen)
-                            Builder(
-                              builder: (posBlocContext) => IconButton(
-                                tooltip: ('Checklist kesiapan POS').tr(context),
-                                icon: Icon(
-                                  _showSetupGuide
-                                      ? Icons.checklist_rounded
-                                      : Icons.fact_check_outlined,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () {
-                                  if (_showSetupGuide) {
-                                    setState(() => _showSetupGuide = false);
-                                  } else {
-                                    _openSetupGuide(posBlocContext);
-                                  }
-                                },
-                              ),
-                            ),
-                          SizedBox(
-                            width: isSmallScreen ? 40 : 48,
-                            child: _notificationButton(compact: isSmallScreen),
-                          ),
-                          if (!isSmallScreen)
-                            IconButton(
-                              tooltip: ('Kunci POS').tr(context),
-                              icon: const Icon(
-                                Icons.lock_outline,
-                                color: Colors.white,
-                              ),
-                              onPressed: () =>
-                                  context.read<AppLockCubit>().lock(),
-                            )
-                          else
-                            Builder(
-                              builder: (menuContext) => SizedBox(
-                                width: 40,
-                                child: PopupMenuButton<String>(
-                                  tooltip: ('Aksi lainnya').tr(context),
-                                  padding: EdgeInsets.zero,
-                                  iconSize: 20,
-                                  icon: const Icon(
-                                    Icons.more_vert,
-                                    color: Colors.white,
-                                  ),
-                                  onSelected: (value) {
-                                    if (value == 'setup') {
-                                      if (_showSetupGuide) {
-                                        setState(() => _showSetupGuide = false);
-                                      } else {
-                                        _openSetupGuide(menuContext);
-                                      }
-                                    } else if (value == 'lock') {
-                                      menuContext.read<AppLockCubit>().lock();
-                                    } else if (value == 'customer_display') {
-                                      showPosCustomerDisplayPairing(
-                                        menuContext,
-                                      );
-                                    } else if (value == 'keyboard_help') {
-                                      _showKeyboardHelp();
-                                    }
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
-                                      value: 'keyboard_help',
-                                      child: ListTile(
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        leading: Icon(
-                                          Icons.keyboard_alt_outlined,
+                          BlocBuilder<PosBloc, PosState>(
+                            buildWhen: (previous, current) =>
+                                previous.runtimeConfig != current.runtimeConfig,
+                            builder: (context, state) {
+                              final subscription =
+                                  sl.isRegistered<PosSubscriptionService>()
+                                  ? sl<PosSubscriptionService>()
+                                  : null;
+                              return AnimatedBuilder(
+                                animation: Listenable.merge([
+                                  if (subscription != null) subscription,
+                                ]),
+                                builder: (context, _) {
+                                  final navbarPolicy = PosNavbarActionPolicy(
+                                    state.runtimeConfig,
+                                    page: _selectedIndex,
+                                    inventorySection: _inventoryActiveSection,
+                                    showSetupGuide: _showSetupGuide,
+                                    locked:
+                                        context
+                                            .watch<AppLockCubit>()
+                                            .state
+                                            .status !=
+                                        AppLockStatus.unlocked,
+                                    pageBodyEnabled:
+                                        subscription == null ||
+                                        !subscription.required ||
+                                        subscription.canSell ||
+                                        const {
+                                          3,
+                                          4,
+                                          11,
+                                          12,
+                                          14,
+                                          15,
+                                        }.contains(_selectedIndex),
+                                  );
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      PosNavbarContextActions(
+                                        policy: navbarPolicy,
+                                        compact: isSmallScreen,
+                                        showKeyboardIcon: width >= 1200,
+                                        notificationButton: _notificationButton(
+                                          compact: isSmallScreen,
                                         ),
-                                        title: PosText('Shortcut keyboard'),
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'setup',
-                                      child: ListTile(
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        leading: Icon(
-                                          Icons.fact_check_outlined,
+                                        onKeyboardHelp: _showKeyboardHelp,
+                                        onToggleGuide: () => setState(
+                                          () => _showSetupGuide =
+                                              !_showSetupGuide,
                                         ),
-                                        title: PosText('Checklist kesiapan'),
+                                        onLock: () =>
+                                            context.read<AppLockCubit>().lock(),
+                                        onCustomerDisplay: () =>
+                                            showPosCustomerDisplayPairing(
+                                              context,
+                                            ),
+                                        customerDisplayBuilder: (context) =>
+                                            ValueListenableBuilder<
+                                              PosCustomerDisplayState
+                                            >(
+                                              valueListenable:
+                                                  sl<PosCustomerDisplayService>()
+                                                      .state,
+                                              builder: (context, displayState, _) => IconButton(
+                                                tooltip:
+                                                    (displayState.connection ==
+                                                                PosCustomerDisplayConnection
+                                                                    .connected
+                                                            ? 'Layar pelanggan terhubung'
+                                                            : 'Hubungkan layar pelanggan')
+                                                        .tr(context),
+                                                icon: Badge(
+                                                  isLabelVisible:
+                                                      displayState.connection ==
+                                                      PosCustomerDisplayConnection
+                                                          .connected,
+                                                  smallSize: 8,
+                                                  backgroundColor:
+                                                      AppColors.success,
+                                                  child: const Icon(
+                                                    Icons.connected_tv_outlined,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                onPressed: () =>
+                                                    showPosCustomerDisplayPairing(
+                                                      context,
+                                                    ),
+                                              ),
+                                            ),
                                       ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'customer_display',
-                                      child: ListTile(
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        leading: Icon(
-                                          Icons.connected_tv_outlined,
+                                      if (_selectedIndex == 1 &&
+                                          navbarPolicy.layoutToggle) ...[
+                                        BlocBuilder<PosBloc, PosState>(
+                                          builder: (context, state) {
+                                            return IconButton(
+                                              style: isSmallScreen
+                                                  ? IconButton.styleFrom(
+                                                      fixedSize:
+                                                          const Size.square(40),
+                                                      padding: EdgeInsets.zero,
+                                                    )
+                                                  : null,
+                                              icon: Icon(
+                                                state.isGridView
+                                                    ? Icons.list
+                                                    : Icons.grid_view,
+                                                color: Colors.white,
+                                              ),
+                                              onPressed: () {
+                                                context.read<PosBloc>().add(
+                                                  ToggleGridView(),
+                                                );
+                                              },
+                                            );
+                                          },
                                         ),
-                                        title: PosText('Layar pelanggan'),
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'lock',
-                                      child: ListTile(
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        leading: Icon(Icons.lock_outline),
-                                        title: PosText('Kunci POS'),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          if (_selectedIndex == 1) ...[
-                            BlocBuilder<PosBloc, PosState>(
-                              builder: (context, state) {
-                                return IconButton(
-                                  style: isSmallScreen
-                                      ? IconButton.styleFrom(
-                                          fixedSize: const Size.square(40),
-                                          padding: EdgeInsets.zero,
-                                        )
-                                      : null,
-                                  icon: Icon(
-                                    state.isGridView
-                                        ? Icons.list
-                                        : Icons.grid_view,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    context.read<PosBloc>().add(
-                                      ToggleGridView(),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                            if (!isSmallScreen)
-                              BlocBuilder<PosBloc, PosState>(
-                                builder: (context, state) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 10.0,
-                                    horizontal: 8.0,
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _selectedIndex =
-                                            PosOrderWorkspacePolicy(
-                                                  state.runtimeConfig,
-                                                ).visible &&
-                                                (state.runtimeConfig['permissions']
-                                                        as Map?)?['view_tables'] ==
-                                                    true
-                                            ? 5
-                                            : 3;
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors
-                                          .teal
-                                          .shade600, // A darker green for the button
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          PosOrderWorkspacePolicy(
-                                                    state.runtimeConfig,
-                                                  ).visible &&
-                                                  (state.runtimeConfig['permissions']
-                                                          as Map?)?['view_tables'] ==
-                                                      true
-                                              ? PosOrderWorkspacePolicy(
-                                                  state.runtimeConfig,
-                                                ).title
-                                              : ('Riwayat Transaksi').tr(
+                                        if (!isSmallScreen &&
+                                            navbarPolicy.orderDestination !=
+                                                null)
+                                          BlocBuilder<PosBloc, PosState>(
+                                            builder: (context, state) => Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 10.0,
+                                                    horizontal: 8.0,
+                                                  ),
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _selectedIndex =
+                                                        PosOrderWorkspacePolicy(
+                                                              state
+                                                                  .runtimeConfig,
+                                                            ).visible &&
+                                                            (state.runtimeConfig['permissions']
+                                                                    as Map?)?['view_tables'] ==
+                                                                true
+                                                        ? 5
+                                                        : 3;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors
+                                                      .teal
+                                                      .shade600, // A darker green for the button
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      PosOrderWorkspacePolicy(
+                                                                state
+                                                                    .runtimeConfig,
+                                                              ).visible &&
+                                                              (state.runtimeConfig['permissions']
+                                                                      as Map?)?['view_tables'] ==
+                                                                  true
+                                                          ? PosOrderWorkspacePolicy(
+                                                              state
+                                                                  .runtimeConfig,
+                                                            ).title
+                                                          : ('Riwayat Transaksi')
+                                                                .tr(context),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    const Icon(
+                                                      Icons.chevron_right,
+                                                      size: 16,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                      if (_selectedIndex == 2 &&
+                                          navbarPolicy.layoutToggle)
+                                        IconButton(
+                                          style: isSmallScreen
+                                              ? IconButton.styleFrom(
+                                                  fixedSize: const Size.square(
+                                                    40,
+                                                  ),
+                                                  padding: EdgeInsets.zero,
+                                                )
+                                              : null,
+                                          tooltip: _productGridView
+                                              ? ('Tampilkan sebagai tabel').tr(
+                                                  context,
+                                                )
+                                              : ('Tampilkan sebagai grid').tr(
                                                   context,
                                                 ),
+                                          icon: Icon(
+                                            _productGridView
+                                                ? Icons.table_rows
+                                                : Icons.grid_view,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(
+                                              () => _productGridView =
+                                                  !_productGridView,
+                                            );
+                                          },
                                         ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          size: 16,
+                                      if (_selectedIndex == 7 &&
+                                          navbarPolicy.layoutToggle)
+                                        IconButton(
+                                          style: isSmallScreen
+                                              ? IconButton.styleFrom(
+                                                  fixedSize: const Size.square(
+                                                    40,
+                                                  ),
+                                                  padding: EdgeInsets.zero,
+                                                )
+                                              : null,
+                                          tooltip: _stockGridView
+                                              ? ('Tampilkan sebagai tabel').tr(
+                                                  context,
+                                                )
+                                              : ('Tampilkan sebagai grid').tr(
+                                                  context,
+                                                ),
+                                          icon: Icon(
+                                            _stockGridView
+                                                ? Icons.table_rows
+                                                : Icons.grid_view,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(
+                                              () => _stockGridView =
+                                                  !_stockGridView,
+                                            );
+                                          },
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                          if (_selectedIndex == 2)
-                            IconButton(
-                              style: isSmallScreen
-                                  ? IconButton.styleFrom(
-                                      fixedSize: const Size.square(40),
-                                      padding: EdgeInsets.zero,
-                                    )
-                                  : null,
-                              tooltip: _productGridView
-                                  ? ('Tampilkan sebagai tabel').tr(context)
-                                  : ('Tampilkan sebagai grid').tr(context),
-                              icon: Icon(
-                                _productGridView
-                                    ? Icons.table_rows
-                                    : Icons.grid_view,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                setState(
-                                  () => _productGridView = !_productGridView,
-                                );
-                              },
-                            ),
-                          if (_selectedIndex == 7)
-                            IconButton(
-                              style: isSmallScreen
-                                  ? IconButton.styleFrom(
-                                      fixedSize: const Size.square(40),
-                                      padding: EdgeInsets.zero,
-                                    )
-                                  : null,
-                              tooltip: _stockGridView
-                                  ? ('Tampilkan sebagai tabel').tr(context)
-                                  : ('Tampilkan sebagai grid').tr(context),
-                              icon: Icon(
-                                _stockGridView
-                                    ? Icons.table_rows
-                                    : Icons.grid_view,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                setState(
-                                  () => _stockGridView = !_stockGridView,
-                                );
-                              },
-                            ),
-                          if (_selectedIndex == 3)
-                            IconButton(
-                              style: isSmallScreen
-                                  ? IconButton.styleFrom(
-                                      fixedSize: const Size.square(40),
-                                      padding: EdgeInsets.zero,
-                                    )
-                                  : null,
-                              tooltip: _useHistoryGridView
-                                  ? ('Tampilkan sebagai tabel').tr(context)
-                                  : ('Tampilkan sebagai kartu').tr(context),
-                              icon: Icon(
-                                _useHistoryGridView
-                                    ? Icons.table_rows
-                                    : Icons.view_agenda,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                setState(
-                                  () => _historyGridView = !_useHistoryGridView,
-                                );
-                              },
-                            ),
-                          if (_selectedIndex == 5 || _selectedIndex == 6)
-                            IconButton(
-                              style: isSmallScreen
-                                  ? IconButton.styleFrom(
-                                      fixedSize: const Size.square(40),
-                                      padding: EdgeInsets.zero,
-                                    )
-                                  : null,
-                              tooltip: _useOrderTableGridView
-                                  ? ('Tampilkan sebagai list').tr(context)
-                                  : ('Tampilkan sebagai grid').tr(context),
-                              icon: Icon(
-                                _useOrderTableGridView
-                                    ? Icons.view_list_rounded
-                                    : Icons.grid_view_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                setState(
-                                  () => _orderTableGridView =
-                                      !_useOrderTableGridView,
-                                );
-                              },
-                            ),
-                          SizedBox(width: isSmallScreen ? 2 : 8),
+                                      if (_selectedIndex == 3 &&
+                                          navbarPolicy.layoutToggle)
+                                        IconButton(
+                                          style: isSmallScreen
+                                              ? IconButton.styleFrom(
+                                                  fixedSize: const Size.square(
+                                                    40,
+                                                  ),
+                                                  padding: EdgeInsets.zero,
+                                                )
+                                              : null,
+                                          tooltip: _useHistoryGridView
+                                              ? ('Tampilkan sebagai tabel').tr(
+                                                  context,
+                                                )
+                                              : ('Tampilkan sebagai kartu').tr(
+                                                  context,
+                                                ),
+                                          icon: Icon(
+                                            _useHistoryGridView
+                                                ? Icons.table_rows
+                                                : Icons.view_agenda,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(
+                                              () => _historyGridView =
+                                                  !_useHistoryGridView,
+                                            );
+                                          },
+                                        ),
+                                      if ((_selectedIndex == 5 ||
+                                              _selectedIndex == 6) &&
+                                          navbarPolicy.layoutToggle)
+                                        IconButton(
+                                          style: isSmallScreen
+                                              ? IconButton.styleFrom(
+                                                  fixedSize: const Size.square(
+                                                    40,
+                                                  ),
+                                                  padding: EdgeInsets.zero,
+                                                )
+                                              : null,
+                                          tooltip: _useOrderTableGridView
+                                              ? ('Tampilkan sebagai list').tr(
+                                                  context,
+                                                )
+                                              : ('Tampilkan sebagai grid').tr(
+                                                  context,
+                                                ),
+                                          icon: Icon(
+                                            _useOrderTableGridView
+                                                ? Icons.view_list_rounded
+                                                : Icons.grid_view_rounded,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(
+                                              () => _orderTableGridView =
+                                                  !_useOrderTableGridView,
+                                            );
+                                          },
+                                        ),
+                                      SizedBox(width: isSmallScreen ? 2 : 8),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ],
                       ),
                       body: SafeArea(
@@ -1942,6 +1950,22 @@ class _PosShellPageState extends State<PosShellPage>
       if (can('view_receipt')) _sidebarItem(14),
       _sidebarItem(15),
       _sidebarSection('BANTUAN'),
+      if (_railExpanded)
+        Material(
+          color: Colors.transparent,
+          child: ListTile(
+            dense: true,
+            leading: const Icon(Icons.help_outline),
+            title: const PosText('Panduan POS'),
+            onTap: () => _openSetupGuide(menuContext),
+          ),
+        )
+      else
+        IconButton(
+          tooltip: ('Panduan POS').tr(menuContext),
+          onPressed: () => _openSetupGuide(menuContext),
+          icon: const Icon(Icons.help_outline),
+        ),
       if (_railExpanded)
         Material(
           color: Colors.transparent,
