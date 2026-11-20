@@ -148,4 +148,23 @@ void main() {
     exists = false;
     await expectLater(repo.detail('missing'), throwsStateError);
   });
+  test('internal server failure retains exact draft for confirmation', () async {
+    var failed = true;
+    final sent = <Map<String, dynamic>>[];
+    final p = await provider((request) async* {
+      sent.add(Map<String, dynamic>.from(request.variables['input'] as Map));
+      yield failed
+          ? const Response(response: {}, errors: [GraphQLError(
+              message: 'Outcome unknown', extensions: {'code': 'INTERNAL_SERVER_ERROR'},
+            )])
+          : const Response(response: {}, data: {'SubmitInventoryOpeningBalance': true});
+    });
+    final repo = PosOpeningStockRepository(p);
+    await expectLater(repo.submit(payload), throwsA(anything));
+    expect(repo.draft.pending, isNotNull);
+    failed = false;
+    await repo.submit(payload);
+    expect(sent.last, sent.first);
+    expect(repo.draft.pending, isNull);
+  });
 }
