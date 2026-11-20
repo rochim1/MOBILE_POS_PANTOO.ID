@@ -21,6 +21,7 @@ import '../../widgets/skeleton_loading.dart';
 import '../../widgets/inventory_action_style.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'widgets/pos_stock_barcode_sheet.dart';
+import 'pos_opening_stock_page.dart';
 
 class PosStockPage extends StatelessWidget {
   final bool isGridView;
@@ -1114,7 +1115,7 @@ class _PosStockViewState extends State<_PosStockView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const PosText(
-                      'Belum ada saldo lokasi. Tambahkan melalui penerimaan, mutasi, atau Stock Opname.',
+                      'Belum ada saldo lokasi. Gunakan Stok Awal untuk barang yang sudah dimiliki, atau Penerimaan untuk barang baru datang. Opname hanya menghitung saldo yang sudah tercatat.',
                     ),
                   )
                 else
@@ -1133,6 +1134,8 @@ class _PosStockViewState extends State<_PosStockView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if (balances.isEmpty && (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map?)?['initialize_stock'] == true)
+                      TextButton(onPressed: () => Navigator.pop(sheetContext, {'_opening_stock': true}), child: const Text('Isi stok awal')),
                     if (widget.onCreatePurchase != null && _needsRestock(stock))
                       TextButton.icon(
                         onPressed: () =>
@@ -1153,6 +1156,7 @@ class _PosStockViewState extends State<_PosStockView> {
       ),
     );
     if (!mounted || selectedBalance == null) return;
+    if (selectedBalance['_opening_stock'] == true) { await _openOpeningStock(stock); return; }
     if (selectedBalance['_count_opname'] == true) {
       _openCountForBalance(stock, selectedBalance);
     } else {
@@ -1371,10 +1375,13 @@ class _PosStockViewState extends State<_PosStockView> {
       balances = result.getOrElse(() => const []);
     }
     if (balances.isEmpty) {
+      if ((context.read<PosBloc>().state.runtimeConfig['permissions'] as Map?)?['initialize_stock'] == true) {
+        await _openOpeningStock(stock);
+        return;
+      }
       await _showAdjustmentInfo(
         'Saldo lokasi tidak ditemukan',
-        'Produk belum memiliki saldo pada warehouse ini. Tambahkan melalui penerimaan atau mutasi terlebih dahulu; opname memerlukan saldo lokasi yang tercatat.',
-        openOpname: true,
+        'Produk belum memiliki saldo pada warehouse ini. Minta pengelola mengisi Stok Awal untuk barang yang sudah dimiliki, atau gunakan Penerimaan untuk barang baru datang. Opname memerlukan saldo lokasi yang tercatat.',
       );
       return;
     }
@@ -1408,6 +1415,19 @@ class _PosStockViewState extends State<_PosStockView> {
       return;
     }
     widget.onCountStock!(PosOpnameTarget.fromBalance(stock, balance));
+  }
+
+  Future<void> _openOpeningStock(PosStock stock) async {
+    final bloc = context.read<PosBloc>();
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BlocProvider.value(
+      value: bloc,
+      child: Scaffold(appBar: AppBar(title: const Text('Stok Awal')), body: PosOpeningStockPage(
+        initialProductId: stock.id,
+        initialLocationId: context.read<PosStockBloc>().state.selectedLocationId,
+        onComplete: () async { Navigator.of(context).pop(); },
+      )),
+    )));
+    if (mounted) context.read<PosStockBloc>().add(LoadStocks(locationId: context.read<PosStockBloc>().state.selectedLocationId));
   }
 
   Future<void> _showAdjustmentInfo(

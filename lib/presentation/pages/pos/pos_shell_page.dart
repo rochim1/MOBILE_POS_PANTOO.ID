@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain/repositories/pos_repository.dart';
 import 'pos_page.dart';
 import 'pos_product_page.dart';
+import '../../../domain/models/pos_product.dart';
 import 'pos_order_page.dart';
 import 'pos_more_menu_page.dart';
 import 'pos_order_table_hub_page.dart';
@@ -92,6 +93,8 @@ class _PosShellPageState extends State<PosShellPage>
   late bool _showSetupGuide;
   bool _setupCompleted = false;
   String _inventoryInitialSection = 'stock';
+  String? _openingProductId;
+  bool _advancingFirstSale = false;
   String? _inventoryActiveSection = 'stock';
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   Timer? _offlineSyncTimer;
@@ -429,6 +432,10 @@ class _PosShellPageState extends State<PosShellPage>
             hasShift: state.activeShift != null,
             offline: state.runtimeConfig['_offline_snapshot'] == true,
           );
+          if (mobilePosFirstSaleDestination(state.runtimeConfig) == 7) {
+            _inventoryInitialSection = 'opening';
+            _inventoryActiveSection = 'opening';
+          }
           _secondaryOriginIndex = _mobilePrimaryIndex;
           _returnToCashierAfterShiftOpen = _selectedIndex == 11;
         }
@@ -569,6 +576,7 @@ class _PosShellPageState extends State<PosShellPage>
     const PosPage(),
     PosPage(
       tourTargets: _cashierTourTargets,
+      onManageProducts: () => _navigateSetupTarget(2),
       onOpenTableOrders: () => setState(() {
         _tableOrdersRefresh++;
         _secondaryOriginIndex = 1;
@@ -577,6 +585,7 @@ class _PosShellPageState extends State<PosShellPage>
     ),
     PosProductPage(
       isGridView: _productGridView,
+      onProductCreated: _afterFirstProduct,
       setupTourKey: _setupTourTargets.productAdd,
       setupTourTargets: _setupTourTargets,
       tourController: _productTourController,
@@ -613,6 +622,8 @@ class _PosShellPageState extends State<PosShellPage>
       key: ValueKey('inventory-$_inventoryInitialSection'),
       isGridView: _stockGridView,
       initialSection: _inventoryInitialSection,
+      openingProductId: _openingProductId,
+      onOpeningStockSaved: _advanceFirstSale,
       onActiveSectionChanged: (section) {
         if (mounted && _inventoryActiveSection != section) {
           setState(() => _inventoryActiveSection = section);
@@ -894,7 +905,7 @@ class _PosShellPageState extends State<PosShellPage>
           _navigateSetupTarget(17);
           return;
         case 'stock':
-          _navigateSetupTarget(7, 'stock');
+          _navigateSetupTarget(7, 'opening');
           return;
         case 'pin':
           await lockCubit.lock();
@@ -943,7 +954,7 @@ class _PosShellPageState extends State<PosShellPage>
         stockTrackedProducts.isEmpty ||
         stockTrackedProducts.any((product) => product.stock > 0);
     if (!hasInitialStock) {
-      _navigateSetupTarget(7, 'stock');
+      _navigateSetupTarget(7, 'opening');
       return;
     }
     final lock = lockCubit.state;
@@ -1005,7 +1016,49 @@ class _PosShellPageState extends State<PosShellPage>
               Expanded(child: _pages[_selectedIndex]),
             ],
           );
-    return page;
+    final first = mobilePosFirstSaleDestination(_posBloc.state.runtimeConfig);
+    final setup = _posBloc.state.runtimeConfig['initial_setup'] as Map? ?? const {};
+    if (setup['first_sale_pending'] != true || setup['can_manage'] != true || _posBloc.state.runtimeConfig['_offline_snapshot'] == true) return page;
+    return Column(children: [
+      Material(color: const Color(0xffe8f5f3), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), child: Row(children: [
+        Expanded(child: Text(first == 2 ? '1. Tambahkan produk pertama' : first == 7 ? '2. Isi stok awal barang' : _posBloc.state.activeShift != null ? 'Siap untuk penjualan pertama' : '3. Buka kas untuk mulai berjualan')),
+        TextButton(onPressed: _advancingFirstSale ? null : _advanceFirstSale, child: _advancingFirstSale
+          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Lanjutkan')),
+      ]))),
+      Expanded(child: page),
+    ]);
+  }
+
+  Future<void> _afterFirstProduct(PosProduct product) async {
+    if ((_posBloc.state.runtimeConfig['initial_setup'] as Map?)?['first_sale_pending'] != true) return;
+    _openingProductId = product.tracksStock && product.compositionType != 'bom' ? product.id : null;
+    await _advanceFirstSale();
+  }
+
+  Future<void> _advanceFirstSale() async {
+    if (_advancingFirstSale) return;
+    setState(() => _advancingFirstSale = true);
+    try {
+      final repository = sl<PosRepository>();
+      final actor = repository.activeOperatorId, terminal = repository.terminalUserId;
+      // Read authoritative readiness directly: RefreshProducts can emit success
+      // while LoadPosData is still in flight, so a generic stream success is not
+      // proof that the new product/opening balance has been observed.
+      final runtime = await repository.getRuntimeConfig().timeout(const Duration(seconds: 20));
+      if (!mounted || actor != repository.activeOperatorId || terminal != repository.terminalUserId) return;
+      if (runtime['_offline_snapshot'] == true) throw StateError('Persiapan belum dapat diperiksa. Periksa koneksi lalu coba lagi.');
+      _posBloc.add(LoadPosData());
+      final state = _posBloc.state;
+      final first = mobilePosFirstSaleDestination(runtime);
+      if (first != null) { _navigateSetupTarget(first, first == 7 ? 'opening' : null); return; }
+      if ((runtime['initial_setup'] as Map?)?['first_sale_pending'] == true) {
+        final destination = mobilePosUnlockDestination(runtime, hasStore: state.checkoutStore != null, hasShift: state.activeShift != null, offline: false);
+        _navigateSetupTarget(destination);
+        _returnToCashierAfterShiftOpen = destination == 11;
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally { if (mounted) setState(() => _advancingFirstSale = false); }
   }
 
   void _navigateWithKeyboard(int index) {

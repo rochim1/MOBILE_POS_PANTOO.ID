@@ -28,6 +28,7 @@ class PosProductPanel extends StatefulWidget {
   final ValueChanged<String> onCategorySelected;
   final GlobalKey? searchTourKey;
   final FocusNode? searchFocusNode;
+  final VoidCallback? onManageProducts;
 
   const PosProductPanel({
     super.key,
@@ -37,6 +38,7 @@ class PosProductPanel extends StatefulWidget {
     required this.onCategorySelected,
     this.searchTourKey,
     this.searchFocusNode,
+    this.onManageProducts,
   });
 
   @override
@@ -204,9 +206,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   hasScrollBody: false,
                   child: Container(
                     color: Colors.white,
-                    child: const Center(
-                      child: PosText('Tidak ada produk ditemukan'),
-                    ),
+                    child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const PosText('Tidak ada produk ditemukan'),
+                      if (widget.onManageProducts != null && (state.runtimeConfig['permissions'] as Map?)?['manage_products'] == true && _searchQuery.isEmpty)
+                        TextButton(onPressed: widget.onManageProducts, child: const Text('Tambah / kelola produk')),
+                    ])),
                   ),
                 )
               else if (state.isGridView)

@@ -1,0 +1,215 @@
+import 'dart:async';
+import 'package:dartz/dartz.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_pos_pantoo/core/error/failures.dart';
+import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_stock.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_stock_repository.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_opening_stock_repository.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_opening_stock_page.dart';
+
+class _Provider extends Fake implements GraphQLClientProvider {
+  @override
+  String get subscriptionScope => 'server|tenant|owner|operator';
+}
+
+class _PosRepo extends Fake implements PosRepository {}
+
+class _Bloc extends PosBloc {
+  _Bloc(bool allowed) : super(posRepository: _PosRepo()) {
+    emit(
+      state.copyWith(
+        runtimeConfig: {
+          'permissions': {'initialize_stock': allowed},
+        },
+      ),
+    );
+  }
+}
+
+class _Stocks extends Fake implements PosStockRepository {
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+  getStockLocations() async => const Right([
+    {'_id': 'wh', 'nama_cabang': 'Stok Toko'},
+  ]);
+  @override
+  Future<Either<Failure, PosStockPageResult>> getStockPage({
+    String? search,
+    String? stockFilter,
+    String? locationId,
+    int page = 1,
+    int limit = 20,
+  }) async => Right(
+    PosStockPageResult(
+      [
+        PosStock.fromJson({
+          '_id': 'item',
+          'nama_inventaris': 'Air Mineral',
+          'stok': 0,
+          'tracks_stock': true,
+        }),
+      ],
+      1,
+      const PosStockStatistics(
+        totalInventaris: 1,
+        totalNilaiInventaris: 0,
+        lowStockCount: 0,
+        outOfStockCount: 1,
+      ),
+    ),
+  );
+}
+
+class _Opening extends Fake implements PosOpeningStockRepository {
+  final SharedPreferences prefs;
+  final gate = Completer<void>();
+  final bool failFirst;
+  int calls = 0;
+  final inputs = <Map<String, dynamic>>[];
+  _Opening(this.prefs, {this.failFirst = false});
+  @override
+  GraphQLClientProvider get provider => _Provider();
+  @override
+  OpeningStockDraft get draft =>
+      OpeningStockDraft(prefs, provider.subscriptionScope);
+  @override
+  Future<Map<String, dynamic>> detail(String id) async => {
+    '_id': 'item',
+    'nama_inventaris': 'Air Mineral',
+    'tracks_stock': true,
+    'harga_beli': 3000,
+    'base_unit': 'pcs',
+    'unit_conversions': [
+      {'unit': 'box', 'factor': 12},
+    ],
+  };
+  @override
+  Future<void> submit(Map<String, dynamic> payload) async {
+    calls++;
+    inputs.add(await draft.prepare(payload));
+    if (failFirst && calls == 1) throw StateError('Network terputus');
+    if (!failFirst) await gate.future;
+    await draft.clear();
+  }
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() async {
+    await sl.reset();
+    sl.registerSingleton<PosStockRepository>(_Stocks());
+    SharedPreferences.setMockInitialValues({});
+  });
+  tearDown(() async {
+    await sl.reset();
+  });
+  Future<_Bloc> show(
+    WidgetTester tester,
+    _Opening repo, {
+    bool allowed = true,
+    Key? key,
+    Future<void> Function()? done,
+  }) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final bloc = _Bloc(allowed);
+    addTearDown(bloc.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: BlocProvider<PosBloc>.value(
+          value: bloc,
+          child: Scaffold(
+            body: PosOpeningStockPage(
+              key: key,
+              repository: repo,
+              initialProductId: 'item',
+              initialLocationId: 'wh',
+              onComplete: done,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    return bloc;
+  }
+
+  testWidgets(
+    'opening form converts box quantity and cost, prevents double submit and shows spinner',
+    (tester) async {
+      final repo = _Opening(await SharedPreferences.getInstance());
+      var done = 0;
+      await show(
+        tester,
+        repo,
+        done: () async {
+          done++;
+        },
+      );
+      await tester.ensureVisible(find.text('Satuan jumlah dan biaya'));
+      await tester.tap(find.text('pcs').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('box').last);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '36.000'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Jumlah (box)'),
+        '2',
+      );
+      final save = find.text('Simpan stok awal & lanjutkan');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pump();
+      expect(find.text('Menyimpan…'), findsOneWidget);
+      expect(repo.calls, 1);
+      final row = (repo.inputs.single['items'] as List).single as Map;
+      expect(row['qty'], 24);
+      expect(row['hpp'], 3000);
+      expect(row['lokasi_cabang_id'], 'wh');
+      repo.gate.complete();
+      await tester.pumpAndSettle();
+      expect(done, 1);
+    },
+  );
+  testWidgets(
+    'lost response restores immutable request after reopening and retry succeeds',
+    (tester) async {
+      final repo = _Opening(
+        await SharedPreferences.getInstance(),
+        failFirst: true,
+      );
+      await show(tester, repo, key: const ValueKey('first'));
+      final save = find.text('Simpan stok awal & lanjutkan');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final id = repo.draft.pending!['request_id'];
+      expect(find.text('Periksa & coba lagi'), findsOneWidget);
+      await show(tester, repo, key: const ValueKey('reload'));
+      final retry = find.text('Periksa & coba lagi');
+      await tester.ensureVisible(retry);
+      await tester.tap(retry);
+      await tester.pumpAndSettle();
+      expect(repo.inputs.last['request_id'], id);
+      expect(repo.inputs.last, repo.inputs.first);
+      expect(repo.draft.pending, isNull);
+    },
+  );
+  testWidgets('restricted cashier has no opening stock action', (tester) async {
+    final repo = _Opening(await SharedPreferences.getInstance());
+    await show(tester, repo, allowed: false);
+    expect(find.textContaining('Minta pengelola'), findsOneWidget);
+    expect(find.text('Simpan stok awal & lanjutkan'), findsNothing);
+    expect(repo.calls, 0);
+  });
+}

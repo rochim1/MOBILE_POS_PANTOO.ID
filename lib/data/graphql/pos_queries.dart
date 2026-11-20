@@ -68,7 +68,7 @@ class PosQueries {
           default_transfer_transit_location_id
         }
         configuration_health { valid issues }
-        initial_setup { automatic status can_manage }
+        initial_setup { automatic status can_manage first_sale_pending toko_id stock_location_id }
         operational_readiness {
           ready
           context_ready
@@ -146,6 +146,7 @@ class PosQueries {
           manage_orders
           manage_products
           adjust_stock
+          initialize_stock
           manage_tables
           manage_settings
           view_warehouses

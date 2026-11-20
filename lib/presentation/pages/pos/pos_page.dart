@@ -31,13 +31,15 @@ import 'widgets/pos_held_order_name_dialog.dart';
 class PosPage extends StatelessWidget {
   final PosCashierTourTargets? tourTargets;
   final VoidCallback? onOpenTableOrders;
-  const PosPage({super.key, this.tourTargets, this.onOpenTableOrders});
+  final VoidCallback? onManageProducts;
+  const PosPage({super.key, this.tourTargets, this.onOpenTableOrders, this.onManageProducts});
 
   @override
   Widget build(BuildContext context) {
     return PosPageView(
       tourTargets: tourTargets,
       onOpenTableOrders: onOpenTableOrders,
+      onManageProducts: onManageProducts,
     );
   }
 }
@@ -45,7 +47,8 @@ class PosPage extends StatelessWidget {
 class PosPageView extends StatefulWidget {
   final PosCashierTourTargets? tourTargets;
   final VoidCallback? onOpenTableOrders;
-  const PosPageView({super.key, this.tourTargets, this.onOpenTableOrders});
+  final VoidCallback? onManageProducts;
+  const PosPageView({super.key, this.tourTargets, this.onOpenTableOrders, this.onManageProducts});
 
   @override
   State<PosPageView> createState() => _PosPageViewState();
@@ -434,6 +437,7 @@ class _PosPageViewState extends State<PosPageView> {
                                             child: TabBarView(
                                               children: [
                                                 PosProductPanel(
+                                                  onManageProducts: widget.onManageProducts,
                                                   searchFocusNode:
                                                       _productSearchFocusNode,
                                                   searchTourKey: widget
@@ -475,6 +479,7 @@ class _PosPageViewState extends State<PosPageView> {
                                     Expanded(
                                       flex: 5,
                                       child: PosProductPanel(
+                                        onManageProducts: widget.onManageProducts,
                                         searchFocusNode:
                                             _productSearchFocusNode,
                                         searchTourKey:

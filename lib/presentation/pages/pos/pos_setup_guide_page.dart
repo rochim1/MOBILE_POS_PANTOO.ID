@@ -354,12 +354,11 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
               complete: hasInitialStock,
               icon: Icons.inventory_outlined,
               actionLabel:
-                  (permissions['view_stock'] == true ||
-                      permissions['adjust_stock'] == true)
+                  permissions['initialize_stock'] == true
                   ? 'Isi stok awal'
                   : null,
               destination: 7,
-              section: 'stock',
+              section: 'opening',
               walkthrough: [
                 _WalkthroughStage(
                   title: ('Pilih lokasi saldo').tr(context),
@@ -370,7 +369,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                 _WalkthroughStage(
                   title: ('Masukkan stok melalui alur yang tepat').tr(context),
                   description:
-                      ('Gunakan penerimaan pembelian untuk barang datang atau stok awal/koreksi untuk saldo pembukaan.')
+                      ('Gunakan penerimaan pembelian untuk barang datang, atau Stok Awal untuk barang yang sudah dimiliki sebelum memakai POS.')
                           .tr(context),
                 ),
                 _WalkthroughStage(

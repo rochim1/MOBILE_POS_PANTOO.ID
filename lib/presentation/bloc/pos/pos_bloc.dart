@@ -365,7 +365,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       final products =
           // POS stock is scoped to a verified active shift. Do not turn a
           // correctly denied pre-shift catalog read into a shift-sync failure.
-          (activeShift != null || canOperateWithoutShift) &&
+          (activeShift != null || canOperateWithoutShift ||
+              ((runtimeConfig['initial_setup'] as Map?)?['first_sale_pending'] == true &&
+               (runtimeConfig['initial_setup'] as Map?)?['can_manage'] == true &&
+               permissions['manage_products'] == true)) &&
               (permissions['view_products'] == true ||
                   permissions['use_cashier'] == true)
           ? await posRepository.getProducts(branchId: activeStore.branchId)

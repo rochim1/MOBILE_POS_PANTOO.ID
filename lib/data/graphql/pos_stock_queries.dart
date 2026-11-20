@@ -22,6 +22,7 @@ class PosStockQueries {
           _id
           branch_code
           nama_cabang
+          gedung { kode_gedung nama_gedung ruangan { kode_ruangan nama_ruangan rak { nama_rak } } }
           warehouse_type
           is_sellable_location
           status

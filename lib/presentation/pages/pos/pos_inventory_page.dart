@@ -28,6 +28,7 @@ import '../../widgets/inventory_action_style.dart';
 import '../../widgets/skeleton_loading.dart';
 import 'pos_purchase_return_page.dart';
 import 'pos_stock_page.dart';
+import 'pos_opening_stock_page.dart';
 import 'pos_inventory_editor_page.dart';
 import 'pos_purchase_receiving_page.dart';
 import 'pos_purchase_payable_page.dart';
@@ -48,6 +49,7 @@ import 'widgets/pos_transfer_details.dart';
 enum _InventorySection {
   warehouse,
   stock,
+  opening,
   purchase,
   opname,
   transfer,
@@ -58,6 +60,8 @@ enum _InventorySection {
 class PosInventoryPage extends StatefulWidget {
   final bool isGridView;
   final String initialSection;
+  final String? openingProductId;
+  final Future<void> Function()? onOpeningStockSaved;
   final ValueChanged<String?>? onActiveSectionChanged;
   final GlobalKey? warehouseTourKey;
   final GlobalKey? stockTourKey;
@@ -67,6 +71,8 @@ class PosInventoryPage extends StatefulWidget {
     super.key,
     this.isGridView = true,
     this.initialSection = 'stock',
+    this.openingProductId,
+    this.onOpeningStockSaved,
     this.onActiveSectionChanged,
     this.warehouseTourKey,
     this.stockTourKey,
@@ -257,6 +263,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
 
   _InventorySection _sectionFromName(String value) => switch (value) {
     'warehouse' => _InventorySection.warehouse,
+    'opening' => _InventorySection.opening,
     'purchase' => _InventorySection.purchase,
     'opname' => _InventorySection.opname,
     'transfer' => _InventorySection.transfer,
@@ -288,6 +295,8 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
         inventoryPolicy['inventory_profile'] == 'advanced' ||
         inventoryPolicy['inventory_profile'] == 'custom';
     final sections = <_InventoryMenu>[
+      if (trackStock && permissions['initialize_stock'] == true)
+        const _InventoryMenu(_InventorySection.opening, 'Stok Awal', Icons.add_box_outlined),
       if (permissions['view_warehouses'] == true)
         const _InventoryMenu(
           _InventorySection.warehouse,
@@ -398,6 +407,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     Map<String, dynamic> permissions,
     Map<String, dynamic> inventoryPolicy,
   ) => switch (_selected) {
+    _InventorySection.opening => PosOpeningStockPage(initialProductId: widget.openingProductId, onComplete: widget.onOpeningStockSaved),
     _InventorySection.warehouse => PosWarehousePage(
       canCreate: permissions['create_warehouses'] == true,
       canUpdate: permissions['update_warehouses'] == true,

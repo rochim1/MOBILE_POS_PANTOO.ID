@@ -28,6 +28,7 @@ class PosProductPage extends StatefulWidget {
   final GlobalKey? setupTourKey;
   final PosSetupTourTargets? setupTourTargets;
   final PosSetupActionController? tourController;
+  final Future<void> Function(PosProduct)? onProductCreated;
 
   const PosProductPage({
     super.key,
@@ -35,6 +36,7 @@ class PosProductPage extends StatefulWidget {
     this.setupTourKey,
     this.setupTourTargets,
     this.tourController,
+    this.onProductCreated,
   });
 
   @override
@@ -897,6 +899,7 @@ class _PosProductPageState extends State<PosProductPage> {
     bool guided = false,
   }) async {
     final bloc = context.read<PosProductManagementBloc>();
+    PosProduct? createdProduct;
     final form = _CatalogProductForm(
       product: product,
       repository: bloc.repository,
@@ -913,6 +916,7 @@ class _PosProductPageState extends State<PosProductPage> {
               state.status == PosProductManagementStatus.success ||
               state.status == PosProductManagementStatus.failure,
         );
+        if (product == null && result.status == PosProductManagementStatus.success) createdProduct = result.product;
         return result.status == PosProductManagementStatus.success;
       },
     );
@@ -939,6 +943,7 @@ class _PosProductPageState extends State<PosProductPage> {
         ),
       );
     }
+    if (mounted && createdProduct != null) await widget.onProductCreated?.call(createdProduct!);
   }
 
   void _showProductDetails(
