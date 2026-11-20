@@ -100,6 +100,7 @@ class PosOpeningStockRepository {
       // Only a definitive server rejection can unlock editing. Transport errors
       // retain the exact request ID + payload for idempotent confirmation.
       const rejectedBeforePosting = {
+        'BAD_REQUEST',
         'BAD_USER_INPUT',
         'VALIDATION_ERROR',
         'GRAPHQL_VALIDATION_FAILED',

@@ -152,13 +152,23 @@ void main() {
     'actual opening BAD_REQUEST validation unlocks the form for correction',
     () async {
       final p = await provider((request) async* {
-        yield const Response(response: {}, errors: [GraphQLError(
-          message: 'Tanggal saldo awal tidak valid', extensions: {'code': 'BAD_REQUEST'},
-        )]);
+        yield const Response(
+          response: {},
+          errors: [
+            GraphQLError(
+              message: 'Tanggal saldo awal tidak valid',
+              extensions: {'code': 'BAD_REQUEST'},
+            ),
+          ],
+        );
       });
       final repo = PosOpeningStockRepository(p);
       await expectLater(repo.submit(payload), throwsA(anything));
-      expect(repo.draft.pending, isNull, reason: 'Definitive date/batch validation must allow correcting input');
+      expect(
+        repo.draft.pending,
+        isNull,
+        reason: 'Definitive date/batch validation must allow correcting input',
+      );
     },
   );
   test(
