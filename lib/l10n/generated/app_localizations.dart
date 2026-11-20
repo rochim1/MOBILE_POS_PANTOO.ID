@@ -21683,6 +21683,18 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.'**
   String get tradeUnknown;
+
+  /// No description provided for @secretShow.
+  ///
+  /// In id, this message translates to:
+  /// **'Tampilkan {field}'**
+  String secretShow(String field);
+
+  /// No description provided for @secretHide.
+  ///
+  /// In id, this message translates to:
+  /// **'Sembunyikan {field}'**
+  String secretHide(String field);
 }
 
 class _AppLocalizationsDelegate

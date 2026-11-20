@@ -12277,4 +12277,14 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get tradeUnknown =>
       'Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.';
+
+  @override
+  String secretShow(String field) {
+    return 'Tampilkan $field';
+  }
+
+  @override
+  String secretHide(String field) {
+    return 'Sembunyikan $field';
+  }
 }

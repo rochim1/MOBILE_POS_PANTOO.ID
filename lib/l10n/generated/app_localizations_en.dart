@@ -12261,4 +12261,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tradeUnknown =>
       'The result is not confirmed. Confirm again using the same request.';
+
+  @override
+  String secretShow(String field) {
+    return 'Show $field';
+  }
+
+  @override
+  String secretHide(String field) {
+    return 'Hide $field';
+  }
 }

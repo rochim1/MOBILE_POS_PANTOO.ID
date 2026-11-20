@@ -16472,5 +16472,9 @@
   "tradeUnverified": "Bukti jurnal belum dapat dipastikan.",
   "tradeNotes": "Catatan (opsional)",
   "tradeSavedCustomer": "Pelanggan terpilih",
-  "tradeUnknown": "Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama."
+  "tradeUnknown": "Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.",
+  "secretShow": "Tampilkan {field}",
+  "@secretShow": {"placeholders": {"field": {"type": "String"}}},
+  "secretHide": "Sembunyikan {field}",
+  "@secretHide": {"placeholders": {"field": {"type": "String"}}}
 }

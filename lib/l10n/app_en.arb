@@ -16472,5 +16472,9 @@
   "tradeUnverified": "Journal evidence could not be verified.",
   "tradeNotes": "Notes (optional)",
   "tradeSavedCustomer": "Selected customer",
-  "tradeUnknown": "The result is not confirmed. Confirm again using the same request."
+  "tradeUnknown": "The result is not confirmed. Confirm again using the same request.",
+  "secretShow": "Show {field}",
+  "@secretShow": {"placeholders": {"field": {"type": "String"}}},
+  "secretHide": "Hide {field}",
+  "@secretHide": {"placeholders": {"field": {"type": "String"}}}
 }

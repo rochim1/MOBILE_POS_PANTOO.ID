@@ -33,6 +33,9 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
   final _passwordController = TextEditingController();
   final _pinController = TextEditingController();
   final _confirmationController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscurePin = true;
+  bool _obscureConfirmation = true;
   bool _saving = false;
   String _error = '';
 
@@ -91,19 +94,37 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
           const SizedBox(height: 16),
           TextField(
             controller: _passwordController,
-            obscureText: true,
+            obscureText: _obscurePassword,
+            autocorrect: false,
+            enableSuggestions: false,
             autofocus: true,
             decoration: InputDecoration(
               labelText: ('Password akun').tr(context),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               prefixIcon: Icon(Icons.password_outlined),
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword
+                    ? posLocale(context).secretShow('Password akun'.tr(context))
+                    : posLocale(
+                        context,
+                      ).secretHide('Password akun'.tr(context)),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _pinController,
-            obscureText: true,
+            obscureText: _obscurePin,
+            autocorrect: false,
+            enableSuggestions: false,
             keyboardType: TextInputType.number,
             maxLength: 6,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -111,6 +132,17 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
               labelText: ('PIN baru').tr(context),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               prefixIcon: Icon(Icons.pin_outlined),
+              suffixIcon: IconButton(
+                tooltip: _obscurePin
+                    ? posLocale(context).secretShow('PIN baru'.tr(context))
+                    : posLocale(context).secretHide('PIN baru'.tr(context)),
+                icon: Icon(
+                  _obscurePin
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
+                onPressed: () => setState(() => _obscurePin = !_obscurePin),
+              ),
               border: OutlineInputBorder(),
               counterText: '',
             ),
@@ -118,7 +150,9 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
           const SizedBox(height: 12),
           TextField(
             controller: _confirmationController,
-            obscureText: true,
+            obscureText: _obscureConfirmation,
+            autocorrect: false,
+            enableSuggestions: false,
             keyboardType: TextInputType.number,
             maxLength: 6,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -126,6 +160,19 @@ class _CreatePinDialogState extends State<_CreatePinDialog> {
               labelText: ('Ulangi PIN').tr(context),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               prefixIcon: Icon(Icons.verified_user_outlined),
+              suffixIcon: IconButton(
+                tooltip: _obscureConfirmation
+                    ? posLocale(context).secretShow('Ulangi PIN'.tr(context))
+                    : posLocale(context).secretHide('Ulangi PIN'.tr(context)),
+                icon: Icon(
+                  _obscureConfirmation
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
+                onPressed: () => setState(
+                  () => _obscureConfirmation = !_obscureConfirmation,
+                ),
+              ),
               border: OutlineInputBorder(),
               counterText: '',
             ),
