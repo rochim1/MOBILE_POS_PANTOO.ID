@@ -99,7 +99,20 @@ class PosOpeningStockRepository {
     if (result.hasException) {
       // Only a definitive server rejection can unlock editing. Transport errors
       // retain the exact request ID + payload for idempotent confirmation.
+      const rejectedBeforePosting = {
+        'BAD_USER_INPUT',
+        'VALIDATION_ERROR',
+        'GRAPHQL_VALIDATION_FAILED',
+        'FORBIDDEN',
+        'UNAUTHORIZED',
+        'UNAUTHENTICATED',
+        'NOT_FOUND',
+      };
       if (result.exception!.graphqlErrors.isNotEmpty &&
+          result.exception!.graphqlErrors.every(
+            (error) =>
+                rejectedBeforePosting.contains(error.extensions?['code']),
+          ) &&
           result.exception!.linkException == null) {
         await store.clear();
       }

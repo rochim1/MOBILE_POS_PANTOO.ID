@@ -92,6 +92,27 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
       _productId =
           row?['inventaris_id']?.toString() ??
           (_initialConsumed ? null : widget.initialProductId);
+      if (row != null && pending != null) {
+        // Confirmation replays a durable document, not a new master-data form.
+        // Do not let offline/deleted/changed lookups block the exact same retry.
+        _date.text = pending['tanggal'].toString();
+        _quantity.text = row['qty'].toString();
+        _cost.text = formatRupiahInput(
+          num.tryParse(row['hpp'].toString()) ?? 0,
+        );
+        _locationId = row['lokasi_cabang_id']?.toString();
+        _locationPath = {
+          'cabang_id': _locationId ?? '',
+          for (final key in ['gedung_kode', 'ruangan_kode', 'rak_nama'])
+            key: row['lokasi_$key'] ?? '',
+        };
+        _batch.text = row['no_batch']?.toString() ?? '';
+        _expiry.text = row['tanggal_kadaluarsa']?.toString() ?? '';
+        _acquired.text = row['tanggal_perolehan']?.toString() ?? '';
+        _serials.text = (row['serial_numbers'] as List? ?? const []).join('\n');
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       _locationId =
           row?['lokasi_cabang_id']?.toString() ??
           widget.initialLocationId ??
@@ -104,6 +125,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
       final repository = sl<PosStockRepository>();
       final locations = await repository.getStockLocations();
       _locations = locations.fold((f) => throw StateError(f.message), (r) => r);
+      if (!mounted) return;
       if (!_locations.any((r) => r['_id'] == _locationId)) _locationId = null;
       _locationPath = {
         'cabang_id': _locationId ?? '',
@@ -118,22 +140,8 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
         (f) => throw StateError(f.message),
         (r) => r.items.where((p) => p.canRestockDirectly).toList(),
       );
+      if (!mounted) return;
       if (_productId != null) await _select(_productId!);
-      if (row != null && pending != null) {
-        _date.text = pending['tanggal'].toString();
-        _quantity.text = row['qty'].toString();
-        _cost.text = formatRupiahInput(
-          num.tryParse(row['hpp'].toString()) ?? 0,
-        );
-        _unit =
-            _item?['base_unit']?.toString() ??
-            _item?['unit']?.toString() ??
-            'unit';
-        _batch.text = row['no_batch']?.toString() ?? '';
-        _expiry.text = row['tanggal_kadaluarsa']?.toString() ?? '';
-        _acquired.text = row['tanggal_perolehan']?.toString() ?? '';
-        _serials.text = (row['serial_numbers'] as List? ?? const []).join('\n');
-      }
     } catch (e) {
       _error = e.toString();
     }
@@ -174,7 +182,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
   }
 
   Future<void> _save() async {
-    if (_busy) return;
+    if (_busy || _saved) return;
     if (_scope != _repository.provider.subscriptionScope) {
       setState(() => _error = 'Operator berubah. Buka ulang saldo awal.');
       return;
@@ -241,6 +249,21 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
       if (widget.onComplete != null) {
         await widget.onComplete!();
       }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _continueAfterSaved() async {
+    if (_busy || _scope != _repository.provider.subscriptionScope) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.onComplete?.call();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -334,6 +357,18 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
               const Text(
                 'Stok awal tersimpan. Gunakan Penerimaan untuk menambah stok berikutnya.',
               ),
+              if (_error != null)
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+              if (widget.onComplete != null)
+                FilledButton(
+                  onPressed: _busy ? null : _continueAfterSaved,
+                  child: _busy
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Lanjutkan'),
+                ),
               TextButton(
                 onPressed: _busy
                     ? null
@@ -383,6 +418,13 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
                   padding: EdgeInsets.only(bottom: 14),
                   child: Text(
                     'Hasil sebelumnya belum pasti. Tekan Periksa & coba lagi untuk memakai permintaan yang sama, tanpa menggandakan stok.',
+                  ),
+                ),
+              if (_pending)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Text(
+                    'Barang: $_productId\nLokasi: $_locationId\nJumlah dasar: ${_quantity.text} · HPP dasar: Rp${_cost.text}',
                   ),
                 ),
               if (_item != null)
@@ -507,7 +549,9 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
                   ),
               ],
               FilledButton.icon(
-                onPressed: _busy || _selecting || _item == null ? null : _save,
+                onPressed: _busy || _selecting || (!_pending && _item == null)
+                    ? null
+                    : _save,
                 icon: _busy
                     ? const SizedBox(
                         width: 18,

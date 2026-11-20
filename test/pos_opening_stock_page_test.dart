@@ -38,9 +38,11 @@ class _Stocks extends Fake implements PosStockRepository {
   bool offline = false;
   @override
   Future<Either<Failure, List<Map<String, dynamic>>>>
-  getStockLocations() async => offline ? const Left(ServerFailure('Offline')) : const Right([
-    {'_id': 'wh', 'nama_cabang': 'Stok Toko'},
-  ]);
+  getStockLocations() async => offline
+      ? const Left(ServerFailure('Offline'))
+      : const Right([
+          {'_id': 'wh', 'nama_cabang': 'Stok Toko'},
+        ]);
   @override
   Future<Either<Failure, PosStockPageResult>> getStockPage({
     String? search,
@@ -213,42 +215,55 @@ void main() {
     expect(find.text('Simpan stok awal & lanjutkan'), findsNothing);
     expect(repo.calls, 0);
   });
-  testWidgets('pending posting can be confirmed even when master reads are offline', (tester) async {
-    final repo = _Opening(await SharedPreferences.getInstance(), failFirst: true);
-    await show(tester, repo, key: const ValueKey('online'));
-    final save = find.text('Simpan stok awal & lanjutkan');
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-    final original = repo.draft.pending;
-    (sl<PosStockRepository>() as _Stocks).offline = true;
-    await show(tester, repo, key: const ValueKey('offline-reopen'));
-    final retry = find.widgetWithText(FilledButton, 'Periksa & coba lagi');
-    await tester.ensureVisible(retry);
-    expect(tester.widget<FilledButton>(retry).onPressed, isNotNull);
-    await tester.tap(retry);
-    await tester.pumpAndSettle();
-    expect(repo.inputs.last, original);
-    expect(repo.draft.pending, isNull);
-  });
-  testWidgets('successful stock posting can retry navigation without posting again', (tester) async {
-    final repo = _Opening(await SharedPreferences.getInstance());
-    var advances = 0;
-    await show(tester, repo, done: () async {
-      if (++advances == 1) throw StateError('Readiness unavailable');
-    });
-    final save = find.text('Simpan stok awal & lanjutkan');
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pump();
-    repo.gate.complete();
-    await tester.pumpAndSettle();
-    final proceed = find.text('Lanjutkan');
-    expect(proceed, findsOneWidget);
-    await tester.tap(proceed);
-    await tester.pumpAndSettle();
-    expect(advances, 2);
-    expect(repo.calls, 1);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'pending posting can be confirmed even when master reads are offline',
+    (tester) async {
+      final repo = _Opening(
+        await SharedPreferences.getInstance(),
+        failFirst: true,
+      );
+      await show(tester, repo, key: const ValueKey('online'));
+      final save = find.text('Simpan stok awal & lanjutkan');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final original = repo.draft.pending;
+      (sl<PosStockRepository>() as _Stocks).offline = true;
+      await show(tester, repo, key: const ValueKey('offline-reopen'));
+      final retry = find.widgetWithText(FilledButton, 'Periksa & coba lagi');
+      await tester.ensureVisible(retry);
+      expect(tester.widget<FilledButton>(retry).onPressed, isNotNull);
+      await tester.tap(retry);
+      await tester.pumpAndSettle();
+      expect(repo.inputs.last, original);
+      expect(repo.draft.pending, isNull);
+    },
+  );
+  testWidgets(
+    'successful stock posting can retry navigation without posting again',
+    (tester) async {
+      final repo = _Opening(await SharedPreferences.getInstance());
+      var advances = 0;
+      await show(
+        tester,
+        repo,
+        done: () async {
+          if (++advances == 1) throw StateError('Readiness unavailable');
+        },
+      );
+      final save = find.text('Simpan stok awal & lanjutkan');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pump();
+      repo.gate.complete();
+      await tester.pumpAndSettle();
+      final proceed = find.text('Lanjutkan');
+      expect(proceed, findsOneWidget);
+      await tester.tap(proceed);
+      await tester.pumpAndSettle();
+      expect(advances, 2);
+      expect(repo.calls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
