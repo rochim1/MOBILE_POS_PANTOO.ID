@@ -266,7 +266,8 @@ class AuthRepository {
               'tokenId': googleIdToken,
               'primary_product': 'pos',
               'registration_source': 'mobile_pos',
-              'access_via': 'mobile_pos',
+              // Client channel is a schema enum; POS attribution stays above.
+              'access_via': 'mobile_app',
               if (googlePhone != null) 'telp_number': googlePhone,
               'legal_consent': googleConsent,
             } else ...{

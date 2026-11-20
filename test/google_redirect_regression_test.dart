@@ -113,6 +113,18 @@ class _Navigation extends NavigatorObserver {
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => pushes++;
 }
 
+Future<void> _disposeTestTree(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  // These tests intentionally hold the workspace gate. Finish its settings
+  // fixture after unmount so the bounded preparation timeout can be cancelled.
+  final settings = sl<PosSettingsRepository>() as _Settings;
+  if (!settings.pending.isCompleted) {
+    settings.pending.complete(const Left(ServerFailure('Test completed')));
+  }
+  await tester.pump(const Duration(seconds: 16));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({
@@ -165,7 +177,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 20));
       }
       expect(find.byType(PosOnboardingGate), findsOneWidget);
-      await tester.pumpWidget(const SizedBox());
+      await _disposeTestTree(tester);
       access.dispose();
     },
   );
@@ -211,7 +223,7 @@ void main() {
         expect(find.byType(PosSubscriptionPage), findsNothing);
         expect((sl<AuthRepository>() as _Auth).logins, google ? 0 : 1);
         expect((sl<AuthRepository>() as _Auth).googleLogins, google ? 1 : 0);
-        await tester.pumpWidget(const SizedBox());
+        await _disposeTestTree(tester);
         access.dispose();
       },
     );
@@ -239,7 +251,7 @@ void main() {
       expect(find.byType(PosSubscriptionPage), findsOneWidget);
       expect(find.byKey(const Key('subscription_open_web')), findsOneWidget);
       expect(access.canSell, false);
-      await tester.pumpWidget(const SizedBox());
+      await _disposeTestTree(tester);
       access.dispose();
     },
   );
@@ -285,7 +297,7 @@ void main() {
       }
       expect(find.byType(PosOnboardingGate), findsOneWidget);
       expect((sl<AuthRepository>() as _Auth).googleLogins, 1);
-      await tester.pumpWidget(const SizedBox());
+      await _disposeTestTree(tester);
       access.dispose();
     },
   );
@@ -320,7 +332,7 @@ void main() {
         expect(find.byType(BusinessSetupPage), findsOneWidget);
         expect(App.navigatorKey.currentState!.canPop(), isFalse);
         expect(prefs.getBool('has_seen_intro'), isTrue);
-        await tester.pumpWidget(const SizedBox());
+        await _disposeTestTree(tester);
         access.pending.complete();
         access.dispose();
         await tester.pump();
@@ -353,7 +365,7 @@ void main() {
               'A flow without a required subscription scope must not wait for access IO',
         );
         expect(App.navigatorKey.currentState!.canPop(), isFalse);
-        await tester.pumpWidget(const SizedBox());
+        await _disposeTestTree(tester);
         access.pending.complete();
         access.dispose();
         await tester.pump();
@@ -389,7 +401,7 @@ void main() {
       1,
       reason: 'Only App may navigate, after engaging the PIN lock',
     );
-    await tester.pumpWidget(const SizedBox());
+    await _disposeTestTree(tester);
     await cubit.close();
   });
 }

@@ -156,11 +156,13 @@ void main() {
       final provider = _Provider();
       final bootstrap = Completer<Response>();
       bool bootstrapStarted = false;
+      Map? loginInput;
       provider.client = GraphQLClient(
         cache: GraphQLCache(),
         queryRequestTimeout: const Duration(minutes: 2),
         link: Link.function((request, [forward]) async* {
           if (request.variables.containsKey('input')) {
+            loginInput = request.variables['input'] as Map;
             yield Response(
               data: {
                 'Login': {
@@ -195,6 +197,7 @@ void main() {
       for (var i = 0; i < 50 && !bootstrapStarted; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
+      expect(loginInput?['access_via'], 'mobile_app');
       expect(bootstrapStarted, isTrue);
       await tester.pump(const Duration(seconds: 10));
       expect(
