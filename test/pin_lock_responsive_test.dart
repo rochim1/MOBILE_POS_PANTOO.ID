@@ -505,6 +505,71 @@ void main() {
     expect(find.text('Dashboard'), findsOneWidget);
   });
 
+  testWidgets('create PIN visibility toggles are independent and reset on reopen', (tester) async {
+    final cubit = TestLockCubit()..seedLoginWithoutPin();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(
+      BlocProvider<AppLockCubit>.value(
+        value: cubit,
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const PinLockScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Buat PIN Akun Ini'));
+    await tester.pumpAndSettle();
+
+    const values = {
+      'Password akun': 'Synthetic-password!',
+      'PIN baru': '123456',
+      'Ulangi PIN': '123456',
+    };
+    for (final entry in values.entries) {
+      final field = find.widgetWithText(TextField, entry.key);
+      expect(tester.widget<TextField>(field).obscureText, isTrue);
+      await tester.enterText(field, entry.value);
+    }
+    for (final label in values.keys) {
+      final field = find.widgetWithText(TextField, label);
+      final toggle = find.descendant(of: field, matching: find.byType(IconButton));
+      expect(toggle, findsOneWidget, reason: '$label needs its own eye button');
+      expect(tester.widget<IconButton>(toggle).tooltip, isNotEmpty);
+      await tester.tap(toggle);
+      await tester.pump();
+      expect(tester.widget<TextField>(field).obscureText, isFalse);
+      for (final other in values.keys.where((value) => value != label)) {
+        expect(tester.widget<TextField>(find.widgetWithText(TextField, other)).obscureText, isTrue);
+      }
+      expect(tester.widget<TextField>(field).controller?.text, values[label]);
+      await tester.tap(toggle);
+      await tester.pump();
+      expect(tester.widget<TextField>(field).obscureText, isTrue);
+      expect(tester.widget<TextField>(field).controller?.text, values[label]);
+    }
+    // Revealing a value must not persist when the dialog is closed.
+    await tester.tap(find.descendant(
+      of: find.widgetWithText(TextField, 'Password akun'),
+      matching: find.byType(IconButton),
+    ));
+    await tester.pump();
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Buat PIN Akun Ini'));
+    await tester.pumpAndSettle();
+    for (final label in values.keys) {
+      final field = tester.widget<TextField>(find.widgetWithText(TextField, label));
+      expect(field.obscureText, isTrue);
+      expect(field.controller?.text, isEmpty);
+    }
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    cubit.seedUnlocked();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('akun login tanpa PIN mendapat aksi buat PIN', (tester) async {
     final cubit = TestLockCubit()..seedLoginWithoutPin();
     addTearDown(cubit.close);
