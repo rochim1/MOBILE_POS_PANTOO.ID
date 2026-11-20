@@ -97,12 +97,6 @@ class _Lock extends AppLockCubit {
   }
 }
 
-class _PendingSettings extends Fake implements PosSettingsRepository {
-  @override
-  Future<Either<Failure, PosSettings>> getSettings() =>
-      Completer<Either<Failure, PosSettings>>().future;
-}
-
 class _Settings extends Fake implements PosSettingsRepository {
   @override
   Future<PosRemoteProfileCatalog> getProfileCatalog() async =>
@@ -336,6 +330,7 @@ void main() {
     'failed setup logo retries without creating a second workspace and can continue safely',
     (tester) async {
       final auth = _Auth(), profiles = _Profiles()..failSave = true;
+      var completed = 0;
       final lock = _Lock();
       addTearDown(lock.close);
       SharedPreferences.setMockInitialValues({'instansi_id': 'tenant'});
@@ -344,7 +339,7 @@ void main() {
       );
       sl.registerSingleton<AuthRepository>(auth);
       sl.registerSingleton<PosBusinessProfileRepository>(profiles);
-      sl.registerSingleton<PosSettingsRepository>(_PendingSettings());
+      sl.registerSingleton<PosSettingsRepository>(_Settings());
       await tester.binding.setSurfaceSize(const Size(390, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
@@ -352,7 +347,10 @@ void main() {
           value: lock,
           child: MaterialApp(
             theme: AppTheme.light(),
-            home: BusinessSetupPage(pickLogo: () async => image()),
+            home: BusinessSetupPage(
+              pickLogo: () async => image(),
+              onCompleted: () => completed++,
+            ),
           ),
         ),
       );
@@ -393,7 +391,8 @@ void main() {
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.byType(PosOnboardingGate), findsOneWidget);
+      expect(completed, 1);
+      expect(find.byType(PosOnboardingGate), findsNothing);
       expect(lock.locks, 1);
       await tester.pumpWidget(const SizedBox());
     },

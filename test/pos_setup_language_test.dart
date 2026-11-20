@@ -209,14 +209,18 @@ void main() {
   );
   for (final gate in [true, false]) {
     testWidgets(
-      'language stays visible on ${gate ? 'setup gate' : 'profile configuration'} loading and retry error',
+      'language stays visible during ${gate ? 'setup gate loading before optional fallback home' : 'profile configuration loading and retry error'}',
       (tester) async {
         final settings = _Settings();
         sl.registerSingleton<PosSettingsRepository>(settings);
         sl.registerSingleton<PosRepository>(_Runtime());
         await _open(
           tester,
-          gate ? const PosOnboardingGate() : const PosOnboardingPage(),
+          gate
+              ? PosOnboardingGate(
+                  shellBuilder: (_) => const Scaffold(body: Text('POS home')),
+                )
+              : const PosOnboardingPage(),
         );
         _visiblePicker(tester);
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -225,10 +229,14 @@ void main() {
           const Left(NetworkFailure('Connection failed')),
         );
         await tester.pumpAndSettle();
-        _visiblePicker(tester);
-        expect(find.text('Connection failed'), findsOneWidget);
-        await _chooseLanguage(tester, 'Bahasa Indonesia');
-        _visiblePicker(tester);
+        if (gate) {
+          expect(find.text('POS home'), findsOneWidget);
+        } else {
+          _visiblePicker(tester);
+          expect(find.text('Connection failed'), findsOneWidget);
+          await _chooseLanguage(tester, 'Bahasa Indonesia');
+          _visiblePicker(tester);
+        }
         await tester.pumpWidget(const SizedBox());
         await tester.pump(const Duration(seconds: 26));
         expect(tester.takeException(), isNull);

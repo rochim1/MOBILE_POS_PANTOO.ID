@@ -40,6 +40,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   bool _workspaceCreated = false;
   PickedProductImage? _logo;
   String? _logoError;
+  String? _submitError;
   String _profile = 'retail';
   final _profileCatalog = PosRemoteProfileCatalog.bundled();
 
@@ -56,6 +57,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
     setState(() {
       _saving = true;
       _savingLabel = 'Menyimpan…';
+      _submitError = null;
     });
     try {
       if (!_workspaceCreated) {
@@ -67,13 +69,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
         if (!mounted) return;
         if (result.isLeft()) {
           result.fold(
-            (failure) => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: PosText(failure.message),
-                backgroundColor: AppColors.danger,
-                behavior: SnackBarBehavior.floating,
-              ),
-            ),
+            (failure) => setState(() => _submitError = failure.message),
             (_) {},
           );
           return;
@@ -121,6 +117,7 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
     setState(() {
       _saving = true;
       _savingLabel = 'Menyiapkan Pantoo POS…';
+      _submitError = null;
     });
     try {
       await _finishSetup();
@@ -133,13 +130,8 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   }
 
   void _showPreparationError() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const PosText(
-          'Konfigurasi POS belum dapat dimuat. Coba lagi.',
-        ),
-        backgroundColor: AppColors.danger,
-      ),
+    setState(
+      () => _submitError = 'Konfigurasi POS belum dapat dimuat. Coba lagi.',
     );
   }
 
@@ -303,6 +295,17 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                     ),
                   ),
                   const SizedBox(height: 22),
+                  if (_submitError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: PosText(
+                          _submitError!,
+                          style: const TextStyle(color: AppColors.danger),
+                        ),
+                      ),
+                    ),
                   if (_logoError != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
