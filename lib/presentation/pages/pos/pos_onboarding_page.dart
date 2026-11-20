@@ -132,6 +132,70 @@ class PosOnboardingPage extends StatefulWidget {
   State<PosOnboardingPage> createState() => _PosOnboardingPageState();
 }
 
+/// Shared preparation for login and first workspace creation. The caller owns
+/// its loading UI, so a submit button need not turn into an intermediate page.
+Future<void> preparePosWorkspace(
+  SharedPreferences prefs, {
+  bool Function()? isCurrent,
+}) async {
+  final scope = PosOnboardingPage.preferenceKey(prefs);
+  bool current() =>
+      scope == PosOnboardingPage.preferenceKey(prefs) &&
+      (isCurrent?.call() ?? true);
+  if (!current()) return;
+  Map<String, dynamic> runtime = {};
+  try {
+    runtime = Map<String, dynamic>.from(
+      jsonDecode(prefs.getString('pos_runtime_config') ?? '{}') as Map,
+    );
+  } catch (_) {
+    /* Older installations can have no runtime cache. */
+  }
+  final initial = runtime['initial_setup'];
+  if (initial is Map &&
+      initial['automatic'] == true &&
+      initial['status'] == 'pending' &&
+      initial['can_manage'] == true) {
+    try {
+      final recovery = await sl<PosSettingsRepository>()
+          .ensureInitialSetup()
+          .timeout(const Duration(seconds: 15));
+      if (!current()) return;
+      recovery.fold(
+        (_) {},
+        (value) => runtime['initial_setup'] = {
+          ...Map<String, dynamic>.from(initial),
+          'status': value['status'],
+        },
+      );
+      await prefs.setString('pos_runtime_config', jsonEncode(runtime));
+    } catch (_) {
+      /* Optional recovery cannot trap access to home. */
+    }
+  }
+  if (!current()) return;
+  try {
+    final result = await sl<PosSettingsRepository>().getSettings().timeout(
+      const Duration(seconds: 15),
+    );
+    if (!current()) return;
+    await result.fold<Future<void>>((_) async {}, (settings) async {
+      await prefs.setBool(
+        PosOnboardingPage.preferenceKey(prefs),
+        settings.onboardingCompleted == true,
+      );
+      if (current() && settings.operationalSetupCompleted == true) {
+        await prefs.setBool(
+          PosOnboardingPage.tenantSetupPreferenceKey(prefs),
+          true,
+        );
+      }
+    });
+  } catch (_) {
+    /* Preserve existing defaults and offline fallback. */
+  }
+}
+
 class PosOnboardingGate extends StatefulWidget {
   const PosOnboardingGate({super.key, this.shellBuilder});
 
@@ -155,56 +219,10 @@ class _PosOnboardingGateState extends State<PosOnboardingGate> {
   Future<void> _resolveDestination() async {
     if (_resolving) return;
     _resolving = true;
-    final prefs = sl<SharedPreferences>();
-    Map<String, dynamic> runtime = {};
-    try {
-      runtime = Map<String, dynamic>.from(
-        jsonDecode(prefs.getString('pos_runtime_config') ?? '{}') as Map,
-      );
-    } catch (_) {
-      /* Old installations can have no runtime cache. */
-    }
-    final initial = runtime['initial_setup'];
-    if (initial is Map &&
-        initial['automatic'] == true &&
-        initial['status'] == 'pending' &&
-        initial['can_manage'] == true) {
-      try {
-        final recovery = await sl<PosSettingsRepository>()
-            .ensureInitialSetup()
-            .timeout(const Duration(seconds: 15));
-        if (!mounted) return;
-        recovery.fold(
-          (_) {}, // Missing store remains guarded at cashier entry, not home.
-          (value) => runtime['initial_setup'] = {
-            ...Map<String, dynamic>.from(initial),
-            'status': value['status'],
-          },
-        );
-        await prefs.setString('pos_runtime_config', jsonEncode(runtime));
-      } catch (_) {
-        // Optional recovery can be retried from settings; do not trap the user.
-      }
-    }
-    try {
-      final result = await sl<PosSettingsRepository>().getSettings().timeout(
-        const Duration(seconds: 15),
-      );
-      await result.fold<Future<void>>((_) async {}, (settings) async {
-        await prefs.setBool(
-          PosOnboardingPage.preferenceKey(prefs),
-          settings.onboardingCompleted == true,
-        );
-        if (settings.operationalSetupCompleted == true) {
-          await prefs.setBool(
-            PosOnboardingPage.tenantSetupPreferenceKey(prefs),
-            true,
-          );
-        }
-      });
-    } catch (_) {
-      // Home and local data remain accessible offline. No defaults are rewritten.
-    }
+    await preparePosWorkspace(
+      sl<SharedPreferences>(),
+      isCurrent: () => mounted,
+    );
     if (!mounted) return;
     _resolving = false;
     setState(

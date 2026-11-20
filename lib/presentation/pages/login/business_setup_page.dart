@@ -17,10 +17,14 @@ import '../../../domain/models/pos_remote_profile_catalog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/lock/lock_cubit.dart';
 import '../pos/pos_onboarding_page.dart';
+import '../pos/pos_shell_page.dart';
 
 class BusinessSetupPage extends StatefulWidget {
-  const BusinessSetupPage({super.key, this.pickLogo});
+  const BusinessSetupPage({super.key, this.pickLogo, this.onCompleted});
   final Future<PickedProductImage?> Function()? pickLogo;
+
+  /// An embedding host may own navigation after all preparation has completed.
+  final VoidCallback? onCompleted;
 
   @override
   State<BusinessSetupPage> createState() => _BusinessSetupPageState();
@@ -31,6 +35,8 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   final _businessName = TextEditingController();
   final _phone = TextEditingController();
   bool _saving = false;
+  bool _navigating = false;
+  String _savingLabel = 'Menyimpan…';
   bool _workspaceCreated = false;
   PickedProductImage? _logo;
   String? _logoError;
@@ -47,54 +53,62 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   Future<void> _create() async {
     if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
-    setState(() => _saving = true);
-    if (!_workspaceCreated) {
-      final result = await sl<AuthRepository>().createWorkspace(
-        businessName: _businessName.text.trim(),
-        phone: _phone.text.trim(),
-        businessProfile: _profile,
-      );
-      if (!mounted) return;
-      if (result.isLeft()) {
-        setState(() => _saving = false);
-        result.fold(
-          (failure) => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: PosText(failure.message),
-              backgroundColor: AppColors.danger,
-              behavior: SnackBarBehavior.floating,
-            ),
-          ),
-          (_) {},
+    setState(() {
+      _saving = true;
+      _savingLabel = 'Menyimpan…';
+    });
+    try {
+      if (!_workspaceCreated) {
+        final result = await sl<AuthRepository>().createWorkspace(
+          businessName: _businessName.text.trim(),
+          phone: _phone.text.trim(),
+          businessProfile: _profile,
         );
-        return;
-      }
-      _workspaceCreated = true;
-    }
-    // Persist the selection before optional logo upload, so a restart can
-    // finish configuring this workspace instead of asking to create another.
-    await _rememberProfile();
-    if (!mounted) return;
-    if (_logo != null) {
-      final result = await sl<PosBusinessProfileRepository>().save(
-        name: _businessName.text.trim(),
-        phone: _phone.text.trim(),
-        logo: _logo,
-      );
-      if (!mounted) return;
-      if (result.isLeft()) {
-        setState(() {
-          _saving = false;
+        if (!mounted) return;
+        if (result.isLeft()) {
           result.fold(
-            (failure) => _logoError =
-                'Profil usaha sudah dibuat, tetapi logo belum tersimpan. ${failure.message}',
+            (failure) => ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: PosText(failure.message),
+                backgroundColor: AppColors.danger,
+                behavior: SnackBarBehavior.floating,
+              ),
+            ),
             (_) {},
           );
-        });
-        return;
+          return;
+        }
+        _workspaceCreated = true;
       }
+      // Persist the selection before optional logo upload, so a restart can
+      // finish configuring this workspace instead of asking to create another.
+      await _rememberProfile();
+      if (!mounted) return;
+      if (_logo != null) {
+        final result = await sl<PosBusinessProfileRepository>().save(
+          name: _businessName.text.trim(),
+          phone: _phone.text.trim(),
+          logo: _logo,
+        );
+        if (!mounted) return;
+        if (result.isLeft()) {
+          setState(() {
+            result.fold(
+              (failure) => _logoError =
+                  'Profil usaha sudah dibuat, tetapi logo belum tersimpan. ${failure.message}',
+              (_) {},
+            );
+          });
+          return;
+        }
+      }
+      if (mounted) await _finishSetup();
+    } catch (_) {
+      _navigating = false;
+      if (mounted) _showPreparationError();
+    } finally {
+      if (mounted && !_navigating) setState(() => _saving = false);
     }
-    if (mounted) await _continue();
   }
 
   Future<void> _rememberProfile() => sl<SharedPreferences>().setString(
@@ -103,14 +117,51 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
   );
 
   Future<void> _continue() async {
-    setState(() => _saving = true);
+    if (_saving || !_workspaceCreated) return;
+    setState(() {
+      _saving = true;
+      _savingLabel = 'Menyiapkan Pantoo POS…';
+    });
+    try {
+      await _finishSetup();
+    } catch (_) {
+      _navigating = false;
+      if (mounted) _showPreparationError();
+    } finally {
+      if (mounted && !_navigating) setState(() => _saving = false);
+    }
+  }
+
+  void _showPreparationError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const PosText(
+          'Konfigurasi POS belum dapat dimuat. Coba lagi.',
+        ),
+        backgroundColor: AppColors.danger,
+      ),
+    );
+  }
+
+  Future<void> _finishSetup() async {
+    setState(() => _savingLabel = 'Menyiapkan Pantoo POS…');
     await _rememberProfile();
     if (!mounted) return;
-    // The workspace now exists, so PIN setup/verification can safely load
-    // its operator list. After unlock the user continues to POS onboarding.
-    context.read<AppLockCubit>().lock();
+    await preparePosWorkspace(
+      sl<SharedPreferences>(),
+      isCurrent: () => mounted,
+    );
+    if (!mounted) return;
+    // Keep the form/button visible while loading the PIN/operator context too.
+    await context.read<AppLockCubit>().lock();
+    if (!mounted) return;
+    _navigating = true;
+    if (widget.onCompleted case final onCompleted?) {
+      onCompleted();
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const PosOnboardingGate()),
+      MaterialPageRoute<void>(builder: (_) => const PosShellPage()),
       (route) => false,
     );
     if (sl.isRegistered<PosPushService>()) {
@@ -269,13 +320,32 @@ class _BusinessSetupPageState extends State<BusinessSetupPage> {
                     height: 50,
                     child: FilledButton(
                       onPressed: _saving ? null : _create,
+                      style: FilledButton.styleFrom(
+                        disabledBackgroundColor: AppColors.primary,
+                        disabledForegroundColor: Colors.white,
+                      ),
                       child: _saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                          ? Semantics(
+                              liveRegion: true,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Flexible(
+                                    child: PosText(
+                                      _savingLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             )
                           : PosText(
