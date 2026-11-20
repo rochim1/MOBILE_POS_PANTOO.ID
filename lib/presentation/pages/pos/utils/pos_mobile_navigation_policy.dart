@@ -47,15 +47,18 @@ int? mobilePosFirstSaleDestination(
       setup['can_manage'] != true ||
       setup['first_sale_pending'] != true ||
       ready['context_ready'] != true ||
-      p['use_cashier'] != true)
+      p['use_cashier'] != true) {
     return null;
+  }
   if (ready['has_products'] == false &&
       p['view_products'] == true &&
-      p['manage_products'] == true)
+      p['manage_products'] == true) {
     return 2;
+  }
   if (ready['has_products'] == true &&
       ready['has_initial_stock'] == false &&
-      p['initialize_stock'] == true)
+      p['initialize_stock'] == true) {
     return 7;
+  }
   return null;
 }

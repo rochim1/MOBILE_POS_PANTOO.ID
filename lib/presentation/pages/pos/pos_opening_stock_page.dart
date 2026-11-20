@@ -151,8 +151,9 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
     try {
       item = await _repository.detail(id);
     } finally {
-      if (mounted && version == _selectionVersion)
+      if (mounted && version == _selectionVersion) {
         setState(() => _selecting = false);
+      }
     }
     if (!mounted || version != _selectionVersion) return;
     if (item['tracks_stock'] == false ||
@@ -190,12 +191,14 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
       } else {
         final qty = double.tryParse(_quantity.text.replaceAll(',', '.')) ?? 0;
         final cost = parseRupiah(_cost.text);
-        if (_productId == null || _locationId == null || _item == null)
+        if (_productId == null || _locationId == null || _item == null) {
           throw StateError('Pilih barang dan lokasi stok.');
-        if (!qty.isFinite || qty <= 0 || !cost.isFinite || cost < 0)
+        }
+        if (!qty.isFinite || qty <= 0 || !cost.isFinite || cost < 0) {
           throw StateError(
             'Jumlah harus lebih dari nol dan biaya tidak boleh negatif.',
           );
+        }
         final factor =
             (_units.firstWhere((r) => r['unit'] == _unit)['factor'] as num)
                 .toDouble();
@@ -305,7 +308,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
     final permissions =
         context.watch<PosBloc>().state.runtimeConfig['permissions'] as Map? ??
         const {};
-    if (permissions['initialize_stock'] != true)
+    if (permissions['initialize_stock'] != true) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
@@ -314,8 +317,9 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
           ),
         ),
       );
+    }
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_saved)
+    if (_saved) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -347,6 +351,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
           ),
         ),
       );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(

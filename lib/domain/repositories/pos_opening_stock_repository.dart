@@ -34,8 +34,9 @@ class OpeningStockDraft {
       'request_id':
           'mobile-opening-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}',
     };
-    if (!await preferences.setString(_key, jsonEncode(saved)))
+    if (!await preferences.setString(_key, jsonEncode(saved))) {
       throw StateError('Draft saldo awal tidak dapat disimpan.');
+    }
     return saved;
   }
 
@@ -85,8 +86,9 @@ class PosOpeningStockRepository {
     final scope = provider.subscriptionScope;
     final store = draft;
     final input = await store.prepare(payload);
-    if (scope != provider.subscriptionScope)
+    if (scope != provider.subscriptionScope) {
       throw StateError('Operator berubah. Buka ulang saldo awal.');
+    }
     final result = await provider.client.mutate(
       MutationOptions(
         document: gql(submitMutation),
@@ -98,16 +100,19 @@ class PosOpeningStockRepository {
       // Only a definitive server rejection can unlock editing. Transport errors
       // retain the exact request ID + payload for idempotent confirmation.
       if (result.exception!.graphqlErrors.isNotEmpty &&
-          result.exception!.linkException == null)
+          result.exception!.linkException == null) {
         await store.clear();
+      }
       throw result.exception!;
     }
-    if (result.data?['SubmitInventoryOpeningBalance'] != true)
+    if (result.data?['SubmitInventoryOpeningBalance'] != true) {
       throw StateError(
         'Saldo awal belum terkonfirmasi. Coba kembali dengan draft yang sama.',
       );
+    }
     await store.clear();
-    if (scope != provider.subscriptionScope)
+    if (scope != provider.subscriptionScope) {
       throw StateError('Operator berubah. Muat ulang stok.');
+    }
   }
 }
