@@ -46,8 +46,10 @@ class _Lock extends AppLockCubit {
 
 void main() {
   Future<({_Auth auth, _Settings settings, _Lock lock})> mount(
-    WidgetTester tester,
-  ) async {
+    WidgetTester tester, {
+    VoidCallback? onCompleted,
+    double width = 390,
+  }) async {
     SharedPreferences.setMockInitialValues({
       'instansi_id': 'tenant',
       'user_id': 'user',
@@ -58,7 +60,7 @@ void main() {
     final auth = _Auth(), settings = _Settings(), lock = _Lock();
     sl.registerSingleton<AuthRepository>(auth);
     sl.registerSingleton<PosSettingsRepository>(settings);
-    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    await tester.binding.setSurfaceSize(Size(width, 1200));
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
       if (!auth.pending.isCompleted)
@@ -76,7 +78,7 @@ void main() {
         value: lock,
         child: MaterialApp(
           theme: AppTheme.light(),
-          home: const BusinessSetupPage(),
+          home: BusinessSetupPage(onCompleted: onCompleted),
         ),
       ),
     );
@@ -153,4 +155,79 @@ void main() {
     );
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
+
+  testWidgets(
+    'completion waits for settings and PIN context; narrow button never overflows',
+    (tester) async {
+      var completed = 0;
+      final h = await mount(tester, width: 320, onCompleted: () => completed++);
+      h.auth.pending.complete(const Right('tenant'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(completed, 0);
+      expect(h.lock.locks, 0);
+      h.settings.pending.complete(const Right(PosSettings()));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(h.lock.locks, 1);
+      expect(completed, 0);
+      expect(find.text('Menyiapkan Pantoo POS…'), findsOneWidget);
+      expect(find.byType(PosOnboardingGate), findsNothing);
+      expect(tester.takeException(), isNull);
+      h.lock.pending.complete();
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(completed, 1);
+      expect(h.auth.creates, 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
+    'unexpected creation failure releases loading instead of hanging',
+    (tester) async {
+      final h = await mount(tester);
+      h.auth.pending.completeError(StateError('simulated transport failure'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Konfigurasi POS belum dapat dimuat. Coba lagi.'),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNotNull,
+      );
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'retry after PIN preparation failure never creates a second workspace',
+    (tester) async {
+      final h = await mount(tester);
+      h.auth.pending.complete(const Right('tenant'));
+      h.settings.pending.complete(const Right(PosSettings()));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      h.lock.pending.completeError(
+        StateError('simulated PIN preparation failure'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Lanjutkan'), findsOneWidget);
+      await tester.ensureVisible(find.text('Lanjutkan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lanjutkan'));
+      await tester.pumpAndSettle();
+      expect(h.auth.creates, 1);
+      expect(h.lock.locks, 2);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
