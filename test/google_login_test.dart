@@ -86,6 +86,7 @@ void main() {
       final input = requests.single.variables['input'] as Map;
       expect(input['primary_product'], 'pos');
       expect(input['registration_source'], 'mobile_pos');
+      expect(input['access_via'], 'mobile_app');
       expect(input['provider'], 'google');
       expect(input['tokenId'], 'google-proof');
       expect(input['legal_consent'], isTrue);
