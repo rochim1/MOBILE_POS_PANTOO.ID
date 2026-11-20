@@ -77,6 +77,7 @@ class _Opening extends Fake implements PosOpeningStockRepository {
   final bool failFirst;
   int calls = 0;
   final inputs = <Map<String, dynamic>>[];
+  final Map<String, dynamic> detailOverrides = {};
   _Opening(this.prefs, {this.failFirst = false});
   @override
   GraphQLClientProvider get provider => _Provider();
@@ -93,6 +94,7 @@ class _Opening extends Fake implements PosOpeningStockRepository {
     'unit_conversions': [
       {'unit': 'box', 'factor': 12},
     ],
+    ...detailOverrides,
   };
   @override
   Future<void> submit(Map<String, dynamic> payload) async {
@@ -266,4 +268,107 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'failed initial lookups can reload and save without leaving POS',
+    (tester) async {
+      final stocks = sl<PosStockRepository>() as _Stocks;
+      stocks.offline = true;
+      final repo = _Opening(await SharedPreferences.getInstance());
+      await show(tester, repo);
+      expect(find.textContaining('Offline'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Simpan stok awal & lanjutkan'),
+            )
+            .onPressed,
+        isNull,
+      );
+      stocks.offline = false;
+      final reload = find.text('Muat ulang barang/lokasi');
+      await tester.ensureVisible(reload);
+      await tester.tap(reload);
+      await tester.pumpAndSettle();
+      final save = find.text('Simpan stok awal & lanjutkan');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pump();
+      repo.gate.complete();
+      await tester.pumpAndSettle();
+      expect(repo.calls, 1);
+      expect(
+        find.textContaining('Stok awal tersimpan. Gunakan'),
+        findsOneWidget,
+      );
+    },
+  );
+  testWidgets(
+    'zero quantity can be corrected and zero cost stock is accepted',
+    (tester) async {
+      final repo = _Opening(await SharedPreferences.getInstance());
+      await show(tester, repo);
+      final qty = find.widgetWithText(TextField, 'Jumlah (pcs)');
+      await tester.ensureVisible(qty);
+      await tester.enterText(qty, '0');
+      final save = find.text('Simpan stok awal & lanjutkan');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(repo.calls, 0);
+      expect(
+        find.textContaining('Jumlah harus lebih dari nol'),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(qty);
+      await tester.enterText(qty, '2');
+      final cost = find.widgetWithText(TextField, 'Biaya per pcs (Rp)');
+      await tester.ensureVisible(cost);
+      await tester.enterText(cost, '0');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pump();
+      final row = (repo.inputs.single['items'] as List).single as Map;
+      expect(row['qty'], 2);
+      expect(row['hpp'], 0);
+      repo.gate.complete();
+      await tester.pumpAndSettle();
+      expect(repo.draft.pending, isNull);
+    },
+  );
+  testWidgets('FIFO batch expiry and serials are carried into the posting', (
+    tester,
+  ) async {
+    final repo = _Opening(await SharedPreferences.getInstance());
+    repo.detailOverrides.addAll({
+      'valuation_method': 'fifo',
+      'wajib_batch_number': true,
+      'wajib_serial_number': true,
+    });
+    await show(tester, repo);
+    for (final entry in {
+      'Tanggal saldo awal (YYYY-MM-DD)': '2026-11-20',
+      'Jumlah (pcs)': '2',
+      'Tanggal perolehan (YYYY-MM-DD)': '2026-11-19',
+      'Nomor batch *': 'B-TEST',
+      'Kedaluwarsa (YYYY-MM-DD; wajib bila ada batch)': '2027-11-20',
+      'Nomor seri (satu per baris, per unit dasar)': ' SN-1 \nSN-2\n',
+    }.entries) {
+      final field = find.widgetWithText(TextField, entry.key);
+      await tester.ensureVisible(field);
+      await tester.enterText(field, entry.value);
+    }
+    final save = find.text('Simpan stok awal & lanjutkan');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pump();
+    final row = (repo.inputs.single['items'] as List).single as Map;
+    expect(row['tanggal_perolehan'], '2026-11-19');
+    expect(row['no_batch'], 'B-TEST');
+    expect(row['tanggal_kadaluarsa'], '2027-11-20');
+    expect(row['serial_numbers'], ['SN-1', 'SN-2']);
+    expect(row['qty'], 2);
+    repo.gate.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
 }
