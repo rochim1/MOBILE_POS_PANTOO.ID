@@ -196,6 +196,23 @@ class PosSubscriptionService extends ChangeNotifier {
     return _startRefresh();
   }
 
+  /// Start a nearly-stale access check while the cashier is choosing payment.
+  /// This is only a warm-up: mutation/offline guards still authorize the write.
+  Future<void> prepareCheckout() async {
+    if (_disposed || !required) return;
+    if (!initialized || _scope != readScope()) {
+      await activate();
+      return;
+    }
+    final revision = _revision;
+    await _advanceTrustedTime(revision);
+    if (_disposed || revision != _revision || _scope != readScope()) return;
+    if (offline || error != null || _checkedDeviceAt == null ||
+        clock().toUtc().difference(_checkedDeviceAt!) >= const Duration(seconds: 45)) {
+      await refresh();
+    }
+  }
+
   Future<void> _startRefresh() {
     final revision = _revision;
     return _inFlight ??= _refresh(revision).whenComplete(() {

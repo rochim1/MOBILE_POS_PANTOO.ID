@@ -30,6 +30,8 @@ void main() {
       );
       await service.activate();
       now = now.add(const Duration(seconds: 90));
+      final phase = Platform.environment['POS_PAYMENT_MEASURE_PHASE'] ?? 'before';
+      if (phase == 'after') await service.prepareCheckout();
       final timer = Stopwatch()..start();
       expect(await service.guardMutation({'ProcessPOSPenjualan'}), isNull);
       samples.add(timer.elapsedMicroseconds / 1000);

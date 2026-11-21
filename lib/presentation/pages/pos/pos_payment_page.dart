@@ -1,4 +1,6 @@
 import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
+import 'dart:async';
+import '../../../core/utils/logger.dart';
 import 'pos_subscription_page.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
@@ -67,6 +69,13 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     _paymentCustomer = widget.initialCustomer;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (sl.isRegistered<PosSubscriptionService>()) {
+        unawaited(sl<PosSubscriptionService>().prepareCheckout().catchError(
+          (Object error, StackTrace stack) {
+            appLogger.w('Persiapan akses pembayaran belum tersedia', error: error, stackTrace: stack);
+          },
+        ));
+      }
       final bloc = context.read<PosBloc>();
       final state = bloc.state;
       if (_invoiceNote.isEmpty) {
