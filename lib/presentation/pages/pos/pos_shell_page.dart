@@ -511,7 +511,7 @@ class _PosShellPageState extends State<PosShellPage>
         if (_posBloc.state.activeShift != null) break;
         await Future<void>.delayed(const Duration(milliseconds: 80));
       }
-      if (!current()) return;
+      if (!mounted || !current()) return;
       if (shiftStages.any((stage) => stage.target?.currentContext == null)) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Form buka shift belum tersedia. Periksa koneksi atau gunakan shift yang sudah aktif, lalu buka panduan kembali.')));
         return;
