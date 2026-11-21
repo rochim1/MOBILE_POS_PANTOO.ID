@@ -1434,6 +1434,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             onPressed: () async {
                               final customer = await showPosQuickCustomerDialog(
                                 context,
+                                runtimeConfig: posBloc.state.runtimeConfig,
                               );
                               if (!sheetContext.mounted || customer == null) {
                                 return;

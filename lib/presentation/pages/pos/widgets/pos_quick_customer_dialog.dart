@@ -16,48 +16,41 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
   String initialPhone = '',
   bool requirePhone = false,
   bool selectAfterSave = true,
+  Map<String, dynamic>? runtimeConfig,
 }) async {
   final repository = sl<PosRepository>();
-  Map<String, dynamic> runtimeConfig;
-  try {
-    runtimeConfig = await repository.getRuntimeConfig();
-  } catch (_) {
-    if (context.mounted) {
-      AppToast.error(
-        context,
-        'Pengaturan pelanggan belum dapat dimuat. Coba lagi saat koneksi tersedia.',
-      );
-    }
-    return null;
-  }
-  if (!context.mounted) return null;
-  final priceLevelOptions =
-      <dynamic>[
-            ...((runtimeConfig['price_level_options'] as List?) ??
-                const ['retail']),
-          ]
-          .map((value) => value.toString())
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList();
-  if (!priceLevelOptions.contains('retail')) {
-    priceLevelOptions.insert(0, 'retail');
-  }
   final nameController = TextEditingController(text: initialName);
   final phoneController = TextEditingController(text: initialPhone);
   final emailController = TextEditingController();
   final addressController = TextEditingController();
   final noteController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  var saving = false;
+  var membershipStatus = 'non_member';
+  var membershipTier = 'regular';
+  var customerType = 'personal';
+  var priceLevel = 'retail';
+  var initialized = false;
 
-  Widget buildCustomerForm(BuildContext dialogContext, {required bool mobile}) {
-    var saving = false;
-    var membershipStatus = 'non_member';
-    var membershipTier = 'regular';
-    var customerType = 'personal';
-    var priceLevel =
-        runtimeConfig['default_price_level']?.toString() ?? 'retail';
-    if (!priceLevelOptions.contains(priceLevel)) priceLevel = 'retail';
+  Widget buildCustomerForm(
+    BuildContext dialogContext,
+    Map<String, dynamic> runtimeConfig, {
+    required bool mobile,
+  }) {
+    final priceLevelOptions =
+        ((runtimeConfig['price_level_options'] as List?) ?? const ['retail'])
+            .map((value) => value.toString())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList();
+    if (!priceLevelOptions.contains('retail')) {
+      priceLevelOptions.insert(0, 'retail');
+    }
+    if (!initialized) {
+      priceLevel = runtimeConfig['default_price_level']?.toString() ?? 'retail';
+      if (!priceLevelOptions.contains(priceLevel)) priceLevel = 'retail';
+      initialized = true;
+    }
     final screenSize = MediaQuery.sizeOf(dialogContext);
     final dialogWidth = mobile
         ? screenSize.width - 32
@@ -134,11 +127,11 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                     field(
                       'Nama pelanggan',
                       TextFormField(
-errorBuilder: posValidationError,
+                        errorBuilder: posValidationError,
                         controller: nameController,
                         autofocus: true,
                         textCapitalization: TextCapitalization.words,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           hintText: ('Contoh: Budi Santoso').tr(context),
                           prefixIcon: Icon(Icons.person_outline),
                         ),
@@ -149,10 +142,10 @@ errorBuilder: posValidationError,
                     field(
                       'Nomor telepon',
                       TextFormField(
-errorBuilder: posValidationError,
+                        errorBuilder: posValidationError,
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           hintText: ('Contoh: 081234567890').tr(context),
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
@@ -166,10 +159,10 @@ errorBuilder: posValidationError,
                     field(
                       'Email',
                       TextFormField(
-errorBuilder: posValidationError,
+                        errorBuilder: posValidationError,
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           hintText: ('nama@email.com (opsional)').tr(context),
                           prefixIcon: Icon(Icons.email_outlined),
                         ),
@@ -183,7 +176,7 @@ errorBuilder: posValidationError,
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 2,
                         maxLines: 3,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           hintText: ('Alamat lengkap pelanggan').tr(context),
                           prefixIcon: Icon(Icons.location_on_outlined),
                           alignLabelWithHint: true,
@@ -197,7 +190,7 @@ errorBuilder: posValidationError,
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 2,
                         maxLines: 3,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           hintText: ('Catatan tambahan (opsional)').tr(context),
                           prefixIcon: Icon(Icons.notes_outlined),
                           alignLabelWithHint: true,
@@ -237,9 +230,10 @@ errorBuilder: posValidationError,
                       'Level harga',
                       DropdownButtonFormField<String>(
                         initialValue: priceLevel,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           helperText:
-                              ('Menentukan daftar harga produk pelanggan ini').tr(context),
+                              ('Menentukan daftar harga produk pelanggan ini')
+                                  .tr(context),
                           prefixIcon: Icon(Icons.price_change_outlined),
                         ),
                         items: priceLevelOptions
@@ -274,7 +268,8 @@ errorBuilder: posValidationError,
                         decoration: InputDecoration(
                           helperText: membershipStatus == 'member'
                               ? null
-                              : ('Aktif setelah status diubah menjadi Member').tr(context),
+                              : ('Aktif setelah status diubah menjadi Member')
+                                    .tr(context),
                           prefixIcon: const Icon(
                             Icons.workspace_premium_outlined,
                           ),
@@ -467,6 +462,19 @@ errorBuilder: posValidationError,
   }
 
   final mobile = MediaQuery.sizeOf(context).width < 600;
+  Widget buildDialog(BuildContext dialogContext) => _CustomerConfigGate(
+    initialConfig: runtimeConfig,
+    load: repository.getRuntimeConfig,
+    builder: (config) =>
+        buildCustomerForm(dialogContext, config, mobile: mobile),
+    onDispose: () {
+      nameController.dispose();
+      phoneController.dispose();
+      emailController.dispose();
+      addressController.dispose();
+      noteController.dispose();
+    },
+  );
   final customer = mobile
       ? await showModalBottomSheet<PosCustomer>(
           context: context,
@@ -474,20 +482,92 @@ errorBuilder: posValidationError,
           isDismissible: false,
           enableDrag: false,
           useSafeArea: true,
-          builder: (sheetContext) =>
-              buildCustomerForm(sheetContext, mobile: true),
+          builder: buildDialog,
         )
       : await showDialog<PosCustomer>(
           context: context,
           barrierDismissible: false,
-          builder: (dialogContext) =>
-              buildCustomerForm(dialogContext, mobile: false),
+          builder: buildDialog,
         );
 
-  nameController.dispose();
-  phoneController.dispose();
-  emailController.dispose();
-  addressController.dispose();
-  noteController.dispose();
   return customer;
+}
+
+/// Existing checkout configuration avoids a second network round trip. When
+/// opened outside checkout, show the route immediately while loading safely.
+class _CustomerConfigGate extends StatefulWidget {
+  const _CustomerConfigGate({
+    required this.initialConfig,
+    required this.load,
+    required this.builder,
+    required this.onDispose,
+  });
+  final Map<String, dynamic>? initialConfig;
+  final Future<Map<String, dynamic>> Function() load;
+  final Widget Function(Map<String, dynamic>) builder;
+  final VoidCallback onDispose;
+
+  @override
+  State<_CustomerConfigGate> createState() => _CustomerConfigGateState();
+}
+
+class _CustomerConfigGateState extends State<_CustomerConfigGate> {
+  Future<Map<String, dynamic>>? _request;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialConfig?.isNotEmpty != true) _request = widget.load();
+  }
+
+  @override
+  void dispose() {
+    // A route's result completes before its closing animation. Release text
+    // controllers only when its fields have actually left the widget tree.
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_request == null) return widget.builder(widget.initialConfig!);
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _request,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) return widget.builder(snapshot.data!);
+        return AlertDialog(
+          title: const PosText('Tambah Pelanggan'),
+          content: snapshot.hasError
+              ? const PosText(
+                  'Pengaturan pelanggan belum dapat dimuat. Coba lagi saat koneksi tersedia.',
+                )
+              : const Row(
+                  children: [
+                    SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(child: PosText('Memuat pengaturan pelanggan...')),
+                  ],
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const PosText('Batal'),
+            ),
+            if (snapshot.hasError)
+              TextButton(
+                onPressed: () {
+                  final request = widget.load();
+                  setState(() {
+                    _request = request;
+                  });
+                },
+                child: const PosText('Coba lagi'),
+              ),
+          ],
+        );
+      },
+    );
+  }
 }

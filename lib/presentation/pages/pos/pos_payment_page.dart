@@ -1357,6 +1357,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       : widget.pendingOrder?.customer ?? '';
 
   Future<bool> _selectPaymentCustomer(PosState state) async {
+    final posBloc = context.read<PosBloc>();
     final customers = state.customers;
     final selected = await showModalBottomSheet<PosCustomer>(
       context: context,
@@ -1416,6 +1417,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                         onPressed: () async {
                           final created = await showPosQuickCustomerDialog(
                             context,
+                            runtimeConfig: posBloc.state.runtimeConfig,
                             initialName: _requestedCustomerName,
                             initialPhone: _requestedCustomerPhone,
                             requirePhone:

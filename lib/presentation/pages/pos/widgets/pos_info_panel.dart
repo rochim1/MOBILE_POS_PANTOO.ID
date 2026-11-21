@@ -23,8 +23,9 @@ class PosInfoPanel extends StatefulWidget {
 
 class _CustomerPickerSheet extends StatefulWidget {
   final PosCustomer? selected;
+  final Map<String, dynamic> runtimeConfig;
 
-  const _CustomerPickerSheet({this.selected});
+  const _CustomerPickerSheet({this.selected, required this.runtimeConfig});
 
   @override
   State<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
@@ -133,7 +134,10 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () async {
-                  final customer = await showPosQuickCustomerDialog(context);
+                  final customer = await showPosQuickCustomerDialog(
+                    context,
+                    runtimeConfig: widget.runtimeConfig,
+                  );
                   if (!context.mounted || customer == null) return;
                   Navigator.pop(context, customer);
                 },
@@ -508,7 +512,10 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _CustomerPickerSheet(selected: selected),
+      builder: (_) => _CustomerPickerSheet(
+        selected: selected,
+        runtimeConfig: context.read<PosBloc>().state.runtimeConfig,
+      ),
     );
     if (!mounted) return;
     if (customer != null) {
