@@ -164,6 +164,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(access.calls, greaterThan(beforePoll));
       expect(find.textContaining('Last known subscription'), findsNothing);
+      final beforeResume = access.calls;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(access.calls, greaterThan(beforeResume));
+      expect(find.textContaining('Last known subscription'), findsNothing);
       lock.setLocked(false);
       await tester.pumpAndSettle();
       expect(find.textContaining('Last known subscription'), findsOneWidget);
@@ -221,6 +228,32 @@ void main() {
     lock.setLocked(false);
     await tester.pumpAndSettle();
     expect(find.textContaining('Read-only mode'), findsOneWidget);
+    expect(access.service.canSell, false);
+    await cleanup(tester, access, lock);
+  });
+
+  testWidgets('hidden banner cannot extend the trusted offline deadline', (
+    tester,
+  ) async {
+    final access = _Access();
+    final lock = _Lock()..setLocked(true);
+    var privateTaps = 0;
+    await mount(tester, access, lock, onPrivateTap: () => privateTaps++);
+    access.online = false;
+    await access.service.refresh();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Last known subscription'), findsNothing);
+    access.now = access.now.add(const Duration(hours: 25));
+    expect(await access.service.guardOfflineWrite(), isNotNull);
+    expect(
+      await access.service.guardMutation({'ProcessPOSPenjualan'}),
+      isNotNull,
+    );
+    await tester.pumpAndSettle();
+    lock.setLocked(false);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Private workspace'), warnIfMissed: false);
+    expect(privateTaps, 0);
     expect(access.service.canSell, false);
     await cleanup(tester, access, lock);
   });
