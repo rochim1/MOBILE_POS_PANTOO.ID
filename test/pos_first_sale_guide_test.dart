@@ -67,17 +67,21 @@ void main() {
       );
       expect(
         launcher.style?.backgroundColor?.resolve({}),
-        const Color(0xFFFFE082),
+        const Color(0xFFE3F2FD),
       );
       expect(
         launcher.style?.foregroundColor?.resolve({}),
-        const Color(0xFF3E3300),
+        const Color(0xFF0D47A1),
       );
       expect(
         tester
             .getSize(find.widgetWithText(TextButton, 'Panduan langkah ini'))
             .height,
         greaterThanOrEqualTo(44),
+      );
+      expect(
+        tester.getSize(find.widgetWithText(TextButton, 'Panduan langkah ini')).width,
+        tester.getSize(find.byType(PosFirstSaleGuide)).width,
       );
       await tester.tap(find.text('Panduan langkah ini'));
       await tester.pumpAndSettle();
