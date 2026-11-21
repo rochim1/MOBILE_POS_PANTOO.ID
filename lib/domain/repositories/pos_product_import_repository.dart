@@ -33,7 +33,7 @@ class PosProductImportRepository {
   final http.Client? client;
   PosProductImportRepository(this.provider, {this.client});
   static const template =
-      'nama_inventaris,kode_inventaris,kategori,brand,model,unit,kondisi,lokasi_penyimpanan,harga_beli,harga_jual,supplier,stok_minimum,deskripsi,catatan,tags\n';
+      'nama_inventaris,kode_inventaris,kategori,brand,model,unit,kondisi,lokasi_penyimpanan,harga_beli,harga_jual,supplier,stok_minimum,deskripsi,catatan,tags,sku,barcode,pos_product_type,service_price_mode\n';
   static String requestId(List<int> bytes) =>
       'inventory-import-${sha256.convert(bytes)}-barang_dagangan';
   static const mutation =
@@ -150,10 +150,23 @@ class PosProductImportRepository {
           'Hasil import belum pasti. Pilih file yang sama untuk konfirmasi.',
         );
       }
-      final counts = ['importedCount','failedCount','skippedCount','totalProcessed'].map((key)=>data[key]).toList();
-      if (counts.any((value)=>value is! num || !value.isFinite || value < 0 || value != value.round()) ||
+      final counts = [
+        'importedCount',
+        'failedCount',
+        'skippedCount',
+        'totalProcessed',
+      ].map((key) => data[key]).toList();
+      if (counts.any(
+            (value) =>
+                value is! num ||
+                !value.isFinite ||
+                value < 0 ||
+                value != value.round(),
+          ) ||
           counts[0] + counts[1] + counts[2] != counts[3]) {
-        throw StateError('Hasil import belum lengkap. Periksa kembali dengan file yang sama.');
+        throw StateError(
+          'Hasil import belum lengkap. Periksa kembali dengan file yang sama.',
+        );
       }
       final result = PosProductImportResult.fromJson(
         Map<String, dynamic>.from(data),

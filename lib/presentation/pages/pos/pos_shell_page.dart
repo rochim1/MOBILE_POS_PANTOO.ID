@@ -587,6 +587,11 @@ class _PosShellPageState extends State<PosShellPage>
     PosProductPage(
       isGridView: _productGridView,
       onProductCreated: _afterFirstProduct,
+      onProductsImported: (ids) async {
+        if ((_posBloc.state.runtimeConfig['initial_setup'] as Map?)?['first_sale_pending'] != true) return;
+        _openingProductId = ids.firstOrNull;
+        await _advanceFirstSale();
+      },
       setupTourKey: _setupTourTargets.productAdd,
       setupTourTargets: _setupTourTargets,
       tourController: _productTourController,
@@ -1024,8 +1029,8 @@ class _PosShellPageState extends State<PosShellPage>
     final destination = first ?? (_posBloc.state.activeShift == null ? 11 : 1);
     final stages = switch (step) {
       'product' => [PosSetupTourStage(title: 'Tambahkan produk pertama',
-        description: 'Ketuk Tambah Produk. Isi nama dan harga jual; pilih barang atau layanan sesuai usaha Anda.',
-        target: _setupTourTargets.productAdd, onTargetTap: _productTourController.run)],
+        description: 'Pilih Tambah Produk untuk satu item, atau Import Excel / CSV untuk banyak produk. Setelah tersimpan, lanjutkan stok awal barang; layanan tanpa stok langsung menuju kas.',
+        target: _setupTourTargets.productChoices)],
       'opening' => [
         PosSetupTourStage(title: 'Pilih barang stok', description: 'Pilih barang yang sudah dimiliki sebelum memakai POS, lalu isi jumlah dan biaya pada field yang tampil. Panduan dapat dibuka kembali kapan saja.', target: _setupTourTargets.openingProduct),
         PosSetupTourStage(title: 'Periksa lokasi stok', description: 'Gunakan lokasi toko yang sudah disiapkan. Gedung, ruangan dan rak hanya bila diperlukan.', target: _setupTourTargets.openingLocation),

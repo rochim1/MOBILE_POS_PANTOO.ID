@@ -22,6 +22,9 @@ import '../../widgets/pos_content_skeletons.dart';
 import 'pos_barcode_scanner_page.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_component_picker.dart';
+import 'pos_product_import_page.dart';
+import '../../../core/network/graphql_client_provider.dart';
+import '../../../domain/repositories/pos_product_import_repository.dart';
 
 class PosProductPage extends StatefulWidget {
   final bool isGridView;
@@ -29,6 +32,7 @@ class PosProductPage extends StatefulWidget {
   final PosSetupTourTargets? setupTourTargets;
   final PosSetupActionController? tourController;
   final Future<void> Function(PosProduct)? onProductCreated;
+  final Future<void> Function(List<String>)? onProductsImported;
 
   const PosProductPage({
     super.key,
@@ -37,6 +41,7 @@ class PosProductPage extends StatefulWidget {
     this.setupTourTargets,
     this.tourController,
     this.onProductCreated,
+    this.onProductsImported,
   });
 
   @override
@@ -123,6 +128,29 @@ class _PosProductPageState extends State<PosProductPage> {
     final config = context.read<PosBloc>().state.runtimeConfig;
     final permissions = config['permissions'] as Map?;
     return permissions?['manage_products'] == true;
+  }
+
+  bool _canImportProducts(BuildContext context) =>
+      (context.read<PosBloc>().state.runtimeConfig['permissions']
+          as Map?)?['import_products'] ==
+      true;
+
+  Future<void> _openImport(BuildContext context) async {
+    final bloc = context.read<PosBloc>();
+    final result = await Navigator.of(context).push<PosProductImportResult>(
+      MaterialPageRoute(
+        builder: (_) => PosProductImportPage(
+          repository: PosProductImportRepository(sl<GraphQLClientProvider>()),
+          canImport: _canImportProducts(context),
+          offline: bloc.state.runtimeConfig['_offline_snapshot'] == true,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    bloc.add(RefreshProducts());
+    if (result != null && result.importedCount > 0) {
+      await widget.onProductsImported?.call(result.stockItemIds);
+    }
   }
 
   @override
@@ -238,67 +266,85 @@ class _PosProductPageState extends State<PosProductPage> {
     List<PosProduct> products,
     bool trackStock,
   ) {
-    return isMobile
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _buildSearchField()),
-                  const SizedBox(width: 8),
-                  _buildFilterButton(
-                    context,
-                    products,
-                    trackStock,
-                    compact: true,
+    return KeyedSubtree(
+      key: widget.setupTourTargets?.productChoices,
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _buildSearchField()),
+                    const SizedBox(width: 8),
+                    _buildFilterButton(
+                      context,
+                      products,
+                      trackStock,
+                      compact: true,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (_canImportProducts(context))
+                  OutlinedButton.icon(
+                    onPressed: () => _openImport(context),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Import Excel / CSV'),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (_canManageProducts(context))
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: ElevatedButton.icon(
+                if (_canManageProducts(context))
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      key: widget.setupTourKey,
+                      onPressed: () => _showCatalogProductForm(context, true),
+                      icon: const Icon(Icons.add),
+                      label: const PosText('Tambah Produk'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: _buildSearchField()),
+                const SizedBox(width: 10),
+                _buildFilterButton(context, products, trackStock),
+                if (_canImportProducts(context))
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openImport(context),
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Import produk'),
+                    ),
+                  ),
+                const SizedBox(width: 16),
+                if (_canManageProducts(context))
+                  ElevatedButton.icon(
                     key: widget.setupTourKey,
-                    onPressed: () => _showCatalogProductForm(context, true),
+                    onPressed: () => _showCatalogProductForm(context, false),
                     icon: const Icon(Icons.add),
                     label: const PosText('Tambah Produk'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 16,
                       ),
                     ),
                   ),
-                ),
-            ],
-          )
-        : Row(
-            children: [
-              Expanded(child: _buildSearchField()),
-              const SizedBox(width: 10),
-              _buildFilterButton(context, products, trackStock),
-              const SizedBox(width: 16),
-              if (_canManageProducts(context))
-                ElevatedButton.icon(
-                  key: widget.setupTourKey,
-                  onPressed: () => _showCatalogProductForm(context, false),
-                  icon: const Icon(Icons.add),
-                  label: const PosText('Tambah Produk'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 16,
-                    ),
-                  ),
-                ),
-            ],
-          );
+              ],
+            ),
+    );
   }
 
   Widget _buildFilterButton(
@@ -916,7 +962,10 @@ class _PosProductPageState extends State<PosProductPage> {
               state.status == PosProductManagementStatus.success ||
               state.status == PosProductManagementStatus.failure,
         );
-        if (product == null && result.status == PosProductManagementStatus.success) createdProduct = result.product;
+        if (product == null &&
+            result.status == PosProductManagementStatus.success) {
+          createdProduct = result.product;
+        }
         return result.status == PosProductManagementStatus.success;
       },
     );
@@ -943,7 +992,9 @@ class _PosProductPageState extends State<PosProductPage> {
         ),
       );
     }
-    if (mounted && createdProduct != null) await widget.onProductCreated?.call(createdProduct!);
+    if (mounted && createdProduct != null) {
+      await widget.onProductCreated?.call(createdProduct!);
+    }
   }
 
   void _showProductDetails(

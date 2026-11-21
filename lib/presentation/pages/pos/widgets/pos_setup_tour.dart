@@ -16,6 +16,7 @@ class PosSetupTourTargets {
   final warehouseSave = GlobalKey(debugLabel: 'setup-warehouse-save');
   final stockLocation = GlobalKey(debugLabel: 'setup-stock-location');
   final productAdd = GlobalKey(debugLabel: 'setup-product-add');
+  final productChoices = GlobalKey(debugLabel: 'setup-product-choices');
   final outletAdd = GlobalKey(debugLabel: 'setup-outlet-add');
   final outletName = GlobalKey(debugLabel: 'setup-outlet-name');
   final outletWarehouse = GlobalKey(debugLabel: 'setup-outlet-warehouse');
