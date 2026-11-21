@@ -151,10 +151,10 @@ void main() {
   testWidgets('spotlight popup fits a short phone with large text', (
     tester,
   ) async {
-      tester.view.physicalSize = const Size(320, 480);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final key = GlobalKey();
     await tester.pumpWidget(
       MaterialApp(
@@ -201,15 +201,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Isi jumlah stok awal'), findsNothing);
   });
-  testWidgets('only currently mounted fields become spotlight stages', (tester) async {
+  testWidgets('only currently mounted fields become spotlight stages', (
+    tester,
+  ) async {
     final present = GlobalKey(), absent = GlobalKey();
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: PosFirstSaleGuide(
-      preferences: prefs, scope: 'stock', stepId: 'opening', enabled: true, title: 'Opening',
-      stages: [
-        PosSetupTourStage(title: 'Choose product', description: 'Choose first', target: present),
-        PosSetupTourStage(title: 'Quantity not mounted', description: 'Not yet', target: absent),
-      ], child: Center(child: TextButton(key: present, onPressed: () {}, child: const Text('Product'))),
-    ))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PosFirstSaleGuide(
+            preferences: prefs,
+            scope: 'stock',
+            stepId: 'opening',
+            enabled: true,
+            title: 'Opening',
+            stages: [
+              PosSetupTourStage(
+                title: 'Choose product',
+                description: 'Choose first',
+                target: present,
+              ),
+              PosSetupTourStage(
+                title: 'Quantity not mounted',
+                description: 'Not yet',
+                target: absent,
+              ),
+            ],
+            child: Center(
+              child: TextButton(
+                key: present,
+                onPressed: () {},
+                child: const Text('Product'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('1 / 1'), findsOneWidget);
     await tester.tap(find.text('Lewati'));

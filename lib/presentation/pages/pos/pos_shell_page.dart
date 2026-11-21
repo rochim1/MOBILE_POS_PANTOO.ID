@@ -1027,6 +1027,7 @@ class _PosShellPageState extends State<PosShellPage>
         description: 'Ketuk Tambah Produk. Isi nama dan harga jual; pilih barang atau layanan sesuai usaha Anda.',
         target: _setupTourTargets.productAdd, onTargetTap: _productTourController.run)],
       'opening' => [
+        PosSetupTourStage(title: 'Pilih barang stok', description: 'Pilih barang yang sudah dimiliki sebelum memakai POS, lalu isi jumlah dan biaya pada field yang tampil. Panduan dapat dibuka kembali kapan saja.', target: _setupTourTargets.openingProduct),
         PosSetupTourStage(title: 'Periksa lokasi stok', description: 'Gunakan lokasi toko yang sudah disiapkan. Gedung, ruangan dan rak hanya bila diperlukan.', target: _setupTourTargets.openingLocation),
         PosSetupTourStage(title: 'Isi jumlah stok awal', description: 'Masukkan barang yang sudah Anda miliki dan biaya per satuan. Untuk barang baru datang, gunakan Pembelian & Penerimaan.', target: _setupTourTargets.openingQuantity),
         PosSetupTourStage(title: 'Simpan stok awal', description: 'Periksa jumlah dan biaya, lalu simpan. Panduan ini tidak menyimpan stok secara otomatis.', target: _setupTourTargets.openingSave),

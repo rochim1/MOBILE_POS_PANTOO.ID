@@ -451,6 +451,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
                   ),
                 ),
               DropdownButtonFormField<String>(
+                key: widget.tourTargets?.openingProduct,
                 initialValue: _products.any((p) => p.id == _productId)
                     ? _productId
                     : null,

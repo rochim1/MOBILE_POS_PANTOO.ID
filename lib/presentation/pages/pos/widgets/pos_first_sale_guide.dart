@@ -112,11 +112,14 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
       if (!mounted || !widget.enabled || generation != _generation) return;
       await Scrollable.ensureVisible(target!.currentContext!, alignment: .5);
       if (!mounted || !widget.enabled || generation != _generation) return;
+      final stages = widget.stages
+          .where((stage) => stage.target?.currentContext != null)
+          .toList(growable: false);
       await showInteractivePosSetupTour(
         context,
         fallbackTarget: target,
         stepTitle: widget.title,
-        stages: widget.stages,
+        stages: stages,
         isActive: () => mounted && widget.enabled && _seenKey == guideKey,
         onDialogReady: (dialogContext) =>
             _dialog = ModalRoute.of(dialogContext),

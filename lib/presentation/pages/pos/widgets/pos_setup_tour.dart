@@ -33,6 +33,7 @@ class PosSetupTourTargets {
   final stockContent = GlobalKey(debugLabel: 'setup-stock-content');
   final stockAdjust = GlobalKey(debugLabel: 'setup-stock-adjust');
   final openingLocation = GlobalKey(debugLabel: 'setup-opening-location');
+  final openingProduct = GlobalKey(debugLabel: 'setup-opening-product');
   final openingQuantity = GlobalKey(debugLabel: 'setup-opening-quantity');
   final openingSave = GlobalKey(debugLabel: 'setup-opening-save');
   final pinManage = GlobalKey(debugLabel: 'setup-pin-manage');
