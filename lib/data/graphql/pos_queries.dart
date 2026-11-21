@@ -145,6 +145,7 @@ class PosQueries {
           view_tables
           manage_orders
           manage_products
+          import_products
           adjust_stock
           initialize_stock
           manage_tables
