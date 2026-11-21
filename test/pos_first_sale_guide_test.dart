@@ -74,7 +74,9 @@ void main() {
         const Color(0xFF3E3300),
       );
       expect(
-        tester.getSize(find.widgetWithText(TextButton, 'Panduan langkah ini')).height,
+        tester
+            .getSize(find.widgetWithText(TextButton, 'Panduan langkah ini'))
+            .height,
         greaterThanOrEqualTo(44),
       );
       await tester.tap(find.text('Panduan langkah ini'));

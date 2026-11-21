@@ -150,6 +150,15 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: _open,
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFFFE082),
+              foregroundColor: const Color(0xFF3E3300),
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             icon: const Icon(Icons.help_outline, size: 18),
             label: Text('Panduan langkah ini'.tr(context)),
           ),
