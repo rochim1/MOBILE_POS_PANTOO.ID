@@ -503,6 +503,22 @@ class _PosShellPageState extends State<PosShellPage>
         .indexed
         .map((entry) => entry.$2.withTarget(targets[entry.$1]))
         .toList(growable: false);
+    if (stepNumber == 7) {
+      final shiftStages = posShiftOpeningTourStages(_setupTourTargets);
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      bool current() => mounted && _selectedIndex == 11 && context.read<AppLockCubit>().state.status == AppLockStatus.unlocked;
+      while (current() && shiftStages.any((stage) => stage.target?.currentContext == null) && DateTime.now().isBefore(deadline)) {
+        if (_posBloc.state.activeShift != null) break;
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+      }
+      if (!current()) return;
+      if (shiftStages.any((stage) => stage.target?.currentContext == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Form buka shift belum tersedia. Periksa koneksi atau gunakan shift yang sudah aktif, lalu buka panduan kembali.')));
+        return;
+      }
+      await showInteractivePosSetupTour(context, fallbackTarget: _setupTourTargets.shiftStore, stepTitle: 'Buka shift kasir', stages: shiftStages);
+      return;
+    }
     if (stepNumber == 1 && targetedStages.isNotEmpty) {
       const first = PosSetupTourStage(
         title: 'Tambah lokasi stok',

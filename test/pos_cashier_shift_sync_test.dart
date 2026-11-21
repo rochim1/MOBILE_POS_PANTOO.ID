@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_setup_tour.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_shift_opening_tour.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_first_sale_guide.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -119,6 +123,74 @@ Future<Map<String, dynamic>?> _discover(
 );
 
 void main() {
+  testWidgets(
+    'real shift form exposes four targets after loading and guide scrolls to cash field',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final targets = PosSetupTourTargets();
+      final repo = _Repo()..active = null;
+      final gate = Completer<Map<String, dynamic>?>();
+      repo.read = (_) => gate.future;
+      final bloc = _SeededBloc(repo)
+        ..seed(PosState(status: PosStatus.success, stores: repo.stores));
+      final shifts = PosShiftBloc(posRepository: repo);
+      addTearDown(bloc.close);
+      addTearDown(shifts.close);
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<PosBloc>.value(value: bloc),
+            BlocProvider<PosShiftBloc>.value(value: shifts),
+            BlocProvider<AppLockCubit>.value(value: _Lock()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: PosFirstSaleGuide(
+                preferences: prefs,
+                scope: 'real-shift',
+                stepId: 'cash-v2',
+                title: 'Shift',
+                enabled: true,
+                stages: posShiftOpeningTourStages(targets),
+                readyTargets: posShiftOpeningTourStages(
+                  targets,
+                ).map((stage) => stage.target!).toList(),
+                child: PosActiveShiftTab(
+                  storeTourKey: targets.shiftStore,
+                  formTourKey: targets.shiftForm,
+                  cashTourKey: targets.shiftOpeningCash,
+                  notesTourKey: targets.shiftOpeningNotes,
+                  openTourKey: targets.shiftOpen,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('1 / 1'), findsNothing);
+      gate.complete(null);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      expect(find.text('1 / 4'), findsOneWidget);
+      for (var index = 1; index <= 4; index++) {
+        expect(find.text('$index / 4'), findsOneWidget);
+        final next = find.text(index == 4 ? 'Mengerti' : 'Berikutnya');
+        await tester.ensureVisible(next);
+        await tester.tap(next);
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   test(
     'a populated cart is preserved across a conflicting shift until explicitly cleared',
     () async {
