@@ -168,17 +168,23 @@ class _PosSubscriptionBoundaryState extends State<PosSubscriptionBoundary>
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: Listenable.merge([widget.service, widget.receiptVisible]),
     builder: (context, _) {
+      final pinLocked = context.select<AppLockCubit?, bool>(
+        (lock) => lock?.state.status == AppLockStatus.locked,
+      );
       final service = widget.service;
       if (!widget.authenticated || !service.required) return widget.child;
       final blocked =
           !service.canSell &&
           service.accessLevel != 'read_only' &&
           !widget.receiptVisible.value;
+      // Presentation only: PIN must not show subscription details, while
+      // polling, write guards and the restriction overlay remain unchanged.
+      final showBanner = service.showWarning && !blocked && !pinLocked;
       return Stack(
         children: [
           Column(
             children: [
-              if (service.showWarning && !blocked)
+              if (showBanner)
                 Material(
                   color: const Color(0xFFFFF8E8),
                   child: SafeArea(
@@ -249,7 +255,7 @@ class _PosSubscriptionBoundaryState extends State<PosSubscriptionBoundary>
                   explicitChildNodes: true,
                   child: MediaQuery.removePadding(
                     context: context,
-                    removeTop: service.showWarning && !blocked,
+                    removeTop: showBanner,
                     child: widget.child,
                   ),
                 ),
