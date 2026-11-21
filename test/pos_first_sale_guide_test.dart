@@ -148,17 +148,48 @@ void main() {
       expect(shell, contains('_setupTourTargets.openingQuantity'));
     },
   );
-  testWidgets('spotlight popup fits a short phone with large text', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(320, 480));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('spotlight popup fits a short phone with large text', (
+    tester,
+  ) async {
+      tester.view.physicalSize = const Size(320, 480);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
     final key = GlobalKey();
-    await tester.pumpWidget(MaterialApp(builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.5)), child: child!),
-      home: Scaffold(body: PosFirstSaleGuide(preferences: prefs, scope: 'small', stepId: 'stock', enabled: true,
-        title: 'Panduan penjualan pertama', stages: [PosSetupTourStage(
-          title: 'Isi jumlah stok awal', description: 'Masukkan barang yang sudah Anda miliki dan biaya per satuan. Untuk barang baru datang, gunakan Pembelian & Penerimaan.', target: key)],
-        child: Center(child: TextButton(key: key, onPressed: () {}, child: const Text('Target'))),
-      ))));
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(1.5)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: PosFirstSaleGuide(
+            preferences: prefs,
+            scope: 'small',
+            stepId: 'stock',
+            enabled: true,
+            title: 'Panduan penjualan pertama',
+            stages: [
+              PosSetupTourStage(
+                title: 'Isi jumlah stok awal',
+                description:
+                    'Masukkan barang yang sudah Anda miliki dan biaya per satuan. Untuk barang baru datang, gunakan Pembelian & Penerimaan.',
+                target: key,
+              ),
+            ],
+            child: Center(
+              child: TextButton(
+                key: key,
+                onPressed: () {},
+                child: const Text('Target'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     final card = tester.getRect(find.byType(Card));

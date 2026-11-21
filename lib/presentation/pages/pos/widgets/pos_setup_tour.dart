@@ -135,7 +135,7 @@ Future<void> showInteractivePosSetupTour(
       onDialogReady?.call(dialogContext);
       return StatefulBuilder(
         builder: (context, setState) {
-        if (isActive?.call() == false) return const SizedBox.shrink();
+          if (isActive?.call() == false) return const SizedBox.shrink();
           final stage = stages[index];
           final target = stage.target ?? fallbackTarget;
           Rect targetRect() {
@@ -166,7 +166,25 @@ Future<void> showInteractivePosSetupTour(
             rawRect.right.clamp(8, media.size.width - 8),
             rawRect.bottom.clamp(media.padding.top + 8, media.size.height - 8),
           );
-          final showBelow = rect.center.dy < media.size.height * .52;
+          final safeTop = media.padding.top + 12;
+          final safeBottom =
+              media.size.height -
+              media.padding.bottom -
+              media.viewInsets.bottom -
+              12;
+          final belowSpace = safeBottom - rect.bottom - 14;
+          final aboveSpace = rect.top - safeTop - 14;
+          final showBelow = belowSpace >= aboveSpace;
+          final popupHeight = (showBelow ? belowSpace : aboveSpace).clamp(
+            100.0,
+            480.0,
+          );
+          final popupTop =
+              (showBelow ? rect.bottom + 14 : rect.top - 14 - popupHeight)
+                  .clamp(
+                    safeTop,
+                    (safeBottom - popupHeight).clamp(safeTop, safeBottom),
+                  );
           final last = index == stages.length - 1;
 
           Future<void> advance() async {
@@ -223,134 +241,130 @@ Future<void> showInteractivePosSetupTour(
                 Positioned(
                   left: 16,
                   right: 16,
-                  top: showBelow
-                      ? (rect.bottom + 14).clamp(
-                          media.padding.top + 12,
-                          media.size.height - 260,
-                        )
-                      : null,
-                  bottom: showBelow
-                      ? null
-                      : (media.size.height - rect.top + 14).clamp(
-                          media.padding.bottom + 12,
-                          media.size.height - 260,
-                        ),
+                  top: popupTop,
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 460),
+                      constraints: BoxConstraints(
+                        maxWidth: 460,
+                        maxHeight: popupHeight,
+                      ),
                       child: Card(
                         elevation: 14,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 9,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(
-                                        alpha: .1,
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 9,
+                                        vertical: 4,
                                       ),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      '${stageNumberOffset + index + 1} / ${totalStageCount ?? stages.length}',
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w800,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(
+                                          alpha: .1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: PosText(
-                                      stepTitle,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
+                                      child: Text(
+                                        '${stageNumberOffset + index + 1} / ${totalStageCount ?? stages.length}',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    tooltip: ('Tutup panduan').tr(context),
-                                    onPressed: () =>
-                                        Navigator.pop(dialogContext),
-                                    icon: const Icon(Icons.close),
-                                  ),
-                                ],
-                              ),
-                              PosText(
-                                stage.title,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 6),
-                              PosText(
-                                stage.description,
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  height: 1.4,
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: PosText(
+                                        stepTitle,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: ('Tutup panduan').tr(context),
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext),
+                                      icon: const Icon(Icons.close),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.touch_app_outlined,
-                                    size: 18,
-                                    color: AppColors.primary,
+                                PosText(
+                                  stage.title,
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 6),
+                                PosText(
+                                  stage.description,
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    height: 1.4,
                                   ),
-                                  SizedBox(width: 7),
-                                  Expanded(
-                                    child: PosText(
-                                      'Ketuk elemen yang disorot untuk melanjutkan.',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
+                                ),
+                                const SizedBox(height: 10),
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.touch_app_outlined,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                    SizedBox(width: 7),
+                                    Expanded(
+                                      child: PosText(
+                                        'Ketuk elemen yang disorot untuk melanjutkan.',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  if (index > 0)
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Wrap(
+                                  alignment: WrapAlignment.end,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (index > 0)
+                                      TextButton(
+                                        onPressed: () =>
+                                            setState(() => index--),
+                                        child: const PosText('Kembali'),
+                                      ),
                                     TextButton(
-                                      onPressed: () => setState(() => index--),
-                                      child: const PosText('Kembali'),
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext),
+                                      child: const PosText('Lewati'),
                                     ),
-                                  const Spacer(),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(dialogContext),
-                                    child: const PosText('Lewati'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  FilledButton.icon(
-                                    onPressed: () => advance(),
-                                    icon: Icon(
-                                      last
-                                          ? Icons.check_rounded
-                                          : Icons.arrow_forward_rounded,
-                                      size: 17,
+                                    const SizedBox(width: 8),
+                                    FilledButton.icon(
+                                      onPressed: () => advance(),
+                                      icon: Icon(
+                                        last
+                                            ? Icons.check_rounded
+                                            : Icons.arrow_forward_rounded,
+                                        size: 17,
+                                      ),
+                                      label: Text(
+                                        last
+                                            ? ('Mengerti').tr(context)
+                                            : ('Berikutnya').tr(context),
+                                      ),
                                     ),
-                                    label: Text(
-                                      last
-                                          ? ('Mengerti').tr(context)
-                                          : ('Berikutnya').tr(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

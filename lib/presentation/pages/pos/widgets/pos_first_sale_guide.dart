@@ -43,25 +43,28 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
     super.didUpdateWidget(oldWidget);
     if (!widget.enabled ||
         oldWidget.scope != widget.scope ||
-        oldWidget.stepId != widget.stepId)
+        oldWidget.stepId != widget.stepId) {
       _dismiss();
+    }
     _schedule();
   }
 
   void _dismiss() {
     final route = _dialog;
     _dialog = null;
-    if (route != null)
+    if (route != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (route.isActive) route.navigator?.removeRoute(route);
       });
+    }
   }
 
   void _schedule() {
     _retry?.cancel();
     final generation = ++_generation;
-    if (!widget.enabled || widget.scope.isEmpty || widget.stages.isEmpty)
+    if (!widget.enabled || widget.scope.isEmpty || widget.stages.isEmpty) {
       return;
+    }
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _tryAuto(generation, 0),
     );
@@ -72,19 +75,21 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
         generation != _generation ||
         !widget.enabled ||
         _showing ||
-        widget.preferences.getBool(_seenKey) == true)
+        widget.preferences.getBool(_seenKey) == true) {
       return;
+    }
     final target = widget.stages.first.target?.currentContext
         ?.findRenderObject();
     if (ModalRoute.of(context)?.isCurrent != true ||
         MediaQuery.viewInsetsOf(context).bottom > 0 ||
         target is! RenderBox ||
         !target.hasSize) {
-      if (attempts < 12)
+      if (attempts < 12) {
         _retry = Timer(
           const Duration(milliseconds: 150),
           () => _tryAuto(generation, attempts + 1),
         );
+      }
       return;
     }
     unawaited(_open());
@@ -94,8 +99,9 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
     if (_showing ||
         !widget.enabled ||
         widget.stages.isEmpty ||
-        ModalRoute.of(context)?.isCurrent != true)
+        ModalRoute.of(context)?.isCurrent != true) {
       return;
+    }
     final target = widget.stages.first.target;
     if (target?.currentContext == null) return;
     _showing = true;
