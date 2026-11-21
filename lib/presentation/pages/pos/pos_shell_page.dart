@@ -41,6 +41,7 @@ import 'utils/pos_navbar_action_policy.dart';
 import 'widgets/pos_setup_suggestion.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_first_sale_guide.dart';
+import 'widgets/pos_shift_opening_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
 import 'utils/pos_order_workspace_policy.dart';
@@ -651,6 +652,8 @@ class _PosShellPageState extends State<PosShellPage>
       storeTourKey: _setupTourTargets.shiftStore,
       formTourKey: _setupTourTargets.shiftForm,
       openTourKey: _setupTourTargets.shiftOpen,
+      cashTourKey: _setupTourTargets.shiftOpeningCash,
+      notesTourKey: _setupTourTargets.shiftOpeningNotes,
       onShiftClosed: () => _posBloc.add(LoadPosData()),
       onShiftOpened: () async {
         _posBloc.add(LoadPosData());
@@ -1037,16 +1040,14 @@ class _PosShellPageState extends State<PosShellPage>
         PosSetupTourStage(title: 'Isi jumlah stok awal', description: 'Masukkan barang yang sudah Anda miliki dan biaya per satuan. Untuk barang baru datang, gunakan Pembelian & Penerimaan.', target: _setupTourTargets.openingQuantity),
         PosSetupTourStage(title: 'Simpan stok awal', description: 'Periksa jumlah dan biaya, lalu simpan. Panduan ini tidak menyimpan stok secara otomatis.', target: _setupTourTargets.openingSave),
       ],
-      'cash' => [
-        PosSetupTourStage(title: 'Periksa toko kasir', description: 'Shift aktif dipakai kembali. Bila belum ada shift, pilih toko tempat Anda bertugas.', target: _setupTourTargets.shiftStore),
-        PosSetupTourStage(title: 'Isi kas awal dan buka shift', description: 'Masukkan uang tunai di laci. Kas awal boleh nol sesuai pengaturan toko. Ketuk buka shift setelah isian benar.', target: _setupTourTargets.shiftOpen),
-      ],
+      'cash' => posShiftOpeningTourStages(_setupTourTargets),
       _ => [PosSetupTourStage(title: 'Siap berjualan', description: 'Cari atau scan produk di sini, tambahkan ke keranjang lalu lanjutkan pembayaran.', target: _cashierTourTargets.search)],
     };
     return PosFirstSaleGuide(
       preferences: sl<SharedPreferences>(),
       scope: sl<GraphQLClientProvider>().subscriptionScope,
-      stepId: step, title: 'Panduan penjualan pertama', stages: stages,
+      stepId: step == 'cash' ? 'cash-v2' : step, title: 'Panduan penjualan pertama', stages: stages,
+      readyTargets: step == 'cash' ? stages.map((stage) => stage.target!).toList() : const [],
       enabled: setup['first_sale_pending'] == true && setup['can_manage'] == true &&
           runtime['_offline_snapshot'] != true && !_showUnlockLoading &&
           _selectedIndex == destination && (step != 'opening' || _inventoryActiveSection == 'opening') &&

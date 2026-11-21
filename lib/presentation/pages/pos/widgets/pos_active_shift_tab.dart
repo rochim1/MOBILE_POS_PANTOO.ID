@@ -21,11 +21,15 @@ class PosActiveShiftTab extends StatefulWidget {
   final GlobalKey? storeTourKey;
   final GlobalKey? formTourKey;
   final GlobalKey? openTourKey;
+  final GlobalKey? cashTourKey;
+  final GlobalKey? notesTourKey;
   const PosActiveShiftTab({
     super.key,
     this.storeTourKey,
     this.formTourKey,
     this.openTourKey,
+    this.cashTourKey,
+    this.notesTourKey,
   });
 
   @override
@@ -592,6 +596,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           ),
           const SizedBox(height: 16),
           TextField(
+            key: widget.cashTourKey,
             keyboardType: TextInputType.number,
             inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
@@ -607,6 +612,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: widget.notesTourKey,
             decoration: InputDecoration(
               floatingLabelBehavior: FloatingLabelBehavior.always,
               labelText: ('Catatan Buka Shift').tr(context),

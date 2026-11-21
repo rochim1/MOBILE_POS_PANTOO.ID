@@ -14,6 +14,8 @@ class PosShiftPage extends StatelessWidget {
   final GlobalKey? storeTourKey;
   final GlobalKey? formTourKey;
   final GlobalKey? openTourKey;
+  final GlobalKey? cashTourKey;
+  final GlobalKey? notesTourKey;
   final VoidCallback? onShiftOpened;
   final VoidCallback? onShiftClosed;
   const PosShiftPage({
@@ -21,6 +23,8 @@ class PosShiftPage extends StatelessWidget {
     this.storeTourKey,
     this.formTourKey,
     this.openTourKey,
+    this.cashTourKey,
+    this.notesTourKey,
     this.onShiftOpened,
     this.onShiftClosed,
   });
@@ -64,6 +68,8 @@ class PosShiftPage extends StatelessWidget {
                         storeTourKey: storeTourKey,
                         formTourKey: formTourKey,
                         openTourKey: openTourKey,
+                        cashTourKey: cashTourKey,
+                        notesTourKey: notesTourKey,
                       ),
                       const PosShiftHistoryTab(),
                     ],

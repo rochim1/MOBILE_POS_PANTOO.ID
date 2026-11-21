@@ -43,6 +43,8 @@ class PosSetupTourTargets {
   final pinSave = GlobalKey(debugLabel: 'setup-pin-save');
   final shiftStore = GlobalKey(debugLabel: 'setup-shift-store');
   final shiftForm = GlobalKey(debugLabel: 'setup-shift-form');
+  final shiftOpeningCash = GlobalKey(debugLabel: 'setup-shift-opening-cash');
+  final shiftOpeningNotes = GlobalKey(debugLabel: 'setup-shift-opening-notes');
   final shiftOpen = GlobalKey(debugLabel: 'setup-shift-open');
 }
 

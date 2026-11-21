@@ -10,6 +10,7 @@ class PosFirstSaleGuide extends StatefulWidget {
   final String scope, stepId, title;
   final bool enabled;
   final List<PosSetupTourStage> stages;
+  final List<GlobalKey> readyTargets;
   final Widget child;
   const PosFirstSaleGuide({
     super.key,
@@ -19,6 +20,7 @@ class PosFirstSaleGuide extends StatefulWidget {
     required this.title,
     required this.enabled,
     required this.stages,
+    this.readyTargets = const [],
     required this.child,
   });
   @override
@@ -81,10 +83,11 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
     final target = widget.stages.first.target?.currentContext
         ?.findRenderObject();
     if (ModalRoute.of(context)?.isCurrent != true ||
+        widget.readyTargets.any((key) => key.currentContext == null) ||
         MediaQuery.viewInsetsOf(context).bottom > 0 ||
         target is! RenderBox ||
         !target.hasSize) {
-      if (attempts < 12) {
+      if (attempts < (widget.readyTargets.isEmpty ? 12 : 240)) {
         _retry = Timer(
           const Duration(milliseconds: 150),
           () => _tryAuto(generation, attempts + 1),
@@ -104,6 +107,7 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
     }
     final target = widget.stages.first.target;
     if (target?.currentContext == null) return;
+    if (widget.readyTargets.any((key) => key.currentContext == null)) return;
     _showing = true;
     final generation = _generation;
     final guideKey = _seenKey;
