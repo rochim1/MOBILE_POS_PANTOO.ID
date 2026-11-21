@@ -62,6 +62,21 @@ void main() {
       await tester.pumpAndSettle();
       await show(tester);
       expect(find.text('Focus product'), findsNothing);
+      final launcher = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Panduan langkah ini'),
+      );
+      expect(
+        launcher.style?.backgroundColor?.resolve({}),
+        const Color(0xFFFFE082),
+      );
+      expect(
+        launcher.style?.foregroundColor?.resolve({}),
+        const Color(0xFF3E3300),
+      );
+      expect(
+        tester.getSize(find.widgetWithText(TextButton, 'Panduan langkah ini')).height,
+        greaterThanOrEqualTo(44),
+      );
       await tester.tap(find.text('Panduan langkah ini'));
       await tester.pumpAndSettle();
       expect(find.text('Focus product'), findsOneWidget);
