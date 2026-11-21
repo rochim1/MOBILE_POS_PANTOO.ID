@@ -268,6 +268,17 @@ void main() {
       expect(carousel.right, lessThanOrEqualTo(600));
       expect(panelBefore.left, greaterThanOrEqualTo(600));
       expect(find.byKey(const Key('pin_bni_promo')), findsOneWidget);
+      void expectTransparentNavigation(Color foreground) {
+        for (final key in ['pin_marketing_previous', 'pin_marketing_next']) {
+          final finder = find.byKey(Key(key));
+          final button = tester.widget<IconButton>(finder);
+          expect(button.style?.backgroundColor?.resolve({}), Colors.transparent);
+          expect(button.style?.foregroundColor?.resolve({}), foreground);
+          expect(tester.getSize(finder).width, greaterThanOrEqualTo(44));
+          expect(tester.getSize(finder).height, greaterThanOrEqualTo(44));
+        }
+      }
+      expectTransparentNavigation(const Color(0xFF344054));
       final preview = Platform.environment['PANTOO_PIN_CAROUSEL_PREVIEW'];
       if (preview != null) {
         final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -286,6 +297,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
       await tester.tap(find.byKey(const Key('pin_marketing_next')));
       await tester.pumpAndSettle();
+      expectTransparentNavigation(Colors.white);
       expect(tester.getRect(find.byKey(posPinSetupTourTarget)), panelBefore);
       for (final key in [
         LogicalKeyboardKey.digit2,
@@ -304,6 +316,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.getRect(find.byKey(posPinSetupTourTarget)), panelBefore);
+      expectTransparentNavigation(const Color(0xFF344054));
+      await tester.tap(find.byKey(const Key('pin_marketing_previous')));
+      await tester.pumpAndSettle();
+      expectTransparentNavigation(Colors.white);
       expect(tester.takeException(), isNull);
     },
   );
