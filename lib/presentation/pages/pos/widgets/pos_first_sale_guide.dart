@@ -146,18 +146,17 @@ class _PosFirstSaleGuideState extends State<PosFirstSaleGuide> {
   Widget build(BuildContext context) => Column(
     children: [
       if (widget.enabled && widget.scope.isNotEmpty)
-        Align(
-          alignment: Alignment.centerRight,
+        SizedBox(
+          width: double.infinity,
           child: TextButton.icon(
             onPressed: _open,
             style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFFFFE082),
-              foregroundColor: const Color(0xFF3E3300),
+              backgroundColor: const Color(0xFFE3F2FD),
+              foregroundColor: const Color(0xFF0D47A1),
+              alignment: Alignment.centerLeft,
               minimumSize: const Size(0, 44),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: const RoundedRectangleBorder(),
             ),
             icon: const Icon(Icons.help_outline, size: 18),
             label: Text('Panduan langkah ini'.tr(context)),

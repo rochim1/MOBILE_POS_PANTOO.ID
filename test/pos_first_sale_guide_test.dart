@@ -80,7 +80,9 @@ void main() {
         greaterThanOrEqualTo(44),
       );
       expect(
-        tester.getSize(find.widgetWithText(TextButton, 'Panduan langkah ini')).width,
+        tester
+            .getSize(find.widgetWithText(TextButton, 'Panduan langkah ini'))
+            .width,
         tester.getSize(find.byType(PosFirstSaleGuide)).width,
       );
       await tester.tap(find.text('Panduan langkah ini'));
