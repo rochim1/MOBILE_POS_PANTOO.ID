@@ -9,6 +9,7 @@ import '../../../domain/repositories/pos_stock_repository.dart';
 import '../../../injections.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import 'widgets/pos_transfer_location_fields.dart';
+import 'widgets/pos_setup_tour.dart';
 
 /// Opening stock is a document, not a manual edit of master stock or opname.
 class PosOpeningStockPage extends StatefulWidget {
@@ -16,12 +17,14 @@ class PosOpeningStockPage extends StatefulWidget {
   final String? initialLocationId;
   final Future<void> Function()? onComplete;
   final PosOpeningStockRepository? repository;
+  final PosSetupTourTargets? tourTargets;
   const PosOpeningStockPage({
     super.key,
     this.initialProductId,
     this.initialLocationId,
     this.onComplete,
     this.repository,
+    this.tourTargets,
   });
   @override
   State<PosOpeningStockPage> createState() => _PosOpeningStockPageState();
@@ -308,7 +311,9 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
     TextEditingController controller, {
     bool numeric = false,
     int lines = 1,
+    Key? targetKey,
   }) => Padding(
+    key: targetKey,
     padding: const EdgeInsets.only(bottom: 14),
     child: TextField(
       controller: controller,
@@ -478,6 +483,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
               ),
               const SizedBox(height: 14),
               PosTransferLocationFields(
+                key: widget.tourTargets?.openingLocation,
                 title: 'Stok Awal',
                 warehouses: _locations,
                 value: _locationPath,
@@ -527,7 +533,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
                         }),
                 ),
                 const SizedBox(height: 14),
-                _field('Jumlah ($_unit)', _quantity, numeric: true),
+                _field('Jumlah ($_unit)', _quantity, numeric: true, targetKey: widget.tourTargets?.openingQuantity),
                 _field('Biaya per $_unit (Rp)', _cost, numeric: true),
                 if (_item?['valuation_method'] == 'fifo')
                   _field('Tanggal perolehan (YYYY-MM-DD)', _acquired),
@@ -549,6 +555,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
                   ),
               ],
               FilledButton.icon(
+                key: widget.tourTargets?.openingSave,
                 onPressed: _busy || _selecting || (!_pending && _item == null)
                     ? null
                     : _save,

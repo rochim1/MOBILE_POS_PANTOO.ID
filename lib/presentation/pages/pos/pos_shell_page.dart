@@ -40,6 +40,7 @@ import 'widgets/pos_navbar_context_actions.dart';
 import 'utils/pos_navbar_action_policy.dart';
 import 'widgets/pos_setup_suggestion.dart';
 import 'widgets/pos_setup_tour.dart';
+import 'widgets/pos_first_sale_guide.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
 import 'utils/pos_order_workspace_policy.dart';
@@ -1016,17 +1017,36 @@ class _PosShellPageState extends State<PosShellPage>
               Expanded(child: _pages[_selectedIndex]),
             ],
           );
-    final first = mobilePosFirstSaleDestination(_posBloc.state.runtimeConfig);
-    final setup = _posBloc.state.runtimeConfig['initial_setup'] as Map? ?? const {};
-    if (setup['first_sale_pending'] != true || setup['can_manage'] != true || _posBloc.state.runtimeConfig['_offline_snapshot'] == true) return page;
-    return Column(children: [
-      Material(color: const Color(0xffe8f5f3), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), child: Row(children: [
-        Expanded(child: Text(first == 2 ? '1. Tambahkan produk pertama' : first == 7 ? '2. Isi stok awal barang' : _posBloc.state.activeShift != null ? 'Siap untuk penjualan pertama' : '3. Buka kas untuk mulai berjualan')),
-        TextButton(onPressed: _advancingFirstSale ? null : _advanceFirstSale, child: _advancingFirstSale
-          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Lanjutkan')),
-      ]))),
-      Expanded(child: page),
-    ]);
+    final runtime = _posBloc.state.runtimeConfig;
+    final first = mobilePosFirstSaleDestination(runtime);
+    final setup = runtime['initial_setup'] as Map? ?? const {};
+    final step = first == 2 ? 'product' : first == 7 ? 'opening' : _posBloc.state.activeShift == null ? 'cash' : 'cashier';
+    final destination = first ?? (_posBloc.state.activeShift == null ? 11 : 1);
+    final stages = switch (step) {
+      'product' => [PosSetupTourStage(title: 'Tambahkan produk pertama',
+        description: 'Ketuk Tambah Produk. Isi nama dan harga jual; pilih barang atau layanan sesuai usaha Anda.',
+        target: _setupTourTargets.productAdd, onTargetTap: _productTourController.run)],
+      'opening' => [
+        PosSetupTourStage(title: 'Periksa lokasi stok', description: 'Gunakan lokasi toko yang sudah disiapkan. Gedung, ruangan dan rak hanya bila diperlukan.', target: _setupTourTargets.openingLocation),
+        PosSetupTourStage(title: 'Isi jumlah stok awal', description: 'Masukkan barang yang sudah Anda miliki dan biaya per satuan. Untuk barang baru datang, gunakan Pembelian & Penerimaan.', target: _setupTourTargets.openingQuantity),
+        PosSetupTourStage(title: 'Simpan stok awal', description: 'Periksa jumlah dan biaya, lalu simpan. Panduan ini tidak menyimpan stok secara otomatis.', target: _setupTourTargets.openingSave),
+      ],
+      'cash' => [
+        PosSetupTourStage(title: 'Periksa toko kasir', description: 'Shift aktif dipakai kembali. Bila belum ada shift, pilih toko tempat Anda bertugas.', target: _setupTourTargets.shiftStore),
+        PosSetupTourStage(title: 'Isi kas awal dan buka shift', description: 'Masukkan uang tunai di laci. Kas awal boleh nol sesuai pengaturan toko. Ketuk buka shift setelah isian benar.', target: _setupTourTargets.shiftOpen),
+      ],
+      _ => [PosSetupTourStage(title: 'Siap berjualan', description: 'Cari atau scan produk di sini, tambahkan ke keranjang lalu lanjutkan pembayaran.', target: _cashierTourTargets.search)],
+    };
+    return PosFirstSaleGuide(
+      preferences: sl<SharedPreferences>(),
+      scope: sl<GraphQLClientProvider>().subscriptionScope,
+      stepId: step, title: 'Panduan penjualan pertama', stages: stages,
+      enabled: setup['first_sale_pending'] == true && setup['can_manage'] == true &&
+          runtime['_offline_snapshot'] != true && !_showUnlockLoading &&
+          _selectedIndex == destination && (step != 'opening' || _inventoryActiveSection == 'opening') &&
+          context.watch<AppLockCubit>().state.status == AppLockStatus.unlocked,
+      child: page,
+    );
   }
 
   Future<void> _afterFirstProduct(PosProduct product) async {

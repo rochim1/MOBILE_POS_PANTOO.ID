@@ -407,7 +407,7 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     Map<String, dynamic> permissions,
     Map<String, dynamic> inventoryPolicy,
   ) => switch (_selected) {
-    _InventorySection.opening => PosOpeningStockPage(initialProductId: widget.openingProductId, onComplete: widget.onOpeningStockSaved),
+    _InventorySection.opening => PosOpeningStockPage(initialProductId: widget.openingProductId, onComplete: widget.onOpeningStockSaved, tourTargets: widget.setupTourTargets),
     _InventorySection.warehouse => PosWarehousePage(
       canCreate: permissions['create_warehouses'] == true,
       canUpdate: permissions['update_warehouses'] == true,
