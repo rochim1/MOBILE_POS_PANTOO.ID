@@ -242,4 +242,111 @@ void main() {
     await tester.tap(find.text('Lewati'));
     await tester.pumpAndSettle();
   });
+  testWidgets('next and back move the spotlight to the actual control', (
+    tester,
+  ) async {
+    final first = GlobalKey(), second = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PosFirstSaleGuide(
+            preferences: prefs,
+            scope: 'two',
+            stepId: 'stock',
+            title: 'Guide',
+            enabled: true,
+            stages: [
+              PosSetupTourStage(
+                title: 'First target',
+                description: 'First',
+                target: first,
+              ),
+              PosSetupTourStage(
+                title: 'Second target',
+                description: 'Second',
+                target: second,
+              ),
+            ],
+            child: Column(
+              children: [
+                TextButton(
+                  key: first,
+                  onPressed: () {},
+                  child: const Text('First action'),
+                ),
+                const Spacer(),
+                TextButton(
+                  key: second,
+                  onPressed: () {},
+                  child: const Text('Second action'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final next = find.text('Berikutnya');
+    await tester.ensureVisible(next);
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(find.text('Second target'), findsOneWidget);
+    expect(
+      tester
+          .getRect(find.byKey(const ValueKey('pos_setup_spotlight_frame')))
+          .contains(tester.getCenter(find.byKey(second))),
+      isTrue,
+    );
+    final back = find.text('Kembali');
+    await tester.ensureVisible(back);
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+    expect(find.text('First target'), findsOneWidget);
+    await tester.tap(find.byTooltip('Tutup panduan'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+    'tapping the highlighted product action closes guide and calls handler once',
+    (tester) async {
+      final key = GlobalKey();
+      var calls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PosFirstSaleGuide(
+              preferences: prefs,
+              scope: 'action',
+              stepId: 'product',
+              title: 'Guide',
+              enabled: true,
+              stages: [
+                PosSetupTourStage(
+                  title: 'Add first product',
+                  description: 'Open form',
+                  target: key,
+                  onTargetTap: () async {
+                    calls++;
+                  },
+                ),
+              ],
+              child: Center(
+                child: TextButton(
+                  key: key,
+                  onPressed: () {},
+                  child: const Text('Add'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('pos_setup_spotlight_frame')));
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect(find.text('Add first product'), findsNothing);
+    },
+  );
 }
