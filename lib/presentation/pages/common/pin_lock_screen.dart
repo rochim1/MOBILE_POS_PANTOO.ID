@@ -1076,6 +1076,11 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
   @override
   Widget build(BuildContext context) {
     final english = Localizations.localeOf(context).languageCode == 'en';
+    final navigationStyle = IconButton.styleFrom(
+      backgroundColor: Colors.transparent,
+      foregroundColor: _page == 0 ? const Color(0xFF344054) : Colors.white,
+      minimumSize: const Size(44, 44),
+    );
     return Stack(
       key: const Key('pin_marketing_carousel'),
       children: [
@@ -1111,8 +1116,9 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton.filledTonal(
+                  IconButton(
                     key: const Key('pin_marketing_previous'),
+                    style: navigationStyle,
                     tooltip: english ? 'Previous image' : 'Gambar sebelumnya',
                     onPressed: () => _show((_page - 1 + 2) % 2),
                     icon: const Icon(Icons.chevron_left),
@@ -1140,8 +1146,9 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
                       ),
                     ),
                   const SizedBox(width: 8),
-                  IconButton.filledTonal(
+                  IconButton(
                     key: const Key('pin_marketing_next'),
+                    style: navigationStyle,
                     tooltip: english ? 'Next image' : 'Gambar berikutnya',
                     onPressed: () => _show((_page + 1) % 2),
                     icon: const Icon(Icons.chevron_right),

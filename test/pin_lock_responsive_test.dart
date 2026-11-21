@@ -272,12 +272,16 @@ void main() {
         for (final key in ['pin_marketing_previous', 'pin_marketing_next']) {
           final finder = find.byKey(Key(key));
           final button = tester.widget<IconButton>(finder);
-          expect(button.style?.backgroundColor?.resolve({}), Colors.transparent);
+          expect(
+            button.style?.backgroundColor?.resolve({}),
+            Colors.transparent,
+          );
           expect(button.style?.foregroundColor?.resolve({}), foreground);
           expect(tester.getSize(finder).width, greaterThanOrEqualTo(44));
           expect(tester.getSize(finder).height, greaterThanOrEqualTo(44));
         }
       }
+
       expectTransparentNavigation(const Color(0xFF344054));
       final preview = Platform.environment['PANTOO_PIN_CAROUSEL_PREVIEW'];
       if (preview != null) {
