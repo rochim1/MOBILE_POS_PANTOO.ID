@@ -58,6 +58,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   int _loadVersion = 0;
   int _ordersRefreshVersion = 0;
   int _pricingPreviewVersion = 0;
+  bool _paymentInFlight = false;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<LoadPosData>(_onLoadPosData);
@@ -365,10 +366,14 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       final products =
           // POS stock is scoped to a verified active shift. Do not turn a
           // correctly denied pre-shift catalog read into a shift-sync failure.
-          (activeShift != null || canOperateWithoutShift ||
-              ((runtimeConfig['initial_setup'] as Map?)?['first_sale_pending'] == true &&
-               (runtimeConfig['initial_setup'] as Map?)?['can_manage'] == true &&
-               permissions['manage_products'] == true)) &&
+          (activeShift != null ||
+                  canOperateWithoutShift ||
+                  ((runtimeConfig['initial_setup']
+                              as Map?)?['first_sale_pending'] ==
+                          true &&
+                      (runtimeConfig['initial_setup'] as Map?)?['can_manage'] ==
+                          true &&
+                      permissions['manage_products'] == true)) &&
               (permissions['view_products'] == true ||
                   permissions['use_cashier'] == true)
           ? await posRepository.getProducts(branchId: activeStore.branchId)
@@ -991,7 +996,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     SubmitPayment event,
     Emitter<PosState> emit,
   ) async {
-    if (state.cart.isEmpty) return;
+    if (_paymentInFlight || state.cart.isEmpty) return;
     if (state.promoCode.trim().isNotEmpty && !state.promoApplied) {
       emit(
         state.copyWith(
@@ -1030,6 +1035,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       return;
     }
 
+    _paymentInFlight = true;
     emit(state.copyWith(status: PosStatus.loading));
     try {
       final tokoId = state.checkoutStore?.id ?? '';
@@ -1118,6 +1124,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
               : 'Terjadi kesalahan sistem',
         ),
       );
+    } finally {
+      _paymentInFlight = false;
     }
   }
 
