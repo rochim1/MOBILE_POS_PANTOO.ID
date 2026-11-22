@@ -1,0 +1,172 @@
+import 'dart:async';
+import 'package:dartz/dartz.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_pos_pantoo/core/error/failures.dart';
+import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
+import 'package:mobile_pos_pantoo/core/network/sync_service.dart';
+import 'package:mobile_pos_pantoo/data/datasources/local/pos_offline_pin_store.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/auth_repository.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
+
+class Provider extends Fake implements GraphQLClientProvider {
+  Provider(this.client);
+  @override
+  final GraphQLClient client;
+  @override
+  String endpointUrl = 'http://qa.invalid/graphql';
+  @override
+  String resolveMediaUrl(dynamic raw) => raw?.toString() ?? '';
+  @override
+  void setAccessToken(String? token) {}
+  @override
+  void setPOSOperatorToken(String? token) {}
+}
+class Sync extends Fake implements SyncService {
+  @override
+  void setOperatorSessionToken(String token) {}
+}
+class RuntimeClient extends Fake implements GraphQLClient {
+  final release = Completer<void>();
+  int reads = 0;
+  @override
+  Future<QueryResult<T>> query<T extends Object?>(QueryOptions<T> options) async {
+    reads++;
+    await release.future;
+    return QueryResult<T>(options: options, source: QueryResultSource.network,
+      data: {'GetPOSRuntimeConfig': {'instansi_id': 'tenant', 'permissions': {'use_cashier': true}}});
+  }
+}
+class RosterRepo extends Fake implements PosRepository {
+  final roster = Completer<Either<Failure, List<Map<String, dynamic>>>>();
+  final status = Completer<Either<Failure, Map<String, dynamic>>>();
+  int statusReads = 0;
+  int verifies = 0;
+  @override
+  void setOperatorSessionToken(String token) {}
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>> getPOSPinUsers({String search = '', bool? hasPin}) => roster.future;
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> getMyPOSLockStatus() { statusReads++; return status.future; }
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> verifyPOSUserPin(String user, String pin) async {
+    verifies++;
+    return const Right({'success': false, 'message': 'PIN salah'});
+  }
+}
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late SharedPreferences prefs;
+  var network = 'wifi';
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({'instansi_id': 'tenant', 'user_id': 'cashier', 'username': 'Kasir', 'pos_runtime_config': '{"safe":"preserve"}'});
+    FlutterSecureStorage.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+    network = 'wifi';
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'), (_) async => [network]);
+    sl.registerSingleton<SharedPreferences>(prefs);
+    sl.registerSingleton<SyncService>(Sync());
+  });
+  tearDown(() => sl.reset());
+
+  test('accepted username login sends no optional runtime query and preserves same-account cache', () async {
+    final operations = <String>[];
+    final provider = Provider(GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
+      operations.add(request.operation.operationName ?? request.operation.document.toString());
+      if (request.variables.containsKey('input')) {
+        yield Response(data: {'Login': {'token': 'access', 'refresh_token': 'refresh',
+          'user': {'_id': 'cashier', 'name': 'Kasir', 'instansi_id': {'_id': 'tenant'}}}}, response: {});
+      } else {
+        yield Response(errors: [const GraphQLError(message: 'QA runtime unavailable')], response: {});
+      }
+    })));
+    final result = await AuthRepository(provider, prefs, const FlutterSecureStorage()).login('qa', 'not-a-real-password');
+    expect(result.isRight(), true);
+    expect(operations, hasLength(1));
+    expect(prefs.getString('pos_runtime_config'), '{"safe":"preserve"}');
+  });
+
+  testWidgets('ready roster displays while optional own-PIN status is pending; wrong PIN never unlocks', (tester) async {
+    final repo = RosterRepo();
+    sl.registerSingleton<PosRepository>(repo);
+    final cubit = AppLockCubit();
+    final loading = cubit.lock();
+    repo.roster.complete(const Right([{'_id': 'other-cashier', 'name': 'Kasir lain', 'has_pin': true}]));
+    await tester.pump();
+    try {
+    expect(cubit.state.loadingEmployees, false);
+    expect(cubit.state.employees.single['_id'], 'other-cashier');
+    expect(cubit.state.status, AppLockStatus.locked);
+    expect(await cubit.unlock('000000'), false);
+    expect(cubit.state.status, AppLockStatus.locked);
+    } finally {
+    repo.status.complete(const Left(NetworkFailure('QA status unavailable')));
+    await loading;
+    }
+    expect(cubit.state.employees, hasLength(1));
+    await cubit.close();
+  });
+  test('roster containing login PIN needs no second status request', () async {
+    final repo = RosterRepo();
+    sl.registerSingleton<PosRepository>(repo);
+    final cubit = AppLockCubit();
+    final loading = cubit.lock();
+    repo.roster.complete(const Right([{'_id': 'cashier', 'has_pin': true}]));
+    repo.status.complete(const Right({'has_pin': true}));
+    await loading;
+    expect(repo.statusReads, 0);
+    expect(cubit.state.status, AppLockStatus.locked);
+    await cubit.close();
+  });
+  test('denied roster never requests optional status or unlocks', () async {
+    final repo = RosterRepo();
+    sl.registerSingleton<PosRepository>(repo);
+    final cubit = AppLockCubit();
+    final loading = cubit.lock();
+    repo.roster.complete(const Left(AuthFailure('QA revoked')));
+    repo.status.complete(const Right({'has_pin': false}));
+    await loading;
+    expect(repo.statusReads, 0);
+    expect(cubit.state.status, AppLockStatus.locked);
+    expect(cubit.state.employees, isEmpty);
+    await cubit.close();
+  });
+
+  testWidgets('network roster deadline falls back to verified PIN cache before the UI deadline', (tester) async {
+    final cache = PosOfflinePinStore(scope: 'tenant');
+    await cache.cacheVerifiedPin(userId: 'cashier', pin: '123456', response: {'name': 'Kasir'});
+    final release = Completer<Response>();
+    final client = GraphQLClient(queryRequestTimeout: const Duration(seconds: 30), cache: GraphQLCache(), link: Link.function((request, [forward]) async* { yield await release.future; }));
+    final repo = PosRepository(Provider(client), prefs);
+    Either<Failure, List<Map<String, dynamic>>>? result;
+    final reading = repo.getPOSPinUsers(hasPin: true).then((value) => result = value);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 9));
+    try {
+    expect(result?.isRight(), true);
+    expect(result!.getOrElse(() => []).single['offline_cached'], true);
+    } finally {
+    release.complete(Response(data: const {'GetPOSPinUsers': {'items': []}}, response: {}));
+    await reading;
+    }
+  });
+  test('concurrent runtime consumers share one request without memoizing settled authorization', () async {
+    final client = RuntimeClient();
+    final repo = PosRepository(Provider(client), prefs);
+    final a = repo.getRuntimeConfig();
+    final b = repo.getRuntimeConfig();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    client.release.complete();
+    await Future.wait([a, b]);
+    expect(client.reads, 1);
+    await repo.getRuntimeConfig();
+    expect(client.reads, 2);
+  });
+}
