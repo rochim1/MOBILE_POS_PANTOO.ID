@@ -261,17 +261,16 @@ class PosCartPanel extends StatelessWidget {
     PosProduct product,
     double currentQuantity,
   ) async {
-    final controller = TextEditingController(
-      text: _quantityText(currentQuantity),
-    );
+    var enteredQuantity = _quantityText(currentQuantity);
     final quantity = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
           posLocale(dialogContext).posfed87456b577((product.name).toString()),
         ),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          initialValue: enteredQuantity,
+          onChanged: (value) => enteredQuantity = value,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
@@ -286,9 +285,9 @@ class PosCartPanel extends StatelessWidget {
             ),
             border: const OutlineInputBorder(),
           ),
-          onSubmitted: (_) {
+          onFieldSubmitted: (_) {
             final value = double.tryParse(
-              controller.text.trim().replaceAll(',', '.'),
+              enteredQuantity.trim().replaceAll(',', '.'),
             );
             if (value != null && value > 0) {
               Navigator.pop(dialogContext, value);
@@ -303,7 +302,7 @@ class PosCartPanel extends StatelessWidget {
           FilledButton(
             onPressed: () {
               final value = double.tryParse(
-                controller.text.trim().replaceAll(',', '.'),
+                enteredQuantity.trim().replaceAll(',', '.'),
               );
               if (value != null && value > 0) {
                 Navigator.pop(dialogContext, value);
@@ -314,7 +313,6 @@ class PosCartPanel extends StatelessWidget {
         ],
       ),
     );
-    controller.dispose();
     if (quantity == null || !context.mounted) return;
     context.read<PosBloc>().add(
       UpdateQuantity(product, quantity - currentQuantity),
@@ -338,15 +336,14 @@ class PosCartPanel extends StatelessWidget {
       }
       return;
     }
-    final controller = TextEditingController(
-      text: formatRupiahAmount(currentPrice),
-    );
+    var enteredPrice = formatRupiahAmount(currentPrice);
     final price = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const PosText('Ubah harga satuan'),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          initialValue: enteredPrice,
+          onChanged: (value) => enteredPrice = value,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: const [RupiahInputFormatter(decimalDigits: 2)],
@@ -365,7 +362,7 @@ class PosCartPanel extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () {
-              final value = parseRupiahAmount(controller.text);
+              final value = parseRupiahAmount(enteredPrice);
               if (!value.isFinite || value <= 0 || value < product.priceFloor) {
                 return;
               }
@@ -376,7 +373,6 @@ class PosCartPanel extends StatelessWidget {
         ],
       ),
     );
-    controller.dispose();
     if (price == null || !context.mounted) return;
     context.read<PosBloc>().add(UpdateCartUnitPrice(product, price));
   }
