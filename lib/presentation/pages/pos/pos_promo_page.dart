@@ -207,6 +207,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
           _loadWithFilters();
         },
         decoration: _filterDecoration(
+          label: 'Promo',
           hintText: ('Cari kode atau nama promo...').tr(context),
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
@@ -234,6 +235,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
         initialValue: value,
         isExpanded: true,
         decoration: _filterDecoration(
+          label: 'Status',
           prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
         ),
         items: const [
@@ -275,11 +277,13 @@ class _PosPromoViewState extends State<_PosPromoView> {
   }
 
   InputDecoration _filterDecoration({
+    required String label,
     String? hintText,
     Widget? prefixIcon,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
+      labelText: label.tr(context),
       hintText: (hintText)?.tr(context),
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,

@@ -515,6 +515,7 @@ class _PosProductPageState extends State<PosProductPage> {
   Widget _buildSearchField() {
     return TextField(
       decoration: InputDecoration(
+        labelText: ('Produk').tr(context),
         hintText: ('Cari SKU atau nama produk...').tr(context),
         filled: true,
         fillColor: Colors.white,

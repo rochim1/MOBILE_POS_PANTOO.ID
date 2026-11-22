@@ -170,6 +170,7 @@ class _PosAddReturnPageState extends State<PosAddReturnPage> {
                               child: TextField(
                                 controller: _invoiceController,
                                 decoration: InputDecoration(
+                                  labelText: ('Nomor Invoice').tr(context),
                                   hintText: ('Masukkan No. Invoice...').tr(context),
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,

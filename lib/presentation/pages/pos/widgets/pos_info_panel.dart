@@ -117,6 +117,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               autofocus: true,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
+                labelText: ('Cari pelanggan').tr(context),
                 hintText: ('Cari nama atau nomor telepon...').tr(context),
                 prefixIcon: const Icon(Icons.search),
                 filled: true,

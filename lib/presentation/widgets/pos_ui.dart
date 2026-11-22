@@ -161,7 +161,7 @@ class PosSearchField extends StatelessWidget {
           controller: controller,
           onChanged: onChanged,
           decoration: InputDecoration(
-            hintText: (hint).tr(context),
+            labelText: (hint).tr(context),
             prefixIcon: const Icon(Icons.search_rounded),
           ),
         ),

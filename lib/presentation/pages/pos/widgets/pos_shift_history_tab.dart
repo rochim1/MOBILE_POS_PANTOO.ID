@@ -84,6 +84,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           child: TextField(
             onChanged: (value) => setState(() => _search = value),
             decoration: InputDecoration(
+              labelText: ('Shift Kasir').tr(context),
               hintText: ('Cari toko atau kasir...').tr(context),
               prefixIcon: const Icon(Icons.search),
               filled: true,
@@ -104,6 +105,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
             initialValue: _status,
             isExpanded: true,
             decoration: InputDecoration(
+              labelText: ('Status').tr(context),
               prefixIcon: const Icon(Icons.filter_list_rounded),
               filled: true,
               fillColor: Colors.white,

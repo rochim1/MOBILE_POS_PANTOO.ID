@@ -483,6 +483,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                     autofocus: true,
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
+                      labelText: ('Kasir').tr(sheetContext),
                       hintText: ('Cari nama atau username…').tr(sheetContext),
                       hintStyle: const TextStyle(fontSize: 13),
                       prefixIcon: const Icon(Icons.search, size: 19),

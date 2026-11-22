@@ -85,6 +85,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                       controller: _searchController,
                       onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
+                        labelText: ('Cari pelanggan').tr(context),
                         hintText: ('Cari nama atau telepon...').tr(context),
                         prefixIcon: const Icon(Icons.search),
                         filled: true,

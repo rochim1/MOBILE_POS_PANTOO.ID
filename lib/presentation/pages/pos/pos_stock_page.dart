@@ -446,6 +446,7 @@ class _PosStockViewState extends State<_PosStockView> {
         _onSearchChanged(value);
       },
       decoration: InputDecoration(
+        labelText: ('Produk').tr(context),
         hintText: ('Cari produk...').tr(context),
         hintStyle: TextStyle(color: Colors.grey.shade500),
         prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
@@ -484,6 +485,7 @@ class _PosStockViewState extends State<_PosStockView> {
       isExpanded: true,
       icon: const Icon(Icons.keyboard_arrow_down_rounded),
       decoration: InputDecoration(
+        labelText: ('Filter').tr(context),
         prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
         filled: true,
         fillColor: Colors.white,
@@ -2024,6 +2026,7 @@ class _StockMovementSheetState extends State<_StockMovementSheet> {
               controller: _searchController,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
+                labelText: ('Produk').tr(context),
                 hintText: ('Cari nama atau kode produk').tr(context),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isEmpty

@@ -1895,6 +1895,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
             maxLength: 500,
             maxLines: 4,
             decoration: InputDecoration(
+              labelText: ('Catatan transaksi').tr(dialogContext),
               hintText: ('Contoh: pesanan tanpa sambal, referensi pembayaran…')
                   .tr(dialogContext),
               border: OutlineInputBorder(),
@@ -2441,7 +2442,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           keyboardType: TextInputType.number,
           inputFormatters: const [RupiahInputFormatter()],
           onChanged: (value) => cashInput = value,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
+            labelText: ('Uang diterima').tr(context),
             prefixText: 'Rp ',
             border: OutlineInputBorder(),
           ),

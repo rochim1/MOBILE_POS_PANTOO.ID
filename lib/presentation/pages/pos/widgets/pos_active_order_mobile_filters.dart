@@ -33,6 +33,7 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
                   onChanged: onSearchChanged,
                   textInputAction: TextInputAction.search,
                   decoration:  InputDecoration(
+                    labelText: ('Pesanan').tr(context),
                     hintText: ('Cari order / pelanggan').tr(context),
                     prefixIcon: Icon(Icons.search, size: 20),
                     isDense: true,

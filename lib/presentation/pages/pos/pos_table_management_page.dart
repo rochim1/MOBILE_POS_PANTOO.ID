@@ -492,6 +492,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   controller: _searchController,
                   onChanged: _onSearch,
                   decoration:  InputDecoration(
+                    labelText: ('Meja').tr(context),
                     hintText: ('Cari meja...').tr(context),
                     prefixIcon: Icon(Icons.search, color: Colors.grey),
                     contentPadding: EdgeInsets.symmetric(

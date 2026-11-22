@@ -324,6 +324,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
       height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
       child: TextField(
         decoration: InputDecoration(
+          labelText: ('Transaksi').tr(context),
           hintText: ('Cari invoice atau pelanggan...').tr(context),
           filled: true,
           fillColor: Colors.white,

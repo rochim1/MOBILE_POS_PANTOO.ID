@@ -441,6 +441,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                 child: TextField(
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
+                    labelText: ('Produk').tr(context),
                     hintText: ('Cari nama, kode, SKU, atau barcode...').tr(
                       context,
                     ),
@@ -1413,6 +1414,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                           onChanged: (value) =>
                               setSheetState(() => query = value),
                           decoration: InputDecoration(
+                            labelText: ('Cari pelanggan').tr(context),
                             hintText: ('Cari nama atau nomor telepon...').tr(
                               context,
                             ),

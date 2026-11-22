@@ -546,6 +546,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                 controller: _searchController,
                 onChanged: _search,
                 decoration:  InputDecoration(
+                  labelText: ('Pesanan').tr(context),
                   hintText: ('Cari nomor order atau pelanggan…').tr(context),
                   prefixIcon: Icon(Icons.search),
                   isDense: true,

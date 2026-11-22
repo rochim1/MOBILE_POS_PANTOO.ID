@@ -205,7 +205,7 @@ class AppTheme {
         fillColor: AppColors.white,
         hintStyle: const TextStyle(color: AppColors.textMuted),
         labelStyle: const TextStyle(color: AppColors.textSecondary),
-        floatingLabelBehavior: FloatingLabelBehavior.never,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.all(AppDimens.paddingMedium),
         errorStyle: const TextStyle(color: AppColors.danger),
       ),

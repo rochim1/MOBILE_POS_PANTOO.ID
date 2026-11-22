@@ -117,6 +117,7 @@ class _PosBarcodeScannerPageState extends State<PosBarcodeScannerPage> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (value) => _handleCode(value),
                   decoration: InputDecoration(
+                    labelText: ('Barcode').tr(context),
                     hintText: ('Atau ketik barcode / SKU').tr(context),
                     filled: true,
                     fillColor: Colors.white,

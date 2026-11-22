@@ -92,6 +92,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
+                      labelText: ('Retur').tr(context),
                       hintText: ('Cari No. Retur / Invoice...').tr(context),
                       prefixIcon: const Icon(Icons.search),
                       contentPadding: const EdgeInsets.symmetric(
@@ -126,6 +127,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                     initialValue: _selectedStatus,
                     isExpanded: true,
                     decoration: InputDecoration(
+                      labelText: ('Status').tr(context),
                       prefixIcon: const Icon(Icons.filter_list_rounded),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),

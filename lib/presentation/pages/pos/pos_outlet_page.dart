@@ -81,6 +81,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                     child: TextField(
                       onChanged: (v) => setState(() => _search = v),
                       decoration: InputDecoration(
+                        labelText: ('Toko').tr(context),
                         hintText: ('Cari nama atau kode toko...').tr(context),
                         prefixIcon: const Icon(Icons.search),
                         filled: true,

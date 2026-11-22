@@ -435,7 +435,7 @@ class PosSuccessPage extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           autofocus: initialValue.isEmpty,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+          decoration: InputDecoration(labelText: title.tr(dialogContext), border: const OutlineInputBorder()),
         ),
         actions: [
           TextButton(
