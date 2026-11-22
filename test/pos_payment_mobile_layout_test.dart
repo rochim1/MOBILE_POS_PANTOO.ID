@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:async';
+import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -18,6 +21,24 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_payment_page.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 
 class _Repository extends Fake implements PosRepository {}
+
+class _PreparingAccess extends ChangeNotifier
+    implements PosSubscriptionService {
+  final ready = Completer<void>();
+  int preparations = 0;
+  @override
+  bool get required => false;
+  @override
+  bool get canSell => true;
+  @override
+  Future<void> prepareCheckout() {
+    preparations++;
+    return ready.future;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _PaymentBloc extends PosBloc {
   _PaymentBloc(PosState initial) : super(posRepository: _Repository()) {
@@ -148,6 +169,38 @@ void main() {
           (_) async => null,
         );
   });
+  testWidgets(
+    'checkout access warms once without blocking form or submitting payment',
+    (tester) async {
+      final access = _PreparingAccess();
+      sl.registerSingleton<PosSubscriptionService>(access);
+      final bloc = _PaymentBloc(initial());
+      addTearDown(() async {
+        await sl.unregister<PosSubscriptionService>();
+        access.dispose();
+        await bloc.close();
+      });
+      await size(tester, const Size(360, 800));
+      await tester.pumpWidget(_app(bloc));
+      await tester.pumpAndSettle();
+      expect(access.preparations, 1);
+      expect(find.byKey(const Key('payment_mobile_layout')), findsOneWidget);
+      expect(bloc.submitted.whereType<SubmitPayment>(), isEmpty);
+      await cash(tester, '150000');
+      expect(submit(tester).onPressed, isNotNull);
+      expect(access.preparations, 1);
+      access.ready.complete();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('payment_submit')));
+      await tester.pumpAndSettle();
+      expect(
+        bloc.submitted.whereType<SubmitPayment>().single.cashReceived,
+        150000,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   for (final entry in [
     (const Size(320, 568), 1.5, const Locale('id')),
     (const Size(360, 800), 1.0, const Locale('id')),

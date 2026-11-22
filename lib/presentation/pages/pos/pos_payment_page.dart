@@ -70,11 +70,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (sl.isRegistered<PosSubscriptionService>()) {
-        unawaited(sl<PosSubscriptionService>().prepareCheckout().catchError(
-          (Object error, StackTrace stack) {
-            appLogger.w('Persiapan akses pembayaran belum tersedia', error: error, stackTrace: stack);
-          },
-        ));
+        unawaited(
+          sl<PosSubscriptionService>().prepareCheckout().catchError((
+            Object error,
+            StackTrace stack,
+          ) {
+            appLogger.w(
+              'Persiapan akses pembayaran belum tersedia',
+              error: error,
+              stackTrace: stack,
+            );
+          }),
+        );
       }
       final bloc = context.read<PosBloc>();
       final state = bloc.state;

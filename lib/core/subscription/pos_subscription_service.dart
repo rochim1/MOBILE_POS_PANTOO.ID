@@ -207,8 +207,11 @@ class PosSubscriptionService extends ChangeNotifier {
     final revision = _revision;
     await _advanceTrustedTime(revision);
     if (_disposed || revision != _revision || _scope != readScope()) return;
-    if (offline || error != null || _checkedDeviceAt == null ||
-        clock().toUtc().difference(_checkedDeviceAt!) >= const Duration(seconds: 45)) {
+    if (offline ||
+        error != null ||
+        _checkedDeviceAt == null ||
+        clock().toUtc().difference(_checkedDeviceAt!) >=
+            const Duration(seconds: 45)) {
       await refresh();
     }
   }
