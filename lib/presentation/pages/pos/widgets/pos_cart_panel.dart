@@ -148,12 +148,19 @@ class PosCartPanel extends StatelessWidget {
             const SizedBox(width: 8),
             SizedBox(
               width: 76,
-              height: 36,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
+              height: 48,
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: ('Satuan').tr(context),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 8,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),

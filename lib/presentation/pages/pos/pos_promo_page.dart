@@ -51,7 +51,10 @@ class _PosPromoViewState extends State<_PosPromoView> {
     if (dateStr.isEmpty) return '-';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(date);
+      return DateFormat(
+        'dd MMM yyyy',
+        AppLanguageController.instance.effectiveLocale.languageCode,
+      ).format(date);
     } catch (_) {
       return dateStr;
     }
@@ -165,7 +168,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
               builder: (context, state) {
                 if (state.status == PosPromoStatus.loading &&
                     state.promos.isEmpty) {
-                  return const PosRecordListSkeleton(kind: PosRecordSkeletonKind.promo);
+                  return const PosRecordListSkeleton(
+                    kind: PosRecordSkeletonKind.promo,
+                  );
                 }
 
                 if (state.promos.isEmpty) {
@@ -199,7 +204,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   Widget _buildSearchField() {
     return SizedBox(
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: TextField(
         controller: _searchController,
         onChanged: (_) {
@@ -230,7 +235,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
         ? 'all'
         : (_filterIsActive! ? 'active' : 'inactive');
     return SizedBox(
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
@@ -259,7 +264,7 @@ class _PosPromoViewState extends State<_PosPromoView> {
 
   Widget _buildAddButton() {
     return SizedBox(
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: ElevatedButton.icon(
         onPressed: () => _showPromoForm(context),
         icon: const Icon(Icons.add),
@@ -400,7 +405,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      posLocale(context).pos79b4aaf15d61((discountDisplay).toString()),
+                      posLocale(
+                        context,
+                      ).pos79b4aaf15d61((discountDisplay).toString()),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade700,
@@ -411,7 +418,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
                         promo.maxDiscountAmount > 0) ...[
                       const SizedBox(width: 8),
                       Text(
-                        posLocale(context).pos4f22066d96ef((_formatCurrency(promo.maxDiscountAmount)).toString()),
+                        posLocale(context).pos4f22066d96ef(
+                          (_formatCurrency(promo.maxDiscountAmount)).toString(),
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade500,
@@ -452,7 +461,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        posLocale(context).pos2642c8d7b316((_formatCurrency(promo.minPurchaseAmount)).toString()),
+                        posLocale(context).pos2642c8d7b316(
+                          (_formatCurrency(promo.minPurchaseAmount)).toString(),
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
@@ -472,7 +483,11 @@ class _PosPromoViewState extends State<_PosPromoView> {
                   children: [
                     // Usage info
                     Text(
-                      posLocale(context).pos5f2c9e5e92b4((promo.currentUsageCount).toString(), (promo.usageLimit > 0 ? promo.usageLimit : '∞').toString()),
+                      posLocale(context).pos5f2c9e5e92b4(
+                        (promo.currentUsageCount).toString(),
+                        (promo.usageLimit > 0 ? promo.usageLimit : '∞')
+                            .toString(),
+                      ),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade500,
@@ -528,7 +543,9 @@ class _PosPromoViewState extends State<_PosPromoView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const PosText('Hapus Promo'),
         content: Text(
-          posLocale(dialogContext).posf8ddd141364d((promo.name).toString(), (promo.code).toString()),
+          posLocale(
+            dialogContext,
+          ).posf8ddd141364d((promo.name).toString(), (promo.code).toString()),
         ),
         actions: [
           TextButton(
@@ -546,7 +563,10 @@ class _PosPromoViewState extends State<_PosPromoView> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const PosText('Hapus', style: TextStyle(color: Colors.white)),
+            child: const PosText(
+              'Hapus',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -768,7 +788,10 @@ class _PromoFormContentState extends State<_PromoFormContent> {
   @override
   Widget build(BuildContext context) {
     posLocale(context); // Refresh formatted dates when the language changes.
-    final dateFormat = DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode);
+    final dateFormat = DateFormat(
+      'dd MMM yyyy',
+      AppLanguageController.instance.effectiveLocale.languageCode,
+    );
     return Form(
       key: _formKey,
       child: ListView(
@@ -793,14 +816,16 @@ class _PromoFormContentState extends State<_PromoFormContent> {
               ),
             ),
           Text(
-            isEdit ? ('Edit Promo').tr(context) : ('Tambah Promo Baru').tr(context),
+            isEdit
+                ? ('Edit Promo').tr(context)
+                : ('Tambah Promo Baru').tr(context),
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
 
           // Code
           TextFormField(
-errorBuilder: posValidationError,
+            errorBuilder: posValidationError,
             controller: _codeCtrl,
             readOnly: isEdit,
             decoration: _inputDecoration(
@@ -817,14 +842,15 @@ errorBuilder: posValidationError,
 
           // Name
           TextFormField(
-errorBuilder: posValidationError,
+            errorBuilder: posValidationError,
             controller: _nameCtrl,
             decoration: _inputDecoration(
               'Nama Promo',
               Icons.local_offer_outlined,
             ),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? ('Nama wajib diisi').tr(context) : null,
+            validator: (v) => v == null || v.trim().isEmpty
+                ? ('Nama wajib diisi').tr(context)
+                : null,
           ),
           const SizedBox(height: 14),
 
@@ -870,7 +896,7 @@ errorBuilder: posValidationError,
 
           // Discount value
           TextFormField(
-errorBuilder: posValidationError,
+            errorBuilder: posValidationError,
             controller: _valueCtrl,
             decoration: _inputDecoration(
               _valueType == 'percentage'
@@ -921,7 +947,7 @@ errorBuilder: posValidationError,
           ),
           const SizedBox(height: 14),
           TextFormField(
-errorBuilder: posValidationError,
+            errorBuilder: posValidationError,
             controller: _usagePerCustomerCtrl,
             decoration: _inputDecoration(
               'Batas per pelanggan (pilih pelanggan saat memakai promo)',
@@ -1010,7 +1036,9 @@ errorBuilder: posValidationError,
                 ),
               ),
               child: Text(
-                isEdit ? ('Simpan Perubahan').tr(context) : ('Buat Promo').tr(context),
+                isEdit
+                    ? ('Simpan Perubahan').tr(context)
+                    : ('Buat Promo').tr(context),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,

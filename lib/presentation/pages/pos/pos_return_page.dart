@@ -88,7 +88,7 @@ class _PosReturnViewState extends State<PosReturnView> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final search = SizedBox(
-                  height: compact ? 40 : 48,
+                  height: 56,
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
@@ -122,7 +122,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   ),
                 );
                 final filter = SizedBox(
-                  height: compact ? 40 : 48,
+                  height: 56,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedStatus,
                     isExpanded: true,
@@ -138,7 +138,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                       ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: '', child: PosText('Semua Status')),
+                      DropdownMenuItem(
+                        value: '',
+                        child: PosText('Semua Status'),
+                      ),
                       DropdownMenuItem(value: 'draft', child: PosText('Draft')),
                       DropdownMenuItem(
                         value: 'pending',
@@ -165,7 +168,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   ),
                 );
                 final addButton = SizedBox(
-                  height: compact ? 40 : 48,
+                  height: 56,
                   child: ElevatedButton.icon(
                     onPressed: _openAddReturn,
                     icon: const Icon(Icons.add),
@@ -215,7 +218,9 @@ class _PosReturnViewState extends State<PosReturnView> {
               builder: (context, state) {
                 if (state.status == PosReturnStatus.loading &&
                     state.returns.isEmpty) {
-                  return const PosRecordListSkeleton(kind: PosRecordSkeletonKind.salesReturn);
+                  return const PosRecordListSkeleton(
+                    kind: PosRecordSkeletonKind.salesReturn,
+                  );
                 }
 
                 if (state.returns.isEmpty) {
@@ -282,7 +287,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    posStatusLabel(status.toString(), context).toUpperCase(),
+                                    posStatusLabel(
+                                      status.toString(),
+                                      context,
+                                    ).toUpperCase(),
                                     style: TextStyle(
                                       color: _getStatusColor(status),
                                       fontWeight: FontWeight.bold,
@@ -336,7 +344,17 @@ class _PosReturnViewState extends State<PosReturnView> {
                                 item['sales_invoice_id'] != null) ...[
                               const SizedBox(height: 8),
                               Text(
-                                posLocale(context).pos1d6fd1683a30((_formatCurrency(item['ar_credit_amount'] ?? 0)).toString(), (_formatCurrency(item['refund_amount'] ?? 0)).toString(), (_formatCurrency(item['customer_credit_amount'] ?? 0)).toString()),
+                                posLocale(context).pos1d6fd1683a30(
+                                  (_formatCurrency(
+                                    item['ar_credit_amount'] ?? 0,
+                                  )).toString(),
+                                  (_formatCurrency(
+                                    item['refund_amount'] ?? 0,
+                                  )).toString(),
+                                  (_formatCurrency(
+                                    item['customer_credit_amount'] ?? 0,
+                                  )).toString(),
+                                ),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ],
@@ -387,7 +405,9 @@ class _PosReturnViewState extends State<PosReturnView> {
                                       _can('delete_returns'))
                                     TextButton(
                                       onPressed: () => _confirmAction(
-                                        title: ('Hapus draft retur?').tr(context),
+                                        title: ('Hapus draft retur?').tr(
+                                          context,
+                                        ),
                                         message:
                                             'Draft ${item['no_retur'] ?? ''} akan dihapus dan tidak dapat diproses.',
                                         confirmLabel: ('Hapus').tr(context),
@@ -411,10 +431,14 @@ class _PosReturnViewState extends State<PosReturnView> {
                                               PosReturnStatus.loading
                                           ? null
                                           : () => _confirmAction(
-                                              title: ('Proses retur?').tr(context),
+                                              title: ('Proses retur?').tr(
+                                                context,
+                                              ),
                                               message:
                                                   'Refund dan pergerakan stok akan dijalankan sesuai detail retur.',
-                                              confirmLabel: ('Proses Retur').tr(context),
+                                              confirmLabel: ('Proses Retur').tr(
+                                                context,
+                                              ),
                                               onConfirmed: () => context
                                                   .read<PosReturnBloc>()
                                                   .add(

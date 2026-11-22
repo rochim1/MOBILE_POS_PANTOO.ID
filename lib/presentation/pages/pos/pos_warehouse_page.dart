@@ -88,7 +88,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 600;
-    final controlHeight = compact ? 40.0 : 48.0;
+    const controlHeight = 56.0;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -101,7 +101,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                 child: TextField(
                   controller: _search,
                   onChanged: _onSearch,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Cari warehouse').tr(context),
                     prefixIcon: Icon(Icons.search),
                   ),
@@ -181,7 +181,10 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                   if (widget.canUpdate)
                     const PopupMenuItem(value: 'edit', child: PosText('Edit')),
                   if (widget.canDelete)
-                    const PopupMenuItem(value: 'delete', child: PosText('Hapus')),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: PosText('Hapus'),
+                    ),
                 ],
               )
             : null,
@@ -259,25 +262,29 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     PosSetupTourStage(
                       title: ('Nama dan alamat lokasi').tr(context),
                       description:
-                          ('Isi identitas warehouse. Nama dan alamat wajib agar lokasi mudah dikenali.').tr(context),
+                          ('Isi identitas warehouse. Nama dan alamat wajib agar lokasi mudah dikenali.')
+                              .tr(context),
                       target: targets.warehouseName,
                     ),
                     PosSetupTourStage(
                       title: ('Pilih tipe warehouse').tr(context),
                       description:
-                          ('Pilih fungsi utama lokasi, misalnya gudang toko atau gudang pusat.').tr(context),
+                          ('Pilih fungsi utama lokasi, misalnya gudang toko atau gudang pusat.')
+                              .tr(context),
                       target: targets.warehouseType,
                     ),
                     PosSetupTourStage(
                       title: ('Aktifkan lokasi penjualan').tr(context),
                       description:
-                          ('Aktifkan opsi ini agar warehouse dapat dihubungkan ke toko POS.').tr(context),
+                          ('Aktifkan opsi ini agar warehouse dapat dihubungkan ke toko POS.')
+                              .tr(context),
                       target: targets.warehouseSellable,
                     ),
                     PosSetupTourStage(
                       title: ('Simpan warehouse').tr(context),
                       description:
-                          ('Setelah data wajib terisi, simpan. Status ringkasan akan diperbarui dari server.').tr(context),
+                          ('Setelah data wajib terisi, simpan. Status ringkasan akan diperbarui dari server.')
+                              .tr(context),
                       target: targets.warehouseSave,
                     ),
                   ],
@@ -296,7 +303,9 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      existing == null ? ('Tambah Warehouse').tr(context) : ('Edit Warehouse').tr(context),
+                      existing == null
+                          ? ('Tambah Warehouse').tr(context)
+                          : ('Edit Warehouse').tr(context),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
@@ -304,7 +313,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       key: widget.setupTourTargets?.warehouseName,
                       child: TextField(
                         controller: name,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Nama warehouse *').tr(context),
                         ),
@@ -314,7 +323,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     TextField(
                       controller: code,
                       textCapitalization: TextCapitalization.characters,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         floatingLabelBehavior: FloatingLabelBehavior.always,
                         labelText: ('Kode warehouse').tr(context),
                       ),
@@ -342,7 +351,7 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                       key: widget.setupTourTargets?.warehouseType,
                       child: DropdownButtonFormField<String>(
                         initialValue: type,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Tipe warehouse').tr(context),
                         ),
@@ -379,25 +388,41 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                     if (type == 'store' || type == 'display') ...[
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: linkedOutletId.isEmpty ? '' : linkedOutletId,
+                        initialValue: linkedOutletId.isEmpty
+                            ? ''
+                            : linkedOutletId,
                         isExpanded: true,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Outlet POS terkait').tr(context),
-                          helperText: ('Wajib untuk pemindahan stok gudang toko ↔ display.').tr(context),
+                          helperText:
+                              ('Wajib untuk pemindahan stok gudang toko ↔ display.')
+                                  .tr(context),
                         ),
                         items: [
-                          const DropdownMenuItem(value: '', child: PosText('Belum ditautkan')),
+                          const DropdownMenuItem(
+                            value: '',
+                            child: PosText('Belum ditautkan'),
+                          ),
                           for (final outlet in outlets)
                             DropdownMenuItem(
                               value: outlet.id,
-                              child: Text(outlet.name, overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                outlet.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           if (linkedOutletId.isNotEmpty &&
-                              !outlets.any((outlet) => outlet.id == linkedOutletId))
+                              !outlets.any(
+                                (outlet) => outlet.id == linkedOutletId,
+                              ))
                             DropdownMenuItem(
                               value: linkedOutletId,
-                              child: Text(posLocale(context).posb3f4a442d275((linkedOutletId).toString())),
+                              child: Text(
+                                posLocale(
+                                  context,
+                                ).posb3f4a442d275((linkedOutletId).toString()),
+                              ),
                             ),
                         ],
                         onChanged: (value) =>
@@ -490,7 +515,11 @@ class _PosWarehousePageState extends State<PosWarehousePage> {
                                 },
                               );
                             },
-                      child: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan').tr(context)),
+                      child: Text(
+                        saving
+                            ? ('Menyimpan...').tr(context)
+                            : ('Simpan').tr(context),
+                      ),
                     ),
                   ],
                 ),

@@ -252,12 +252,12 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     final compact = constraints.maxWidth < 620;
                     final storeSelector = SizedBox(
                       width: compact ? constraints.maxWidth : 300,
-                      height: compact ? 40 : 48,
+                      height: 56,
                       child: DropdownButtonFormField<String>(
                         initialValue: _storeId,
                         isDense: true,
                         isExpanded: true,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Dapur toko').tr(context),
                           prefixIcon: Icon(Icons.store_outlined),
                           border: OutlineInputBorder(),
@@ -300,12 +300,12 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     );
                     final stationSelector = SizedBox(
                       width: compact ? constraints.maxWidth : 220,
-                      height: compact ? 40 : 48,
+                      height: 56,
                       child: DropdownButtonFormField<String>(
                         initialValue: _stationId,
                         isDense: true,
                         isExpanded: true,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Stasiun').tr(context),
                           prefixIcon: Icon(Icons.soup_kitchen_outlined),
                           border: OutlineInputBorder(),
@@ -318,7 +318,10 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                           ..._stations.map(
                             (row) => DropdownMenuItem(
                               value: row['_id']?.toString() ?? '',
-                              child: Text(row['name']?.toString() ?? ('Stasiun').tr(context)),
+                              child: Text(
+                                row['name']?.toString() ??
+                                    ('Stasiun').tr(context),
+                              ),
                             ),
                           ),
                         ],
@@ -401,7 +404,10 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                     ),
                     Flexible(
                       child: Text(
-                        posLocale(context).posd628bb3772f8((_page + 1).toString(), (state.total).toString()),
+                        posLocale(context).posd628bb3772f8(
+                          (_page + 1).toString(),
+                          (state.total).toString(),
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -543,25 +549,54 @@ class _KitchenBoardState extends State<_KitchenBoard> {
         ButtonSegment(
           value: '',
           label: Text(
-            posLocale(context).pos5ab6295dbc59((context.read<PosOrderManagementBloc>().state.statusCounts.values.fold(0, (a, b) => a + b)).toString()),
+            posLocale(context).pos5ab6295dbc59(
+              (context
+                      .read<PosOrderManagementBloc>()
+                      .state
+                      .statusCounts
+                      .values
+                      .fold(0, (a, b) => a + b))
+                  .toString(),
+            ),
           ),
         ),
         ButtonSegment(
           value: 'Baru',
           label: Text(
-            posLocale(context).pos0c1674e894ea((context.read<PosOrderManagementBloc>().state.statusCounts['Baru'] ?? 0).toString()),
+            posLocale(context).pos0c1674e894ea(
+              (context
+                          .read<PosOrderManagementBloc>()
+                          .state
+                          .statusCounts['Baru'] ??
+                      0)
+                  .toString(),
+            ),
           ),
         ),
         ButtonSegment(
           value: 'Diproses',
           label: Text(
-            posLocale(context).pos74663425a1fa((context.read<PosOrderManagementBloc>().state.statusCounts['Diproses'] ?? 0).toString()),
+            posLocale(context).pos74663425a1fa(
+              (context
+                          .read<PosOrderManagementBloc>()
+                          .state
+                          .statusCounts['Diproses'] ??
+                      0)
+                  .toString(),
+            ),
           ),
         ),
         ButtonSegment(
           value: 'Siap',
           label: Text(
-            posLocale(context).posd100bfb67f19((context.read<PosOrderManagementBloc>().state.statusCounts['Siap'] ?? 0).toString()),
+            posLocale(context).posd100bfb67f19(
+              (context
+                          .read<PosOrderManagementBloc>()
+                          .state
+                          .statusCounts['Siap'] ??
+                      0)
+                  .toString(),
+            ),
           ),
         ),
       ],
@@ -859,7 +894,9 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                 color: AppColors.warningBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(posLocale(context).posb0bf84cc5839((order.note).toString())),
+              child: Text(
+                posLocale(context).posb0bf84cc5839((order.note).toString()),
+              ),
             ),
           if (order.kitchenNote?.trim().isNotEmpty == true)
             Container(
@@ -870,7 +907,11 @@ class _KitchenBoardState extends State<_KitchenBoard> {
                 color: AppColors.infoBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(posLocale(context).pos6c74f030d8e7((order.kitchenNote).toString())),
+              child: Text(
+                posLocale(
+                  context,
+                ).pos6c74f030d8e7((order.kitchenNote).toString()),
+              ),
             ),
           if (!widget.canUpdate)
             const Padding(

@@ -151,7 +151,7 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                   8,
                 ),
                 child: SizedBox(
-                  height: compact ? 40 : 48,
+                  height: 56,
                   child: DropdownButtonFormField<String>(
                     initialValue: _module,
                     isDense: true,
@@ -184,7 +184,9 @@ class _PosNotificationPageState extends State<PosNotificationPage> {
                 sliver: SliverList.separated(
                   itemCount: 6,
                   separatorBuilder: (_, index) => const SizedBox(height: 8),
-                  itemBuilder: (_, index) => const PosRecordCardSkeleton(kind: PosRecordSkeletonKind.notification),
+                  itemBuilder: (_, index) => const PosRecordCardSkeleton(
+                    kind: PosRecordSkeletonKind.notification,
+                  ),
                 ),
               )
             else if (_items.isEmpty)

@@ -77,7 +77,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 600;
                   final search = SizedBox(
-                    height: compact ? 40 : 48,
+                    height: 56,
                     child: TextField(
                       onChanged: (v) => setState(() => _search = v),
                       decoration: InputDecoration(
@@ -102,13 +102,19 @@ class _PosOutletPageState extends State<PosOutletPage> {
                     onSelected: (value) =>
                         setState(() => _statusFilter = value),
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'all', child: PosText('Semua Status')),
+                      PopupMenuItem(
+                        value: 'all',
+                        child: PosText('Semua Status'),
+                      ),
                       PopupMenuItem(value: 'active', child: PosText('Aktif')),
-                      PopupMenuItem(value: 'inactive', child: PosText('Nonaktif')),
+                      PopupMenuItem(
+                        value: 'inactive',
+                        child: PosText('Nonaktif'),
+                      ),
                     ],
                     child: Container(
                       width: compact ? 40 : 48,
-                      height: compact ? 40 : 48,
+                      height: 56,
                       decoration: BoxDecoration(
                         color: _statusFilter == 'all'
                             ? Colors.white
@@ -121,7 +127,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                   );
                   final add = SizedBox(
                     key: widget.setupTourKey,
-                    height: compact ? 40 : 48,
+                    height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () => _form(null),
                       icon: const Icon(Icons.add_business),
@@ -153,7 +159,11 @@ class _PosOutletPageState extends State<PosOutletPage> {
               ),
               const SizedBox(height: 16),
               if (state.status == PosStatus.loading)
-                const PosRecordListSkeleton(kind: PosRecordSkeletonKind.notification, embedded: true, padding: EdgeInsets.zero)
+                const PosRecordListSkeleton(
+                  kind: PosRecordSkeletonKind.notification,
+                  embedded: true,
+                  padding: EdgeInsets.zero,
+                )
               else if (stores.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(top: 48),
@@ -164,30 +174,36 @@ class _PosOutletPageState extends State<PosOutletPage> {
                         'Tambahkan outlet dan hubungkan ke lokasi inventory agar kasir dapat beroperasi.',
                   ),
                 ),
-              if (state.status != PosStatus.loading) ...stores.map(
-                (store) => Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.storefront)),
-                    title: Text(
-                      store.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '${store.code.isEmpty ? '-' : store.code}\n${store.branchName.isEmpty ? ('Lokasi cabang belum diatur').tr(context) : store.branchName}',
-                    ),
-                    isThreeLine: true,
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) =>
-                          value == 'edit' ? _form(store) : _delete(store),
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'edit', child: PosText('Edit')),
-                        PopupMenuItem(value: 'delete', child: PosText('Hapus')),
-                      ],
+              if (state.status != PosStatus.loading)
+                ...stores.map(
+                  (store) => Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.storefront),
+                      ),
+                      title: Text(
+                        store.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        '${store.code.isEmpty ? '-' : store.code}\n${store.branchName.isEmpty ? ('Lokasi cabang belum diatur').tr(context) : store.branchName}',
+                      ),
+                      isThreeLine: true,
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) =>
+                            value == 'edit' ? _form(store) : _delete(store),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'edit', child: PosText('Edit')),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: PosText('Hapus'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -257,19 +273,22 @@ class _PosOutletPageState extends State<PosOutletPage> {
                     PosSetupTourStage(
                       title: ('Identitas toko POS').tr(context),
                       description:
-                          ('Isi nama dan kode toko yang akan tampil pada transaksi dan struk.').tr(context),
+                          ('Isi nama dan kode toko yang akan tampil pada transaksi dan struk.')
+                              .tr(context),
                       target: targets.outletName,
                     ),
                     PosSetupTourStage(
                       title: ('Hubungkan lokasi stok').tr(context),
                       description:
-                          ('Pilih warehouse berstatus lokasi penjualan sebagai sumber stok toko.').tr(context),
+                          ('Pilih warehouse berstatus lokasi penjualan sebagai sumber stok toko.')
+                              .tr(context),
                       target: targets.outletWarehouse,
                     ),
                     PosSetupTourStage(
                       title: ('Simpan toko aktif').tr(context),
                       description:
-                          ('Simpan setelah identitas dan lokasi stok terisi.').tr(context),
+                          ('Simpan setelah identitas dan lokasi stok terisi.')
+                              .tr(context),
                       target: targets.outletSave,
                     ),
                   ],
@@ -288,7 +307,9 @@ class _PosOutletPageState extends State<PosOutletPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      store == null ? ('Tambah Outlet').tr(context) : ('Edit Outlet').tr(context),
+                      store == null
+                          ? ('Tambah Outlet').tr(context)
+                          : ('Edit Outlet').tr(context),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
@@ -296,7 +317,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                       key: widget.setupTourTargets?.outletName,
                       child: TextField(
                         controller: name,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           floatingLabelBehavior: FloatingLabelBehavior.always,
                           labelText: ('Nama outlet').tr(context),
                         ),
@@ -305,7 +326,7 @@ class _PosOutletPageState extends State<PosOutletPage> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: code,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         floatingLabelBehavior: FloatingLabelBehavior.always,
                         labelText: ('Kode outlet').tr(context),
                       ),
@@ -333,11 +354,14 @@ class _PosOutletPageState extends State<PosOutletPage> {
                       child: DropdownButtonFormField<String>(
                         initialValue: selectedWarehouseId,
                         isExpanded: true,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          labelText: ('Lokasi penjualan / warehouse').tr(context),
+                          labelText: ('Lokasi penjualan / warehouse').tr(
+                            context,
+                          ),
                           helperText:
-                              ('Hanya warehouse aktif dengan capability Lokasi Penjualan').tr(context),
+                              ('Hanya warehouse aktif dengan capability Lokasi Penjualan')
+                                  .tr(context),
                         ),
                         items: warehouses
                             .map(
@@ -358,11 +382,12 @@ class _PosOutletPageState extends State<PosOutletPage> {
                     DropdownButtonFormField<String>(
                       initialValue: shiftMode,
                       isExpanded: true,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         floatingLabelBehavior: FloatingLabelBehavior.always,
                         labelText: ('Mode shift kasir').tr(context),
                         helperText:
-                            ('Register bersama: satu laci per toko untuk akun yang memiliki akses. Per operator: rekonsiliasi tiap PIN terpisah.').tr(context),
+                            ('Register bersama: satu laci per toko untuk akun yang memiliki akses. Per operator: rekonsiliasi tiap PIN terpisah.')
+                                .tr(context),
                       ),
                       items: const [
                         DropdownMenuItem(
@@ -431,7 +456,11 @@ class _PosOutletPageState extends State<PosOutletPage> {
                                   },
                                 );
                               },
-                        child: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan').tr(context)),
+                        child: Text(
+                          saving
+                              ? ('Menyimpan...').tr(context)
+                              : ('Simpan').tr(context),
+                        ),
                       ),
                     ),
                   ],

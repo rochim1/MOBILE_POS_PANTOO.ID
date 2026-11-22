@@ -121,10 +121,19 @@ class _PosOrderPageState extends State<PosOrderPage> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: state.ordersRefreshing || (state.status == PosStatus.loading && state.orders.isEmpty)
+                child:
+                    state.ordersRefreshing ||
+                        (state.status == PosStatus.loading &&
+                            state.orders.isEmpty)
                     ? widget.isGridView
-                        ? const PosRecordListSkeleton(kind: PosRecordSkeletonKind.transaction, padding: EdgeInsets.zero)
-                        : const PosDataTableSkeleton(columns: 7, minWidth: 1000)
+                          ? const PosRecordListSkeleton(
+                              kind: PosRecordSkeletonKind.transaction,
+                              padding: EdgeInsets.zero,
+                            )
+                          : const PosDataTableSkeleton(
+                              columns: 7,
+                              minWidth: 1000,
+                            )
                     : widget.isGridView
                     ? _buildOrderCards(
                         filteredOrders,
@@ -276,7 +285,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
         ? _selectedCashier
         : 'Semua';
     return SizedBox(
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
@@ -300,7 +309,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Widget _buildPeriodDropdown() {
     return SizedBox(
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: DropdownButtonFormField<String>(
         initialValue: _selectedPeriod,
         isExpanded: true,
@@ -321,7 +330,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Widget _buildSearchField() {
     return SizedBox(
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: TextField(
         decoration: InputDecoration(
           labelText: ('Transaksi').tr(context),
@@ -344,7 +353,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
   Widget _buildStatusDropdown({required double width}) {
     return SizedBox(
       width: width,
-      height: MediaQuery.sizeOf(context).width < 600 ? 40 : 48,
+      height: 56,
       child: DropdownButtonFormField<String>(
         initialValue: _selectedStatus,
         isExpanded: true,
@@ -370,7 +379,8 @@ class _PosOrderPageState extends State<PosOrderPage> {
 
   Future<void> _refreshOrders() async {
     final bloc = context.read<PosBloc>();
-    final completed = bloc.stream.skipWhile((state) => !state.ordersRefreshing)
+    final completed = bloc.stream
+        .skipWhile((state) => !state.ordersRefreshing)
         .firstWhere((state) => !state.ordersRefreshing);
     bloc.add(RefreshOrders());
     await completed;
@@ -412,7 +422,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       )
                     : const Icon(Icons.expand_more),
                 label: Text(
-                  loadingMore ? ('Memuat transaksi...').tr(context) : ('Muat lebih banyak').tr(context),
+                  loadingMore
+                      ? ('Memuat transaksi...').tr(context)
+                      : ('Muat lebih banyak').tr(context),
                 ),
               ),
             );
@@ -481,7 +493,10 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     spacing: 12,
                     runSpacing: 8,
                     children: [
-                      _buildInfoChip(('Tanggal').tr(context), _formatDate(order.date)),
+                      _buildInfoChip(
+                        ('Tanggal').tr(context),
+                        _formatDate(order.date),
+                      ),
                       _buildInfoChip(
                         ('Total').tr(context),
                         NumberFormat.currency(
@@ -586,7 +601,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        posLocale(context).posac37abdf6133((selectedOrders.length).toString()),
+                        posLocale(
+                          context,
+                        ).posac37abdf6133((selectedOrders.length).toString()),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -711,7 +728,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
                         )
                       : const Icon(Icons.expand_more),
                   label: Text(
-                    loadingMore ? ('Memuat transaksi...').tr(context) : ('Muat lebih banyak').tr(context),
+                    loadingMore
+                        ? ('Memuat transaksi...').tr(context)
+                        : ('Muat lebih banyak').tr(context),
                   ),
                 ),
               ),
@@ -759,9 +778,23 @@ class _PosOrderPageState extends State<PosOrderPage> {
       'Nov',
       'Des',
     ];
-    const englishMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final monthNames = posLocale(context).localeName == 'en' ? englishMonths : months;
+    const englishMonths = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final monthNames = posLocale(context).localeName == 'en'
+        ? englishMonths
+        : months;
     final day = date.day.toString().padLeft(2, '0');
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
@@ -855,7 +888,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: method,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Metode pembayaran').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -888,7 +921,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
                       controller: cashController,
                       keyboardType: TextInputType.number,
                       inputFormatters: const [RupiahInputFormatter()],
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Uang diterima').tr(context),
                         prefixText: 'Rp ',
                         border: OutlineInputBorder(),
@@ -1019,7 +1052,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
               children: [
                 Expanded(
                   child: Text(
-                    posLocale(context).posee94ad7e244c((order.invoice).toString()),
+                    posLocale(
+                      context,
+                    ).posee94ad7e244c((order.invoice).toString()),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1054,7 +1089,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
               style: const TextStyle(fontSize: 15),
             ),
             Text(
-              posLocale(context).posee16580f1d1c((_formatDate(order.date)).toString()),
+              posLocale(
+                context,
+              ).posee16580f1d1c((_formatDate(order.date)).toString()),
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),
@@ -1084,7 +1121,11 @@ class _PosOrderPageState extends State<PosOrderPage> {
                     _buildReceiptItem(
                       name,
                       '$qty $unit',
-                      posLocale(context).pos70272f418def((formatRupiahAmount(num.tryParse((item['subtotal'] ?? 0).toString()) ?? 0)).toString()),
+                      posLocale(context).pos70272f418def(
+                        (formatRupiahAmount(
+                          num.tryParse((item['subtotal'] ?? 0).toString()) ?? 0,
+                        )).toString(),
+                      ),
                     ),
                     if (components.isNotEmpty)
                       Container(
@@ -1108,7 +1149,20 @@ class _PosOrderPageState extends State<PosOrderPage> {
                             ),
                             ...components.map(
                               (component) => Text(
-                                posLocale(context).pos04f490437f3e((component['nama_inventaris'] ?? '-').toString(), (component['qty_consumed_base'] ?? 0).toString(), (component['unit'] ?? 'unit').toString(), (formatRupiahAmount(num.tryParse((component['harga_pokok_total'] ?? 0).toString()) ?? 0)).toString()),
+                                posLocale(context).pos04f490437f3e(
+                                  (component['nama_inventaris'] ?? '-')
+                                      .toString(),
+                                  (component['qty_consumed_base'] ?? 0)
+                                      .toString(),
+                                  (component['unit'] ?? 'unit').toString(),
+                                  (formatRupiahAmount(
+                                    num.tryParse(
+                                          (component['harga_pokok_total'] ?? 0)
+                                              .toString(),
+                                        ) ??
+                                        0,
+                                  )).toString(),
+                                ),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -1119,7 +1173,11 @@ class _PosOrderPageState extends State<PosOrderPage> {
                 ),
               );
             }),
-            _buildReceiptItem(('Metode pembayaran').tr(context), '', order.paymentMethod),
+            _buildReceiptItem(
+              ('Metode pembayaran').tr(context),
+              '',
+              order.paymentMethod,
+            ),
             _buildReceiptItem(('Kasir').tr(context), '', order.cashierName),
             const SizedBox(height: 8),
             const Divider(),
@@ -1132,7 +1190,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  posLocale(context).pos70272f418def((formatRupiahAmount(order.total)).toString()),
+                  posLocale(context).pos70272f418def(
+                    (formatRupiahAmount(order.total)).toString(),
+                  ),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -1290,13 +1350,30 @@ class _PosOrderPageState extends State<PosOrderPage> {
           ),
           pw.Text(order.invoice),
           pw.Divider(),
-          pw.Text(posCurrentLocale().pos54ec6781af4f((_formatDate(order.date)).toString())),
-          pw.Text(posCurrentLocale().pose8576d8afa6c((order.customer).toString())),
-          pw.Text(posCurrentLocale().pos354df62f6aa3((order.cashierName).toString())),
-          pw.Text(posCurrentLocale().pos37949a5da433((order.paymentMethod).toString())),
+          pw.Text(
+            posCurrentLocale().pos54ec6781af4f(
+              (_formatDate(order.date)).toString(),
+            ),
+          ),
+          pw.Text(
+            posCurrentLocale().pose8576d8afa6c((order.customer).toString()),
+          ),
+          pw.Text(
+            posCurrentLocale().pos354df62f6aa3((order.cashierName).toString()),
+          ),
+          pw.Text(
+            posCurrentLocale().pos37949a5da433(
+              (order.paymentMethod).toString(),
+            ),
+          ),
           pw.SizedBox(height: 18),
           pw.TableHelper.fromTextArray(
-            headers: ['Item', 'Qty', 'Harga', 'Subtotal'].map((label) => label.trCurrent()).toList(),
+            headers: [
+              'Item',
+              'Qty',
+              'Harga',
+              'Subtotal',
+            ].map((label) => label.trCurrent()).toList(),
             data: order.items.map((item) {
               final name =
                   item['nama_inventaris']?.toString() ??
@@ -1331,7 +1408,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
           _pdfTotalRow('Total', currency.format(order.total), bold: true),
           if (order.note.trim().isNotEmpty) ...[
             pw.SizedBox(height: 12),
-            pw.Text(posCurrentLocale().posb0bf84cc5839((order.note).toString())),
+            pw.Text(
+              posCurrentLocale().posb0bf84cc5839((order.note).toString()),
+            ),
           ],
         ],
       ),

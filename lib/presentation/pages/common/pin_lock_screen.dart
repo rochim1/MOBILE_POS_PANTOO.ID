@@ -478,7 +478,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 7),
                 child: SizedBox(
-                  height: 40,
+                  height: 56,
                   child: TextField(
                     autofocus: true,
                     style: const TextStyle(fontSize: 13),

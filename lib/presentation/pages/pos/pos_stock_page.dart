@@ -344,7 +344,10 @@ class _PosStockViewState extends State<_PosStockView> {
                         ),
                         Expanded(
                           child: Text(
-                            posLocale(context).posddeedb7fc620((state.page).toString(), (state.total).toString()),
+                            posLocale(context).posddeedb7fc620(
+                              (state.page).toString(),
+                              (state.total).toString(),
+                            ),
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -431,7 +434,7 @@ class _PosStockViewState extends State<_PosStockView> {
 
   Widget _buildStockToolbar(PosStockState state) {
     final compact = MediaQuery.sizeOf(context).width < 600;
-    final controlHeight = compact ? 40.0 : 48.0;
+    const controlHeight = 56.0;
     final locationHeight = compact ? 44.0 : 54.0;
     const filters = <String, String>{
       'all': 'Semua Stok',
@@ -694,7 +697,13 @@ class _PosStockViewState extends State<_PosStockView> {
                               : '-',
                         ),
                       ),
-                      DataCell(Text(posLocale(context).pos70272f418def((_formatCurrency(stock.hargaJual)).toString()))),
+                      DataCell(
+                        Text(
+                          posLocale(context).pos70272f418def(
+                            (_formatCurrency(stock.hargaJual)).toString(),
+                          ),
+                        ),
+                      ),
                       DataCell(
                         PosText(
                           _getStockLabel(stock),
@@ -867,7 +876,11 @@ class _PosStockViewState extends State<_PosStockView> {
                                   ),
                                 ),
                                 Text(
-                                  posLocale(context).pos543e961a6128((_formatStock(stock.stokMinimum)).toString()),
+                                  posLocale(context).pos543e961a6128(
+                                    (_formatStock(
+                                      stock.stokMinimum,
+                                    )).toString(),
+                                  ),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey.shade500,
@@ -939,7 +952,11 @@ class _PosStockViewState extends State<_PosStockView> {
                             ],
                           ),
                           Text(
-                            posLocale(context).pos70272f418def((formatter.format(stock.hargaJual.toInt())).toString()),
+                            posLocale(context).pos70272f418def(
+                              (formatter.format(
+                                stock.hargaJual.toInt(),
+                              )).toString(),
+                            ),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -1088,7 +1105,9 @@ class _PosStockViewState extends State<_PosStockView> {
                       ),
                     ),
                     Text(
-                      posLocale(sheetContext).poscd596d982fc7((balances.length).toString()),
+                      posLocale(
+                        sheetContext,
+                      ).poscd596d982fc7((balances.length).toString()),
                       style: TextStyle(color: Colors.grey.shade600),
                     ),
                   ],
@@ -1104,7 +1123,9 @@ class _PosStockViewState extends State<_PosStockView> {
                       border: Border.all(color: AppColors.dangerBorder),
                     ),
                     child: Text(
-                      posLocale(sheetContext).pos8e1dc55435c2((balanceFailure.message).toString()),
+                      posLocale(
+                        sheetContext,
+                      ).pos8e1dc55435c2((balanceFailure.message).toString()),
                       style: TextStyle(color: AppColors.danger),
                     ),
                   )
@@ -1136,8 +1157,19 @@ class _PosStockViewState extends State<_PosStockView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (balances.isEmpty && (context.read<PosBloc>().state.runtimeConfig['permissions'] as Map?)?['initialize_stock'] == true)
-                      TextButton(onPressed: () => Navigator.pop(sheetContext, {'_opening_stock': true}), child: const Text('Isi stok awal')),
+                    if (balances.isEmpty &&
+                        (context
+                                    .read<PosBloc>()
+                                    .state
+                                    .runtimeConfig['permissions']
+                                as Map?)?['initialize_stock'] ==
+                            true)
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetContext, {
+                          '_opening_stock': true,
+                        }),
+                        child: const Text('Isi stok awal'),
+                      ),
                     if (widget.onCreatePurchase != null && _needsRestock(stock))
                       TextButton.icon(
                         onPressed: () =>
@@ -1158,7 +1190,10 @@ class _PosStockViewState extends State<_PosStockView> {
       ),
     );
     if (!mounted || selectedBalance == null) return;
-    if (selectedBalance['_opening_stock'] == true) { await _openOpeningStock(stock); return; }
+    if (selectedBalance['_opening_stock'] == true) {
+      await _openOpeningStock(stock);
+      return;
+    }
     if (selectedBalance['_count_opname'] == true) {
       _openCountForBalance(stock, selectedBalance);
     } else {
@@ -1166,30 +1201,30 @@ class _PosStockViewState extends State<_PosStockView> {
     }
   }
 
-  Widget _stockDetailRow(String label, String value, {Color? valueColor}) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 150,
-              child: PosText(label, style: TextStyle(color: Colors.grey.shade600)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: valueColor,
-                ),
-              ),
-            ),
-          ],
+  Widget _stockDetailRow(
+    String label,
+    String value, {
+    Color? valueColor,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 150,
+          child: PosText(label, style: TextStyle(color: Colors.grey.shade600)),
         ),
-      );
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(fontWeight: FontWeight.w700, color: valueColor),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildLocationBalanceCard(
     Map<String, dynamic> balance,
@@ -1260,14 +1295,20 @@ class _PosStockViewState extends State<_PosStockView> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      posLocale(context).pos8e2e32f18621((_formatStock(availableQty)).toString(), (unit).toString()),
+                      posLocale(context).pos8e2e32f18621(
+                        (_formatStock(availableQty)).toString(),
+                        (unit).toString(),
+                      ),
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: AppColors.success,
                       ),
                     ),
                     Text(
-                      posLocale(context).posb3eb03dd1e68((_formatStock(physicalQty)).toString(), (_formatStock(reservedQty)).toString()),
+                      posLocale(context).posb3eb03dd1e68(
+                        (_formatStock(physicalQty)).toString(),
+                        (_formatStock(reservedQty)).toString(),
+                      ),
                       style: TextStyle(
                         fontSize: 11,
                         color: reservedQty > 0
@@ -1297,10 +1338,20 @@ class _PosStockViewState extends State<_PosStockView> {
                     ? 'tanpa kedaluwarsa'
                     : DateFormat(
                         'dd MMM yyyy',
-                        AppLanguageController.instance.effectiveLocale.languageCode,
+                        AppLanguageController
+                            .instance
+                            .effectiveLocale
+                            .languageCode,
                       ).format(expiry.toLocal());
                 return Text(
-                  posLocale(context).pos08ea63214a56((batch['no_batch'] ?? '-').toString(), (_formatStock((batch['qty'] as num? ?? 0).toDouble())).toString(), (unit).toString(), (expiryLabel).toString()),
+                  posLocale(context).pos08ea63214a56(
+                    (batch['no_batch'] ?? '-').toString(),
+                    (_formatStock(
+                      (batch['qty'] as num? ?? 0).toDouble(),
+                    )).toString(),
+                    (unit).toString(),
+                    (expiryLabel).toString(),
+                  ),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 );
               }),
@@ -1377,7 +1428,9 @@ class _PosStockViewState extends State<_PosStockView> {
       balances = result.getOrElse(() => const []);
     }
     if (balances.isEmpty) {
-      if ((context.read<PosBloc>().state.runtimeConfig['permissions'] as Map?)?['initialize_stock'] == true) {
+      if ((context.read<PosBloc>().state.runtimeConfig['permissions']
+              as Map?)?['initialize_stock'] ==
+          true) {
         await _openOpeningStock(stock);
         return;
       }
@@ -1421,15 +1474,32 @@ class _PosStockViewState extends State<_PosStockView> {
 
   Future<void> _openOpeningStock(PosStock stock) async {
     final bloc = context.read<PosBloc>();
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BlocProvider.value(
-      value: bloc,
-      child: Scaffold(appBar: AppBar(title: const Text('Stok Awal')), body: PosOpeningStockPage(
-        initialProductId: stock.id,
-        initialLocationId: context.read<PosStockBloc>().state.selectedLocationId,
-        onComplete: () async { Navigator.of(context).pop(); },
-      )),
-    )));
-    if (mounted) context.read<PosStockBloc>().add(LoadStocks(locationId: context.read<PosStockBloc>().state.selectedLocationId));
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+          value: bloc,
+          child: Scaffold(
+            appBar: AppBar(title: const Text('Stok Awal')),
+            body: PosOpeningStockPage(
+              initialProductId: stock.id,
+              initialLocationId: context
+                  .read<PosStockBloc>()
+                  .state
+                  .selectedLocationId,
+              onComplete: () async {
+                Navigator.of(context).pop();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    if (mounted)
+      context.read<PosStockBloc>().add(
+        LoadStocks(
+          locationId: context.read<PosStockBloc>().state.selectedLocationId,
+        ),
+      );
   }
 
   Future<void> _showAdjustmentInfo(
@@ -1477,12 +1547,22 @@ class _PosStockViewState extends State<_PosStockView> {
     // Jangan pernah menampilkan rak tanpa induknya. Data lama mungkin hanya
     // menyimpan sebagian jalur, jadi placeholder audit tetap mempertahankan
     // urutan Cabang -> Gedung -> Ruangan -> Rak.
-    final parts = <String>[posLocale(context).pos58c6df885eda(branch.isEmpty ? '-' : branch)];
+    final parts = <String>[
+      posLocale(context).pos58c6df885eda(branch.isEmpty ? '-' : branch),
+    ];
     if (building.isNotEmpty || room.isNotEmpty || rack.isNotEmpty) {
-      parts.add(posLocale(context).pos786a448f1a32(building.isEmpty ? 'belum tercatat'.tr(context) : building));
+      parts.add(
+        posLocale(context).pos786a448f1a32(
+          building.isEmpty ? 'belum tercatat'.tr(context) : building,
+        ),
+      );
     }
     if (room.isNotEmpty || rack.isNotEmpty) {
-      parts.add(posLocale(context).pos085e03d813e0(room.isEmpty ? 'belum tercatat'.tr(context) : room));
+      parts.add(
+        posLocale(
+          context,
+        ).pos085e03d813e0(room.isEmpty ? 'belum tercatat'.tr(context) : room),
+      );
     }
     if (rack.isNotEmpty) parts.add(posLocale(context).pos1af981c59b08(rack));
     return parts.join('  →  ');
@@ -1524,7 +1604,11 @@ class _PosStockViewState extends State<_PosStockView> {
             horizontal: MediaQuery.sizeOf(context).width < 600 ? 12 : 40,
             vertical: 24,
           ),
-          title: Text(posLocale(context).pos886f4075bfac((stock.namaInventaris).toString())),
+          title: Text(
+            posLocale(
+              context,
+            ).pos886f4075bfac((stock.namaInventaris).toString()),
+          ),
           content: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(
@@ -1558,7 +1642,7 @@ class _PosStockViewState extends State<_PosStockView> {
                     DropdownButtonFormField<String>(
                       initialValue: selectedBalance['_id']?.toString(),
                       isExpanded: true,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Pilih saldo lokasi *').tr(context),
                         prefixIcon: Icon(Icons.location_on_outlined),
                         border: OutlineInputBorder(),
@@ -1613,14 +1697,19 @@ class _PosStockViewState extends State<_PosStockView> {
                     ),
                   const SizedBox(height: 8),
                   Text(
-                    posLocale(context).poscb93757b9cc2((_formatStock((selectedBalance['qty'] as num? ?? 0).toDouble())).toString(), (stock.unit).toString()),
+                    posLocale(context).poscb93757b9cc2(
+                      (_formatStock(
+                        (selectedBalance['qty'] as num? ?? 0).toDouble(),
+                      )).toString(),
+                      (stock.unit).toString(),
+                    ),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   _adjustmentLocationSummary(selectedBalance),
                   const SizedBox(height: 12),
                   TextFormField(
-errorBuilder: posValidationError,
+                    errorBuilder: posValidationError,
                     controller: stockController,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
@@ -1641,7 +1730,9 @@ errorBuilder: posValidationError,
                                       .toDouble()))
                               .abs() <
                           .000001) {
-                        return ('Nilai baru sama dengan saldo saat ini').tr(context);
+                        return ('Nilai baru sama dengan saldo saat ini').tr(
+                          context,
+                        );
                       }
                       return null;
                     },
@@ -1649,7 +1740,7 @@ errorBuilder: posValidationError,
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: reason.isEmpty ? null : reason,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Alasan koreksi *').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -1670,18 +1761,19 @@ errorBuilder: posValidationError,
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: referenceController,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Referensi / tiket (opsional)').tr(context),
                       hintText: ('Kosongkan untuk nomor otomatis').tr(context),
-                      helperText: ('Sistem tetap membuat referensi internal.').tr(context),
+                      helperText: ('Sistem tetap membuat referensi internal.')
+                          .tr(context),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-errorBuilder: posValidationError,
+                    errorBuilder: posValidationError,
                     controller: noteController,
                     maxLines: 2,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Keterangan *').tr(context),
                     ),
                     validator: (value) {
@@ -2057,7 +2149,9 @@ class _StockMovementSheetState extends State<_StockMovementSheet> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text(posStockMovementLabel(filter.$1 ?? '', context)),
+                        label: Text(
+                          posStockMovementLabel(filter.$1 ?? '', context),
+                        ),
                         selected: selected,
                         onSelected: (_) {
                           _type = filter.$1;
@@ -2133,7 +2227,12 @@ class _StockMovementSheetState extends State<_StockMovementSheet> {
                 : OutlinedButton.icon(
                     onPressed: _loadMore,
                     icon: const Icon(Icons.expand_more),
-                    label: Text(posLocale(context).pos3bcc4a44a905((_items.length).toString(), (_totalCount).toString())),
+                    label: Text(
+                      posLocale(context).pos3bcc4a44a905(
+                        (_items.length).toString(),
+                        (_totalCount).toString(),
+                      ),
+                    ),
                   ),
           );
         },
@@ -2145,7 +2244,10 @@ class _StockMovementSheetState extends State<_StockMovementSheet> {
     final date = item.date?.toLocal();
     final formattedDate = date == null
         ? '-'
-        : DateFormat('dd MMM yyyy, HH:mm', AppLanguageController.instance.effectiveLocale.languageCode).format(date);
+        : DateFormat(
+            'dd MMM yyyy, HH:mm',
+            AppLanguageController.instance.effectiveLocale.languageCode,
+          ).format(date);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -2178,11 +2280,21 @@ class _StockMovementSheetState extends State<_StockMovementSheet> {
             ),
             const Divider(height: 20),
             Text(
-              posLocale(context).pos21462b1cd3e9((_number(item.balanceBefore)).toString(), (_number(item.balanceAfter)).toString(), (_number(item.quantity)).toString()),
+              posLocale(context).pos21462b1cd3e9(
+                (_number(item.balanceBefore)).toString(),
+                (_number(item.balanceAfter)).toString(),
+                (_number(item.quantity)).toString(),
+              ),
             ),
             const SizedBox(height: 5),
             Text(
-              posLocale(context).posfd312a360b1e((item.cashierName).toString(), (item.location.isEmpty ? '' : ('  •  ${item.location}').tr(context)).toString()),
+              posLocale(context).posfd312a360b1e(
+                (item.cashierName).toString(),
+                (item.location.isEmpty
+                        ? ''
+                        : ('  •  ${item.location}').tr(context))
+                    .toString(),
+              ),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             if (item.reason.isNotEmpty || item.note.isNotEmpty) ...[

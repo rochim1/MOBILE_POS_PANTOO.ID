@@ -475,7 +475,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
     return LayoutBuilder(
       builder: (context, outerConstraints) {
         final compact = outerConstraints.maxWidth < 600;
-        final controlHeight = compact ? 40.0 : 48.0;
+        const controlHeight = 56.0;
         return Container(
           padding: EdgeInsets.fromLTRB(
             compact ? 12 : 16,
@@ -491,7 +491,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: _onSearch,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Meja').tr(context),
                     hintText: ('Cari meja...').tr(context),
                     prefixIcon: Icon(Icons.search, color: Colors.grey),
@@ -516,7 +516,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                       initialValue: _sort,
                       isDense: true,
                       isExpanded: true,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Urutkan').tr(context),
                         border: OutlineInputBorder(),
                       ),
@@ -672,7 +672,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   Icon(Icons.table_restaurant, size: 23, color: accent),
                   const Spacer(),
                   IconButton(
-                    tooltip: posLocale(context).pos8c5a30764897((table.name).toString()),
+                    tooltip: posLocale(
+                      context,
+                    ).pos8c5a30764897((table.name).toString()),
                     onPressed: () => _showTableQr(table),
                     visualDensity: VisualDensity.compact,
                     constraints: const BoxConstraints(
@@ -720,7 +722,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                   Icon(Icons.chair_outlined, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    posLocale(context).posc92e889b21e0((table.capacity).toString()),
+                    posLocale(
+                      context,
+                    ).posc92e889b21e0((table.capacity).toString()),
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                   ),
                 ],
@@ -829,7 +833,14 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           ),
           subtitle: Text(
             isAvailable
-                ? posLocale(context).posf4f1e83621da((table.capacity).toString(), (table.floor.isNotEmpty || table.area.isNotEmpty ? (' · ${[table.floor, table.area].where((value) => value.isNotEmpty).join(' · ')}').tr(context) : '').toString())
+                ? posLocale(context).posf4f1e83621da(
+                    (table.capacity).toString(),
+                    (table.floor.isNotEmpty || table.area.isNotEmpty
+                            ? (' · ${[table.floor, table.area].where((value) => value.isNotEmpty).join(' · ')}')
+                                  .tr(context)
+                            : '')
+                        .toString(),
+                  )
                 : '${table.activeOrderNo ?? 'Pesanan aktif'} · ${_formatTime(table.activeOrderCreatedAt)} · ${_duration(table.activeOrderCreatedAt)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1001,14 +1012,28 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                 '${table.activeOrderNo ?? 'Pesanan aktif'} · ${table.activeCustomerName?.trim().isNotEmpty == true ? table.activeCustomerName : ('Pelanggan umum').tr(sheetContext)}',
               ),
               const Divider(height: 24),
-              _detailRow(('Status pesanan').tr(sheetContext), table.activeOrderStatus ?? 'Aktif'),
+              _detailRow(
+                ('Status pesanan').tr(sheetContext),
+                table.activeOrderStatus ?? 'Aktif',
+              ),
               _detailRow(
                 ('Waktu pesan').tr(sheetContext),
                 _formatTime(table.activeOrderCreatedAt),
               ),
-              _detailRow(('Durasi').tr(sheetContext), _duration(table.activeOrderCreatedAt)),
-              _detailRow(('Jumlah item').tr(sheetContext), posLocale(sheetContext).pos89bd7b74615c((table.activeOrderItemCount).toString())),
-              _detailRow(('Total').tr(sheetContext), _currency(table.activeOrderTotal)),
+              _detailRow(
+                ('Durasi').tr(sheetContext),
+                _duration(table.activeOrderCreatedAt),
+              ),
+              _detailRow(
+                ('Jumlah item').tr(sheetContext),
+                posLocale(
+                  sheetContext,
+                ).pos89bd7b74615c((table.activeOrderItemCount).toString()),
+              ),
+              _detailRow(
+                ('Total').tr(sheetContext),
+                _currency(table.activeOrderTotal),
+              ),
               const SizedBox(height: 14),
               FilledButton.icon(
                 onPressed: widget.onOpenOrders == null
@@ -1153,7 +1178,9 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const PosText('Hapus Meja'),
-        content: Text(posLocale(context).posc2901f09b11d((table.name).toString())),
+        content: Text(
+          posLocale(context).posc2901f09b11d((table.name).toString()),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1310,7 +1337,9 @@ class _TableFormContentState extends State<_TableFormContent> {
 
               // Title
               Text(
-                _isEditing ? ('Edit Meja').tr(context) : ('Tambah Meja Baru').tr(context),
+                _isEditing
+                    ? ('Edit Meja').tr(context)
+                    : ('Tambah Meja Baru').tr(context),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1320,7 +1349,7 @@ class _TableFormContentState extends State<_TableFormContent> {
 
               // Name field
               TextFormField(
-errorBuilder: posValidationError,
+                errorBuilder: posValidationError,
                 controller: _nameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
@@ -1356,7 +1385,7 @@ errorBuilder: posValidationError,
                     child: TextFormField(
                       controller: _floorController,
                       textCapitalization: TextCapitalization.words,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Lantai / Level').tr(context),
                         hintText: ('Lantai 2').tr(context),
                         prefixIcon: Icon(Icons.layers_outlined),
@@ -1368,7 +1397,7 @@ errorBuilder: posValidationError,
                     child: TextFormField(
                       controller: _areaController,
                       textCapitalization: TextCapitalization.words,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Area / Zona').tr(context),
                         hintText: ('Outdoor').tr(context),
                         prefixIcon: Icon(Icons.map_outlined),
@@ -1381,7 +1410,7 @@ errorBuilder: posValidationError,
               TextFormField(
                 controller: _locationNoteController,
                 textCapitalization: TextCapitalization.sentences,
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Catatan Posisi').tr(context),
                   hintText: ('Contoh: dekat taman').tr(context),
                   prefixIcon: Icon(Icons.place_outlined),
@@ -1411,8 +1440,12 @@ errorBuilder: posValidationError,
                 ),
                 items: List.generate(20, (i) => i + 1)
                     .map(
-                      (n) =>
-                          DropdownMenuItem(value: n, child: Text(posLocale(context).posc92e889b21e0((n).toString()))),
+                      (n) => DropdownMenuItem(
+                        value: n,
+                        child: Text(
+                          posLocale(context).posc92e889b21e0((n).toString()),
+                        ),
+                      ),
                     )
                     .toList(),
                 onChanged: (value) {
@@ -1437,7 +1470,9 @@ errorBuilder: posValidationError,
                     elevation: 0,
                   ),
                   child: Text(
-                    _isEditing ? ('Simpan Perubahan').tr(context) : ('Tambah Meja').tr(context),
+                    _isEditing
+                        ? ('Simpan Perubahan').tr(context)
+                        : ('Tambah Meja').tr(context),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

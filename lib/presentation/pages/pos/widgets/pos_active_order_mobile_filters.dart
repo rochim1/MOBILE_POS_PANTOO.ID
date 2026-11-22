@@ -27,12 +27,12 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
           children: [
             Expanded(
               child: SizedBox(
-                height: 44,
+                height: 56,
                 child: TextField(
                   controller: searchController,
                   onChanged: onSearchChanged,
                   textInputAction: TextInputAction.search,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Pesanan').tr(context),
                     hintText: ('Cari order / pelanggan').tr(context),
                     prefixIcon: Icon(Icons.search, size: 20),
@@ -46,7 +46,7 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
             const SizedBox(width: 8),
             SizedBox(
               width: 44,
-              height: 44,
+              height: 56,
               child: Tooltip(
                 message: ('Filter pesanan aktif').tr(context),
                 child: OutlinedButton(
@@ -73,7 +73,9 @@ class PosActiveOrderMobileFilters extends StatelessWidget {
         if (activeLabels.isNotEmpty) ...[
           const SizedBox(height: 7),
           Text(
-            posLocale(context).poscd472b2621dc((activeLabels.join(' · ')).toString()),
+            posLocale(
+              context,
+            ).poscd472b2621dc((activeLabels.join(' · ')).toString()),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(

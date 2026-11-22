@@ -80,7 +80,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
               children: [
                 Expanded(
                   child: SizedBox(
-                    height: compact ? 40 : 48,
+                    height: 56,
                     child: TextField(
                       controller: _searchController,
                       onChanged: (_) => setState(() {}),
@@ -124,7 +124,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                   ],
                   child: Container(
                     width: compact ? 40 : 48,
-                    height: compact ? 40 : 48,
+                    height: 56,
                     decoration: BoxDecoration(
                       color: _priceLevelFilter == 'all'
                           ? Colors.white
@@ -137,7 +137,7 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  height: compact ? 40 : 48,
+                  height: 56,
                   child: ElevatedButton.icon(
                     onPressed: _loading || _openingForm
                         ? null
@@ -197,7 +197,9 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
-        customer.phone.isEmpty ? ('Tanpa nomor telepon').tr(context) : customer.phone,
+        customer.phone.isEmpty
+            ? ('Tanpa nomor telepon').tr(context)
+            : customer.phone,
       ),
       trailing: PopupMenuButton<String>(
         onSelected: (action) =>
@@ -286,27 +288,29 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-errorBuilder: posValidationError,
+                      errorBuilder: posValidationError,
                       controller: name,
-                      decoration:  InputDecoration(labelText: ('Nama').tr(context)),
+                      decoration: InputDecoration(
+                        labelText: ('Nama').tr(context),
+                      ),
                       validator: validatePosCustomerName,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
-errorBuilder: posValidationError,
+                      errorBuilder: posValidationError,
                       controller: phone,
                       keyboardType: TextInputType.phone,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Nomor telepon').tr(context),
                       ),
                       validator: validatePosCustomerPhone,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
-errorBuilder: posValidationError,
+                      errorBuilder: posValidationError,
                       controller: email,
                       keyboardType: TextInputType.emailAddress,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Email (opsional)').tr(context),
                       ),
                       validator: validatePosCustomerEmail,
@@ -317,7 +321,9 @@ errorBuilder: posValidationError,
                       minLines: 2,
                       maxLines: 3,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration:  InputDecoration(labelText: ('Alamat').tr(context)),
+                      decoration: InputDecoration(
+                        labelText: ('Alamat').tr(context),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -325,12 +331,14 @@ errorBuilder: posValidationError,
                       minLines: 2,
                       maxLines: 3,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration:  InputDecoration(labelText: ('Catatan').tr(context)),
+                      decoration: InputDecoration(
+                        labelText: ('Catatan').tr(context),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: membershipStatus,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Status keanggotaan').tr(context),
                       ),
                       items:
@@ -360,7 +368,9 @@ errorBuilder: posValidationError,
                         labelText: ('Tier member').tr(context),
                         helperText: membershipStatus == 'member'
                             ? null
-                            : ('Aktif setelah status diubah menjadi Member').tr(context),
+                            : ('Aktif setelah status diubah menjadi Member').tr(
+                                context,
+                              ),
                       ),
                       items:
                           const {
@@ -385,7 +395,7 @@ errorBuilder: posValidationError,
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: customerType,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Tipe pelanggan').tr(context),
                       ),
                       items:
@@ -410,10 +420,12 @@ errorBuilder: posValidationError,
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: priceLevel,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Level harga').tr(context),
                         helperText:
-                            ('Menentukan harga produk untuk pelanggan ini').tr(context),
+                            ('Menentukan harga produk untuk pelanggan ini').tr(
+                              context,
+                            ),
                       ),
                       items: priceLevelOptions
                           .map(
@@ -476,7 +488,11 @@ errorBuilder: posValidationError,
                                   },
                                 );
                               },
-                        child: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan').tr(context)),
+                        child: Text(
+                          saving
+                              ? ('Menyimpan...').tr(context)
+                              : ('Simpan').tr(context),
+                        ),
                       ),
                     ),
                   ],

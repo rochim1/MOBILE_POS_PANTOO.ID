@@ -296,7 +296,11 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
         inventoryPolicy['inventory_profile'] == 'custom';
     final sections = <_InventoryMenu>[
       if (trackStock && permissions['initialize_stock'] == true)
-        const _InventoryMenu(_InventorySection.opening, 'Stok Awal', Icons.add_box_outlined),
+        const _InventoryMenu(
+          _InventorySection.opening,
+          'Stok Awal',
+          Icons.add_box_outlined,
+        ),
       if (permissions['view_warehouses'] == true)
         const _InventoryMenu(
           _InventorySection.warehouse,
@@ -407,7 +411,11 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     Map<String, dynamic> permissions,
     Map<String, dynamic> inventoryPolicy,
   ) => switch (_selected) {
-    _InventorySection.opening => PosOpeningStockPage(initialProductId: widget.openingProductId, onComplete: widget.onOpeningStockSaved, tourTargets: widget.setupTourTargets),
+    _InventorySection.opening => PosOpeningStockPage(
+      initialProductId: widget.openingProductId,
+      onComplete: widget.onOpeningStockSaved,
+      tourTargets: widget.setupTourTargets,
+    ),
     _InventorySection.warehouse => PosWarehousePage(
       canCreate: permissions['create_warehouses'] == true,
       canUpdate: permissions['update_warehouses'] == true,
@@ -1482,7 +1490,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 600;
-                final controlHeight = compact ? 40.0 : 48.0;
+                const controlHeight = 56.0;
                 final search = SizedBox(
                   height: controlHeight,
                   child: TextField(

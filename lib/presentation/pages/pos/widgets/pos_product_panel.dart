@@ -206,11 +206,23 @@ class _PosProductPanelState extends State<PosProductPanel> {
                   hasScrollBody: false,
                   child: Container(
                     color: Colors.white,
-                    child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const PosText('Tidak ada produk ditemukan'),
-                      if (widget.onManageProducts != null && (state.runtimeConfig['permissions'] as Map?)?['manage_products'] == true && _searchQuery.isEmpty)
-                        TextButton(onPressed: widget.onManageProducts, child: const Text('Tambah / kelola produk')),
-                    ])),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const PosText('Tidak ada produk ditemukan'),
+                          if (widget.onManageProducts != null &&
+                              (state.runtimeConfig['permissions']
+                                      as Map?)?['manage_products'] ==
+                                  true &&
+                              _searchQuery.isEmpty)
+                            TextButton(
+                              onPressed: widget.onManageProducts,
+                              child: const Text('Tambah / kelola produk'),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               else if (state.isGridView)
@@ -437,7 +449,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
             child: KeyedSubtree(
               key: widget.searchTourKey,
               child: SizedBox(
-                height: widget.isMobile ? 40 : 48,
+                height: 56,
                 child: TextField(
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
@@ -481,7 +493,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                             padding: EdgeInsets.zero,
                             constraints: BoxConstraints.tightFor(
                               width: widget.isMobile ? 40 : 48,
-                              height: widget.isMobile ? 40 : 48,
+                              height: 56,
                             ),
                             icon: Icon(
                               Icons.qr_code_scanner,
@@ -514,7 +526,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
               onPressed: _pickCatalogCategory,
               icon: Container(
                 width: 40,
-                height: 40,
+                height: 56,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
@@ -686,7 +698,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
         ];
       },
       child: Container(
-        height: compact ? 40 : 48,
+        height: 56,
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14),
         decoration: BoxDecoration(
           color: compact ? AppColors.primarySoft : Colors.white,
@@ -1102,7 +1114,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(
                           width: 40,
-                          height: 40,
+                          height: 56,
                         ),
                         icon: Icon(
                           state.favoriteProductIds.contains(product.id)
@@ -1124,7 +1136,7 @@ class _PosProductPanelState extends State<PosProductPanel> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(
                           width: 40,
-                          height: 40,
+                          height: 56,
                         ),
                         icon: Icon(
                           unavailable

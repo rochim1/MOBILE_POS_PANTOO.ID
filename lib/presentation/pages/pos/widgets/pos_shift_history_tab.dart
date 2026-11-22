@@ -78,7 +78,7 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 600;
-        final controlHeight = compact ? 40.0 : 48.0;
+        const controlHeight = 56.0;
         final search = SizedBox(
           height: controlHeight,
           child: TextField(
@@ -248,7 +248,9 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
           const Divider(height: 24),
           Row(
             children: [
-              Expanded(child: _buildTimeColumn(('Waktu Buka').tr(context), openedAt)),
+              Expanded(
+                child: _buildTimeColumn(('Waktu Buka').tr(context), openedAt),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildTimeColumn(
@@ -292,7 +294,10 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
     return Column(
       crossAxisAlignment: alignment,
       children: [
-        PosText(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        PosText(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         const SizedBox(height: 4),
         Text(
           time != null ? DateFormat('dd MMM yyyy, HH:mm').format(time) : '-',

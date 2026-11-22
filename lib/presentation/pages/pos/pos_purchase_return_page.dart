@@ -121,7 +121,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   initialValue: reason,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Alasan retur').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -132,7 +132,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: method,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Penyelesaian').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -265,13 +265,13 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 600;
-                final controlHeight = compact ? 40.0 : 48.0;
+                const controlHeight = 56.0;
                 final search = SizedBox(
                   height: controlHeight,
                   child: TextField(
                     controller: _searchController,
                     onChanged: _search,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Cari nomor retur / supplier').tr(context),
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
@@ -283,7 +283,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     isDense: true,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Status').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -380,7 +380,9 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
             child: RefreshIndicator(
               onRefresh: _load,
               child: _loading
-                  ? const PosRecordListSkeleton(kind: PosRecordSkeletonKind.trade)
+                  ? const PosRecordListSkeleton(
+                      kind: PosRecordSkeletonKind.trade,
+                    )
                   : _items.isEmpty
                   ? ListView(
                       children: const [
@@ -503,7 +505,12 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     onPressed: _page > 1 ? () => _load(page: _page - 1) : null,
                     icon: const Icon(Icons.chevron_left),
                   ),
-                  Text(posLocale(context).posea3f79a3c91b((_page).toString(), ((_total / _limit).ceil()).toString())),
+                  Text(
+                    posLocale(context).posea3f79a3c91b(
+                      (_page).toString(),
+                      ((_total / _limit).ceil()).toString(),
+                    ),
+                  ),
                   IconButton(
                     onPressed: _page * _limit < _total
                         ? () => _load(page: _page + 1)
@@ -871,7 +878,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                       controller: _search,
                       enabled: widget.existing == null,
                       onSubmitted: (_) => _findPurchases(),
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Nomor PO / supplier').tr(context),
                         prefixIcon: Icon(Icons.search),
                         border: OutlineInputBorder(),
@@ -909,7 +916,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _group?['lokasi']?['label']?.toString(),
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Lokasi stok').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -967,7 +974,11 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                               item['nama_inventaris']?.toString() ?? '-',
                             ),
                             subtitle: Text(
-                              posLocale(context).pos6551fa1c3fd7((item['available_qty']).toString(), (item['unit']).toString(), (_money(item['harga_beli'])).toString()),
+                              posLocale(context).pos6551fa1c3fd7(
+                                (item['available_qty']).toString(),
+                                (item['unit']).toString(),
+                                (_money(item['harga_beli'])).toString(),
+                              ),
                             ),
                             onChanged: (value) => setState(
                               () => item['selected'] = value == true,
@@ -985,12 +996,17 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                                         decimal: true,
                                       ),
                                   decoration: InputDecoration(
-                                    labelText: posLocale(context).pos981fefc1e33c((item['unit']).toString()),
+                                    labelText: posLocale(context)
+                                        .pos981fefc1e33c(
+                                          (item['unit']).toString(),
+                                        ),
                                     helperText:
                                         (item['no_batch']?.toString() ?? '')
                                             .isEmpty
                                         ? ('Tanpa batch').tr(context)
-                                        : posLocale(context).pos6f9650674671((item['no_batch']).toString()),
+                                        : posLocale(context).pos6f9650674671(
+                                            (item['no_batch']).toString(),
+                                          ),
                                     border: const OutlineInputBorder(),
                                   ),
                                   onChanged: (value) {
@@ -1005,8 +1021,10 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                                 TextFormField(
                                   initialValue:
                                       item['item_reason']?.toString() ?? '',
-                                  decoration:  InputDecoration(
-                                    labelText: ('Catatan/alasan barang').tr(context),
+                                  decoration: InputDecoration(
+                                    labelText: ('Catatan/alasan barang').tr(
+                                      context,
+                                    ),
                                     border: OutlineInputBorder(),
                                   ),
                                   onChanged: (value) =>
@@ -1020,14 +1038,17 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   ),
                 ),
                 const Divider(height: 28),
-                const PosText('3. Alasan dan penyelesaian', style: _sectionStyle),
+                const PosText(
+                  '3. Alasan dan penyelesaian',
+                  style: _sectionStyle,
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue:
                       _reasonOptions.any((item) => item['value'] == _reason)
                       ? _reason
                       : null,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Alasan retur').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -1041,7 +1062,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                       _methodOptions.any((item) => item['value'] == _method)
                       ? _method
                       : null,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Penyelesaian').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -1053,7 +1074,7 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                 TextField(
                   controller: _notes,
                   maxLines: 3,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Catatan').tr(context),
                     border: OutlineInputBorder(),
                   ),
@@ -1080,7 +1101,9 @@ class _CreatePurchaseReturnPageState extends State<_CreatePurchaseReturnPage> {
                   onPressed: _loading ? null : _save,
                   icon: const Icon(Icons.save),
                   label: Text(
-                    _submitApproval ? ('Simpan & Kirim').tr(context) : ('Simpan Draft').tr(context),
+                    _submitApproval
+                        ? ('Simpan & Kirim').tr(context)
+                        : ('Simpan Draft').tr(context),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -1146,7 +1169,7 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           content: TextField(
             controller: controller,
             maxLines: 3,
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               labelText: ('Alasan penolakan').tr(context),
               border: OutlineInputBorder(),
             ),
@@ -1179,7 +1202,8 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           ),
           content: Text(
             action == 'process'
-                ? ('Stok dan konsekuensi finansial akan diproses oleh server.').tr(context)
+                ? ('Stok dan konsekuensi finansial akan diproses oleh server.')
+                      .tr(context)
                 : ('Pastikan data retur sudah benar.').tr(context),
           ),
           actions: [
@@ -1227,7 +1251,9 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration:  InputDecoration(labelText: ('Alasan penghapusan').tr(context)),
+          decoration: InputDecoration(
+            labelText: ('Alasan penghapusan').tr(context),
+          ),
         ),
         actions: [
           TextButton(
@@ -1286,7 +1312,9 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
       onPopInvokedWithResult: (didPop, result) {},
       child: Scaffold(
         appBar: AppBar(
-          title: Text(data?['no_return']?.toString() ?? ('Detail Retur').tr(context)),
+          title: Text(
+            data?['no_return']?.toString() ?? ('Detail Retur').tr(context),
+          ),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           leading: IconButton(
@@ -1295,7 +1323,10 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
           ),
         ),
         body: _loading && data == null
-            ? const SingleChildScrollView(padding: EdgeInsets.all(16), child: PosTradeContentSkeleton(detail: true))
+            ? const SingleChildScrollView(
+                padding: EdgeInsets.all(16),
+                child: PosTradeContentSkeleton(detail: true),
+              )
             : data == null
             ? const Center(child: PosText('Data tidak ditemukan'))
             : RefreshIndicator(
@@ -1330,19 +1361,46 @@ class _PurchaseReturnDetailPageState extends State<_PurchaseReturnDetailPage> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text(posLocale(context).pos5c04fa38f710((data['no_po'] ?? '-').toString())),
-                            Text(posLocale(context).pos54ec6781af4f((_date(data['tanggal_return'])).toString())),
                             Text(
-                              posLocale(context).pos86d285bf18f2((data['lokasi']?['label'] ?? data['lokasi_cabang_nama'] ?? '-').toString()),
+                              posLocale(context).pos5c04fa38f710(
+                                (data['no_po'] ?? '-').toString(),
+                              ),
                             ),
                             Text(
-                              posLocale(context).posb8a08ba6e258((data['return_reason_label'] ?? data['return_reason'] ?? '-').toString()),
+                              posLocale(context).pos54ec6781af4f(
+                                (_date(data['tanggal_return'])).toString(),
+                              ),
                             ),
                             Text(
-                              posLocale(context).pos57915034b172((data['return_method_label'] ?? data['return_method'] ?? '-').toString()),
+                              posLocale(context).pos86d285bf18f2(
+                                (data['lokasi']?['label'] ??
+                                        data['lokasi_cabang_nama'] ??
+                                        '-')
+                                    .toString(),
+                              ),
+                            ),
+                            Text(
+                              posLocale(context).posb8a08ba6e258(
+                                (data['return_reason_label'] ??
+                                        data['return_reason'] ??
+                                        '-')
+                                    .toString(),
+                              ),
+                            ),
+                            Text(
+                              posLocale(context).pos57915034b172(
+                                (data['return_method_label'] ??
+                                        data['return_method'] ??
+                                        '-')
+                                    .toString(),
+                              ),
                             ),
                             if ((data['catatan']?.toString() ?? '').isNotEmpty)
-                              Text(posLocale(context).posb0bf84cc5839((data['catatan']).toString())),
+                              Text(
+                                posLocale(
+                                  context,
+                                ).posb0bf84cc5839((data['catatan']).toString()),
+                              ),
                           ],
                         ),
                       ),
@@ -1573,7 +1631,10 @@ class _ReturnDateField extends StatelessWidget {
       child: Text(
         value == null
             ? ('Semua').tr(context)
-            : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(value!),
+            : DateFormat(
+                'dd MMM yyyy',
+                AppLanguageController.instance.effectiveLocale.languageCode,
+              ).format(value!),
       ),
     ),
   );
@@ -1604,7 +1665,10 @@ String _date(dynamic value) {
   final date = DateTime.tryParse(raw);
   return date == null
       ? raw
-      : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(date.toLocal());
+      : DateFormat(
+          'dd MMM yyyy',
+          AppLanguageController.instance.effectiveLocale.languageCode,
+        ).format(date.toLocal());
 }
 
 Color _statusColor(String status) => switch (status) {

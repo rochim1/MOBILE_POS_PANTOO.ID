@@ -277,30 +277,40 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: stores.any((store) => store.id == selectedTokoId)
-                    ? selectedTokoId
-                    : null,
-                hint: const PosText('Pilih toko kasir'),
-                isExpanded: true,
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: ('Toko').tr(context),
+                border: InputBorder.none,
                 isDense: true,
-                items: stores
-                    .map(
-                      (s) => DropdownMenuItem<String>(
-                        value: s.id,
-                        child: Text(s.name, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
-                onChanged: hasActiveShift
-                    ? null
-                    : (val) {
-                        if (val != null) {
-                          setState(() => selectedTokoId = val);
-                          context.read<PosShiftBloc>().add(LoadShiftData(val));
-                        }
-                      },
+                contentPadding: EdgeInsets.zero,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: stores.any((store) => store.id == selectedTokoId)
+                      ? selectedTokoId
+                      : null,
+                  hint: const PosText('Pilih toko kasir'),
+                  isExpanded: true,
+                  isDense: true,
+                  items: stores
+                      .map(
+                        (s) => DropdownMenuItem<String>(
+                          value: s.id,
+                          child: Text(s.name, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: hasActiveShift
+                      ? null
+                      : (val) {
+                          if (val != null) {
+                            setState(() => selectedTokoId = val);
+                            context.read<PosShiftBloc>().add(
+                              LoadShiftData(val),
+                            );
+                          }
+                        },
+                ),
               ),
             ),
           ),
