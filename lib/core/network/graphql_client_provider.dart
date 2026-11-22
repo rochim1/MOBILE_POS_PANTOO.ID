@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import '../subscription/pos_subscription_link.dart';
 import 'pos_operator_identity.dart';
+import 'pos_bootstrap_reads.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -163,6 +164,7 @@ class GraphQLClientProvider {
     final link = Link.from([
       posSubscriptionLink(() => subscriptionGuard, () => subscriptionScope),
       errorLink,
+      posBootstrapReadDeadlineLink(),
       authLink,
       httpLink,
     ]);

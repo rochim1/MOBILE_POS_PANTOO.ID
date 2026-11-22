@@ -191,23 +191,22 @@ void main() {
       await cubit.close();
     },
   );
-  testWidgets(
-    'an incomplete own-PIN status must not offer PIN creation',
-    (tester) async {
-      final repo = RosterRepo();
-      sl.registerSingleton<PosRepository>(repo);
-      final cubit = AppLockCubit();
-      final pending = cubit.lock();
-      repo.roster.complete(const Right([]));
-      await tester.pump();
-      repo.status.complete(const Right({}));
-      await pending;
-      expect(cubit.state.employees, isEmpty);
-      expect(cubit.state.status, AppLockStatus.locked);
-      expect(cubit.state.errorMessage, isNotEmpty);
-      await cubit.close();
-    },
-  );
+  testWidgets('an incomplete own-PIN status must not offer PIN creation', (
+    tester,
+  ) async {
+    final repo = RosterRepo();
+    sl.registerSingleton<PosRepository>(repo);
+    final cubit = AppLockCubit();
+    final pending = cubit.lock();
+    repo.roster.complete(const Right([]));
+    await tester.pump();
+    repo.status.complete(const Right({}));
+    await pending;
+    expect(cubit.state.employees, isEmpty);
+    expect(cubit.state.status, AppLockStatus.locked);
+    expect(cubit.state.errorMessage, isNotEmpty);
+    await cubit.close();
+  });
   testWidgets(
     'first-time device without a verified cache fails promptly and stays PIN locked',
     (tester) async {

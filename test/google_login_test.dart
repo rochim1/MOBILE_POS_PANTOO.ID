@@ -151,7 +151,7 @@ void main() {
     },
   );
   testWidgets(
-    'verified Google session redirects even if runtime bootstrap never replies',
+    'verified Google session redirects without requesting optional runtime bootstrap',
     (tester) async {
       final provider = _Provider();
       final bootstrap = Completer<Response>();
@@ -194,17 +194,16 @@ void main() {
       // checkSession would inspect an empty storage; isolate submission state.
       await cubit.checkSession();
       final login = cubit.loginGoogle('verified-proof');
-      for (var i = 0; i < 50 && !bootstrapStarted; i++) {
+      for (var i = 0; i < 50 && !cubit.state.isAuthenticated; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
       expect(loginInput?['access_via'], 'mobile_app');
-      expect(bootstrapStarted, isTrue);
-      await tester.pump(const Duration(seconds: 10));
+      expect(bootstrapStarted, isFalse);
       expect(
         cubit.state.isAuthenticated,
         isTrue,
         reason:
-            'Optional bootstrap must not consume the entire Google login timeout after credentials were persisted',
+            'Accepted login must not wait for optional full runtime bootstrap',
       );
       bootstrap.complete(
         Response(
@@ -222,14 +221,14 @@ void main() {
     },
   );
   testWidgets(
-    'Google deadline includes verified session storage and bounded bootstrap',
+    'Google deadline includes verified session storage after its authentication request',
     (tester) async {
       final repository = _GoogleRepository();
       final cubit = AuthCubit(authRepository: repository);
       await cubit.checkSession();
       final login = cubit.loginGoogle('proof');
       // The GraphQL transport allows30s; accepted credentials can still need
-      // secure persistence and the bounded8s runtime request afterwards.
+      // secure persistence afterwards, not another runtime request.
       await tester.pump(const Duration(seconds: 33));
       repository.pending.complete(const Right('Kasir'));
       expect(
@@ -243,7 +242,7 @@ void main() {
     },
   );
   test(
-    'runtime authorization rejection still invalidates Google session',
+    'revoked authenticated followup still invalidates a saved Google session',
     () async {
       final provider = _Provider();
       provider.client = GraphQLClient(
@@ -279,15 +278,10 @@ void main() {
       );
       final prefs = await SharedPreferences.getInstance();
       const storage = FlutterSecureStorage();
-      final result = await AuthRepository(
-        provider,
-        prefs,
-        storage,
-      ).loginWithGoogle('proof');
-      expect(
-        result.fold((failure) => failure, (_) => null),
-        isA<AuthFailure>(),
-      );
+      final repository = AuthRepository(provider, prefs, storage);
+      final result = await repository.loginWithGoogle('proof');
+      expect(result.isRight(), isTrue);
+      expect(await repository.checkSession(), isFalse);
       expect(provider.savedToken, isNull);
       expect(await storage.read(key: 'auth_token'), isNull);
       expect(await storage.read(key: 'refresh_token'), isNull);

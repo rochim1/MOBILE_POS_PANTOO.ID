@@ -10,6 +10,7 @@ import '../../core/network/offline_network_failure.dart';
 import '../../core/network/pos_operator_identity.dart';
 import '../../core/network/pos_return_draft_request_store.dart';
 import '../../core/network/pos_checkout_request_store.dart';
+import '../../core/network/pos_bootstrap_reads.dart';
 import '../../core/database/database_platform_initializer.dart';
 import '../../core/utils/logger.dart';
 import '../../data/graphql/pos_queries.dart';
@@ -49,6 +50,7 @@ class PosRepository {
   bool _syncingFavorites = false;
   bool _savingReturnDraft = false;
   bool _checkoutInFlight = false;
+  final _bootstrapReads = PosBootstrapReads();
   static const _offlineReadStore = PosOfflineReadStore();
 
   PosRepository(this._clientProvider, this._prefs);
@@ -151,7 +153,40 @@ class PosRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getRuntimeConfig() async {
+  String get _bootstrapIdentity => jsonEncode([
+    _clientProvider.endpointUrl,
+    _prefs.getString('instansi_id') ?? '',
+    terminalUserId,
+    activeOperatorId,
+  ]);
+  String get _bootstrapSession =>
+      '$_bootstrapIdentity:${identityHashCode(_clientProvider.client)}';
+  String get _pinRosterDenialKey =>
+      'pos_pin_roster_denied_v1:${jsonEncode([_clientProvider.endpointUrl, _prefs.getString('instansi_id') ?? '', terminalUserId])}';
+  void _assertBootstrapSession(String session) {
+    if (session != _bootstrapSession) {
+      throw const AuthFailure(
+        'Sesi kasir berubah. Muat ulang data untuk akun yang aktif.',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> getRuntimeConfig() {
+    final session = _bootstrapSession;
+    final cacheKey = _runtimeConfigCacheKey;
+    return _bootstrapReads
+        .run('runtime:$session', () => _loadRuntimeConfig(session, cacheKey))
+        .then(
+          (config) =>
+              Map<String, dynamic>.from(jsonDecode(jsonEncode(config)) as Map),
+        );
+  }
+
+  Future<Map<String, dynamic>> _loadRuntimeConfig(
+    String session,
+    String cacheKey,
+  ) async {
+    _assertBootstrapSession(session);
     const fallbackPermissions = <String, dynamic>{
       'view_dashboard': false,
       'use_cashier': false,
@@ -271,7 +306,7 @@ class PosRepository {
       'permissions': fallbackPermissions,
     };
     Map<String, dynamic>? cachedConfig;
-    final cachedJson = _prefs.getString(_runtimeConfigCacheKey);
+    final cachedJson = _prefs.getString(cacheKey);
     if (cachedJson != null && cachedJson.isNotEmpty) {
       try {
         final cached = Map<String, dynamic>.from(jsonDecode(cachedJson) as Map);
@@ -283,20 +318,23 @@ class PosRepository {
         };
         cachedConfig = cached;
       } catch (_) {
-        await _prefs.remove(_runtimeConfigCacheKey);
+        await _prefs.remove(cacheKey);
       }
     }
     if (supportsOfflineDatabase && await _hasNoNetwork()) {
-      return cachedConfig ?? fallback;
+      _assertBootstrapSession(session);
+      return {...(cachedConfig ?? fallback), '_offline_snapshot': true};
     }
     try {
       final result = await _queryOfflineReadable(
         QueryOptions(
           document: gql(PosQueries.getPOSRuntimeConfig),
           fetchPolicy: FetchPolicy.networkOnly,
+          queryRequestTimeout: posBootstrapReadTimeout,
         ),
-        timeout: const Duration(seconds: 30),
+        timeout: posBootstrapReadTimeout,
       );
+      _assertBootstrapSession(session);
       if (result.hasException) throw result.exception!;
       if (result.data?['GetPOSRuntimeConfig'] == null) {
         throw const ServerFailure('Konfigurasi POS tidak tersedia');
@@ -304,6 +342,12 @@ class PosRepository {
       final config = Map<String, dynamic>.from(
         result.data!['GetPOSRuntimeConfig'],
       );
+      if (config['instansi_id']?.toString() !=
+          (_prefs.getString('instansi_id') ?? '')) {
+        throw const AuthFailure(
+          'Konfigurasi POS tidak sesuai dengan instansi akun aktif.',
+        );
+      }
       final serverPermissions = Map<String, dynamic>.from(
         config['permissions'] as Map? ?? const {},
       );
@@ -311,11 +355,16 @@ class PosRepository {
         ...fallbackPermissions,
         ...serverPermissions,
       };
-      await _prefs.setString(_runtimeConfigCacheKey, jsonEncode(config));
+      await _prefs.setString(cacheKey, jsonEncode(config));
+      _assertBootstrapSession(session);
       return config;
     } catch (error, stackTrace) {
-      appLogger.e(
-        'Runtime permission POS tidak tersedia; memakai navigasi operasional',
+      _assertBootstrapSession(session);
+      if (error is OperationException && _bootstrapAccessRejected(error)) {
+        await _prefs.remove(cacheKey);
+      }
+      appLogger.w(
+        'Konfigurasi POS belum tersedia; hanya cache akun aktif yang boleh digunakan',
         error: error,
         stackTrace: stackTrace,
       );
@@ -430,9 +479,7 @@ class PosRepository {
   }
 
   String get _runtimeConfigCacheKey {
-    final operator = operatorIdFromToken(_operatorSessionToken);
-    if (operator.isEmpty) return 'pos_runtime_config';
-    return 'pos_runtime_config:${_prefs.getString('instansi_id') ?? ''}:$operator';
+    return 'pos_runtime_config_v2:$_bootstrapIdentity';
   }
 
   Future<void> _saveDashboardSnapshot(
@@ -595,13 +642,18 @@ class PosRepository {
   }
 
   Future<Either<Failure, Map<String, dynamic>>> getMyPOSLockStatus() async {
+    final session = _bootstrapSession;
     try {
-      final result = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosQueries.getMyPOSLockStatus),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
+      final result = await _clientProvider.client
+          .query(
+            QueryOptions(
+              document: gql(PosQueries.getMyPOSLockStatus),
+              fetchPolicy: FetchPolicy.networkOnly,
+              queryRequestTimeout: posBootstrapReadTimeout,
+            ),
+          )
+          .timeout(posBootstrapReadTimeout);
+      _assertBootstrapSession(session);
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
       }
@@ -670,41 +722,99 @@ class PosRepository {
   Future<Either<Failure, List<Map<String, dynamic>>>> getPOSPinUsers({
     String search = '',
     bool? hasPin,
+  }) {
+    final session = _bootstrapSession;
+    return _bootstrapReads
+        .run(
+          'roster:$session:${jsonEncode([search.trim(), hasPin])}',
+          () => _loadPOSPinUsers(session, search: search, hasPin: hasPin),
+        )
+        .then(
+          (result) => result.map(
+            (rows) =>
+                rows.map((row) => Map<String, dynamic>.from(row)).toList(),
+          ),
+        );
+  }
+
+  bool _bootstrapAccessRejected(OperationException exception) {
+    final errors = [
+      ...exception.graphqlErrors,
+      if (exception.linkException is ServerException)
+        ...?((exception.linkException as ServerException)
+            .parsedResponse
+            ?.errors),
+    ];
+    if (errors.any(
+      (error) => const {
+        'FORBIDDEN',
+        'UNAUTHORIZED',
+        'UNAUTHENTICATED',
+      }.contains(error.extensions?['code']),
+    )) {
+      return true;
+    }
+    final link = exception.linkException;
+    final code = link is ServerException
+        ? link.statusCode
+        : link is HttpLinkServerException
+        ? link.response.statusCode
+        : null;
+    return code == 401 || code == 403;
+  }
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> _loadPOSPinUsers(
+    String session, {
+    required String search,
+    bool? hasPin,
   }) async {
+    final offlineStore = _offlinePinStore();
+    final denialKey = _pinRosterDenialKey;
     try {
+      _assertBootstrapSession(session);
       final connectivity = await Connectivity().checkConnectivity();
+      _assertBootstrapSession(session);
       if (connectivity.contains(ConnectivityResult.none)) {
-        final cached = await _offlinePinStore().employees(search: search);
+        if (_prefs.getBool(denialKey) == true) {
+          return const Left(
+            AuthFailure(
+              'Akses kasir ditolak server. Sambungkan internet untuk verifikasi ulang sebelum menggunakan PIN offline.',
+            ),
+          );
+        }
+        final cached = await offlineStore.employees(search: search);
+        _assertBootstrapSession(session);
         if (cached.isNotEmpty) return Right(cached);
         return const Left(
-          ServerFailure(
+          NetworkFailure(
             'Perangkat sedang offline. Operator belum memiliki cache PIN lokal; sambungkan internet sekali untuk verifikasi awal.',
           ),
         );
       }
-      final result = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosQueries.getPOSPinUsers),
-          variables: {
-            'search': search.trim().isEmpty ? null : search.trim(),
-            'hasPin': hasPin,
-            'pagination': {'page': 0, 'limit': 100},
-          },
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-      if (result.hasException) {
-        // A GraphQL rejection (including a revoked session) is not offline.
-        // Reusing an old operator ID here makes the next PIN attempt fail as
-        // "Pengguna tidak ditemukan pada instansi ini" after a roster change.
-        if (_isRetryableNetworkFailure(result.exception)) {
-          final cached = await _offlinePinStore().employees(search: search);
-          if (cached.isNotEmpty) return Right(cached);
-        }
-        return Left(AppErrorHandler.handle(result.exception!));
+      final result = await _clientProvider.client
+          .query(
+            QueryOptions(
+              document: gql(PosQueries.getPOSPinUsers),
+              variables: {
+                'search': search.trim().isEmpty ? null : search.trim(),
+                'hasPin': hasPin,
+                'pagination': {'page': 0, 'limit': 100},
+              },
+              fetchPolicy: FetchPolicy.networkOnly,
+              queryRequestTimeout: posBootstrapReadTimeout,
+            ),
+          )
+          .timeout(posBootstrapReadTimeout);
+      _assertBootstrapSession(session);
+      if (result.hasException) throw result.exception!;
+      final rows = result.data?['GetPOSPinUsers']?['items'];
+      if (rows is! List) {
+        return const Left(
+          ServerFailure(
+            'Format daftar kasir dari server tidak valid. Coba lagi.',
+          ),
+        );
       }
-      final rows =
-          result.data?['GetPOSPinUsers']?['items'] as List? ?? const [];
       final employees = rows.map((row) {
         final employee = Map<String, dynamic>.from(row as Map);
         employee['photo_url'] = _clientProvider.resolveMediaUrl(
@@ -712,24 +822,44 @@ class PosRepository {
         );
         return employee;
       }).toList();
-      await _offlinePinStore().cacheEmployees(
+      await offlineStore.cacheEmployees(
         employees,
         completeRoster:
             search.trim().isEmpty && hasPin != false && employees.length < 100,
       );
+      _assertBootstrapSession(session);
+      await _prefs.remove(denialKey);
       return Right(employees);
     } catch (error) {
-      final retryable = error is OperationException
-          ? _isRetryableNetworkFailure(error)
-          : error is LinkException &&
-                _isRetryableNetworkFailure(
-                  OperationException(linkException: error),
-                );
-      if (retryable) {
-        final cached = await _offlinePinStore().employees(search: search);
-        if (cached.isNotEmpty) return Right(cached);
+      if (session != _bootstrapSession) {
+        return const Left(
+          AuthFailure('Sesi kasir berubah. Muat ulang daftar kasir.'),
+        );
       }
-      return Left(AppErrorHandler.handle(error));
+      if (error is OperationException && _bootstrapAccessRejected(error)) {
+        await _prefs.setBool(denialKey, true);
+        await offlineStore.invalidateRoster();
+      }
+      // An explicit authorization/schema/server rejection must never become an
+      // offline PIN grant. A bounded transport timeout may use verified cache.
+      if (isOfflineReadFailure(error)) {
+        if (_prefs.getBool(denialKey) == true) {
+          return const Left(
+            AuthFailure('Akses kasir perlu diverifikasi ulang saat online.'),
+          );
+        }
+        final cached = await offlineStore.employees(search: search);
+        if (session != _bootstrapSession) {
+          return const Left(AuthFailure('Sesi kasir berubah.'));
+        }
+        if (cached.isNotEmpty) return Right(cached);
+        return const Left(
+          NetworkFailure(
+            'Daftar kasir belum diterima dari server dan cache PIN belum tersedia. Periksa koneksi lalu coba lagi.',
+          ),
+        );
+      }
+      return Left(error is Failure ? error : AppErrorHandler.handle(error));
     }
   }
 
@@ -737,10 +867,27 @@ class PosRepository {
     String userId,
     String pin,
   ) async {
+    final session = _bootstrapSession;
+    final offlineStore = _offlinePinStore();
+    final denialKey = _pinRosterDenialKey;
+    Future<Map<String, dynamic>?> cachedPin() async {
+      _assertBootstrapSession(session);
+      if (_prefs.getBool(denialKey) == true) return null;
+      final result = await offlineStore.verify(userId, pin);
+      _assertBootstrapSession(session);
+      return result;
+    }
+
     try {
       final connectivity = await Connectivity().checkConnectivity();
+      _assertBootstrapSession(session);
       if (connectivity.contains(ConnectivityResult.none)) {
-        final local = await _offlinePinStore().verify(userId, pin);
+        if (_prefs.getBool(_pinRosterDenialKey) == true) {
+          return const Left(
+            AuthFailure('Akses kasir perlu diverifikasi ulang saat online.'),
+          );
+        }
+        final local = await cachedPin();
         if (local != null) return Right(local);
         return const Left(
           ServerFailure(
@@ -749,8 +896,14 @@ class PosRepository {
         );
       }
       final hasToken = await _clientProvider.hasAccessToken();
+      _assertBootstrapSession(session);
       if (!hasToken) {
-        final local = await _offlinePinStore().verify(userId, pin);
+        if (_prefs.getBool(_pinRosterDenialKey) == true) {
+          return const Left(
+            AuthFailure('Akses kasir perlu diverifikasi ulang saat online.'),
+          );
+        }
+        final local = await cachedPin();
         if (local != null) return Right(local);
         return const Left(
           AuthFailure('Sesi login dan cache PIN offline tidak ditemukan.'),
@@ -762,12 +915,13 @@ class PosRepository {
           variables: {'userId': userId, 'pin': pin},
         ),
       );
+      _assertBootstrapSession(session);
       if (result.hasException) {
         if (!_isRetryableNetworkFailure(result.exception)) {
-          await _offlinePinStore().invalidate(userId);
+          await offlineStore.invalidate(userId);
           return Left(AppErrorHandler.handle(result.exception!));
         }
-        final local = await _offlinePinStore().verify(userId, pin);
+        final local = await cachedPin();
         if (local != null) return Right(local);
         return Left(AppErrorHandler.handle(result.exception!));
       }
@@ -777,22 +931,38 @@ class PosRepository {
       }
       final response = Map<String, dynamic>.from(data);
       if (response['success'] == true) {
-        await _offlinePinStore().cacheVerifiedPin(
+        if (response['user_id']?.toString() != userId) {
+          return const Left(
+            AuthFailure(
+              'Identitas verifikasi PIN tidak cocok dengan kasir yang dipilih.',
+            ),
+          );
+        }
+
+        await offlineStore.cacheVerifiedPin(
           userId: userId,
           pin: pin,
           response: response,
         );
       } else {
-        await _offlinePinStore().invalidate(userId);
+        await offlineStore.invalidate(userId);
       }
+      _assertBootstrapSession(session);
       return Right(response);
     } catch (error) {
+      if (session != _bootstrapSession) {
+        return const Left(
+          AuthFailure(
+            'Sesi kasir berubah. Masukkan PIN kembali untuk akun aktif.',
+          ),
+        );
+      }
       if (error is LinkException ||
           (error is OperationException && _isRetryableNetworkFailure(error))) {
-        final local = await _offlinePinStore().verify(userId, pin);
+        final local = await cachedPin();
         if (local != null) return Right(local);
       }
-      return Left(AppErrorHandler.handle(error));
+      return Left(error is Failure ? error : AppErrorHandler.handle(error));
     }
   }
 

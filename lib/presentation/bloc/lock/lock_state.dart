@@ -39,6 +39,7 @@ class AppLockState extends Equatable {
     String? operatorSessionToken,
     List<Map<String, dynamic>>? employees,
     String? selectedEmployeeId,
+    bool clearSelectedEmployee = false,
     bool? loadingEmployees,
     DateTime? lockedUntil,
     bool clearLockedUntil = false,
@@ -52,7 +53,9 @@ class AppLockState extends Equatable {
       activeEmployeeId: activeEmployeeId ?? this.activeEmployeeId,
       operatorSessionToken: operatorSessionToken ?? this.operatorSessionToken,
       employees: employees ?? this.employees,
-      selectedEmployeeId: selectedEmployeeId ?? this.selectedEmployeeId,
+      selectedEmployeeId: clearSelectedEmployee
+          ? null
+          : selectedEmployeeId ?? this.selectedEmployeeId,
       loadingEmployees: loadingEmployees ?? this.loadingEmployees,
       lockedUntil: clearLockedUntil ? null : lockedUntil ?? this.lockedUntil,
     );

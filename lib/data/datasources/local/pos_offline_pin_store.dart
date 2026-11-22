@@ -29,6 +29,9 @@ class PosOfflinePinStore {
     await _write(values);
   }
 
+  /// A real server denial is not permission to keep using offline credentials.
+  Future<void> invalidateRoster() => _storage.delete(key: _key);
+
   static const _storageKeyPrefix = 'pos_offline_pin_credentials_v1_';
   static const _maxAttempts = 5;
   static const _lockoutMinutes = 15;

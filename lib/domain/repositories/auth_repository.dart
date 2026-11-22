@@ -8,6 +8,7 @@ import '../../core/error/failures.dart';
 import '../../core/error/error_handler.dart';
 import '../../core/network/graphql_client_provider.dart';
 import '../../core/network/offline_network_failure.dart';
+import '../../core/network/pos_bootstrap_reads.dart';
 import '../../data/graphql/pos_queries.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -19,6 +20,7 @@ class AuthRepository {
   final GraphQLClientProvider _clientProvider;
   final SharedPreferences _prefs;
   final FlutterSecureStorage _secureStorage;
+  int _sessionRevision = 0;
 
   AuthRepository(this._clientProvider, this._prefs, this._secureStorage);
 
@@ -244,6 +246,7 @@ class AuthRepository {
     String? googlePhone,
     bool googleConsent = false,
   }) async {
+    _sessionRevision++;
     try {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
@@ -399,64 +402,9 @@ class AuthRepository {
           appLogger.i('[Auth] Login success; workspace setup is required');
           return Right(name);
         }
-        final QueryResult sessionCheck;
-        try {
-          sessionCheck = await _clientProvider.client
-              .query(
-                QueryOptions(
-                  document: gql(PosQueries.getPOSRuntimeConfig),
-                  fetchPolicy: FetchPolicy.networkOnly,
-                ),
-              )
-              .timeout(const Duration(seconds: 8));
-        } on TimeoutException {
-          // Credentials are already verified and persisted. Optional bootstrap
-          // must not exhaust AuthCubit's Google login deadline and strand a
-          // valid session on Login; the workspace retries with its own guards.
-          await _prefs.remove('pos_runtime_config');
-          appLogger.w(
-            '[Auth] Runtime POS lambat; lanjutkan ke pemeriksaan workspace.',
-          );
-          return Right(name);
-        }
-        if (sessionCheck.hasException) {
-          final failure = AppErrorHandler.handle(sessionCheck.exception!);
-          if (failure is AuthFailure) {
-            _clientProvider.setAccessToken(null);
-            await _secureStorage.delete(key: 'auth_token');
-            await _secureStorage.delete(key: 'refresh_token');
-            await _prefs.remove('username');
-            await _prefs.remove('instansi_id');
-            return Left(failure);
-          }
-
-          // Login credentials are already valid. Runtime configuration is a
-          // follow-up bootstrap request and must not turn a successful login
-          // into a false login failure when the API/schema is temporarily
-          // unavailable. The dashboard will retry loading it normally.
-          appLogger.w(
-            '[Auth] Login berhasil, tetapi bootstrap konfigurasi POS gagal: '
-            '${failure.message}',
-            error: sessionCheck.exception,
-          );
-          await _prefs.remove('pos_runtime_config');
-          return Right(name);
-        }
-
-        final runtimeConfig = sessionCheck.data?['GetPOSRuntimeConfig'];
-        if (runtimeConfig == null) {
-          appLogger.w(
-            '[Auth] Login berhasil, tetapi GetPOSRuntimeConfig tidak '
-            'mengembalikan data',
-          );
-          await _prefs.remove('pos_runtime_config');
-          return Right(name);
-        }
-        final effectiveInstansiId = runtimeConfig['instansi_id']?.toString();
-        if (effectiveInstansiId != null && effectiveInstansiId.isNotEmpty) {
-          await _prefs.setString('instansi_id', effectiveInstansiId);
-        }
-        await _prefs.setString('pos_runtime_config', jsonEncode(runtimeConfig));
+        // Login already verified the credentials. Workspace/subscription/PIN
+        // guards remain mandatory, but an optional full inventory bootstrap
+        // must not delay PIN selection or erase a valid same-account cache.
         appLogger.i('[Auth] Login success for: $name');
         return Right(name);
       }
@@ -505,6 +453,7 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    _sessionRevision++;
     final previousInstansiId = _prefs.getString('instansi_id') ?? '';
     final previousUserId =
         _prefs.getString('user_id')?.trim() ??
@@ -577,113 +526,99 @@ class AuthRepository {
   }
 
   Future<bool> checkSession() async {
+    final revision = _sessionRevision;
     var token = await _secureStorage.read(key: 'auth_token');
     if (token == null || token.trim().isEmpty) {
       if (!await _clientProvider.refreshAccessToken()) return false;
       token = await _secureStorage.read(key: 'auth_token');
       if (token == null || token.trim().isEmpty) return false;
     }
-    final restoredUserId = _userIdFromToken(token);
-    if (restoredUserId != null) {
-      await _prefs.setString('user_id', restoredUserId);
+    if (revision != _sessionRevision) return false;
+    final tokenUserId = _userIdFromToken(token);
+    final savedUserId = _prefs.getString('user_id') ?? '';
+    final expectedUserId = tokenUserId ?? savedUserId;
+    if (expectedUserId.isEmpty) {
+      await _clearInvalidSession();
+      return false;
     }
+    if (tokenUserId != null &&
+        savedUserId.isNotEmpty &&
+        tokenUserId != savedUserId) {
+      await _clearReadCachesForAccountChange();
+    }
+    if (revision != _sessionRevision) return false;
     _clientProvider.setAccessToken(token);
-    if (_prefs.getBool('needs_workspace_setup') == true &&
-        (_prefs.getString('instansi_id')?.isEmpty ?? true)) {
-      // A saved account without a workspace still needs a live identity
-      // check. Otherwise a removed account or a restarted QA tenant can open
-      // the business-creation screen with an orphaned token.
-      try {
-        final identity = await _clientProvider.client
-            .query(
-              QueryOptions(
-                document: gql(PosQueries.getCurrentUser),
-                fetchPolicy: FetchPolicy.networkOnly,
-              ),
-            )
-            .timeout(const Duration(seconds: 10));
-        if (identity.hasException) {
-          final exception = identity.exception!;
-          if (supportsOfflineDatabase && isOfflineReadFailure(exception)) {
-            return true;
-          }
-          final failure = AppErrorHandler.handle(exception);
-          if (failure is AuthFailure ||
-              failure.message.toLowerCase().contains('user tidak ditemukan')) {
-            await _clearInvalidSession();
-            return false;
-          }
-          throw failure;
-        }
-        final currentUser = identity.data?['GetOneUser'];
-        if (currentUser == null ||
-            currentUser['_id']?.toString() != restoredUserId) {
-          await _clearInvalidSession();
-          return false;
-        }
-        final tenantId = currentUser['instansi_id']?['_id']?.toString() ?? '';
-        if (tenantId.isEmpty) return true;
-        await _prefs.setString('instansi_id', tenantId);
-        await _prefs.remove('needs_workspace_setup');
-      } catch (error) {
-        if (supportsOfflineDatabase && isOfflineReadFailure(error)) return true;
-        rethrow;
-      }
-    }
-    if (supportsOfflineDatabase) {
-      try {
-        if ((await Connectivity().checkConnectivity()).contains(
-          ConnectivityResult.none,
-        )) {
-          return true;
-        }
-      } catch (_) {
-        // Connectivity can be unavailable; the API request remains decisive.
-      }
-    }
     try {
+      var offline = false;
+      try {
+        offline =
+            supportsOfflineDatabase &&
+            (await Connectivity().checkConnectivity()).contains(
+              ConnectivityResult.none,
+            );
+      } catch (_) {
+        // The live identity check remains decisive when the plugin is absent.
+      }
+      if (offline) {
+        // Restoring an existing identity is not PIN verification or a sales grant.
+        return revision == _sessionRevision;
+      }
       final result = await _clientProvider.client
           .query(
             QueryOptions(
-              document: gql(PosQueries.getPOSRuntimeConfig),
+              document: gql(PosQueries.getCurrentUser),
               fetchPolicy: FetchPolicy.networkOnly,
+              queryRequestTimeout: posBootstrapReadTimeout,
             ),
           )
-          .timeout(const Duration(seconds: 10));
-      if (!result.hasException && result.data?['GetPOSRuntimeConfig'] != null) {
-        final effectiveInstansiId = result
-            .data?['GetPOSRuntimeConfig']?['instansi_id']
-            ?.toString();
-        if (effectiveInstansiId != null && effectiveInstansiId.isNotEmpty) {
-          await _prefs.setString('instansi_id', effectiveInstansiId);
-        }
-        await _prefs.setString(
-          'pos_runtime_config',
-          jsonEncode(result.data!['GetPOSRuntimeConfig']),
-        );
-        return true;
-      }
+          .timeout(posBootstrapReadTimeout);
+      if (revision != _sessionRevision) return false;
       if (result.hasException) {
         final exception = result.exception!;
         if (supportsOfflineDatabase && isOfflineReadFailure(exception)) {
           return true;
         }
         final failure = AppErrorHandler.handle(exception);
-        if (failure is! AuthFailure) throw failure;
-      } else {
-        throw const ServerFailure(
-          'Konfigurasi sesi tidak tersedia. Coba lagi saat layanan pulih.',
-        );
+        if (failure is AuthFailure ||
+            exception.graphqlErrors.any(
+              (error) => error.extensions?['code'] == 'NOT_FOUND',
+            )) {
+          await _clearInvalidSession();
+          return false;
+        }
+        throw failure;
       }
+      final user = result.data?['GetOneUser'];
+      if (user is! Map || user['_id']?.toString() != expectedUserId) {
+        await _clearInvalidSession();
+        return false;
+      }
+      final tenantValue = user['instansi_id'];
+      final tenant = tenantValue is Map
+          ? tenantValue['_id']?.toString() ?? ''
+          : tenantValue?.toString() ?? '';
+      if ((_prefs.getString('instansi_id') ?? '') != tenant) {
+        await _clearReadCachesForAccountChange();
+      }
+      if (revision != _sessionRevision) return false;
+      await _prefs.setString('user_id', expectedUserId);
+      if (tenant.isEmpty) {
+        await _prefs.remove('instansi_id');
+        await _prefs.setBool('needs_workspace_setup', true);
+      } else {
+        await _prefs.setString('instansi_id', tenant);
+        await _prefs.remove('needs_workspace_setup');
+      }
+      return true;
     } catch (error) {
+      if (revision != _sessionRevision) return false;
       if (supportsOfflineDatabase && isOfflineReadFailure(error)) return true;
       rethrow;
     }
-    await _clearInvalidSession();
-    return false;
   }
 
   Future<void> _clearInvalidSession() async {
+    _sessionRevision++;
     _clientProvider.setAccessToken(null);
     await _secureStorage.delete(key: 'auth_token');
     await _secureStorage.delete(key: 'refresh_token');

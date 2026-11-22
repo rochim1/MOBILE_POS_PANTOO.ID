@@ -141,8 +141,8 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final result = await authRepository
           .loginWithGoogle(token, phone: phone, consent: consent)
-          // The transport itself allows30s. Allow the bounded8s runtime
-          // bootstrap and secure session persistence to finish as well.
+          // Allow the30s authentication transport plus secure persistence.
+          // Runtime bootstrap is owned by the guarded workspace, not login.
           .timeout(const Duration(seconds: 45));
       if (isClosed || revision != _sessionRevision) return null;
       return await result.fold<Future<Failure?>>((failure) async => failure, (
