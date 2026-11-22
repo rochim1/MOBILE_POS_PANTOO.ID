@@ -1,0 +1,86 @@
+// Read-only audit. Run with the Flutter tools package config (analyzer is bundled).
+import 'dart:convert';
+import 'dart:io';
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
+
+class _Fields extends RecursiveAstVisitor<void> {
+  _Fields(this.path, this.source);
+  final String path, source;
+  final decorations = <Map<String, dynamic>>[];
+  final fields = <Map<String, dynamic>>[];
+  final ordinals = <String, int>{};
+  void _record(AstNode node, String type, ArgumentList argumentList) {
+    if (!const {'InputDecoration', 'TextField', 'TextFormField', 'DropdownButtonFormField',
+      'DropdownButton', 'InputDecorator', 'SearchBar', 'CupertinoTextField', 'RawAutocomplete', 'Autocomplete'}.contains(type)) return;
+    final arguments = <String, String>{
+      for (final argument in argumentList.arguments.whereType<NamedExpression>())
+        argument.name.label.name: argument.expression.toSource(),
+    };
+    final line = '\n'.allMatches(source.substring(0, node.offset)).length + 1;
+    String? externalLabel;
+    final heights = <Map<String, String>>[];
+    var parent = node.parent;
+    for (var depth = 0; parent != null && depth < 22; depth++, parent = parent.parent) {
+      if (parent is MethodInvocation && parent.methodName.name == 'field'
+          && parent.argumentList.arguments.firstOrNull is StringLiteral) {
+        externalLabel = parent.argumentList.arguments.first.toSource();
+      }
+      if (parent is MethodInvocation && ['SizedBox', 'Container'].contains(parent.methodName.name)) {
+        final height = parent.argumentList.arguments.whereType<NamedExpression>()
+          .where((a) => a.name.label.name == 'height').firstOrNull;
+        if (height != null) heights.add({'line': '${'\n'.allMatches(source.substring(0, parent.offset)).length + 1}', 'height': height.expression.toSource()});
+      }
+    }
+    final className = node.thisOrAncestorOfType<ClassDeclaration>()?.name.lexeme ?? '';
+    final scope = node.thisOrAncestorOfType<MethodDeclaration>()?.name.lexeme
+          ?? node.thisOrAncestorOfType<FunctionDeclaration>()?.name.lexeme ?? '';
+    final key = '$path|$className|$scope';
+    final row = <String, dynamic>{'path': path, 'line': line, 'type': type,
+      'offset': node.offset, 'length': node.length,
+      'class': className, 'scope': scope, 'heights': heights,
+      if (externalLabel != null) 'externalLabel': externalLabel,
+      if (type == 'InputDecoration') 'key': '$key|${ordinals.update(key, (n) => n + 1, ifAbsent: () => 1)}',
+      'arguments': arguments};
+    if (type == 'InputDecoration') decorations.add(row);
+    if (const {'TextField', 'TextFormField', 'DropdownButtonFormField', 'DropdownButton',
+      'InputDecorator', 'SearchBar', 'CupertinoTextField', 'RawAutocomplete', 'Autocomplete'}.contains(type)) {
+      fields.add(row);
+    }
+  }
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    _record(node, node.constructorName.type.toSource().split('<').first, node.argumentList);
+    super.visitInstanceCreationExpression(node);
+  }
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    _record(node, node.methodName.name, node.argumentList);
+    super.visitMethodInvocation(node);
+  }
+}
+
+void main(List<String> args) {
+  final decorations = <Map<String, dynamic>>[], fields = <Map<String, dynamic>>[];
+  var files = 0;
+  for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
+    if (!file.path.endsWith('.dart') || file.path.contains('${Platform.pathSeparator}generated${Platform.pathSeparator}')) continue;
+    files++;
+    final source = file.readAsStringSync();
+    final parsed = parseString(content: source, path: file.path);
+    final visitor = _Fields(file.path.replaceAll('\\', '/'), source);
+    parsed.unit.accept(visitor);
+    decorations.addAll(visitor.decorations); fields.addAll(visitor.fields);
+  }
+  final reviewed = File('tool/field_label_contexts.json').existsSync()
+    ? jsonDecode(File('tool/field_label_contexts.json').readAsStringSync()) as Map<String, dynamic>
+    : <String, dynamic>{};
+  final missing = decorations.where((row) {
+    final arguments = row['arguments'] as Map;
+    return !arguments.containsKey('labelText') && !arguments.containsKey('label')
+      && row['externalLabel'] == null && reviewed[row['key']] == null;
+  }).toList();
+  stdout.writeln(jsonEncode({'files': files, 'fields': fields, 'decorations': decorations, 'missing': missing}));
+  if (args.contains('--verify') && missing.isNotEmpty) exitCode = 1;
+}
