@@ -43,6 +43,8 @@ Untuk pekerjaan yang belum selesai, gunakan **Jadikan pesanan** agar dapat dipan
 
 Log awal tersimpan di `../../output/service-intake-policy-red-20261122.log`, `service-intake-integration-red-20261122.log`, `service-intake-mobile-policy-red-20261122.log`, `service-intake-web-policy-red-20261122.log`, `service-intake-web-objects-red-20261122.log`, dan `service-intake-server-objects-red-20261122.log`.
 
+Checkpoint implementasi GREEN: mobile `9f571e5`, Vue web `cc584607`, backend `0539c1dc`. Hash berada pada repository masing-masing; perubahan pengguna yang tidak terkait tetap di luar commit ini.
+
 ## Hasil pengujian
 
 Tidak menjumlahkan tes induk dan tes Flutter di dalamnya sebagai skenario yang berbeda. Tes ulang dengan skenario sama juga tidak dihitung sebagai cakupan tambahan.
