@@ -77,7 +77,6 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
   Widget _buildFilterToolbar() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 600;
         const controlHeight = 56.0;
         final search = SizedBox(
           height: controlHeight,

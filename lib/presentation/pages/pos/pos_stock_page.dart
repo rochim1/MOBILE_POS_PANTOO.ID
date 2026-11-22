@@ -1494,12 +1494,13 @@ class _PosStockViewState extends State<_PosStockView> {
         ),
       ),
     );
-    if (mounted)
+    if (mounted) {
       context.read<PosStockBloc>().add(
         LoadStocks(
           locationId: context.read<PosStockBloc>().state.selectedLocationId,
         ),
       );
+    }
   }
 
   Future<void> _showAdjustmentInfo(

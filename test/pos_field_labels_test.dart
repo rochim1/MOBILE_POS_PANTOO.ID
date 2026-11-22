@@ -10,8 +10,9 @@ String _flutterRoot() {
   while (current.parent.path != current.path) {
     if (File(
       '${current.path}/packages/flutter_tools/.dart_tool/package_config.json',
-    ).existsSync())
+    ).existsSync()) {
       return current.path;
+    }
     current = current.parent;
   }
   throw StateError(

@@ -57,7 +57,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Produk'), findsNothing);
+        // The old section heading stays removed; this is the new field label.
+        expect(find.text('Produk'), findsOneWidget);
+        expect(
+          tester.widget<TextField>(find.byType(TextField).first).decoration?.labelText,
+          'Produk',
+        );
         expect(find.text('Rp 1.250.000'), findsOneWidget);
         expect(find.text('· 1 tersedia'), findsOneWidget);
         expect(find.text('· Habis'), findsOneWidget);

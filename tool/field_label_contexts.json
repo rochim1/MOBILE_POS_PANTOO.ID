@@ -2,7 +2,7 @@
   "lib/presentation/pages/pos/pos_add_return_page.dart|_PosAddReturnPageState|build|2": "Qty Retur: persistent PosText immediately above the quantity field",
   "lib/presentation/pages/pos/pos_add_return_page.dart|_PosAddReturnPageState|build|3": "Kondisi: persistent PosText immediately above the dropdown",
   "lib/presentation/pages/pos/pos_add_return_page.dart|_PosAddReturnPageState|build|4": "Alasan Retur: persistent PosText above the dropdown",
-  "lib/presentation/pages/pos/pos_add_return_page.dart|_PosAddReturnPageState|build|5": "Metode Refund: persistent PosText above the dropdown",
+  "lib/presentation/pages/pos/pos_add_return_page.dart|_PosAddReturnPageState|build|5": "Metode untuk bagian yang sudah dibayar: persistent PosText above the refund dropdown",
   "lib/presentation/pages/pos/pos_add_return_page.dart|_PosAddReturnPageState|build|6": "Catatan Tambahan: persistent PosText above the field",
   "lib/presentation/pages/pos/pos_inventory_editor_page.dart|_PosInventoryEditorPageState|_buildPurchaseItemCards|1": "Base decoration for item table: quantity/unit/price/discount/notes use visible column headers; do not duplicate labels inside cells",
   "lib/presentation/pages/pos/pos_inventory_editor_page.dart|_PosInventoryEditorPageState|_buildScrapItemsTable|1": "Base decoration for scrap table: item fields use visible column headers",

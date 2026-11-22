@@ -264,7 +264,6 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 600;
                 const controlHeight = 56.0;
                 final search = SizedBox(
                   height: controlHeight,

@@ -1489,7 +1489,6 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 600;
                 const controlHeight = 56.0;
                 final search = SizedBox(
                   height: controlHeight,
