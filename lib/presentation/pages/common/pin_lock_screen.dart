@@ -1055,20 +1055,74 @@ class _PinMarketingCarousel extends StatefulWidget {
   State<_PinMarketingCarousel> createState() => _PinMarketingCarouselState();
 }
 
-class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
+class _PinMarketingCarouselState extends State<_PinMarketingCarousel>
+    with WidgetsBindingObserver {
   final _controller = PageController();
+  static const _slideCount = 2;
+  static const _autoSlideInterval = Duration(seconds: 5);
+  Timer? _autoSlideTimer;
+  bool _motionAllowed = true;
+  bool _foreground = true;
+  bool _dragging = false;
   int _page = 0;
 
-  void _show(int page) {
-    _controller.animateToPage(
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _motionAllowed =
+        !MediaQuery.disableAnimationsOf(context) &&
+        !MediaQuery.accessibleNavigationOf(context) &&
+        TickerMode.of(context);
+    _scheduleAutoSlide();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _scheduleAutoSlide();
+  }
+
+  void _scheduleAutoSlide() {
+    _autoSlideTimer?.cancel();
+    if (!mounted || !_foreground || !_motionAllowed || _dragging) return;
+    _autoSlideTimer = Timer(_autoSlideInterval, () {
+      if (!_controller.hasClients ||
+          _controller.position.isScrollingNotifier.value ||
+          ModalRoute.of(context)?.isCurrent == false) {
+        _scheduleAutoSlide();
+        return;
+      }
+      _show((_page + 1) % _slideCount);
+    });
+  }
+
+  Future<void> _show(int page) async {
+    _autoSlideTimer?.cancel();
+    if (!_controller.hasClients) return;
+    if (!_motionAllowed) {
+      _controller.jumpToPage(page);
+      return;
+    }
+    await _controller.animateToPage(
       page,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
+    if (mounted) _scheduleAutoSlide();
   }
 
   @override
   void dispose() {
+    _autoSlideTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
@@ -1085,24 +1139,37 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
       key: const Key('pin_marketing_carousel'),
       children: [
         Positioned.fill(
-          child: PageView(
-            key: const Key('pin_marketing_slides'),
-            controller: _controller,
-            onPageChanged: (page) => setState(() => _page = page),
-            children: [
-              ColoredBox(
-                color: const Color(0xFFBEF9FE),
-                child: Image.asset(
-                  'assets/images/pin_bni_edc_promo.jpg',
-                  key: const Key('pin_bni_promo'),
-                  fit: BoxFit.contain,
-                  semanticLabel: english
-                      ? 'BNI EDC business payment information'
-                      : 'Informasi layanan pembayaran bisnis EDC BNI',
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollStartNotification &&
+                  notification.dragDetails != null) {
+                _dragging = true;
+                _autoSlideTimer?.cancel();
+              } else if (notification is ScrollEndNotification) {
+                _dragging = false;
+                _scheduleAutoSlide();
+              }
+              return false;
+            },
+            child: PageView(
+              key: const Key('pin_marketing_slides'),
+              controller: _controller,
+              onPageChanged: (page) => setState(() => _page = page),
+              children: [
+                ColoredBox(
+                  color: const Color(0xFFBEF9FE),
+                  child: Image.asset(
+                    'assets/images/pin_bni_edc_promo.jpg',
+                    key: const Key('pin_bni_promo'),
+                    fit: BoxFit.contain,
+                    semanticLabel: english
+                        ? 'BNI EDC business payment information'
+                        : 'Informasi layanan pembayaran bisnis EDC BNI',
+                  ),
                 ),
-              ),
-              const _PinMarketingPanel(),
-            ],
+                const _PinMarketingPanel(),
+              ],
+            ),
           ),
         ),
         Positioned(
@@ -1120,11 +1187,12 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
                     key: const Key('pin_marketing_previous'),
                     style: navigationStyle,
                     tooltip: english ? 'Previous image' : 'Gambar sebelumnya',
-                    onPressed: () => _show((_page - 1 + 2) % 2),
+                    onPressed: () =>
+                        _show((_page - 1 + _slideCount) % _slideCount),
                     icon: const Icon(Icons.chevron_left),
                   ),
                   const SizedBox(width: 8),
-                  for (var index = 0; index < 2; index++)
+                  for (var index = 0; index < _slideCount; index++)
                     Semantics(
                       label: english
                           ? 'Image ${index + 1} of 2'
@@ -1150,7 +1218,7 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel> {
                     key: const Key('pin_marketing_next'),
                     style: navigationStyle,
                     tooltip: english ? 'Next image' : 'Gambar berikutnya',
-                    onPressed: () => _show((_page + 1) % 2),
+                    onPressed: () => _show((_page + 1) % _slideCount),
                     icon: const Icon(Icons.chevron_right),
                   ),
                 ],
