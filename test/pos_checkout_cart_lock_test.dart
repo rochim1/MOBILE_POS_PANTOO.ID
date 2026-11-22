@@ -27,7 +27,8 @@ class Repo extends Fake implements PosRepository {
   final result = Completer<Either<Failure, PosTransactionResult>>();
   @override
   dynamic noSuchMethod(Invocation invocation) {
-    if (invocation.memberName == #saveHeldOrder || invocation.memberName == #deleteHeldOrder) {
+    if (invocation.memberName == #saveHeldOrder ||
+        invocation.memberName == #deleteHeldOrder) {
       draftStarted.complete();
       return draftResult.future;
     }
@@ -60,24 +61,51 @@ class Checkout extends PosBloc {
 
 void main() {
   for (final restore in [true, false]) {
-    test('payment waits for in-flight ${restore ? "restore" : "hold"} instead of racing its cart mutation', () async {
-      final repo = Repo();
-      final bloc = Checkout(repo);
-      bloc.add(restore ? RestoreHeldOrder(HoldOrder(id: 'held', time: DateTime.now(),
-        cart: {product: 2}, customer: null, manualDiscountPercent: 0, promoCode: '', discountPolicy: 'stack', orderType: 'take_away',
-        store: const PosStore(id: 's', name: 'Store', branchId: 'b', status: 'active'), notes: 'QA'))
-        : const HoldCurrentOrder('QA'));
-      await repo.draftStarted.future;
-      bloc.add(const SubmitPayment(paymentMethod: 'tunai', cashReceived: 100));
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      try { expect(repo.started.isCompleted, false); }
-      finally {
-        repo.draftResult.complete();
-        if (repo.started.isCompleted) repo.result.complete(const Left(ServerFailure('QA denied')));
-        await Future<void>.delayed(Duration.zero);
-        await bloc.close();
-      }
-    });
+    test(
+      'payment waits for in-flight ${restore ? "restore" : "hold"} instead of racing its cart mutation',
+      () async {
+        final repo = Repo();
+        final bloc = Checkout(repo);
+        bloc.add(
+          restore
+              ? RestoreHeldOrder(
+                  HoldOrder(
+                    id: 'held',
+                    time: DateTime.now(),
+                    cart: {product: 2},
+                    customer: null,
+                    manualDiscountPercent: 0,
+                    promoCode: '',
+                    discountPolicy: 'stack',
+                    orderType: 'take_away',
+                    store: const PosStore(
+                      id: 's',
+                      name: 'Store',
+                      branchId: 'b',
+                      status: 'active',
+                    ),
+                    notes: 'QA',
+                  ),
+                )
+              : const HoldCurrentOrder('QA'),
+        );
+        await repo.draftStarted.future;
+        bloc.add(
+          const SubmitPayment(paymentMethod: 'tunai', cashReceived: 100),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        try {
+          expect(repo.started.isCompleted, false);
+        } finally {
+          repo.draftResult.complete();
+          if (repo.started.isCompleted) {
+            repo.result.complete(const Left(ServerFailure('QA denied')));
+          }
+          await Future<void>.delayed(Duration.zero);
+          await bloc.close();
+        }
+      },
+    );
   }
   for (final change in <PosEvent>[
     ClearCart(),

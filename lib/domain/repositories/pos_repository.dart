@@ -9,6 +9,7 @@ import '../../core/network/graphql_client_provider.dart';
 import '../../core/network/offline_network_failure.dart';
 import '../../core/network/pos_operator_identity.dart';
 import '../../core/network/pos_return_draft_request_store.dart';
+import '../../core/network/pos_checkout_request_store.dart';
 import '../../core/database/database_platform_initializer.dart';
 import '../../core/utils/logger.dart';
 import '../../data/graphql/pos_queries.dart';
@@ -47,6 +48,7 @@ class PosRepository {
   String _operatorSessionToken = '';
   bool _syncingFavorites = false;
   bool _savingReturnDraft = false;
+  bool _checkoutInFlight = false;
   static const _offlineReadStore = PosOfflineReadStore();
 
   PosRepository(this._clientProvider, this._prefs);
@@ -2500,211 +2502,280 @@ class PosRepository {
           .toList(),
     };
 
-    if (supportsOfflineDatabase) {
-      final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
-        if ((promoCode ?? '').trim().isNotEmpty) {
-          return const Left(
-            NetworkFailure(
-              'Kode promo memerlukan validasi server. Sambungkan internet atau hapus promo sebelum membayar.',
-            ),
-          );
-        }
-        if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
-          return const Left(
-            NetworkFailure(
-              'Pembayaran non-tunai harus diverifikasi oleh server. Pilih Tunai atau sambungkan perangkat ke internet.',
-            ),
-          );
-        }
-        if (expiredSaleAuthorizerPin.trim().isNotEmpty) {
-          return const Left(
-            NetworkFailure(
-              'Otorisasi PIN supervisor memerlukan koneksi server. Sambungkan perangkat lalu ulangi transaksi.',
-            ),
-          );
-        }
-        final queueFailure = await _queueOfflineTransactionOrFailure(
-          payload,
-          tokoId: tokoId,
-          shiftId: shiftId,
-          clientSnapshot: clientSnapshot,
+    if (_checkoutInFlight) {
+      return const Left(
+        ServerFailure('Pembayaran masih diproses. Tunggu hasilnya.'),
+      );
+    }
+    _checkoutInFlight = true;
+    try {
+      final store = _checkoutStore();
+      final replay = store.load() != null;
+      final record = await store.begin(payload, {
+        ...clientSnapshot,
+        'receipt_items': receiptItems,
+        'customer_phone': pelangganPhone ?? '',
+        'customer_email': pelangganEmail ?? '',
+        'cashier_name': _prefs.getString('name') ?? '',
+        'store_name': _prefs.getString('pos_toko_nama') ?? '',
+        'note': catatan ?? '',
+        'order_type': orderType,
+      });
+      return await _deliverCheckout(
+        store,
+        record,
+        replay: replay,
+        credentials: payload,
+      );
+    } on StateError catch (error) {
+      return Left(ServerFailure(error.message.toString()));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    } finally {
+      _checkoutInFlight = false;
+    }
+  }
+
+  PosCheckoutRequestStore _checkoutStore() {
+    final tenant = _prefs.getString('instansi_id') ?? '';
+    final terminal = terminalUserId;
+    if (tenant.isEmpty || terminal.isEmpty) {
+      throw StateError(
+        'Identitas akun pembayaran belum tersedia. Login kembali sebelum membayar.',
+      );
+    }
+    return PosCheckoutRequestStore(
+      _prefs,
+      jsonEncode([
+        _clientProvider.endpointUrl,
+        tenant,
+        terminal,
+        activeOperatorId,
+      ]),
+    );
+  }
+
+  Map<String, dynamic>? get pendingCheckout => _checkoutStore().load();
+
+  /// Explicit online replay after an app restart, with no replacement cart.
+  Future<Either<Failure, PosTransactionResult>> recoverPendingCheckout() async {
+    if (_checkoutInFlight) {
+      return const Left(ServerFailure('Pembayaran masih diproses.'));
+    }
+    _checkoutInFlight = true;
+    try {
+      final store = _checkoutStore();
+      final record = store.load();
+      if (record == null) {
+        return const Left(
+          ServerFailure('Tidak ada pembayaran untuk dipulihkan.'),
         );
-        if (queueFailure != null) return Left(queueFailure);
-        return Right(
-          _pendingOfflineResult(
-            payload: payload,
-            total: total,
-            discount: diskon ?? 0,
-            tax: pajak ?? 0,
-            cashReceived: cashReceived,
-            paymentMethod: paymentMethod,
-            customerName: pelangganName ?? '',
-            customerPhone: pelangganPhone ?? '',
-            customerEmail: pelangganEmail ?? '',
-            items: receiptItems,
-            salesChannel: salesChannel,
-            customerSegment: customerSegment,
-            orderType: orderType,
-            promoCode: promoCode ?? '',
-            note: catatan ?? '',
-          ),
-        );
+      }
+      return await _deliverCheckout(
+        store,
+        record,
+        replay: true,
+        recovery: true,
+      );
+    } on StateError catch (error) {
+      return Left(ServerFailure(error.message.toString()));
+    } catch (error) {
+      return Left(AppErrorHandler.handle(error));
+    } finally {
+      _checkoutInFlight = false;
+    }
+  }
+
+  Future<Either<Failure, PosTransactionResult>> _deliverCheckout(
+    PosCheckoutRequestStore store,
+    Map<String, dynamic> record, {
+    required bool replay,
+    bool recovery = false,
+    Map<String, dynamic> credentials = const {},
+  }) async {
+    final payload = Map<String, dynamic>.from(record['input'] as Map);
+    final snapshot = Map<String, dynamic>.from(record['receipt'] as Map);
+    final requestId = payload['client_transaction_id'] as String;
+    final method = payload['metode_pembayaran'] as String;
+    final payments = (payload['payments'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final currentToken =
+        credentials['operator_session_token']?.toString() ??
+        _operatorSessionToken;
+    if (currentToken.isNotEmpty) {
+      payload['operator_session_token'] = currentToken;
+    }
+    if (credentials['expired_sale_authorizer_pin'] != null) {
+      payload['expired_sale_authorizer_pin'] =
+          credentials['expired_sale_authorizer_pin'];
+    }
+    bool currentScope() {
+      try {
+        return _checkoutStore().scope == store.scope;
+      } catch (_) {
+        return false;
       }
     }
 
-    try {
-      final MutationOptions options = MutationOptions(
-        document: gql(
-          paymentMethod == 'tempo'
-              ? PosQueries.issuePOSCreditInvoice
-              : PosQueries.processPOSPenjualan,
-        ),
-        variables: {'input': payload},
+    const uncertain = NetworkFailure(
+      'Hasil pembayaran belum terkonfirmasi. Jangan bayar ulang dengan transaksi baru. Pulihkan pembayaran yang sama saat koneksi tersedia.',
+    );
+    Future<Either<Failure, PosTransactionResult>> queueCash() async {
+      if (recovery ||
+          !currentScope() ||
+          (payload['promo_code']?.toString() ?? '').isNotEmpty ||
+          !_isOfflinePaymentAllowed(method, payments) ||
+          (payload['expired_sale_reason']?.toString() ?? '').isNotEmpty) {
+        return const Left(uncertain);
+      }
+      final failure = await _queueOfflineTransactionOrFailure(
+        payload,
+        tokoId: payload['toko_id'] as String,
+        shiftId: payload['shift_id']?.toString() ?? '',
+        clientSnapshot: snapshot,
       );
+      if (failure != null) return Left(failure);
+      await store.acknowledge(requestId);
+      return Right(
+        _pendingOfflineResult(
+          payload: payload,
+          subtotal: (snapshot['subtotal'] as num).toDouble(),
+          total: (snapshot['total'] as num).toDouble(),
+          discount: (snapshot['manual_discount'] as num).toDouble(),
+          tax: (snapshot['tax'] as num).toDouble(),
+          cashReceived: (snapshot['cash_received'] as num).toDouble(),
+          paymentMethod: method,
+          customerName: snapshot['customer_name']?.toString() ?? '',
+          customerPhone: snapshot['customer_phone']?.toString() ?? '',
+          customerEmail: snapshot['customer_email']?.toString() ?? '',
+          items: (snapshot['receipt_items'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList(),
+          salesChannel: snapshot['sales_channel']?.toString() ?? '',
+          customerSegment: snapshot['customer_segment']?.toString() ?? '',
+          orderType: snapshot['order_type']?.toString() ?? '',
+          promoCode: snapshot['promo_code']?.toString() ?? '',
+          note: snapshot['note']?.toString() ?? '',
+        ),
+      );
+    }
 
-      final QueryResult result = await _clientProvider.client.mutate(options);
-
-      final resultKey = paymentMethod == 'tempo'
+    if (supportsOfflineDatabase) {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        if (!replay && !_isOfflinePaymentAllowed(method, payments)) {
+          await store.acknowledge(requestId);
+          return const Left(
+            NetworkFailure(
+              'Pembayaran non-tunai harus diverifikasi online. Sambungkan perangkat sebelum membayar.',
+            ),
+          );
+        }
+        if (!replay && (payload['promo_code']?.toString() ?? '').isNotEmpty) {
+          await store.acknowledge(requestId);
+          return const Left(
+            NetworkFailure(
+              'Kode promo memerlukan validasi server. Sambungkan internet atau hapus promo.',
+            ),
+          );
+        }
+        if (!replay &&
+            (payload['expired_sale_reason']?.toString() ?? '').isNotEmpty) {
+          await store.acknowledge(requestId);
+          return const Left(
+            NetworkFailure('Otorisasi supervisor memerlukan koneksi server.'),
+          );
+        }
+        return queueCash();
+      }
+    }
+    try {
+      final resultKey = method == 'tempo'
           ? 'IssuePOSCreditInvoice'
           : 'ProcessPOSPenjualan';
-      if (result.data != null && result.data![resultKey] != null) {
-        return Right(
-          PosTransactionResult.fromJson(
-            Map<String, dynamic>.from(result.data![resultKey]),
-            customerName: pelangganName ?? '',
-            customerPhone: pelangganPhone ?? '',
-            customerEmail: pelangganEmail ?? '',
-            cashierName: _prefs.getString('name') ?? '',
-            storeName: _prefs.getString('pos_toko_nama') ?? '',
-            salesChannel: salesChannel,
-            customerSegment: customerSegment,
-            orderType: orderType,
-            promoCode: promoCode ?? '',
-            note: catatan ?? '',
-            items: receiptItems,
-          ),
-        );
-      }
-
-      if (result.hasException && _isRetryableNetworkFailure(result.exception)) {
-        if ((promoCode ?? '').trim().isNotEmpty) {
-          return const Left(
-            NetworkFailure(
-              'Kode promo belum dapat diverifikasi. Transaksi tidak disimpan offline; sambungkan internet atau hapus promo.',
-            ),
-          );
-        }
-        if (!supportsOfflineDatabase) {
-          return Left(AppErrorHandler.handle(result.exception!));
-        }
-        if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
-          return const Left(
-            NetworkFailure(
-              'Server tidak dapat dijangkau. Pembayaran non-tunai belum disimpan karena harus diverifikasi online.',
-            ),
-          );
-        }
-        final queueFailure = await _queueOfflineTransactionOrFailure(
-          payload,
-          tokoId: tokoId,
-          shiftId: shiftId,
-          clientSnapshot: clientSnapshot,
-        );
-        if (queueFailure != null) return Left(queueFailure);
-        return Right(
-          PosTransactionResult(
-            id: payload['client_transaction_id'].toString(),
-            invoice: 'OFF-${DateTime.now().millisecondsSinceEpoch}',
-            subtotal: total,
-            discount: diskon ?? 0,
-            promoDiscount: 0,
-            tax: pajak ?? 0,
-            total: total,
-            cashReceived: cashReceived,
-            change: cashReceived > total ? cashReceived - total : 0,
-            paymentMethod: paymentMethod,
-            pendingSync: true,
-            customerName: pelangganName ?? '',
-            customerPhone: pelangganPhone ?? '',
-            customerEmail: pelangganEmail ?? '',
-            date: payload['tanggal'].toString(),
-            cashierName: _prefs.getString('name') ?? '',
-            shiftReference: shiftId,
-            transactionReference: payload['client_transaction_id'].toString(),
-            salesChannel: salesChannel,
-            customerSegment: customerSegment,
-            orderType: orderType,
-            promoCode: promoCode ?? '',
-            note: catatan ?? '',
-            items: receiptItems,
-          ),
-        );
-      }
-      if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
-      }
-
-      return const Left(ServerFailure('Format respon tidak valid dari server'));
-    } on LinkException {
-      if ((promoCode ?? '').trim().isNotEmpty) {
+      if (!currentScope()) {
         return const Left(
-          NetworkFailure(
-            'Kode promo belum dapat diverifikasi. Transaksi tidak disimpan offline; sambungkan internet atau hapus promo.',
+          ServerFailure(
+            'Identitas kasir berubah. Login sebagai kasir asal untuk memulihkan pembayaran.',
           ),
         );
       }
-      if (!supportsOfflineDatabase) {
-        return const Left(
-          NetworkFailure(
-            'Koneksi server terputus. Transaksi web belum disimpan; silakan coba kembali.',
+      final result = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(
+            method == 'tempo'
+                ? PosQueries.issuePOSCreditInvoice
+                : PosQueries.processPOSPenjualan,
           ),
-        );
-      }
-      if (!_isOfflinePaymentAllowed(paymentMethod, payments)) {
-        return const Left(
-          NetworkFailure(
-            'Server tidak dapat dijangkau. Pembayaran non-tunai belum disimpan karena harus diverifikasi online.',
-          ),
-        );
-      }
-      final queueFailure = await _queueOfflineTransactionOrFailure(
-        payload,
-        tokoId: tokoId,
-        shiftId: shiftId,
-        clientSnapshot: clientSnapshot,
-      );
-      if (queueFailure != null) return Left(queueFailure);
-      return Right(
-        PosTransactionResult(
-          id: payload['client_transaction_id'].toString(),
-          invoice: 'OFF-${DateTime.now().millisecondsSinceEpoch}',
-          subtotal: total,
-          discount: diskon ?? 0,
-          promoDiscount: 0,
-          tax: pajak ?? 0,
-          total: total,
-          cashReceived: cashReceived,
-          change: cashReceived > total ? cashReceived - total : 0,
-          paymentMethod: paymentMethod,
-          pendingSync: true,
-          customerName: pelangganName ?? '',
-          customerPhone: pelangganPhone ?? '',
-          customerEmail: pelangganEmail ?? '',
-          date: payload['tanggal'].toString(),
-          cashierName: _prefs.getString('name') ?? '',
-          shiftReference: shiftId,
-          transactionReference: payload['client_transaction_id'].toString(),
-          salesChannel: salesChannel,
-          customerSegment: customerSegment,
-          orderType: orderType,
-          promoCode: promoCode ?? '',
-          note: catatan ?? '',
-          items: receiptItems,
+          variables: {'input': payload},
         ),
       );
-    } catch (e) {
-      return Left(AppErrorHandler.handle(e));
+      if (!currentScope()) {
+        return const Left(
+          ServerFailure(
+            'Identitas kasir berubah. Login sebagai kasir asal untuk memulihkan pembayaran.',
+          ),
+        );
+      }
+      final data = result.data?[resultKey];
+      if (data is Map &&
+          data['_id']?.toString().isNotEmpty == true &&
+          data['invoice']?.toString().isNotEmpty == true &&
+          data['client_transaction_id'] == requestId) {
+        final transaction = PosTransactionResult.fromJson(
+          Map<String, dynamic>.from(data),
+          customerName: snapshot['customer_name']?.toString() ?? '',
+          customerPhone: snapshot['customer_phone']?.toString() ?? '',
+          customerEmail: snapshot['customer_email']?.toString() ?? '',
+          cashierName: snapshot['cashier_name']?.toString() ?? '',
+          storeName: snapshot['store_name']?.toString() ?? '',
+          salesChannel: snapshot['sales_channel']?.toString() ?? '',
+          customerSegment: snapshot['customer_segment']?.toString() ?? '',
+          orderType: snapshot['order_type']?.toString() ?? '',
+          promoCode: snapshot['promo_code']?.toString() ?? '',
+          note: snapshot['note']?.toString() ?? '',
+          items: (snapshot['receipt_items'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList(),
+        );
+        await store.acknowledge(requestId);
+        return Right(transaction);
+      }
+      if (result.hasException && _isRetryableNetworkFailure(result.exception)) {
+        return supportsOfflineDatabase
+            ? await queueCash()
+            : const Left(uncertain);
+      }
+      if (result.hasException) {
+        // Only a first, definitely rejected request may release its fence.
+        // An authorization error on replay says nothing about the old commit.
+        final errors = result.exception!.graphqlErrors;
+        const rejectedCodes = {
+          'BAD_REQUEST',
+          'BAD_USER_INPUT',
+          'GRAPHQL_VALIDATION_FAILED',
+          'FORBIDDEN',
+          'UNAUTHORIZED',
+          'UNAUTHENTICATED',
+          'SUBSCRIPTION_REQUIRED',
+          'NOT_FOUND',
+          'CONFLICT',
+        };
+        if (!replay &&
+            errors.isNotEmpty &&
+            errors.every(
+              (e) => rejectedCodes.contains(e.extensions?['code']),
+            )) {
+          await store.acknowledge(requestId);
+          return Left(AppErrorHandler.handle(result.exception!));
+        }
+      }
+      return const Left(uncertain);
+    } on LinkException {
+      return supportsOfflineDatabase
+          ? await queueCash()
+          : const Left(uncertain);
     }
   }
 
@@ -2993,6 +3064,7 @@ class PosRepository {
 
   PosTransactionResult _pendingOfflineResult({
     required Map<String, dynamic> payload,
+    required double subtotal,
     required double total,
     required double discount,
     required double tax,
@@ -3010,7 +3082,7 @@ class PosRepository {
   }) => PosTransactionResult(
     id: payload['client_transaction_id'].toString(),
     invoice: 'OFF-${DateTime.now().millisecondsSinceEpoch}',
-    subtotal: total,
+    subtotal: subtotal,
     discount: discount,
     promoDiscount: 0,
     tax: tax,

@@ -1,10 +1,12 @@
 import 'package:dartz/dartz.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
 import 'package:mobile_pos_pantoo/core/error/failures.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_transaction_result.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_receipt_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -12,7 +14,18 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_page.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/utils/pos_keyboard_navigation_policy.dart';
 
-class _FakePosRepository extends Fake implements PosRepository {}
+class _FakePosRepository extends Fake implements PosRepository {
+  Map<String, dynamic>? pending;
+  Completer<Either<Failure, PosTransactionResult>>? recovery;
+  int recoveries = 0;
+  @override
+  Map<String, dynamic>? get pendingCheckout => pending;
+  @override
+  Future<Either<Failure, PosTransactionResult>> recoverPendingCheckout() {
+    recoveries++;
+    return recovery!.future;
+  }
+}
 
 class _FakeReceiptRepository extends Fake implements PosReceiptRepository {
   @override
@@ -29,6 +42,61 @@ class _FakeDisplayService extends Fake implements PosCustomerDisplayService {
 }
 
 void main() {
+  testWidgets(
+    'cashier offers explicit recovery after restart and shows progress without duplicate requests',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final repository = _FakePosRepository()
+        ..pending = {
+          'input': {'client_transaction_id': 'old'},
+          'receipt': {'receipt_items': [], 'total': 100},
+        }
+        ..recovery = Completer();
+      final display = _FakeDisplayService();
+      final bloc = PosBloc(posRepository: repository);
+      sl.registerSingleton<PosCustomerDisplayService>(display);
+      sl.registerSingleton<PosReceiptRepository>(_FakeReceiptRepository());
+      addTearDown(() async {
+        await bloc.close();
+        display.state.dispose();
+        await sl.reset();
+      });
+      await tester.pumpWidget(
+        BlocProvider<PosBloc>.value(
+          value: bloc,
+          child: const MaterialApp(home: PosPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('recover_checkout')), findsOneWidget);
+      expect(find.text('Katalog Produk'), findsNothing);
+      await tester.tap(find.byKey(const Key('recover_checkout')));
+      await tester.pump();
+      expect(find.text('Memulihkan pembayaran...'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('recover_checkout')))
+            .onPressed,
+        isNull,
+      );
+      expect(repository.recoveries, 1);
+      repository.recovery!.complete(
+        const Left(NetworkFailure('QA masih offline')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('QA masih offline'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('recover_checkout')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('shortcut navigasi mengikuti izin dan fitur profil POS', () {
     final config = <String, dynamic>{
       'permissions': <String, dynamic>{

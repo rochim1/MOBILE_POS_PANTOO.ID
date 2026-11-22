@@ -111,7 +111,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   @override
   Widget build(BuildContext context) {
     if (!sl.isRegistered<PosSubscriptionService>()) {
-      return _buildPayment(context);
+      return _buildProtectedPayment(context);
     }
     final service = sl<PosSubscriptionService>();
     return AnimatedBuilder(
@@ -122,7 +122,10 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         // accepted response is in flight. Its receipt must still be shown.
         return Stack(
           children: [
-            ExcludeFocus(excluding: restricted, child: _buildPayment(context)),
+            ExcludeFocus(
+              excluding: restricted,
+              child: _buildProtectedPayment(context),
+            ),
             if (restricted)
               Positioned.fill(child: PosSubscriptionPage(service: service)),
           ],
@@ -131,7 +134,21 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     );
   }
 
-  Widget _buildPayment(BuildContext context) {
+  Widget _buildProtectedPayment(BuildContext context) {
+    final paymentBusy =
+        context.select<PosBloc, bool>((bloc) => bloc.state.paymentInProgress) ||
+        _payingPendingInvoice ||
+        _creatingInvoice;
+    return PopScope(
+      canPop: !paymentBusy,
+      child: AbsorbPointer(
+        absorbing: paymentBusy,
+        child: _buildPayment(context, paymentBusy),
+      ),
+    );
+  }
+
+  Widget _buildPayment(BuildContext context, bool paymentBusy) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: false,
@@ -141,7 +158,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
         titleSpacing: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: paymentBusy ? null : () => Navigator.pop(context),
         ),
         title: Row(
           children: [
@@ -1603,6 +1620,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
     bool belowCashMinimum,
   ) {
     final busy =
+        state.paymentInProgress ||
         state.status == PosStatus.loading ||
         _payingPendingInvoice ||
         _creatingInvoice;
@@ -2583,7 +2601,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
       child: ElevatedButton(
         key: const Key('payment_submit'),
         onPressed:
-            (state.status == PosStatus.loading ||
+            (state.paymentInProgress ||
+                state.status == PosStatus.loading ||
                 _payingPendingInvoice ||
                 _creatingInvoice ||
                 belowCashMinimum)
@@ -2662,7 +2681,8 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         ),
         child:
-            state.status == PosStatus.loading ||
+            state.paymentInProgress ||
+                state.status == PosStatus.loading ||
                 _payingPendingInvoice ||
                 _creatingInvoice
             ? const SizedBox(

@@ -51,6 +51,7 @@ class PosState extends Equatable {
 
   final String errorMessage;
   final bool checkoutSyncFailed;
+  final bool paymentInProgress;
   final PosTransactionResult? lastTransaction;
   final Map<String, dynamic>? pricingPreview;
 
@@ -89,6 +90,7 @@ class PosState extends Equatable {
     this.isGridView = false,
     this.errorMessage = '',
     this.checkoutSyncFailed = false,
+    this.paymentInProgress = false,
     this.lastTransaction,
     this.pricingPreview,
   }) : _productsRefreshing = productsRefreshing;
@@ -132,6 +134,7 @@ class PosState extends Equatable {
     bool? isGridView,
     String? errorMessage,
     bool? checkoutSyncFailed,
+    bool? paymentInProgress,
     PosTransactionResult? lastTransaction,
     Map<String, dynamic>? pricingPreview,
     bool clearPricingPreview = false,
@@ -182,6 +185,7 @@ class PosState extends Equatable {
       isGridView: isGridView ?? this.isGridView,
       errorMessage: errorMessage ?? this.errorMessage,
       checkoutSyncFailed: checkoutSyncFailed ?? this.checkoutSyncFailed,
+      paymentInProgress: paymentInProgress ?? this.paymentInProgress,
       lastTransaction: lastTransaction ?? this.lastTransaction,
       pricingPreview: clearPricingPreview
           ? null
@@ -350,6 +354,7 @@ class PosState extends Equatable {
     isGridView,
     errorMessage,
     checkoutSyncFailed,
+    paymentInProgress,
     lastTransaction,
     pricingPreview,
   ];

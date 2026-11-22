@@ -79,11 +79,19 @@ void main() {
       expect(store.load(), record);
     },
   );
-  test('partial receipt data fails closed before recovery UI or request', () async {
-    await prefs.setString(store.key, jsonEncode({'input': {...input,
-      'client_transaction_id': 'valid-original-id-123'}, 'receipt': {}}));
-    expect(store.load, throwsStateError);
-  });
+  test(
+    'partial receipt data fails closed before recovery UI or request',
+    () async {
+      await prefs.setString(
+        store.key,
+        jsonEncode({
+          'input': {...input, 'client_transaction_id': 'valid-original-id-123'},
+          'receipt': {},
+        }),
+      );
+      expect(store.load, throwsStateError);
+    },
+  );
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
