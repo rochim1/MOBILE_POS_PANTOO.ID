@@ -449,6 +449,17 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('payment remains locked when background refresh changes general status', (tester) async {
+    await size(tester, const Size(360, 800));
+    final bloc = _PaymentBloc(initial().copyWith(paymentInProgress: true));
+    addTearDown(bloc.close);
+    await tester.pumpWidget(_app(bloc));
+    await tester.pump();
+    expect(tester.widget<PopScope>(find.byType(PopScope).first).canPop, false);
+    expect(submit(tester).onPressed, isNull);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.arrow_back)).onPressed, isNull);
+  });
   testWidgets('pending invoice displays its own items and total on mobile', (
     tester,
   ) async {
