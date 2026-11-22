@@ -41,9 +41,14 @@ class _Settings extends Fake implements PosSettingsRepository {
 }
 
 class _Pos extends PosBloc {
-  _Pos() : super(posRepository: _Runtime()) {
+  _Pos({bool canManage = false}) : super(posRepository: _Runtime()) {
     emit(
-      PosState(cart: {_product: 2}, runtimeConfig: const {'permissions': {}}),
+      PosState(
+        cart: {_product: 2},
+        runtimeConfig: {
+          'permissions': {'manage_settings': canManage},
+        },
+      ),
     );
   }
 }
@@ -163,6 +168,35 @@ void main() {
       await tester.pump();
       await _choose(tester, 'Bahasa Indonesia');
       expect(repo.saves, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'changing language keeps unsaved operational settings and does not submit them',
+    (tester) async {
+      final repo = _Settings();
+      final bloc = _Pos(canManage: true);
+      addTearDown(bloc.close);
+      repo.pending.complete(
+        const Right(
+          PosSettings(businessProfile: 'retail', invoicePrefix: 'INV'),
+        ),
+      );
+      sl.registerFactory<PosSettingsBloc>(
+        () => PosSettingsBloc(repository: repo),
+      );
+      await _open(tester, const PosSettingsPage(), bloc);
+      final prefix = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Prefix Invoice',
+      );
+      await tester.ensureVisible(prefix);
+      await tester.enterText(prefix, 'DRAFT-QA');
+      await _choose(tester, 'English');
+      expect(find.text('DRAFT-QA'), findsOneWidget);
+      expect(repo.saves, 0);
+      expect(bloc.state.cart[_product], 2);
       expect(tester.takeException(), isNull);
     },
   );
