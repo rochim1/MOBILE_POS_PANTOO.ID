@@ -1080,7 +1080,7 @@ class _PinMarketingCarouselState extends State<_PinMarketingCarousel>
     _motionAllowed =
         !MediaQuery.disableAnimationsOf(context) &&
         !MediaQuery.accessibleNavigationOf(context) &&
-        TickerMode.of(context);
+        TickerMode.valuesOf(context).enabled;
     _scheduleAutoSlide();
   }
 
