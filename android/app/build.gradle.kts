@@ -83,6 +83,12 @@ android {
             applicationIdSuffix = ".qa.peer"
             resValue("string", "app_name", "Pantoo POS QA Kasir B")
         }
+        // Dedicated storage for service-intake GUI QA; preserve all older QA data.
+        create("qaService") {
+            dimension = "flavor-type"
+            applicationIdSuffix = ".qa.service"
+            resValue("string", "app_name", "Pantoo POS QA Layanan")
+        }
         create("production") {
             dimension = "flavor-type"
             resValue("string", "app_name", "Pantoo POS")
@@ -96,6 +102,11 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+// Local service-intake QA is isolated from Firebase/production push enrollment.
+tasks.matching { it.name.startsWith("processQaService") && it.name.endsWith("GoogleServices") }.configureEach {
+    enabled = false
 }
 
 // This Flutter SDK generates an integration_test registration in main even
