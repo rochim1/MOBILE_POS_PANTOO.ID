@@ -20,9 +20,12 @@ class _Fields extends RecursiveAstVisitor<void> {
     };
     final line = '\n'.allMatches(source.substring(0, node.offset)).length + 1;
     String? externalLabel;
+    var hasLabeledDecorator = false;
     final heights = <Map<String, String>>[];
     var parent = node.parent;
     for (var depth = 0; parent != null && depth < 22; depth++, parent = parent.parent) {
+      if (parent is MethodInvocation && parent.methodName.name == 'InputDecorator'
+          && parent.argumentList.toSource().contains('labelText:')) hasLabeledDecorator = true;
       if (parent is MethodInvocation && parent.methodName.name == 'field'
           && parent.argumentList.arguments.firstOrNull is StringLiteral) {
         externalLabel = parent.argumentList.arguments.first.toSource();
@@ -40,6 +43,7 @@ class _Fields extends RecursiveAstVisitor<void> {
     final row = <String, dynamic>{'path': path, 'line': line, 'type': type,
       'offset': node.offset, 'length': node.length,
       'class': className, 'scope': scope, 'heights': heights,
+      'hasLabeledDecorator': hasLabeledDecorator,
       if (externalLabel != null) 'externalLabel': externalLabel,
       if (type == 'InputDecoration') 'key': '$key|${ordinals.update(key, (n) => n + 1, ifAbsent: () => 1)}',
       'arguments': arguments};
@@ -81,6 +85,8 @@ void main(List<String> args) {
     return !arguments.containsKey('labelText') && !arguments.containsKey('label')
       && row['externalLabel'] == null && reviewed[row['key']] == null;
   }).toList();
+  missing.addAll(fields.where((row) => row['type'] == 'DropdownButton'
+    && row['hasLabeledDecorator'] != true));
   stdout.writeln(jsonEncode({'files': files, 'fields': fields, 'decorations': decorations, 'missing': missing}));
   if (args.contains('--verify') && missing.isNotEmpty) exitCode = 1;
 }
