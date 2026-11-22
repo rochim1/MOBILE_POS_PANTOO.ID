@@ -144,6 +144,61 @@ void main() {
     },
   );
 
+  test(
+    'native closure fails closed if the local pending queue cannot be read',
+    () async {
+      var writes = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          writes++;
+          yield Response(
+            data: const {
+              'ClosePOSKasirShift': {'_id': 'shift'},
+            },
+            response: {},
+          );
+        }),
+      );
+      // This is a fresh, task-owned SQLite fixture, never an installed app DB.
+      await db.execute(
+        'ALTER TABLE offline_transactions RENAME TO qa_unreadable_queue',
+      );
+      try {
+        final result = await PosRepository(
+          NativeProvider(client),
+          prefs,
+        ).closeShift('shift', 1000, 'QA');
+        expect(result.isLeft(), true);
+        expect(writes, 0);
+      } finally {
+        await db.execute(
+          'ALTER TABLE qa_unreadable_queue RENAME TO offline_transactions',
+        );
+      }
+    },
+  );
+
+  test(
+    'native closure does not report success when server response has no closed shift',
+    () async {
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          yield Response(
+            data: const {'__typename': 'Mutation', 'ClosePOSKasirShift': null},
+            response: {},
+          );
+        }),
+      );
+      final result = await PosRepository(
+        NativeProvider(client),
+        prefs,
+      ).closeShift('shift', 1000, 'QA');
+      expect(result.isLeft(), true);
+    },
+  );
+
   test('native store cache preserves branch and shift mode', () async {
     final client = GraphQLClient(
       cache: GraphQLCache(),
