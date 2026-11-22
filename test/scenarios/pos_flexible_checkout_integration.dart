@@ -28,7 +28,9 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 class _LiveHttp extends HttpOverrides {}
 
 class _Provider extends Fake implements GraphQLClientProvider {
-  _Provider(this.client, this.sharedPreferences);
+  _Provider(this.client, this.sharedPreferences, this.endpointUrl);
+  @override
+  final String endpointUrl;
   @override
   final GraphQLClient client;
   @override
@@ -187,7 +189,7 @@ void main() {
       cache: GraphQLCache(),
       link: gate.concat(network),
     );
-    provider = _Provider(client, prefs);
+    provider = _Provider(client, prefs, fixture['endpoint'] as String);
     repository = PosRepository(provider, prefs);
     // Populate actual store/catalog caches before testing offline submission.
     final stores = await repository.getStores();

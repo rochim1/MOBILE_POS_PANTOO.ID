@@ -157,7 +157,7 @@ class _PosProductImportPageState extends State<PosProductImportPage> {
                       Padding(
                         padding: EdgeInsets.only(bottom: 12),
                         child: Text(
-                          'nama_inventaris wajib. kode_inventaris boleh kosong untuk kode otomatis. unit, harga_beli, harga_jual, sku dan barcode mengikuti template. Format SKU/barcode sebagai teks agar angka nol di depan tidak hilang. pos_product_type: product atau service; service_price_mode: fixed atau flexible. HPP layanan opsional. Stok di file diabaikan; isi melalui Stok Awal. Paket/BOM disiapkan lewat form. Pratinjau menampilkan maksimal 30 baris valid.',
+                          'nama_inventaris wajib. kode_inventaris boleh kosong untuk kode otomatis. unit, harga_beli, harga_jual, sku dan barcode mengikuti template. Format SKU/barcode sebagai teks agar angka nol di depan tidak hilang. pos_product_type: product atau service; service_price_mode: fixed atau flexible; service_intake_mode: auto, none, work_order atau laundry. HPP layanan opsional. Stok di file diabaikan; isi melalui Stok Awal. Paket/BOM disiapkan lewat form. Pratinjau menampilkan maksimal 30 baris valid.',
                         ),
                       ),
                     ],

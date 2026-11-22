@@ -12,7 +12,11 @@ void main() {
       final repository = File(
         'lib/domain/repositories/pos_repository.dart',
       ).readAsStringSync().replaceAll(RegExp(r'\s+'), '');
-      expect(page, contains('appointmentAt!.toUtc().toIso8601String()'));
+      expect(
+        page,
+        isNot(contains('appointmentAt!.toUtc().toIso8601String()')),
+        reason: 'direct service no longer owns a second booking picker',
+      );
       expect(page, contains('start!.toUtc().toIso8601String()'));
       expect(
         repository,

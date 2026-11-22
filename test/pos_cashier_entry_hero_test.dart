@@ -13,8 +13,6 @@ void main() {
               floatingActionButton: FloatingActionButton(onPressed: () {}),
             ),
             floatingActionButton: PosCashierEntryButton(
-              showSetupGuide: false,
-              onContinueSetup: (_) async {},
               onOpenCashier: () {},
             ),
           ),

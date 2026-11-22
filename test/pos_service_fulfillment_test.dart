@@ -18,11 +18,16 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_product_pan
 class _Repo extends Fake implements PosRepository {}
 
 class _Bloc extends PosBloc {
-  _Bloc(String type, String method) : super(posRepository: _Repo()) {
+  _Bloc(
+    String type,
+    String method, {
+    String profile = 'jasa',
+    PosProduct product = service,
+  }) : super(posRepository: _Repo()) {
     emit(
       PosState(
         orderType: type,
-        cart: {service: 1},
+        cart: {product: 1},
         manualUnitPrices: const {'service': 175000},
         stores: const [
           PosStore(
@@ -35,7 +40,7 @@ class _Bloc extends PosBloc {
         activeShift: const {'_id': 'shift', 'toko_id': 'store'},
         selectedCustomer: customer,
         runtimeConfig: {
-          'business_profile': 'jasa',
+          'business_profile': profile,
           'default_payment_method': method,
           'features': {
             'use_service_order': true,
@@ -80,12 +85,14 @@ Future<_Bloc> _open(
   String type, {
   String method = 'transfer',
   double width = 800,
+  String profile = 'jasa',
+  PosProduct product = service,
 }) async {
   tester.view.physicalSize = Size(width, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  final bloc = _Bloc(type, method);
+  final bloc = _Bloc(type, method, profile: profile, product: product);
   addTearDown(bloc.close);
   await tester.pumpWidget(
     BlocProvider<PosBloc>.value(
@@ -155,9 +162,8 @@ void main() {
         }
         await tester.tap(find.text('Proses Bayar'));
         await tester.pumpAndSettle();
-        expect(find.text('Detail layanan'), findsOneWidget);
         expect(find.text('Pilih jadwal layanan'), findsNothing);
-        await saveIntake(tester);
+        expect(find.text('Objek layanan'), findsNothing);
         expect(bloc.submitted, hasLength(1));
         expect(bloc.submitted.single.paymentMethod, method);
         expect(bloc.submitted.single.serviceOrder?['appointment_at'], isNull);
@@ -168,14 +174,13 @@ void main() {
     );
   }
   testWidgets(
-    'reservation asks schedule once, after intake, and missing start cannot continue',
+    'reservation asks schedule once without generic intake and missing start cannot continue',
     (tester) async {
       final bloc = await _open(tester, 'reservation');
       await tester.tap(find.text('Proses Bayar'));
       await tester.pumpAndSettle();
-      expect(find.text('Detail layanan'), findsOneWidget);
       expect(find.text('Pilih jadwal layanan'), findsNothing);
-      await saveIntake(tester);
+      expect(find.text('Objek layanan'), findsNothing);
       expect(find.text('Detail reservasi'), findsOneWidget);
       await tester.tap(find.text('Simpan'));
       await tester.pumpAndSettle();
@@ -251,6 +256,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('required work is collected once inside the reservation form', (tester) async {
+    const work = PosProduct(id: 'service', code: 'W', name: 'Perbaikan', category: 'Jasa', price: 1000,
+      stock: 0, productType: 'service', serviceIntakeMode: 'work_order', tracksStock: false);
+    final bloc = await _open(tester, 'reservation', product: work);
+    await tester.tap(find.text('Proses Bayar')); await tester.pumpAndSettle();
+    expect(find.text('Detail reservasi'), findsOneWidget);
+    expect(find.text('Objek layanan'), findsOneWidget);
+    await tester.tap(find.text('Simpan')); await tester.pumpAndSettle();
+    expect(find.text('Isi objek layanan atau catatan pekerjaan.'), findsOneWidget);
+    expect(bloc.submitted, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final scale in [0.85, 0.98]) {
     testWidgets('reservation time text entry survives compact scale $scale', (
       tester,
@@ -260,7 +278,6 @@ void main() {
       await _open(tester, 'reservation', width: 411);
       await tester.tap(find.text('Proses Bayar'));
       await tester.pumpAndSettle();
-      await saveIntake(tester);
       await tester.tap(find.text('Mulai reservasi *'));
       await tester.pumpAndSettle();
       await tester.tap(
@@ -290,9 +307,7 @@ void main() {
         .first;
     expect(
       reservation,
-      contains(
-        'if (_reservationStartAt != null && _reservationEndAt != null) return true;',
-      ),
+      contains('posHasWorkDetails(state.cart, profile, _serviceOrder)'),
     );
     expect(reservation, contains('await reservationDialogRoute?.completed'));
   });

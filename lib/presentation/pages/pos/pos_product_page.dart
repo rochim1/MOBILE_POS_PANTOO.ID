@@ -1347,6 +1347,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
   String? _categoryId;
   String _productType = 'product';
   String _servicePriceMode = 'fixed';
+  String _serviceIntakeMode = 'auto';
   late final TextEditingController _priceFloor;
   String _preparationMode = 'instant';
   String? _productionStationId;
@@ -1374,6 +1375,7 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
       text: product == null ? '' : formatRupiahInput(product.price),
     );
     _servicePriceMode = product?.servicePriceMode ?? 'fixed';
+    _serviceIntakeMode = product?.serviceIntakeMode ?? 'auto';
     _priceFloor = TextEditingController(
       text: product != null && product.priceFloor > 0
           ? formatRupiahInput(product.priceFloor)
@@ -1852,6 +1854,9 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
           ? _servicePriceMode
           : 'fixed',
       'price_floor': parseRupiah(_priceFloor.text),
+      'service_intake_mode': _productType == 'service'
+          ? _serviceIntakeMode
+          : 'auto',
       'sellable_in_pos': true,
       'tracks_stock': _tracksStock,
       'preparation_mode': _productType == 'deposit' ? 'none' : _preparationMode,
@@ -2062,6 +2067,27 @@ class _CatalogProductFormState extends State<_CatalogProductForm> {
         ),
       ),
       if (_productType == 'service') ...[
+        DropdownButtonFormField<String>(
+          initialValue: _serviceIntakeMode,
+          decoration: const InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            labelText: 'Kebutuhan detail layanan',
+            helperText: 'Jasa umum tidak perlu mengisi keluhan atau teknisi',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'auto', child: Text('Ikuti profil usaha')),
+            DropdownMenuItem(value: 'none', child: Text('Tanpa detail wajib')),
+            DropdownMenuItem(
+              value: 'work_order',
+              child: Text('Detail pekerjaan'),
+            ),
+            DropdownMenuItem(value: 'laundry', child: Text('Detail cucian')),
+          ],
+          onChanged: (value) =>
+              setState(() => _serviceIntakeMode = value ?? 'auto'),
+        ),
+        const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _servicePriceMode,
           decoration: const InputDecoration(

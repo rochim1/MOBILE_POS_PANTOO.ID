@@ -454,6 +454,7 @@ class PosProductManagementRepository {
           categoryId: data['merchandise_category_id']?.toString() ?? '',
           productType: data['pos_product_type']?.toString() ?? 'product',
           servicePriceMode: data['service_price_mode']?.toString() ?? 'fixed',
+          serviceIntakeMode: data['service_intake_mode']?.toString() ?? 'auto',
           priceFloor:
               double.tryParse((data['price_floor'] ?? 0).toString()) ?? 0,
           compositionType: data['composition_type']?.toString() ?? '',
@@ -538,6 +539,7 @@ class PosProductManagementRepository {
           categoryId: data['merchandise_category_id']?.toString() ?? '',
           productType: data['pos_product_type']?.toString() ?? 'product',
           servicePriceMode: data['service_price_mode']?.toString() ?? 'fixed',
+          serviceIntakeMode: data['service_intake_mode']?.toString() ?? 'auto',
           priceFloor:
               double.tryParse((data['price_floor'] ?? 0).toString()) ?? 0,
           compositionType: data['composition_type']?.toString() ?? '',

@@ -156,6 +156,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         category: event.product.category,
         productType: current.productType,
         servicePriceMode: event.product.servicePriceMode,
+        serviceIntakeMode: event.product.serviceIntakeMode,
         priceFloor: event.product.priceFloor,
         promoEligible: current.promoEligible,
         tracksStock: current.tracksStock,

@@ -22,7 +22,9 @@ void main() {
       final payment = File(
         'lib/presentation/pages/pos/pos_payment_page.dart',
       ).readAsStringSync();
-      expect(payment, contains('posServicePricingBasis(profile, mode)'));
+      expect(payment, contains('buildPosServiceIntake('));
+      final intake = File('lib/presentation/pages/pos/utils/pos_service_intake.dart').readAsStringSync();
+      expect(intake, contains('posServiceIntakeMode(product, profile)'));
       final queries = File(
         'lib/data/graphql/pos_table_order_queries.dart',
       ).readAsStringSync();

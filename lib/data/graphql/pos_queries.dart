@@ -11,7 +11,7 @@ class PosQueries {
       GetPOSCatalogPage(cabang_id: $branch, search: $search, category: $category, product_type: $type, promo_only: $promo, ids: $ids, pagination: $pagination) {
         totalCount
         items { _id inventaris_id kode_inventaris nama_inventaris kategori merchandise_category_id merchandise_category_name
-          pos_product_type service_price_mode price_floor composition_type tracks_stock promo_eligible sku barcode foto brand deskripsi harga_beli harga_beli_source harga_jual
+          pos_product_type service_price_mode service_intake_mode price_floor composition_type tracks_stock promo_eligible sku barcode foto brand deskripsi harga_beli harga_beli_source harga_jual
           pos_package_components { inventaris_id qty_base } base_unit unit unit_conversions { unit factor }
           stok_minimum stok_maksimum titik_reorder lead_time_pengadaan preparation_mode production_station_id prep_time_minutes allow_station_override qty }
       }
@@ -469,6 +469,7 @@ class PosQueries {
           merchandise_category_name
           pos_product_type
           service_price_mode
+          service_intake_mode
           price_floor
           sellable_in_pos
           tracks_stock
@@ -513,6 +514,7 @@ class PosQueries {
         merchandise_category_name
         pos_product_type
         service_price_mode
+        service_intake_mode
         price_floor
         sellable_in_pos
         tracks_stock
@@ -839,6 +841,7 @@ class PosQueries {
         merchandise_category_name
         pos_product_type
         service_price_mode
+        service_intake_mode
         price_floor
         composition_type
         tracks_stock
@@ -913,6 +916,7 @@ class PosQueries {
         merchandise_category_name
         pos_product_type
         service_price_mode
+        service_intake_mode
         price_floor
         composition_type
         tracks_stock

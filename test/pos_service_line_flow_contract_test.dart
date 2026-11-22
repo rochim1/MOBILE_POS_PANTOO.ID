@@ -36,8 +36,10 @@ void main() {
         'lib/presentation/pages/pos/pos_table_order_page.dart',
       );
 
-      expect(payment, contains("'service_lines': serviceLines"));
-      expect(payment, contains("'pricing_basis': pricingBasis"));
+      expect(payment, contains('buildPosServiceIntake('));
+      final intake = readProjectFile('lib/presentation/pages/pos/utils/pos_service_intake.dart');
+      expect(intake, contains("data['service_lines'] = lines"));
+      expect(intake, contains("'pricing_basis': basis"));
       expect(query, contains('UpdatePOSServiceLineStatus'));
       expect(repository, contains('updateServiceLineStatus'));
       expect(activeOrders, contains('_serviceLineCard'));

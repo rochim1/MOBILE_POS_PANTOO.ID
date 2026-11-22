@@ -6,6 +6,7 @@ class PosProduct {
   final String categoryId;
   final String productType;
   final String servicePriceMode;
+  final String serviceIntakeMode;
   final double priceFloor;
   bool get isFlexibleService =>
       productType == 'service' && servicePriceMode == 'flexible';
@@ -42,6 +43,7 @@ class PosProduct {
     this.categoryId = '',
     this.productType = 'product',
     this.servicePriceMode = 'fixed',
+    this.serviceIntakeMode = 'auto',
     this.priceFloor = 0,
     this.compositionType = '',
     this.promoEligible = false,
@@ -122,6 +124,10 @@ class PosProduct {
           json['servicePriceMode']?.toString() ??
           json['service_price_mode']?.toString() ??
           'fixed',
+      serviceIntakeMode:
+          json['serviceIntakeMode']?.toString() ??
+          json['service_intake_mode']?.toString() ??
+          'auto',
       priceFloor:
           double.tryParse(
             (json['priceFloor'] ?? json['price_floor'] ?? 0).toString(),
@@ -240,6 +246,7 @@ class PosProduct {
       'categoryId': categoryId,
       'productType': productType,
       'servicePriceMode': servicePriceMode,
+      'serviceIntakeMode': serviceIntakeMode,
       'priceFloor': priceFloor,
       'compositionType': compositionType,
       'promoEligible': promoEligible,

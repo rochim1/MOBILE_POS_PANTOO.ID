@@ -63,10 +63,12 @@ void main() {
     await tester.binding.setSurfaceSize(Size(width, 1200));
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
-      if (!auth.pending.isCompleted)
+      if (!auth.pending.isCompleted) {
         auth.pending.complete(const Left(NetworkFailure('offline')));
-      if (!settings.pending.isCompleted)
+      }
+      if (!settings.pending.isCompleted) {
         settings.pending.complete(const Left(NetworkFailure('offline')));
+      }
       if (!lock.pending.isCompleted) lock.pending.complete();
       await tester.pump();
       await lock.close();

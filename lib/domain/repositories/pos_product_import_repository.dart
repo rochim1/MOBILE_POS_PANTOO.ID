@@ -33,7 +33,7 @@ class PosProductImportRepository {
   final http.Client? client;
   PosProductImportRepository(this.provider, {this.client});
   static const template =
-      'nama_inventaris,kode_inventaris,kategori,brand,model,unit,kondisi,lokasi_penyimpanan,harga_beli,harga_jual,supplier,stok_minimum,deskripsi,catatan,tags,sku,barcode,pos_product_type,service_price_mode\n';
+      'nama_inventaris,kode_inventaris,kategori,brand,model,unit,kondisi,lokasi_penyimpanan,harga_beli,harga_jual,supplier,stok_minimum,deskripsi,catatan,tags,sku,barcode,pos_product_type,service_price_mode,service_intake_mode\n';
   static String requestId(List<int> bytes) =>
       'inventory-import-${sha256.convert(bytes)}-barang_dagangan';
   static const mutation =
