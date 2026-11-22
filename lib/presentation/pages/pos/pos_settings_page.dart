@@ -570,81 +570,92 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: AppColors.bgPrimary,
-      child: BlocConsumer<PosSettingsBloc, PosSettingsState>(
-        listener: (context, state) {
-          if (state.status == PosSettingsStatus.loaded) {
-            _initFields(state);
-          } else if (state.status == PosSettingsStatus.saved) {
-            _savedBusinessProfile = _businessProfile;
-            _savedTrackStock = _enabledFeatures['track_stock'] ?? true;
-            _pendingSettingsInput = null;
-            AppToast.success(context, state.successMessage);
-            context.read<PosBloc>().add(RefreshPosRuntimeConfig());
-          } else if (state.status == PosSettingsStatus.failure) {
-            if (state.errorMessage.contains(
-              'Profil bisnis atau Tracking Stok tidak dapat diubah',
-            )) {
-              _confirmForcedProfileChange(state.errorMessage);
-            } else {
-              AppToast.error(context, state.errorMessage);
-            }
-          }
-        },
-        builder: (context, state) {
-          final canManage = context.select<PosBloc, bool>((bloc) {
-            final permissions = Map<String, dynamic>.from(
-              bloc.state.runtimeConfig['permissions'] as Map? ?? const {},
-            );
-            return permissions['manage_settings'] == true;
-          });
-          final content =
-              state.status == PosSettingsStatus.loading ||
-                  state.status == PosSettingsStatus.initial
-              ? const PosDocumentFormSkeleton(
-                  fieldGroups: [3],
-                  showItems: false,
-                )
-              : _settingsContent(state, canManage: canManage);
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth >= 760) {
-                return Row(
-                  children: [
-                    PosCategorySidebar<_SettingsSection>(
-                      title: ('Kategori Pengaturan').tr(context),
-                      items: _sections,
-                      selected: _selectedSection,
-                      onSelected: (value) =>
-                          setState(() => _selectedSection = value),
-                      expandedWidth: 230,
-                      footer:
-                          ('Pengaturan berlaku sebagai default operasional POS.')
-                              .tr(context),
-                    ),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: content),
-                  ],
+      child: Column(
+        children: [
+          Card(
+            margin: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+            clipBehavior: Clip.antiAlias,
+            child: const LanguagePicker(asSettingsTile: true),
+          ),
+          Expanded(
+            child: BlocConsumer<PosSettingsBloc, PosSettingsState>(
+              listener: (context, state) {
+                if (state.status == PosSettingsStatus.loaded) {
+                  _initFields(state);
+                } else if (state.status == PosSettingsStatus.saved) {
+                  _savedBusinessProfile = _businessProfile;
+                  _savedTrackStock = _enabledFeatures['track_stock'] ?? true;
+                  _pendingSettingsInput = null;
+                  AppToast.success(context, state.successMessage);
+                  context.read<PosBloc>().add(RefreshPosRuntimeConfig());
+                } else if (state.status == PosSettingsStatus.failure) {
+                  if (state.errorMessage.contains(
+                    'Profil bisnis atau Tracking Stok tidak dapat diubah',
+                  )) {
+                    _confirmForcedProfileChange(state.errorMessage);
+                  } else {
+                    AppToast.error(context, state.errorMessage);
+                  }
+                }
+              },
+              builder: (context, state) {
+                final canManage = context.select<PosBloc, bool>((bloc) {
+                  final permissions = Map<String, dynamic>.from(
+                    bloc.state.runtimeConfig['permissions'] as Map? ?? const {},
+                  );
+                  return permissions['manage_settings'] == true;
+                });
+                final content =
+                    state.status == PosSettingsStatus.loading ||
+                        state.status == PosSettingsStatus.initial
+                    ? const PosDocumentFormSkeleton(
+                        fieldGroups: [3],
+                        showItems: false,
+                      )
+                    : _settingsContent(state, canManage: canManage);
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= 760) {
+                      return Row(
+                        children: [
+                          PosCategorySidebar<_SettingsSection>(
+                            title: ('Kategori Pengaturan').tr(context),
+                            items: _sections,
+                            selected: _selectedSection,
+                            onSelected: (value) =>
+                                setState(() => _selectedSection = value),
+                            expandedWidth: 230,
+                            footer:
+                                ('Pengaturan berlaku sebagai default operasional POS.')
+                                    .tr(context),
+                          ),
+                          const VerticalDivider(width: 1),
+                          Expanded(child: content),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+                          child: PosCategoryDropdown<_SettingsSection>(
+                            label: ('Kategori pengaturan').tr(context),
+                            items: _sections,
+                            selected: _selectedSection,
+                            onSelected: (value) =>
+                                setState(() => _selectedSection = value),
+                          ),
+                        ),
+                        Expanded(child: content),
+                      ],
+                    );
+                  },
                 );
-              }
-              return Column(
-                children: [
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-                    child: PosCategoryDropdown<_SettingsSection>(
-                      label: ('Kategori pengaturan').tr(context),
-                      items: _sections,
-                      selected: _selectedSection,
-                      onSelected: (value) =>
-                          setState(() => _selectedSection = value),
-                    ),
-                  ),
-                  Expanded(child: content),
-                ],
-              );
-            },
-          );
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -807,12 +818,6 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         title: ('Kasir & Keamanan').tr(context),
         icon: Icons.point_of_sale_outlined,
         children: [
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: Text(posLocale(context).languageTitle),
-            trailing: const LanguagePicker(),
-          ),
-          const SizedBox(height: 12),
           _buildSwitch(
             ('Cetak Struk Otomatis').tr(context),
             _autoPrintReceipt,

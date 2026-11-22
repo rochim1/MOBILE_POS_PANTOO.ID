@@ -3,7 +3,10 @@ import 'app_language_controller.dart';
 import 'pos_localization.dart';
 
 class LanguagePicker extends StatelessWidget {
-  const LanguagePicker({super.key});
+  const LanguagePicker({super.key, this.asSettingsTile = false});
+
+  /// Full-row entry for device preferences; the compact setup picker is unchanged.
+  final bool asSettingsTile;
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<Locale?>(
     valueListenable: AppLanguageController.instance,
@@ -29,18 +32,31 @@ class LanguagePicker extends StatelessWidget {
           const PopupMenuItem(value: 'id', child: Text('Bahasa Indonesia')),
           const PopupMenuItem(value: 'en', child: Text('English')),
         ],
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.language, size: 20),
-              const SizedBox(width: 6),
-              Text(code == 'en' ? 'EN' : 'ID'),
-              const Icon(Icons.expand_more, size: 18),
-            ],
-          ),
-        ),
+        child: asSettingsTile
+            ? ListTile(
+                leading: const Icon(Icons.language),
+                title: Text(l.languageTitle),
+                subtitle: Text(
+                  '${selected == null ? '${l.languageSystem} · ' : ''}'
+                  '${code == 'en' ? 'English' : 'Bahasa Indonesia'}',
+                ),
+                trailing: const Icon(Icons.expand_more),
+              )
+            : Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.language, size: 20),
+                    const SizedBox(width: 6),
+                    Text(code == 'en' ? 'EN' : 'ID'),
+                    const Icon(Icons.expand_more, size: 18),
+                  ],
+                ),
+              ),
       );
     },
   );

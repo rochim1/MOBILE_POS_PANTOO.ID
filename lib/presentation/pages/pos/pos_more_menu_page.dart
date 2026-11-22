@@ -2,6 +2,7 @@ import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
 import 'pos_subscription_page.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -126,10 +127,13 @@ class PosMoreMenuPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 if (setupSuggestion != null) setupSuggestion!,
                 for (final section in sections.entries)
-                  if (section.value.isNotEmpty)
+                  if (section.value.isNotEmpty || section.key == 'Pengaturan')
                     _MenuSection(
                       title: section.key,
                       children: [
+                        // Device language is not an administrative store setting.
+                        if (section.key == 'Pengaturan')
+                          const LanguagePicker(asSettingsTile: true),
                         for (final index in section.value)
                           _MenuTile(
                             title: index == 5
