@@ -20,6 +20,11 @@ class PosLocalDatabase {
   PosLocalDatabase._init();
 
   Future<Database> get database async {
+    if (!supportsOfflineDatabase) {
+      throw UnsupportedError(
+        'SQLite lokal tidak tersedia pada platform ini. Gunakan konfirmasi server.',
+      );
+    }
     if (_database != null) return _database!;
     _databaseFuture ??= _initDB('pos_pantoo.db');
     try {

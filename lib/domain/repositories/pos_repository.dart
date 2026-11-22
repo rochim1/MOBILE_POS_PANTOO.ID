@@ -1865,6 +1865,7 @@ class PosRepository {
   }
 
   Future<List<PosCustomer>> _getLocalCustomers() async {
+    if (!supportsOfflineDatabase) return [];
     try {
       final db = await PosLocalDatabase.instance.database;
       final result = await db.query('customers');
@@ -1896,6 +1897,7 @@ class PosRepository {
     List<PosCustomer> customers, {
     bool replace = true,
   }) async {
+    if (!supportsOfflineDatabase) return;
     try {
       final db = await PosLocalDatabase.instance.database;
       final batch = db.batch();
@@ -2053,6 +2055,7 @@ class PosRepository {
   }
 
   Future<List<PosStore>> _getLocalStores() async {
+    if (!supportsOfflineDatabase) return [];
     try {
       final db = await PosLocalDatabase.instance.database;
       return PosStoreCache.read(db);
@@ -2062,6 +2065,7 @@ class PosRepository {
   }
 
   Future<void> _saveStoresToLocal(List<PosStore> stores) async {
+    if (!supportsOfflineDatabase) return;
     try {
       final db = await PosLocalDatabase.instance.database;
       await PosStoreCache.save(db, stores);
@@ -2407,21 +2411,25 @@ class PosRepository {
     String closeNotes,
   ) async {
     try {
-      final db = await PosLocalDatabase.instance.database;
-      final pending =
-          Sqflite.firstIntValue(
-            await db.rawQuery(
-              "SELECT COUNT(*) FROM offline_transactions WHERE shift_id = ? AND (status IN ('pending','syncing','needs_review') OR (status = 'rejected' AND (resolution IS NULL OR resolution != 'rejected_by_operator')))",
-              [shiftId],
+      // Browser testing has no SQLite queue. Android must still block closure
+      // until its local pending transactions have been reconciled.
+      if (supportsOfflineDatabase) {
+        final db = await PosLocalDatabase.instance.database;
+        final pending =
+            Sqflite.firstIntValue(
+              await db.rawQuery(
+                "SELECT COUNT(*) FROM offline_transactions WHERE shift_id = ? AND (status IN ('pending','syncing','needs_review') OR (status = 'rejected' AND (resolution IS NULL OR resolution != 'rejected_by_operator')))",
+                [shiftId],
+              ),
+            ) ??
+            0;
+        if (pending > 0) {
+          return const Left(
+            ServerFailure(
+              'Shift belum dapat ditutup karena masih ada transaksi offline',
             ),
-          ) ??
-          0;
-      if (pending > 0) {
-        return const Left(
-          ServerFailure(
-            'Shift belum dapat ditutup karena masih ada transaksi offline',
-          ),
-        );
+          );
+        }
       }
       final MutationOptions options = MutationOptions(
         document: gql(PosQueries.closePOSKasirShift),
