@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
@@ -56,7 +60,15 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
           ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
-        home: const Scaffold(body: PosCartPanel()),
+        home: const Scaffold(
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: RepaintBoundary(
+              key: ValueKey('cart-control-preview'),
+              child: SizedBox(height: 160, child: PosCartPanel()),
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -65,6 +77,12 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
 }
 
 void main() {
+  setUpAll(() async {
+    await (FontLoader('Roboto')
+      ..addFont(rootBundle.load('assets/fonts/roboto-regular.ttf'))).load();
+    await (FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+  });
   for (final (width, scale) in [
     (320.0, 1.0),
     (360.0, 1.0),
@@ -98,6 +116,35 @@ void main() {
       expect(quantityRect.height, closeTo(unitRect.height, 0.1));
       expect(quantityRect.top, closeTo(unitRect.top, 0.1));
       expect(quantityRect.bottom, closeTo(unitRect.bottom, 0.1));
+
+      const preview = String.fromEnvironment('CART_BORDER_PREVIEW');
+      if (width == 360 && scale == 1 && ['before', 'after'].contains(preview)) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const ValueKey('cart-control-preview')),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage(pixelRatio: 2);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File('output/cart-visible-border-$preview.png').writeAsBytes(
+            bytes!.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+          );
+          image.dispose();
+        });
+      }
+
+      // InputDecorator's outer 48 dp can hide an intrinsically shorter border.
+      // Check the actual painted container, not only its SizedBox allocation.
+      final unitBorder = InputDecorator.containerOf(
+        tester.element(find.byType(DropdownButton<String>)),
+      )!;
+      final quantityBorder = InputDecorator.containerOf(
+        tester.element(find.byIcon(Icons.remove)),
+      )!;
+      final unitBorderRect = unitBorder.localToGlobal(Offset.zero) & unitBorder.size;
+      final quantityBorderRect = quantityBorder.localToGlobal(Offset.zero) & quantityBorder.size;
+      expect(quantityBorderRect.height, closeTo(unitBorderRect.height, 0.1));
+      expect(quantityBorderRect.top, closeTo(unitBorderRect.top, 0.1));
+      expect(quantityBorderRect.bottom, closeTo(unitBorderRect.bottom, 0.1));
       expect(find.text('Jumlah'), findsOneWidget);
       final unitText = tester.widget<Text>(find.text('unit').first);
       final quantityText = tester.widget<Text>(find.text('1').first);
