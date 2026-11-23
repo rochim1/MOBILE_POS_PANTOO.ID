@@ -14,6 +14,8 @@ void main() {
       'Lihat panduan': 'View guide',
       'Sembunyikan panduan': 'Hide guide',
       'Stok Awal': 'Opening stock',
+      'Layanan Langsung': 'Direct service',
+      'PIN salah. Sisa percobaan 4.': 'Incorrect PIN. 4 attempts remaining.',
     };
     for (final entry in copy.entries) {
       expect(translatePosText(entry.key, en), entry.value);
