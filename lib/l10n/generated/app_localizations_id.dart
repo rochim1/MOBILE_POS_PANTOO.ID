@@ -12279,6 +12279,19 @@ class AppLocalizationsId extends AppLocalizations {
       'Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.';
 
   @override
+  String get setupSalesGuideTitle => 'Panduan mulai berjualan';
+
+  @override
+  String get setupSalesGuideHelp =>
+      'Opsional. Tambahkan produk atau layanan; pengaturan lainnya bisa menyusul.';
+
+  @override
+  String get setupSalesGuideView => 'Lihat panduan';
+
+  @override
+  String get setupSalesGuideHide => 'Sembunyikan panduan';
+
+  @override
   String secretShow(String field) {
     return 'Tampilkan $field';
   }

@@ -84,7 +84,7 @@ class _PosSetupSuggestionState extends State<PosSetupSuggestion> {
               ),
             ),
             IconButton(
-              tooltip: 'Sembunyikan panduan',
+              tooltip: 'Sembunyikan panduan'.tr(context),
               onPressed: _dismiss,
               icon: const Icon(Icons.close, color: Color(0xFF164E47)),
             ),

@@ -21684,6 +21684,30 @@ abstract class AppLocalizations {
   /// **'Hasil permintaan belum dapat dipastikan. Konfirmasi ulang dengan bukti yang sama.'**
   String get tradeUnknown;
 
+  /// No description provided for @setupSalesGuideTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Panduan mulai berjualan'**
+  String get setupSalesGuideTitle;
+
+  /// No description provided for @setupSalesGuideHelp.
+  ///
+  /// In id, this message translates to:
+  /// **'Opsional. Tambahkan produk atau layanan; pengaturan lainnya bisa menyusul.'**
+  String get setupSalesGuideHelp;
+
+  /// No description provided for @setupSalesGuideView.
+  ///
+  /// In id, this message translates to:
+  /// **'Lihat panduan'**
+  String get setupSalesGuideView;
+
+  /// No description provided for @setupSalesGuideHide.
+  ///
+  /// In id, this message translates to:
+  /// **'Sembunyikan panduan'**
+  String get setupSalesGuideHide;
+
   /// No description provided for @secretShow.
   ///
   /// In id, this message translates to:

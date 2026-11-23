@@ -12263,6 +12263,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'The result is not confirmed. Confirm again using the same request.';
 
   @override
+  String get setupSalesGuideTitle => 'Start selling guide';
+
+  @override
+  String get setupSalesGuideHelp =>
+      'Optional. Add products or services; other settings can wait.';
+
+  @override
+  String get setupSalesGuideView => 'View guide';
+
+  @override
+  String get setupSalesGuideHide => 'Hide guide';
+
+  @override
   String secretShow(String field) {
     return 'Show $field';
   }
