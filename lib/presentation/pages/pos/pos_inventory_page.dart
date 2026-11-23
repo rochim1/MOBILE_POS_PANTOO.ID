@@ -21,6 +21,7 @@ import '../../../domain/repositories/pos_inventory_repository.dart';
 import '../../../domain/repositories/pos_receipt_repository.dart';
 import '../../bloc/pos/pos_bloc.dart';
 import '../../bloc/lock/lock_cubit.dart';
+
 import '../../widgets/app_toast.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import '../../widgets/pos_category_navigation.dart';
@@ -45,6 +46,11 @@ import '../../../domain/repositories/pos_transfer_repository.dart';
 import '../../../domain/models/pos_transfer.dart';
 import 'pos_transfer_operation_page.dart';
 import 'widgets/pos_transfer_details.dart';
+
+// New Navigator/dialog routes are above the shell's scoped providers. Reuse
+// the exact operational identity and policy; never create a new permissive bloc.
+Widget _withPOSInventoryContext(BuildContext parent, Widget child) =>
+    BlocProvider<PosBloc>.value(value: parent.read<PosBloc>(), child: child);
 
 enum _InventorySection {
   warehouse,
@@ -115,9 +121,12 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
       final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => PosInventoryEditorPage(
-            type: PosInventoryDocumentType.opname,
-            opnameTarget: target,
+          builder: (_) => _withPOSInventoryContext(
+            context,
+            PosInventoryEditorPage(
+              type: PosInventoryDocumentType.opname,
+              opnameTarget: target,
+            ),
           ),
         ),
       );
@@ -235,10 +244,13 @@ class _PosInventoryPageState extends State<PosInventoryPage> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => PosInventoryEditorPage(
-          type: PosInventoryDocumentType.purchase,
-          initialInventoryId: stock.id,
-          initialQuantity: suggestedQuantity,
+        builder: (_) => _withPOSInventoryContext(
+          context,
+          PosInventoryEditorPage(
+            type: PosInventoryDocumentType.purchase,
+            initialInventoryId: stock.id,
+            initialQuantity: suggestedQuantity,
+          ),
         ),
       ),
     );
@@ -841,14 +853,17 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         builder: (dialogContext) {
           final size = MediaQuery.sizeOf(dialogContext);
           final compact = size.width < 600;
-          return PosKeyboardStableDialog(
-            width: widget.type == PosInventoryDocumentType.scrap ? 960 : 760,
-            height: size.height * .9,
-            insetPadding: EdgeInsets.symmetric(
-              horizontal: compact ? 12 : 32,
-              vertical: compact ? 12 : 24,
+          return _withPOSInventoryContext(
+            context,
+            PosKeyboardStableDialog(
+              width: widget.type == PosInventoryDocumentType.scrap ? 960 : 760,
+              height: size.height * .9,
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: compact ? 12 : 32,
+                vertical: compact ? 12 : 24,
+              ),
+              child: PosInventoryEditorPage(type: widget.type, inModal: true),
             ),
-            child: PosInventoryEditorPage(type: widget.type, inModal: true),
           );
         },
       );
@@ -856,8 +871,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              PosInventoryEditorPage(type: widget.type, existing: existing),
+          builder: (_) => _withPOSInventoryContext(
+            context,
+            PosInventoryEditorPage(type: widget.type, existing: existing),
+          ),
         ),
       );
     }
@@ -921,11 +938,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => PosInventoryEditorPage(
-            type: PosInventoryDocumentType.transfer,
-            initialSourceId: pair.$1['_id']?.toString(),
-            initialDestinationId: pair.$2['_id']?.toString(),
-            displayReplenishment: true,
+          builder: (_) => _withPOSInventoryContext(
+            context,
+            PosInventoryEditorPage(
+              type: PosInventoryDocumentType.transfer,
+              initialSourceId: pair.$1['_id']?.toString(),
+              initialDestinationId: pair.$2['_id']?.toString(),
+              displayReplenishment: true,
+            ),
           ),
         ),
       );
@@ -2724,9 +2744,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => PosPurchaseReceivingPage(
-            purchase: item,
-            canViewPayable: widget.permissions['view_payables'] == true,
+          builder: (_) => _withPOSInventoryContext(
+            context,
+            PosPurchaseReceivingPage(
+              purchase: item,
+              canViewPayable: widget.permissions['view_payables'] == true,
+            ),
           ),
         ),
       );
