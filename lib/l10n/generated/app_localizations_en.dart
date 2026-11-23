@@ -12282,6 +12282,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serviceDirectLabel => 'Direct service';
 
   @override
+  String get serviceReservationEndOptional => 'Reservation end (optional)';
+
+  @override
+  String get serviceReservationDefaultDuration =>
+      'The reservation defaults to two hours unless changed.';
+
+  @override
   String get serviceItemOrNotesRequired =>
       'Enter the service item or job notes.';
 

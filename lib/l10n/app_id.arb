@@ -16479,6 +16479,8 @@
   "setupSalesGuideHide": "Sembunyikan panduan",
   "inventoryOpeningStockLabel": "Stok Awal",
   "serviceDirectLabel": "Layanan Langsung",
+  "serviceReservationEndOptional": "Selesai reservasi (opsional)",
+  "serviceReservationDefaultDuration": "Jika tidak diubah, durasi awal reservasi 2 jam.",
   "serviceItemOrNotesRequired": "Isi objek layanan atau catatan pekerjaan.",
   "serviceCartQuantityHelp": "Berat/jumlah mengikuti keranjang. Tidak perlu diisi ulang.",
   "serviceCloseObjectDetails": "Tutup detail per objek",

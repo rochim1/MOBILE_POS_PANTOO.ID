@@ -16479,6 +16479,8 @@
   "setupSalesGuideHide": "Hide guide",
   "inventoryOpeningStockLabel": "Opening stock",
   "serviceDirectLabel": "Direct service",
+  "serviceReservationEndOptional": "Reservation end (optional)",
+  "serviceReservationDefaultDuration": "The reservation defaults to two hours unless changed.",
   "serviceItemOrNotesRequired": "Enter the service item or job notes.",
   "serviceCartQuantityHelp": "Weight and quantity come from the cart. No need to enter them again.",
   "serviceCloseObjectDetails": "Close individual item details",

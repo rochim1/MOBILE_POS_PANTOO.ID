@@ -12298,6 +12298,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get serviceDirectLabel => 'Layanan Langsung';
 
   @override
+  String get serviceReservationEndOptional => 'Selesai reservasi (opsional)';
+
+  @override
+  String get serviceReservationDefaultDuration =>
+      'Jika tidak diubah, durasi awal reservasi 2 jam.';
+
+  @override
   String get serviceItemOrNotesRequired =>
       'Isi objek layanan atau catatan pekerjaan.';
 

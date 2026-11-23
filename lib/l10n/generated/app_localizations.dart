@@ -21720,6 +21720,18 @@ abstract class AppLocalizations {
   /// **'Layanan Langsung'**
   String get serviceDirectLabel;
 
+  /// No description provided for @serviceReservationEndOptional.
+  ///
+  /// In id, this message translates to:
+  /// **'Selesai reservasi (opsional)'**
+  String get serviceReservationEndOptional;
+
+  /// No description provided for @serviceReservationDefaultDuration.
+  ///
+  /// In id, this message translates to:
+  /// **'Jika tidak diubah, durasi awal reservasi 2 jam.'**
+  String get serviceReservationDefaultDuration;
+
   /// No description provided for @serviceItemOrNotesRequired.
   ///
   /// In id, this message translates to:
