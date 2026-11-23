@@ -173,9 +173,15 @@ class _PosSubscriptionBoundaryState extends State<PosSubscriptionBoundary>
       );
       final service = widget.service;
       if (!widget.authenticated || !service.required) return widget.child;
+      // Locking clears the operator scope before its replacement is checked.
+      // Keep the independent PIN gate usable instead of covering it with an
+      // unknown-subscription recovery page. Write guards still deny access.
+      final verifyingLockedOperator =
+          pinLocked && service.accessLevel == 'unknown';
       final blocked =
           !service.canSell &&
           service.accessLevel != 'read_only' &&
+          !verifyingLockedOperator &&
           !widget.receiptVisible.value;
       // Presentation only: PIN must not show subscription details, while
       // polling, write guards and the restriction overlay remain unchanged.
@@ -344,47 +350,53 @@ class _SubscriptionVerification extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  subscriptionText(
-                    context,
-                    'Status akses belum dapat dipastikan. Periksa koneksi lalu coba lagi.',
-                    'Access has not been confirmed. Check your connection and try again.',
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: service.checking ? null : () => service.refresh(),
-                  child: service.checking
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(subscriptionText(context, 'Coba lagi', 'Retry')),
-                ),
-                TextButton(
-                  onPressed: onCloseShift,
-                  child: Text(
-                    subscriptionText(context, 'Tutup shift', 'Close shift'),
-                  ),
-                ),
-                TextButton(
-                  onPressed: onViewQueue,
-                  child: Text(
+                if (service.checking || !service.initialized)
+                  CircularProgressIndicator(
+                    semanticsLabel: subscriptionText(
+                      context,
+                      'Menyiapkan akses POS',
+                      'Preparing POS access',
+                    ),
+                  )
+                else ...[
+                  Text(
                     subscriptionText(
                       context,
-                      'Lihat antrean offline',
-                      'View offline queue',
+                      'Status akses belum dapat dipastikan. Periksa koneksi lalu coba lagi.',
+                      'Access has not been confirmed. Check your connection and try again.',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => service.refresh(),
+                    child: Text(
+                      subscriptionText(context, 'Coba lagi', 'Retry'),
                     ),
                   ),
-                ),
-                TextButton(
-                  onPressed: onLogout,
-                  child: Text(
-                    subscriptionText(context, 'Keluar akun', 'Sign out'),
+                  TextButton(
+                    onPressed: onCloseShift,
+                    child: Text(
+                      subscriptionText(context, 'Tutup shift', 'Close shift'),
+                    ),
                   ),
-                ),
+                  TextButton(
+                    onPressed: onViewQueue,
+                    child: Text(
+                      subscriptionText(
+                        context,
+                        'Lihat antrean offline',
+                        'View offline queue',
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onLogout,
+                    child: Text(
+                      subscriptionText(context, 'Keluar akun', 'Sign out'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
