@@ -2,6 +2,8 @@
 
 Tanggal: **23 November 2026**, Asia/Jakarta.
 
+Pembaruan lanjutan: [GUI jasa/offline, bahasa dan overlap tombol Bayar](POS_FOLLOWUP_GUI_20261123.md). Penghambat syntax FAQ/generator yang dicatat di laporan awal ini sudah diperbaiki; gate final lanjutan1.004Flutter/408web dan compile972/0error. Status historis di bawah tidak dihapus dan tidak otomatis menjadi bukti seluruh matriks GUI lulus.
+
 **Hasil: PASS untuk rantai prioritas yang diuji melalui GUI Android dan Chrome, ditambah tes otomatis di bawah. Ini bukan sertifikasi bahwa seluruh produk/profil/perangkat bebas bug.** Tidak ada transaksi, migrasi, reset akun atau deploy ke database produksi.
 
 ## Ringkasan akhir
