@@ -158,6 +158,10 @@ void main() {
   testWidgets(
     'pending access after PIN shows progress without premature recovery actions',
     (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final access = _Access()..pending = Completer<Map<String, dynamic>>();
       final lock = _Lock()..setLocked(false);
       var privateTaps = 0;

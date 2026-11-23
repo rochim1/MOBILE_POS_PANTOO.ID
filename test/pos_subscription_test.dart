@@ -175,7 +175,9 @@ void main() {
       online = true;
       await tester.tap(retry);
       await tester.pump();
-      expect(tester.widget<FilledButton>(retry).onPressed, isNull);
+      expect(retry, findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.textContaining('Access has not been confirmed'), findsNothing);
       expect(s.canSell, false);
       expect(privateTaps, 0);
       response.complete(status(level: 'billing_only', state: 'recovery'));

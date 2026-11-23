@@ -183,8 +183,8 @@ class _PosSubscriptionBoundaryState extends State<PosSubscriptionBoundary>
           service.accessLevel != 'read_only' &&
           !verifyingLockedOperator &&
           !widget.receiptVisible.value;
-      // Presentation only: PIN must not show subscription details, while
-      // polling, write guards and the restriction overlay remain unchanged.
+      // Presentation only: hide PIN subscription details while polling, write
+      // guards and known subscription restrictions remain enforced.
       final showBanner = service.showWarning && !blocked && !pinLocked;
       return Stack(
         children: [
