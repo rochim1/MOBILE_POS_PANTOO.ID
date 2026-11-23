@@ -15,8 +15,9 @@ bool changePosPurchaseUnit(Map<String, dynamic> item, String nextUnit) {
     if (row is! Map) continue;
     final factor = (row['factor'] as num?)?.toDouble() ?? 0;
     final unit = row['unit']?.toString() ?? '';
-    if (unit.isNotEmpty && unit != base && factor.isFinite && factor > 0)
+    if (unit.isNotEmpty && unit != base && factor.isFinite && factor > 0) {
       factors[unit] = factor;
+    }
   }
   final previous = (item['unit'] ?? base).toString();
   final from = factors[previous], to = factors[nextUnit];

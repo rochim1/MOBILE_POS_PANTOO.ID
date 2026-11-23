@@ -965,7 +965,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${_actionLabel(action)} ${_number(item)}?'),
+        title: Text('${_actionLabel(action).tr(context)} ${_number(item)}?'),
         content: requiresReason
             ? Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1071,9 +1071,10 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   String _actionWarning(Map<String, dynamic> item, String action) {
     final status = item['status']?.toString() ?? '';
     final purchaseSummary = widget.type == PosInventoryDocumentType.purchase
-        ? 'Supplier: ${item['supplier_name'] ?? '-'}\n'
-              'Cabang: ${item['branch_name'] ?? item['lokasi_cabang_nama'] ?? '-'}\n'
-              'Total: ${_money(item['grand_total'] ?? item['total_amount'])}\n\n'
+        ? ('Supplier: ${item['supplier_name'] ?? '-'}\n'
+                  'Cabang: ${item['branch_name'] ?? item['lokasi_cabang_nama'] ?? '-'}\n'
+                  'Total: ${_money(item['grand_total'] ?? item['total_amount'])}\n\n')
+              .trCurrent()
         : '';
     if (action == 'delete') {
       return widget.type == PosInventoryDocumentType.purchase
@@ -1092,17 +1093,20 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           .trCurrent();
     }
     if (action == 'approve') {
-      return ('${purchaseSummary}Dokumen akan disetujui untuk melanjutkan proses inventori.')
-          .trCurrent();
+      return purchaseSummary +
+          ('Dokumen akan disetujui untuk melanjutkan proses inventori.')
+              .trCurrent();
     }
     if (action == 'reject') {
-      return ('${purchaseSummary}Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.')
-          .trCurrent();
+      return purchaseSummary +
+          ('Dokumen akan ditolak dan harus diperbaiki sebelum diproses kembali.')
+              .trCurrent();
     }
     if (action == 'submit' &&
         widget.type == PosInventoryDocumentType.purchase) {
-      return ('${purchaseSummary}PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.')
-          .trCurrent();
+      return purchaseSummary +
+          ('PO akan diajukan ke alur approval. Periksa kembali nilai dan tujuan pembelian.')
+              .trCurrent();
     }
     return ('Pastikan rincian dokumen sudah benar sebelum melanjutkan.')
         .trCurrent();
@@ -1393,7 +1397,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
           width: 560,
           height: 420,
           title: Text(
-            '${action == 'post' ? ('Kirim transfer').tr(context) : _actionLabel(action)} ${current['no_transfer']}?',
+            '${action == 'post' ? ('Kirim transfer').tr(context) : _actionLabel(action).tr(context)} ${current['no_transfer']}?',
           ),
           content: ListView(
             children: [
@@ -2547,7 +2551,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
         label: Text(
           widget.type == PosInventoryDocumentType.transfer && action == 'post'
               ? ('Kirim transfer').tr(context)
-              : _actionLabel(action),
+              : _actionLabel(action).tr(context),
         ),
       );
     }).toList();

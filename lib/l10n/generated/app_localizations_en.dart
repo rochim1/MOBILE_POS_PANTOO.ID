@@ -12276,6 +12276,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get setupSalesGuideHide => 'Hide guide';
 
   @override
+  String get inventoryOpeningStockLabel => 'Opening stock';
+
+  @override
   String secretShow(String field) {
     return 'Show $field';
   }

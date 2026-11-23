@@ -16477,6 +16477,7 @@
   "setupSalesGuideHelp": "Opsional. Tambahkan produk atau layanan; pengaturan lainnya bisa menyusul.",
   "setupSalesGuideView": "Lihat panduan",
   "setupSalesGuideHide": "Sembunyikan panduan",
+  "inventoryOpeningStockLabel": "Stok Awal",
   "secretShow": "Tampilkan {field}",
   "@secretShow": {"placeholders": {"field": {"type": "String"}}},
   "secretHide": "Sembunyikan {field}",

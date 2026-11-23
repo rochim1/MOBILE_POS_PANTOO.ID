@@ -21708,6 +21708,12 @@ abstract class AppLocalizations {
   /// **'Sembunyikan panduan'**
   String get setupSalesGuideHide;
 
+  /// No description provided for @inventoryOpeningStockLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok Awal'**
+  String get inventoryOpeningStockLabel;
+
   /// No description provided for @secretShow.
   ///
   /// In id, this message translates to:

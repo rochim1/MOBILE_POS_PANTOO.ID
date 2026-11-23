@@ -12292,6 +12292,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get setupSalesGuideHide => 'Sembunyikan panduan';
 
   @override
+  String get inventoryOpeningStockLabel => 'Stok Awal';
+
+  @override
   String secretShow(String field) {
     return 'Tampilkan $field';
   }

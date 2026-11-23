@@ -10,6 +10,8 @@ import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_inventory_page.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_inventory_editor_page.dart';
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 
 class _POS extends Fake implements PosRepository {}
 
@@ -22,6 +24,7 @@ class _Bloc extends PosBloc {
           'permissions': {
             'view_inventory_purchases': true,
             'create_inventory_purchases': true,
+            'submit_inventory_purchases': true,
           },
           'inventory_policy': {
             'inventory_profile': 'simple',
@@ -34,6 +37,8 @@ class _Bloc extends PosBloc {
 }
 
 class _Inventory extends Fake implements PosInventoryRepository {
+  _Inventory({this.documents = const []});
+  final List<Map<String, dynamic>> documents;
   @override
   Future<Either<Failure, Map<String, dynamic>>>
   getDirectPurchaseWorkspace() async => const Right({});
@@ -58,7 +63,7 @@ class _Inventory extends Fake implements PosInventoryRepository {
     String reason = '',
     int page = 1,
     int limit = 20,
-  }) async => const Right(PosInventoryDocumentPage([], 0));
+  }) async => Right(PosInventoryDocumentPage(documents, documents.length));
   @override
   Future<Either<Failure, PosInventoryLookups>> getLookups({
     bool purchaseOnly = false,
@@ -99,6 +104,64 @@ class _Inventory extends Fake implements PosInventoryRepository {
 
 void main() {
   tearDown(() => sl.reset());
+  testWidgets(
+    'English PO confirmation translates actions and summary without translating supplier data',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      sl.registerSingleton<SharedPreferences>(
+        await SharedPreferences.getInstance(),
+      );
+      await AppLanguageController.instance.select('en');
+      addTearDown(() => AppLanguageController.instance.select('id'));
+      sl.registerSingleton<PosInventoryRepository>(
+        _Inventory(
+          documents: const [
+            {
+              '_id': 'draft',
+              'no_po': 'PO-QA',
+              'status': 'draft',
+              'supplier_name': 'Pemasok Uji',
+              'branch_name': 'Gudang Uji',
+              'grand_total': 36000,
+              'items': [],
+            },
+          ],
+        ),
+      );
+      final bloc = _Bloc();
+      addTearDown(bloc.close);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: BlocProvider<PosBloc>.value(
+            value: bloc,
+            child: const Scaffold(
+              body: PosInventoryPage(initialSection: 'purchase'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Document actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Submit').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Submit PO-QA?'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Supplier: Pemasok Uji\nBranch: Gudang Uji\nTotal:',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('The PO will be submitted for approval.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'changing purchase unit updates the real price field without losing per-base-unit manual price',
     (tester) async {

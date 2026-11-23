@@ -3133,6 +3133,7 @@ final Map<String, _PosValue> _exact = {
   "Opsional. Tambahkan produk atau layanan; pengaturan lainnya bisa menyusul.": (l) => l.setupSalesGuideHelp,
   "Lihat panduan": (l) => l.setupSalesGuideView,
   "Sembunyikan panduan": (l) => l.setupSalesGuideHide,
+  "Stok Awal": (l) => l.inventoryOpeningStockLabel,
   "\nOriginal journal entry not yet confirmed": (l) => l.posc0a010e50551,
   "\nReversal journal entry not yet confirmed": (l) => l.pos879ea9b51bd7,
   "   and   ": (l) => l.pos5ce2b951d32d,

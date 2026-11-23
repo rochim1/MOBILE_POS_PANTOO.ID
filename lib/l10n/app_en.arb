@@ -16477,6 +16477,7 @@
   "setupSalesGuideHelp": "Optional. Add products or services; other settings can wait.",
   "setupSalesGuideView": "View guide",
   "setupSalesGuideHide": "Hide guide",
+  "inventoryOpeningStockLabel": "Opening stock",
   "secretShow": "Show {field}",
   "@secretShow": {"placeholders": {"field": {"type": "String"}}},
   "secretHide": "Hide {field}",
