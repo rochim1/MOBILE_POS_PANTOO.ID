@@ -74,7 +74,7 @@ class _Inventory extends Fake implements PosInventoryRepository {
         },
       ],
       activeWarehouseId: 'dest',
-      inventoryItems: [],
+        inventoryItems: [{'_id':'stock','inventaris_id':'stock','nama_inventaris':'QA stock','kode_inventaris':'QA-STOCK','base_unit':'unit','unit':'unit','harga_beli':3000,'unit_conversions':[{'unit':'box','factor':12}]}],
       scrapReasons: [],
       scrapIncidentTypes: [],
       scrapOccurrenceLocations: [],
@@ -86,6 +86,22 @@ class _Inventory extends Fake implements PosInventoryRepository {
 
 void main() {
   tearDown(() => sl.reset());
+  testWidgets('changing purchase unit updates the real price field without losing per-base-unit manual price',(tester)async{
+    tester.view.physicalSize=const Size(400,900);tester.view.devicePixelRatio=1;
+    addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+    sl.registerSingleton<PosInventoryRepository>(_Inventory());
+    final bloc=_Bloc();addTearDown(bloc.close);
+    await tester.pumpWidget(MaterialApp(home:BlocProvider<PosBloc>.value(value:bloc,child:const PosInventoryEditorPage(type:PosInventoryDocumentType.purchase,existing:{'_id':'draft','supplier_id':'supplier','receiving_location_id':'dest','alamat_pengiriman':'QA address','items':[{'inventaris_id':'stock','nama_inventaris':'QA stock','unit':'unit','qty_ordered':1,'harga_beli':3000}]}))));
+    await tester.pumpAndSettle();await tester.tap(find.text('Barang').first);await tester.pumpAndSettle();
+    final units=find.byKey(const ValueKey('purchase-unit-stock'));
+    tester.widget<DropdownButtonFormField<String>>(units).onChanged!('box');await tester.pumpAndSettle();
+    final prices=find.byWidgetPredicate((w)=>w is TextFormField&&w.key is ValueKey&&(w.key as ValueKey).value.toString().startsWith('purchase-price-stock'));
+    expect(tester.widget<TextFormField>(prices).initialValue,'36.000');
+    await tester.enterText(prices,'36.012');await tester.pump();
+    tester.widget<DropdownButtonFormField<String>>(units).onChanged!('unit');await tester.pumpAndSettle();
+    expect(tester.widget<TextFormField>(prices).initialValue,'3.001');
+    expect(tester.takeException(),isNull);
+  });
   testWidgets(
     'purchase editor pushed outside home route keeps the exact POS context and finishes loading',
     (tester) async {
