@@ -98,7 +98,11 @@ class PosCartPanel extends StatelessWidget {
               width: 126,
               height: 48,
               child: InputDecorator(
-                decoration: _controlDecoration(labelText: ('Jumlah').tr(context)),
+                expands: true,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: _controlDecoration(
+                  labelText: ('Jumlah').tr(context),
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -158,13 +162,20 @@ class PosCartPanel extends StatelessWidget {
               width: 76,
               height: 48,
               child: InputDecorator(
-                decoration: _controlDecoration(labelText: ('Satuan').tr(context)),
+                expands: true,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: _controlDecoration(
+                  labelText: ('Satuan').tr(context),
+                ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: selectedUnit,
                     isExpanded: true,
                     isDense: true,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
                     items: product.saleUnits
                         .map(
                           (unit) => DropdownMenuItem(

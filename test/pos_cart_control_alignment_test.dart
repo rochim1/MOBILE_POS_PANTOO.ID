@@ -65,7 +65,10 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
             alignment: Alignment.topCenter,
             child: RepaintBoundary(
               key: ValueKey('cart-control-preview'),
-              child: SizedBox(height: 160, child: PosCartPanel()),
+              child: ColoredBox(
+                color: Colors.white,
+                child: SizedBox(height: 160, child: PosCartPanel()),
+              ),
             ),
           ),
         ),
@@ -78,10 +81,12 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
 
 void main() {
   setUpAll(() async {
-    await (FontLoader('Roboto')
-      ..addFont(rootBundle.load('assets/fonts/roboto-regular.ttf'))).load();
-    await (FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+    await (FontLoader(
+      'Roboto',
+    )..addFont(rootBundle.load('assets/fonts/roboto-regular.ttf'))).load();
+    await (FontLoader(
+      'MaterialIcons',
+    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
   });
   for (final (width, scale) in [
     (320.0, 1.0),
@@ -140,8 +145,10 @@ void main() {
       final quantityBorder = InputDecorator.containerOf(
         tester.element(find.byIcon(Icons.remove)),
       )!;
-      final unitBorderRect = unitBorder.localToGlobal(Offset.zero) & unitBorder.size;
-      final quantityBorderRect = quantityBorder.localToGlobal(Offset.zero) & quantityBorder.size;
+      final unitBorderRect =
+          unitBorder.localToGlobal(Offset.zero) & unitBorder.size;
+      final quantityBorderRect =
+          quantityBorder.localToGlobal(Offset.zero) & quantityBorder.size;
       expect(quantityBorderRect.height, closeTo(unitBorderRect.height, 0.1));
       expect(quantityBorderRect.top, closeTo(unitBorderRect.top, 0.1));
       expect(quantityBorderRect.bottom, closeTo(unitBorderRect.bottom, 0.1));
