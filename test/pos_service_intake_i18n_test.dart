@@ -22,6 +22,9 @@ void main() {
       'Catatan objek': 'Item notes',
       'Pisahkan 1 ke objek lain': 'Split off one item',
       'Hapus detail objek ini': 'Remove these item details',
+      'Selesai reservasi (opsional)': 'Reservation end (optional)',
+      'Jika tidak diubah, durasi awal reservasi 2 jam.':
+          'The reservation defaults to two hours unless changed.',
     };
     for (final entry in copy.entries) {
       expect(translatePosText(entry.key, en), entry.value);
