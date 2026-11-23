@@ -131,7 +131,7 @@ class PosMetricCard extends StatelessWidget {
   }
 }
 
-/// All summary sections use the same breakpoints and gutters.
+/// Shared gutters, with optional denser columns for operational summaries.
 class PosMetricGrid extends StatelessWidget {
   const PosMetricGrid({
     super.key,
