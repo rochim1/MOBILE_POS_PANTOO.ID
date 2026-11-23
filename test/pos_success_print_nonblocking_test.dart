@@ -51,7 +51,12 @@ void main() {
         paymentMethod: method,
       );
       await tester.pumpWidget(
-        MaterialApp(locale: const Locale('en'), localizationsDelegates: AppLocalizations.localizationsDelegates, supportedLocales: AppLocalizations.supportedLocales, home: PosSuccessPage(transaction: transaction)),
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PosSuccessPage(transaction: transaction),
+        ),
       );
       await tester.pumpAndSettle();
       final label = find.text(switch (method) {

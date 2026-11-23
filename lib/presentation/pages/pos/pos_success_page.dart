@@ -18,6 +18,19 @@ import 'package:intl/intl.dart';
 import '../../widgets/pos_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+// Payment keys remain unchanged in the transaction; only display copy varies.
+String _paymentLabelSource(String method) => switch (method.toLowerCase()) {
+  'cash' || 'tunai' => 'Tunai',
+  'qris' => 'QRIS',
+  'transfer' => 'Transfer',
+  'debit' => 'Kartu Debit',
+  'e_wallet' => 'E-Wallet',
+  'kartu_kredit' || 'credit_card' => 'Kartu Kredit',
+  'tempo' => 'Tempo / Piutang',
+  'split' => 'Pisah Bayar',
+  _ => method.toUpperCase(),
+};
+
 class PosSuccessPage extends StatelessWidget {
   final PosTransactionResult transaction;
   final bool autoPrint;
@@ -122,7 +135,9 @@ class PosSuccessPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               _buildRow(
-                                transaction.paymentMethod.toUpperCase(),
+                                _paymentLabelSource(
+                                  transaction.paymentMethod,
+                                ).tr(context),
                                 _currency(switch (transaction.paymentMethod) {
                                   'qris' ||
                                   'transfer' ||
@@ -289,7 +304,7 @@ class PosSuccessPage extends StatelessWidget {
       '${'Subtotal'.trCurrent()}: ${_currency(transaction.subtotal)}\n'
       '${transaction.discount > 0 ? '${'Diskon'.trCurrent()}: -${_currency(transaction.discount)}\n' : ''}'
       '${'Total'.trCurrent()}: ${_currency(transaction.total)}\n'
-      '${'Pembayaran'.trCurrent()}: ${transaction.paymentMethod.toUpperCase()}\n'
+      '${'Pembayaran'.trCurrent()}: ${_paymentLabelSource(transaction.paymentMethod).trCurrent()}\n'
       '${'Dibayar'.trCurrent()}: ${_currency(transaction.cashReceived)}\n'
       '${transaction.change > 0 ? '${'Kembalian'.trCurrent()}: ${_currency(transaction.change)}\n' : ''}'
       '${transaction.note.trim().isEmpty ? '' : '${'Catatan'.trCurrent()}: ${transaction.note}\n'}'
@@ -435,7 +450,10 @@ class PosSuccessPage extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           autofocus: initialValue.isEmpty,
-          decoration: InputDecoration(labelText: title.tr(dialogContext), border: const OutlineInputBorder()),
+          decoration: InputDecoration(
+            labelText: title.tr(dialogContext),
+            border: const OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
