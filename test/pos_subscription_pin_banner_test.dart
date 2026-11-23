@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -47,9 +48,12 @@ class _Access {
   String level = 'full';
   int calls = 0;
   bool disposed = false;
+  String scope = 'qa|tenant|user|cashier';
+  Completer<Map<String, dynamic>>? pending;
   late final service = PosSubscriptionService(
     fetch: () async {
       calls++;
+      if (pending != null) return pending!.future;
       if (!online) throw StateError('Offline QA');
       return {
         'access_level': level,
@@ -66,7 +70,7 @@ class _Access {
         'is_owner': true,
       };
     },
-    readScope: () => 'qa|tenant|user|cashier',
+    readScope: () => scope,
     storage: const FlutterSecureStorage(),
     clock: () => now,
     trustedClock: () async => PosTrustedClockStamp(
@@ -102,6 +106,10 @@ void main() {
     await lock.close();
     access.service.dispose();
     access.disposed = true;
+    if (access.pending?.isCompleted == false) {
+      access.pending!.completeError(StateError('Test ended'));
+      await tester.pump();
+    }
   }
 
   Future<void> mount(
@@ -109,6 +117,7 @@ void main() {
     _Access access,
     _Lock lock, {
     VoidCallback? onPrivateTap,
+    bool settle = true,
   }) async {
     final nav = GlobalKey<NavigatorState>();
     final receipt = ValueNotifier(false);
@@ -138,8 +147,83 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
   }
+
+  testWidgets('pending access after PIN shows progress without premature recovery actions', (tester) async {
+    final access = _Access()..pending = Completer<Map<String, dynamic>>();
+    final lock = _Lock()..setLocked(false);
+    var privateTaps = 0;
+    await mount(tester, access, lock, settle: false, onPrivateTap: () => privateTaps++);
+    expect(access.service.checking, true);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.textContaining('Access has not been confirmed'), findsNothing);
+    expect(find.text('Close shift'), findsNothing);
+    expect(find.text('View offline queue'), findsNothing);
+    expect(find.text('Sign out'), findsNothing);
+    await tester.tap(find.text('Private workspace'), warnIfMissed: false);
+    expect(privateTaps, 0);
+    final pending = access.pending!;
+    access.pending = null;
+    pending.complete(await access.service.fetch());
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.tap(find.text('Private workspace'));
+    expect(privateTaps, 1);
+    expect(access.service.canSell, true);
+  });
+
+  testWidgets('locking cashier with an unverified new scope keeps PIN usable and writes denied', (tester) async {
+    final access = _Access();
+    final lock = _Lock()..setLocked(false);
+    await mount(tester, access, lock);
+    access.scope = 'qa|tenant|user|';
+    access.online = false;
+    lock.setLocked(true);
+    await access.service.activate();
+    await tester.pumpAndSettle();
+    expect(find.byType(PinLockScreen), findsOneWidget);
+    expect(find.textContaining('Access has not been confirmed'), findsNothing);
+    expect(find.text('Close shift'), findsNothing);
+    expect(access.service.canSell, false);
+    expect(await access.service.guardMutation({'ProcessPOSPenjualan'}), isNotNull);
+    expect(await access.service.guardOfflineWrite(), isNotNull);
+    expect(await access.service.guardMutation({'VerifyPOSUserPin'}), isNull);
+  });
+
+  testWidgets('verification timeout offers recovery and retry returns to progress until a real decision', (tester) async {
+    final access = _Access()..pending = Completer<Map<String, dynamic>>();
+    final lock = _Lock()..setLocked(false);
+    var privateTaps = 0;
+    await mount(tester, access, lock, settle: false, onPrivateTap: () => privateTaps++);
+    await tester.pump(const Duration(seconds: 13));
+    await tester.pumpAndSettle();
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Close shift'), findsOneWidget);
+    expect(find.text('View offline queue'), findsOneWidget);
+    expect(access.service.canSell, false);
+    access.pending!.completeError(StateError('Late failed response'));
+    access.pending = Completer<Map<String, dynamic>>();
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(find.textContaining('Access has not been confirmed'), findsNothing);
+    expect(find.text('Close shift'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    access.level = 'billing_only';
+    final pending = access.pending!;
+    access.pending = null;
+    pending.complete(await access.service.fetch());
+    await tester.pumpAndSettle();
+    expect(find.byType(PosSubscriptionPage), findsOneWidget);
+    await tester.tap(find.text('Private workspace'), warnIfMissed: false);
+    expect(privateTaps, 0);
+    expect(await access.service.guardOfflineWrite(), isNotNull);
+  });
 
   testWidgets(
     'PIN hides offline banner while polling and trusted offline access continue',
