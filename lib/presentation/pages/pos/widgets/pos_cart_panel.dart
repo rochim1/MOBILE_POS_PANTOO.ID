@@ -94,55 +94,63 @@ class PosCartPanel extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              height: 36,
-              child: Row(
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36),
-                    icon: const Icon(
-                      Icons.remove,
-                      size: 18,
-                      color: Colors.black87,
-                    ),
-                    onPressed: () => context.read<PosBloc>().add(
-                      UpdateQuantity(product, -1.0),
-                    ),
-                  ),
-                  Tooltip(
-                    message: ('Ubah jumlah').tr(context),
-                    child: InkWell(
-                      onTap: () => _editQuantity(context, product, quantity),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        width: 40,
-                        alignment: Alignment.center,
-                        child: Text(
-                          _quantityText(quantity),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+            SizedBox(
+              width: 126,
+              height: 48,
+              child: InputDecorator(
+                decoration: _controlDecoration(context, 'Jumlah'),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 36),
+                        icon: const Icon(
+                          Icons.remove,
+                          size: 18,
+                          color: Colors.black87,
+                        ),
+                        onPressed: () => context.read<PosBloc>().add(
+                          UpdateQuantity(product, -1.0),
                         ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36),
-                    icon: const Icon(
-                      Icons.add,
-                      size: 18,
-                      color: Colors.black87,
+                    Expanded(
+                      child: Tooltip(
+                        message: ('Ubah jumlah').tr(context),
+                        child: InkWell(
+                          onTap: () =>
+                              _editQuantity(context, product, quantity),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            alignment: Alignment.center,
+                            child: Text(
+                              _quantityText(quantity),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    onPressed: () => context.read<PosBloc>().add(
-                      UpdateQuantity(product, 1.0),
+                    Expanded(
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 36),
+                        icon: const Icon(
+                          Icons.add,
+                          size: 18,
+                          color: Colors.black87,
+                        ),
+                        onPressed: () => context.read<PosBloc>().add(
+                          UpdateQuantity(product, 1.0),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -150,48 +158,28 @@ class PosCartPanel extends StatelessWidget {
               width: 76,
               height: 48,
               child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: ('Satuan').tr(context),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 8,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedUnit,
-                      isExpanded: true,
-                      isDense: true,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black87,
-                      ),
-                      items: product.saleUnits
-                          .map(
-                            (unit) => DropdownMenuItem(
-                              value: unit,
-                              child: Text(
-                                unit,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (unit) {
-                        if (unit != null) {
-                          context.read<PosBloc>().add(
-                            UpdateCartUnit(product, unit),
-                          );
-                        }
-                      },
-                    ),
+                decoration: _controlDecoration(context, 'Satuan'),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedUnit,
+                    isExpanded: true,
+                    isDense: true,
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    items: product.saleUnits
+                        .map(
+                          (unit) => DropdownMenuItem(
+                            value: unit,
+                            child: Text(unit, overflow: TextOverflow.ellipsis),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (unit) {
+                      if (unit != null) {
+                        context.read<PosBloc>().add(
+                          UpdateCartUnit(product, unit),
+                        );
+                      }
+                    },
                   ),
                 ),
               ),
@@ -256,6 +244,20 @@ class PosCartPanel extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  InputDecoration _controlDecoration(BuildContext context, String label) {
+    final border = OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.grey.shade300),
+      borderRadius: BorderRadius.circular(8),
+    );
+    return InputDecoration(
+      labelText: label.tr(context),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      border: border,
+      enabledBorder: border,
     );
   }
 

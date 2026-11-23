@@ -51,7 +51,9 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
         home: const Scaffold(body: PosCartPanel()),
@@ -63,21 +65,34 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
 }
 
 void main() {
-  for (final (width, scale) in [(320.0, 1.0), (360.0, 1.0), (600.0, 1.0), (320.0, 1.5)]) {
-    testWidgets('cart controls align at $width dp with text scale $scale', (tester) async {
+  for (final (width, scale) in [
+    (320.0, 1.0),
+    (360.0, 1.0),
+    (600.0, 1.0),
+    (320.0, 1.5),
+  ]) {
+    testWidgets('cart controls align at $width dp with text scale $scale', (
+      tester,
+    ) async {
       await _pumpCart(tester, width, scale);
       final unit = find.byWidgetPredicate(
-        (widget) => widget is InputDecorator && widget.decoration.labelText == 'Satuan',
+        (widget) =>
+            widget is InputDecorator && widget.decoration.labelText == 'Satuan',
       );
       // Both the previous outlined container and the labelled replacement
       // represent the quantity control, so RED measures the actual mismatch.
-      final quantity = find.ancestor(
-        of: find.byIcon(Icons.remove),
-        matching: find.byWidgetPredicate((widget) =>
-          widget is InputDecorator ||
-          (widget is Container && widget.decoration is BoxDecoration &&
-            (widget.decoration! as BoxDecoration).border != null)),
-      ).first;
+      final quantity = find
+          .ancestor(
+            of: find.byIcon(Icons.remove),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is InputDecorator ||
+                  (widget is Container &&
+                      widget.decoration is BoxDecoration &&
+                      (widget.decoration! as BoxDecoration).border != null),
+            ),
+          )
+          .first;
       final unitRect = tester.getRect(unit);
       final quantityRect = tester.getRect(quantity);
       expect(quantityRect.height, closeTo(unitRect.height, 0.1));
@@ -86,13 +101,20 @@ void main() {
       expect(find.text('Jumlah'), findsOneWidget);
       final unitText = tester.widget<Text>(find.text('unit').first);
       final quantityText = tester.widget<Text>(find.text('1').first);
-      final dropdown = tester.widget<DropdownButton<String>>(find.byType(DropdownButton<String>));
-      expect(unitText.style?.fontSize ?? dropdown.style?.fontSize, quantityText.style?.fontSize);
+      final dropdown = tester.widget<DropdownButton<String>>(
+        find.byType(DropdownButton<String>),
+      );
+      expect(
+        unitText.style?.fontSize ?? dropdown.style?.fontSize,
+        quantityText.style?.fontSize,
+      );
       expect(tester.takeException(), isNull);
     });
   }
 
-  testWidgets('aligned controls preserve quantity and unit selection actions', (tester) async {
+  testWidgets('aligned controls preserve quantity and unit selection actions', (
+    tester,
+  ) async {
     final bloc = await _pumpCart(tester, 320, 1);
     await tester.tap(find.byIcon(Icons.add));
     await tester.tap(find.byIcon(Icons.remove));
