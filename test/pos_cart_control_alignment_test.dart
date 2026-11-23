@@ -60,17 +60,9 @@ Future<_Cart> _pumpCart(WidgetTester tester, double width, double scale) async {
           ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
-        home: const Scaffold(
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: RepaintBoundary(
-              key: ValueKey('cart-control-preview'),
-              child: ColoredBox(
-                color: Colors.white,
-                child: SizedBox(height: 160, child: PosCartPanel()),
-              ),
-            ),
-          ),
+        home: const RepaintBoundary(
+          key: ValueKey('cart-control-preview'),
+          child: Scaffold(body: PosCartPanel()),
         ),
       ),
     ),
@@ -152,6 +144,24 @@ void main() {
       expect(quantityBorderRect.height, closeTo(unitBorderRect.height, 0.1));
       expect(quantityBorderRect.top, closeTo(unitBorderRect.top, 0.1));
       expect(quantityBorderRect.bottom, closeTo(unitBorderRect.bottom, 0.1));
+      for (final control in [
+        find.text('1'),
+        find.byIcon(Icons.remove),
+        find.byIcon(Icons.add),
+      ]) {
+        final contentRect = tester.getRect(control.first);
+        expect(
+          contentRect.height,
+          greaterThanOrEqualTo(14),
+          reason: 'Quantity content must have visible height: $contentRect',
+        );
+        expect(
+          quantityBorderRect.contains(contentRect.center),
+          true,
+          reason:
+              'Quantity content $contentRect must remain visible inside $quantityBorderRect',
+        );
+      }
       expect(find.text('Jumlah'), findsOneWidget);
       final unitText = tester.widget<Text>(find.text('unit').first);
       final quantityText = tester.widget<Text>(find.text('1').first);

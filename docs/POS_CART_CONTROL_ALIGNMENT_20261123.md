@@ -2,6 +2,8 @@
 
 Tanggal: 23 November 2026. Skenario diturunkan dari screenshot pengguna: kontrol satuan harus sejajar, sama tinggi, dan ukuran teksnya seimbang dengan jumlah.
 
+Koreksi lanjutan: hasil awal di bawah mengukur pembungkus `InputDecorator`, bukan batas kotak yang digambar. Screenshot berikutnya membuktikan kotak satuan masih lebih pendek. Perbaikan dan pembuktian area yang benar-benar terlihat dicatat di [POS_CART_VISIBLE_BORDER_20261123.md](POS_CART_VISIBLE_BORDER_20261123.md).
+
 ## Perbaikan
 
 - Sebelumnya kontrol jumlah 36 dp, sedangkan satuan 48 dp. Label satuan juga menggunakan ukuran teks yang lebih kecil.
