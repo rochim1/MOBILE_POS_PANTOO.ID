@@ -12298,6 +12298,38 @@ class AppLocalizationsId extends AppLocalizations {
   String get serviceDirectLabel => 'Layanan Langsung';
 
   @override
+  String get serviceItemOrNotesRequired =>
+      'Isi objek layanan atau catatan pekerjaan.';
+
+  @override
+  String get serviceCartQuantityHelp =>
+      'Berat/jumlah mengikuti keranjang. Tidak perlu diisi ulang.';
+
+  @override
+  String get serviceCloseObjectDetails => 'Tutup detail per objek';
+
+  @override
+  String get serviceObjectDetailsOptional => 'Detail per objek (opsional)';
+
+  @override
+  String get serviceObjectWeight => 'Berat objek (kg)';
+
+  @override
+  String get serviceObjectQuantity => 'Jumlah objek';
+
+  @override
+  String get serviceObjectTag => 'Identitas / tag objek';
+
+  @override
+  String get serviceObjectNotes => 'Catatan objek';
+
+  @override
+  String get serviceSplitOneItem => 'Pisahkan 1 ke objek lain';
+
+  @override
+  String get serviceRemoveObjectDetails => 'Hapus detail objek ini';
+
+  @override
   String pinIncorrectAttemptsRemaining(String count) {
     return 'PIN salah. Sisa percobaan $count.';
   }

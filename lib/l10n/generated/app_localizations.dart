@@ -21720,6 +21720,66 @@ abstract class AppLocalizations {
   /// **'Layanan Langsung'**
   String get serviceDirectLabel;
 
+  /// No description provided for @serviceItemOrNotesRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Isi objek layanan atau catatan pekerjaan.'**
+  String get serviceItemOrNotesRequired;
+
+  /// No description provided for @serviceCartQuantityHelp.
+  ///
+  /// In id, this message translates to:
+  /// **'Berat/jumlah mengikuti keranjang. Tidak perlu diisi ulang.'**
+  String get serviceCartQuantityHelp;
+
+  /// No description provided for @serviceCloseObjectDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Tutup detail per objek'**
+  String get serviceCloseObjectDetails;
+
+  /// No description provided for @serviceObjectDetailsOptional.
+  ///
+  /// In id, this message translates to:
+  /// **'Detail per objek (opsional)'**
+  String get serviceObjectDetailsOptional;
+
+  /// No description provided for @serviceObjectWeight.
+  ///
+  /// In id, this message translates to:
+  /// **'Berat objek (kg)'**
+  String get serviceObjectWeight;
+
+  /// No description provided for @serviceObjectQuantity.
+  ///
+  /// In id, this message translates to:
+  /// **'Jumlah objek'**
+  String get serviceObjectQuantity;
+
+  /// No description provided for @serviceObjectTag.
+  ///
+  /// In id, this message translates to:
+  /// **'Identitas / tag objek'**
+  String get serviceObjectTag;
+
+  /// No description provided for @serviceObjectNotes.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan objek'**
+  String get serviceObjectNotes;
+
+  /// No description provided for @serviceSplitOneItem.
+  ///
+  /// In id, this message translates to:
+  /// **'Pisahkan 1 ke objek lain'**
+  String get serviceSplitOneItem;
+
+  /// No description provided for @serviceRemoveObjectDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Hapus detail objek ini'**
+  String get serviceRemoveObjectDetails;
+
   /// No description provided for @pinIncorrectAttemptsRemaining.
   ///
   /// In id, this message translates to:

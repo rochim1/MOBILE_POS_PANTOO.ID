@@ -323,7 +323,7 @@ Future<Map<String, dynamic>?> showPosServiceIntakeDialog(
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
-                      error!,
+                      error!.tr(context),
                       style: const TextStyle(color: Colors.red),
                     ),
                   ),

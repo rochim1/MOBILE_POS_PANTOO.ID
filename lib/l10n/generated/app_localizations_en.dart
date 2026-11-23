@@ -12282,6 +12282,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serviceDirectLabel => 'Direct service';
 
   @override
+  String get serviceItemOrNotesRequired =>
+      'Enter the service item or job notes.';
+
+  @override
+  String get serviceCartQuantityHelp =>
+      'Weight and quantity come from the cart. No need to enter them again.';
+
+  @override
+  String get serviceCloseObjectDetails => 'Close individual item details';
+
+  @override
+  String get serviceObjectDetailsOptional =>
+      'Individual item details (optional)';
+
+  @override
+  String get serviceObjectWeight => 'Item weight (kg)';
+
+  @override
+  String get serviceObjectQuantity => 'Item quantity';
+
+  @override
+  String get serviceObjectTag => 'Item ID / tag';
+
+  @override
+  String get serviceObjectNotes => 'Item notes';
+
+  @override
+  String get serviceSplitOneItem => 'Split off one item';
+
+  @override
+  String get serviceRemoveObjectDetails => 'Remove these item details';
+
+  @override
   String pinIncorrectAttemptsRemaining(String count) {
     return 'Incorrect PIN. $count attempts remaining.';
   }
