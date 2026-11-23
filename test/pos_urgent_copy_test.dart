@@ -13,6 +13,7 @@ void main() {
           'Optional. Add products or services; other settings can wait.',
       'Lihat panduan': 'View guide',
       'Sembunyikan panduan': 'Hide guide',
+      'Stok Awal': 'Opening stock',
     };
     for (final entry in copy.entries) {
       expect(translatePosText(entry.key, en), entry.value);
