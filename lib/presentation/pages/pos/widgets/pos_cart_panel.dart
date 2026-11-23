@@ -98,7 +98,7 @@ class PosCartPanel extends StatelessWidget {
               width: 126,
               height: 48,
               child: InputDecorator(
-                decoration: _controlDecoration(context, 'Jumlah'),
+                decoration: _controlDecoration(labelText: ('Jumlah').tr(context)),
                 child: Row(
                   children: [
                     Expanded(
@@ -158,7 +158,7 @@ class PosCartPanel extends StatelessWidget {
               width: 76,
               height: 48,
               child: InputDecorator(
-                decoration: _controlDecoration(context, 'Satuan'),
+                decoration: _controlDecoration(labelText: ('Satuan').tr(context)),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: selectedUnit,
@@ -247,13 +247,13 @@ class PosCartPanel extends StatelessWidget {
     );
   }
 
-  InputDecoration _controlDecoration(BuildContext context, String label) {
+  InputDecoration _controlDecoration({required String labelText}) {
     final border = OutlineInputBorder(
       borderSide: BorderSide(color: Colors.grey.shade300),
       borderRadius: BorderRadius.circular(8),
     );
     return InputDecoration(
-      labelText: label.tr(context),
+      labelText: labelText,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       border: border,
