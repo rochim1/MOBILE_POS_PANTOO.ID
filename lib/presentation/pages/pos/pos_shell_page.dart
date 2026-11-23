@@ -36,6 +36,7 @@ import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_cashier_entry_button.dart';
+import 'widgets/pos_cashier_dock_body.dart';
 import 'widgets/pos_navbar_context_actions.dart';
 import 'utils/pos_navbar_action_policy.dart';
 import 'widgets/pos_setup_suggestion.dart';
@@ -1770,7 +1771,9 @@ class _PosShellPageState extends State<PosShellPage>
                         ],
                       ),
                       body: SafeArea(
-                        child: isMobile
+                        child: PosCashierDockBody(
+                          enabled: isMobile && _mobilePrimaryIndex == 1 && MediaQuery.of(context).viewInsets.bottom == 0,
+                          child: isMobile
                             ? Theme(
                                 data: Theme.of(context).copyWith(
                                   visualDensity: const VisualDensity(
@@ -1785,6 +1788,7 @@ class _PosShellPageState extends State<PosShellPage>
                             : _withKeyboardNavigation(
                                 _buildShellBody(isMobile),
                               ),
+                        ),
                       ),
                       floatingActionButton:
                           isMobile &&
