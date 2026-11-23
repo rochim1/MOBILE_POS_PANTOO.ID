@@ -1,4 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
+import 'widgets/pos_offline_error_copy.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -497,7 +498,7 @@ class _PosOfflineQueuePageState extends State<PosOfflineQueuePage> {
               if ((transaction['error']?.toString() ?? '').isNotEmpty) ...[
                 const SizedBox(height: 6),
                 PosText(
-                  transaction['error'].toString(),
+                  posOfflineErrorCopy(transaction['error']),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: AppColors.danger),
