@@ -21714,6 +21714,18 @@ abstract class AppLocalizations {
   /// **'Stok Awal'**
   String get inventoryOpeningStockLabel;
 
+  /// No description provided for @serviceDirectLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Layanan Langsung'**
+  String get serviceDirectLabel;
+
+  /// No description provided for @pinIncorrectAttemptsRemaining.
+  ///
+  /// In id, this message translates to:
+  /// **'PIN salah. Sisa percobaan {count}.'**
+  String pinIncorrectAttemptsRemaining(String count);
+
   /// No description provided for @secretShow.
   ///
   /// In id, this message translates to:

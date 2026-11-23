@@ -12295,6 +12295,14 @@ class AppLocalizationsId extends AppLocalizations {
   String get inventoryOpeningStockLabel => 'Stok Awal';
 
   @override
+  String get serviceDirectLabel => 'Layanan Langsung';
+
+  @override
+  String pinIncorrectAttemptsRemaining(String count) {
+    return 'PIN salah. Sisa percobaan $count.';
+  }
+
+  @override
   String secretShow(String field) {
     return 'Tampilkan $field';
   }

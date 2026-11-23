@@ -12279,6 +12279,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inventoryOpeningStockLabel => 'Opening stock';
 
   @override
+  String get serviceDirectLabel => 'Direct service';
+
+  @override
+  String pinIncorrectAttemptsRemaining(String count) {
+    return 'Incorrect PIN. $count attempts remaining.';
+  }
+
+  @override
   String secretShow(String field) {
     return 'Show $field';
   }

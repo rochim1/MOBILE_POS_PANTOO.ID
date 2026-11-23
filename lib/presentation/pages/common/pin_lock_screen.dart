@@ -763,7 +763,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             const SizedBox(height: 10),
                                             Text(
                                               state.errorMessage.isNotEmpty
-                                                  ? state.errorMessage
+                                                  ? state.errorMessage.tr(
+                                                      context,
+                                                    )
                                                   : canCreateOwnPin
                                                   ? ('Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.')
                                                         .tr(context)

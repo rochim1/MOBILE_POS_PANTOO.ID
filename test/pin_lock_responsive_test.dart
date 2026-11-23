@@ -63,7 +63,8 @@ class TestLockCubit extends AppLockCubit {
   );
 
   void seedUnlocked() => emit(state.copyWith(status: AppLockStatus.unlocked));
-  void seedPinError() => emit(state.copyWith(errorMessage: 'PIN salah. Sisa percobaan 4.'));
+  void seedPinError() =>
+      emit(state.copyWith(errorMessage: 'PIN salah. Sisa percobaan 4.'));
 
   void seedLoginWithoutPin() => emit(
     const AppLockState(
@@ -127,16 +128,31 @@ void main() {
   tearDown(() async {
     await sl.reset();
   });
-  testWidgets('PIN failure text translates without changing the locked state or retry policy', (tester) async {
-    final cubit=TestLockCubit()..seedLocked()..seedPinError();
-    addTearDown(cubit.close);
-    await tester.pumpWidget(BlocProvider<AppLockCubit>.value(value:cubit,child:MaterialApp(locale:const Locale('en'),localizationsDelegates:AppLocalizations.localizationsDelegates,supportedLocales:AppLocalizations.supportedLocales,home:const PinLockScreen())));
-    await tester.pump(const Duration(milliseconds:500));
-    expect(find.text('Incorrect PIN. 4 attempts remaining.'),findsOneWidget);
-    expect(cubit.state.status,AppLockStatus.locked);
-    expect(cubit.enteredPins,isEmpty);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+  testWidgets(
+    'PIN failure text translates without changing the locked state or retry policy',
+    (tester) async {
+      final cubit = TestLockCubit()
+        ..seedLocked()
+        ..seedPinError();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        BlocProvider<AppLockCubit>.value(
+          value: cubit,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PinLockScreen(),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Incorrect PIN. 4 attempts remaining.'), findsOneWidget);
+      expect(cubit.state.status, AppLockStatus.locked);
+      expect(cubit.enteredPins, isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
   testWidgets(
     'locked overlay fills a subscription column with loose horizontal constraints',
     (tester) async {
