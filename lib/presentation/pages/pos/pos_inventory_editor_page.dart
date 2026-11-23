@@ -623,7 +623,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         TextField(
           controller: search,
           autofocus: true,
-          decoration:  InputDecoration(
+          decoration: InputDecoration(
             labelText: ('Cari barang').tr(pickerContext),
             hintText: ('Nama atau kode barang').tr(pickerContext),
             prefixIcon: Icon(Icons.search),
@@ -692,7 +692,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       enabled: !_selected.containsKey(id),
                       title: Text(item['nama_inventaris']?.toString() ?? '-'),
                       subtitle: Text(
-                        posLocale(pickerContext).posd3e4f6b9f3d9((item['kode_inventaris'] ?? '-').toString(), (item['qty'] ?? item['stok'] ?? '-').toString(), (item['unit'] ?? '').toString()),
+                        posLocale(pickerContext).posd3e4f6b9f3d9(
+                          (item['kode_inventaris'] ?? '-').toString(),
+                          (item['qty'] ?? item['stok'] ?? '-').toString(),
+                          (item['unit'] ?? '').toString(),
+                        ),
                       ),
                       onTap: () => Navigator.pop(pickerContext, item),
                     );
@@ -853,7 +857,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 return ListTile(
                   title: Text(_balanceLocationLabel(candidate)),
                   subtitle: Text(
-                    posLocale(dialogContext).pos355bebfd5205((_numberText(candidate['qty'])).toString(), (item['unit'] ?? '').toString()),
+                    posLocale(dialogContext).pos355bebfd5205(
+                      (_numberText(candidate['qty'])).toString(),
+                      (item['unit'] ?? '').toString(),
+                    ),
                   ),
                   onTap: () => Navigator.pop(dialogContext, candidate),
                 );
@@ -943,7 +950,10 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 ListTile(
                   title: PosText(opnameLocationLabel(row['lokasi'] as Map?)),
                   subtitle: Text(
-                    posLocale(sheetContext).pos6aba9ab9eb0a((_numberText(row['qty_system'])).toString(), (row['unit'] ?? '').toString()),
+                    posLocale(sheetContext).pos6aba9ab9eb0a(
+                      (_numberText(row['qty_system'])).toString(),
+                      (row['unit'] ?? '').toString(),
+                    ),
                   ),
                   onTap: () => Navigator.pop(sheetContext, row),
                 ),
@@ -1028,7 +1038,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    item['nama_inventaris']?.toString() ?? ('Hitung per batch').tr(sheetContext),
+                    item['nama_inventaris']?.toString() ??
+                        ('Hitung per batch').tr(sheetContext),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -1077,19 +1088,23 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     final value = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(item['nama_inventaris']?.toString() ?? ('Jumlah fisik').tr(dialogContext)),
+        title: Text(
+          item['nama_inventaris']?.toString() ??
+              ('Jumlah fisik').tr(dialogContext),
+        ),
         content: Form(
           key: formKey,
           child: TextFormField(
-errorBuilder: posValidationError,
+            errorBuilder: posValidationError,
             controller: controller,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: ('Jumlah fisik').tr(dialogContext),
               suffixText: item['unit']?.toString(),
-              helperText:
-                  posLocale(dialogContext).posee3f877ea456((_numberText(item['qty_system'] ?? item['qty'])).toString()),
+              helperText: posLocale(dialogContext).posee3f877ea456(
+                (_numberText(item['qty_system'] ?? item['qty'])).toString(),
+              ),
               border: const OutlineInputBorder(),
             ),
             validator: (raw) {
@@ -1714,10 +1729,19 @@ errorBuilder: posValidationError,
 
   Widget _buildPurchaseTabs() => PosFullWidthTabs(
     height: 58,
-    tabs:  [
-      PosFullWidthTab(icon: Icons.description_outlined, label: ('Info').tr(context)),
-      PosFullWidthTab(icon: Icons.inventory_2_outlined, label: ('Barang').tr(context)),
-      PosFullWidthTab(icon: Icons.fact_check_outlined, label: ('Tinjau').tr(context)),
+    tabs: [
+      PosFullWidthTab(
+        icon: Icons.description_outlined,
+        label: ('Info').tr(context),
+      ),
+      PosFullWidthTab(
+        icon: Icons.inventory_2_outlined,
+        label: ('Barang').tr(context),
+      ),
+      PosFullWidthTab(
+        icon: Icons.fact_check_outlined,
+        label: ('Tinjau').tr(context),
+      ),
     ],
     selectedIndex: _purchaseStep,
     onSelected: _selectPurchaseStep,
@@ -1739,7 +1763,10 @@ errorBuilder: posValidationError,
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          _PurchaseSummaryRowText(label: ('Supplier').tr(context), value: _supplierName),
+          _PurchaseSummaryRowText(
+            label: ('Supplier').tr(context),
+            value: _supplierName,
+          ),
           _PurchaseSummaryRowText(
             label: ('Tanggal').tr(context),
             value: _dateValue(_purchaseDate),
@@ -1753,7 +1780,10 @@ errorBuilder: posValidationError,
                       'Gudang')
                 : 'Alamat manual',
           ),
-          _PurchaseSummaryRowText(label: ('Alamat').tr(context), value: _deliveryAddress),
+          _PurchaseSummaryRowText(
+            label: ('Alamat').tr(context),
+            value: _deliveryAddress,
+          ),
           if (_deliveryDate != null)
             _PurchaseSummaryRowText(
               label: ('Pengiriman').tr(context),
@@ -1770,13 +1800,24 @@ errorBuilder: posValidationError,
                 children: [
                   Expanded(
                     child: Text(
-                      posLocale(context).posf7f7c59d6a0a((item['nama_inventaris'] ?? '-').toString(), (quantity).toString(), (unit).toString(), (_PurchaseSummaryRow._currency((item['input_price'] as num?)?.toDouble() ?? 0)).toString()),
+                      posLocale(context).posf7f7c59d6a0a(
+                        (item['nama_inventaris'] ?? '-').toString(),
+                        (quantity).toString(),
+                        (unit).toString(),
+                        (_PurchaseSummaryRow._currency(
+                          (item['input_price'] as num?)?.toDouble() ?? 0,
+                        )).toString(),
+                      ),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    posLocale(context).pos70272f418def((_PurchaseSummaryRow._currency(_purchaseLineTotal(item))).toString()),
+                    posLocale(context).pos70272f418def(
+                      (_PurchaseSummaryRow._currency(
+                        _purchaseLineTotal(item),
+                      )).toString(),
+                    ),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -1837,7 +1878,7 @@ errorBuilder: posValidationError,
             ? null
             : _deliveryWarehouseId,
         isExpanded: true,
-        decoration:  InputDecoration(
+        decoration: InputDecoration(
           labelText: ('Lokasi stok penerimaan PO *').tr(context),
           border: OutlineInputBorder(),
         ),
@@ -1896,7 +1937,9 @@ errorBuilder: posValidationError,
                 ? ('Alamat gudang *').tr(context)
                 : ('Alamat pengiriman *').tr(context),
             helperText: _deliveryAddressMode == 'warehouse'
-                ? ('Alamat gudang bisa disesuaikan untuk pengiriman ini.').tr(context)
+                ? ('Alamat gudang bisa disesuaikan untuk pengiriman ini.').tr(
+                    context,
+                  )
                 : null,
             border: const OutlineInputBorder(),
           ),
@@ -2061,7 +2104,10 @@ errorBuilder: posValidationError,
                                   )
                                   .toList(),
                               onChanged: (value) => setState(
-                                () => item['unit'] = value ?? units.first,
+                                () => changePosPurchaseUnit(
+                                  item,
+                                  value ?? units.first,
+                                ),
                               ),
                             ),
                           ),
@@ -2069,7 +2115,9 @@ errorBuilder: posValidationError,
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
-                        key: ValueKey('purchase-price-${entry.key}'),
+                        key: ValueKey(
+                          'purchase-price-${entry.key}-${item['unit']}',
+                        ),
                         initialValue: formatRupiahAmount(
                           (item['input_price'] as num?) ?? 0,
                         ),
@@ -2091,7 +2139,11 @@ errorBuilder: posValidationError,
                         child: Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            posLocale(context).pos7eef271ab44c((_PurchaseSummaryRow._currency(_purchaseLineTotal(item))).toString()),
+                            posLocale(context).pos7eef271ab44c(
+                              (_PurchaseSummaryRow._currency(
+                                _purchaseLineTotal(item),
+                              )).toString(),
+                            ),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -2179,7 +2231,9 @@ errorBuilder: posValidationError,
                             initialValue:
                                 item['catatan_item']?.toString() ?? '',
                             decoration: fieldDecoration.copyWith(
-                              labelText: ('Catatan barang (opsional)').tr(context),
+                              labelText: ('Catatan barang (opsional)').tr(
+                                context,
+                              ),
                             ),
                             onChanged: (value) => item['catatan_item'] = value,
                           ),
@@ -2236,20 +2290,30 @@ errorBuilder: posValidationError,
               ),
               showBottomBorder: true,
               columns: const [
-                DataColumn(label: SizedBox(width: 170, child: PosText('Barang'))),
+                DataColumn(
+                  label: SizedBox(width: 170, child: PosText('Barang')),
+                ),
                 DataColumn(
                   label: SizedBox(width: 190, child: PosText('Sumber stok')),
                 ),
-                DataColumn(label: SizedBox(width: 90, child: PosText('Tersedia'))),
-                DataColumn(label: SizedBox(width: 80, child: PosText('Jumlah'))),
-                DataColumn(label: SizedBox(width: 150, child: PosText('Batch'))),
+                DataColumn(
+                  label: SizedBox(width: 90, child: PosText('Tersedia')),
+                ),
+                DataColumn(
+                  label: SizedBox(width: 80, child: PosText('Jumlah')),
+                ),
+                DataColumn(
+                  label: SizedBox(width: 150, child: PosText('Batch')),
+                ),
                 DataColumn(
                   label: SizedBox(width: 155, child: PosText('Tindakan')),
                 ),
                 DataColumn(
                   label: SizedBox(width: 90, child: PosText('Didaur ulang')),
                 ),
-                DataColumn(label: SizedBox(width: 160, child: PosText('Catatan'))),
+                DataColumn(
+                  label: SizedBox(width: 160, child: PosText('Catatan')),
+                ),
                 DataColumn(label: SizedBox(width: 48)),
               ],
               rows: _selected.entries.map((entry) {
@@ -2612,7 +2676,7 @@ errorBuilder: posValidationError,
                 ),
                 TextFormField(
                   initialValue: _supplierContact,
-                  decoration:  InputDecoration(
+                  decoration: InputDecoration(
                     labelText: ('Kontak tujuan supplier').tr(context),
                     hintText: ('Email atau nomor WhatsApp').tr(context),
                     border: OutlineInputBorder(),
@@ -2653,7 +2717,7 @@ errorBuilder: posValidationError,
                 responsive([
                   DropdownButtonFormField<String>(
                     initialValue: _paymentMethod,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Metode pembayaran').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -2668,7 +2732,10 @@ errorBuilder: posValidationError,
                         child: PosText('Virtual account'),
                       ),
                       DropdownMenuItem(value: 'giro', child: PosText('Giro')),
-                      DropdownMenuItem(value: 'other', child: PosText('Lainnya')),
+                      DropdownMenuItem(
+                        value: 'other',
+                        child: PosText('Lainnya'),
+                      ),
                     ],
                     onChanged: (value) => setState(
                       () => _paymentMethod = value ?? 'bank_transfer',
@@ -2676,7 +2743,8 @@ errorBuilder: posValidationError,
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: _paymentTerms,
-                    decoration:  InputDecoration(
+                    isExpanded: true,
+                    decoration: InputDecoration(
                       labelText: ('Termin pembayaran').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -2689,7 +2757,10 @@ errorBuilder: posValidationError,
                         value: 'saat_penerimaan',
                         child: PosText('Saat diterima'),
                       ),
-                      DropdownMenuItem(value: 'kredit', child: PosText('Kredit')),
+                      DropdownMenuItem(
+                        value: 'kredit',
+                        child: PosText('Kredit'),
+                      ),
                     ],
                     onChanged: (value) => setState(() {
                       _paymentTerms = value ?? 'tunai';
@@ -2701,12 +2772,15 @@ errorBuilder: posValidationError,
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: _priority,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Prioritas').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'normal', child: PosText('Normal')),
+                      DropdownMenuItem(
+                        value: 'normal',
+                        child: PosText('Normal'),
+                      ),
                       DropdownMenuItem(value: 'low', child: PosText('Segera')),
                       DropdownMenuItem(
                         value: 'urgent',
@@ -2736,15 +2810,27 @@ errorBuilder: posValidationError,
                   responsive([
                     DropdownButtonFormField<String>(
                       initialValue: _creditType,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Tipe kredit').tr(context),
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'net30', child: PosText('Net 30')),
-                        DropdownMenuItem(value: 'net45', child: PosText('Net 45')),
-                        DropdownMenuItem(value: 'net60', child: PosText('Net 60')),
-                        DropdownMenuItem(value: 'net90', child: PosText('Net 90')),
+                        DropdownMenuItem(
+                          value: 'net30',
+                          child: PosText('Net 30'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'net45',
+                          child: PosText('Net 45'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'net60',
+                          child: PosText('Net 60'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'net90',
+                          child: PosText('Net 90'),
+                        ),
                         DropdownMenuItem(
                           value: 'termin',
                           child: PosText('Termin'),
@@ -2802,7 +2888,8 @@ errorBuilder: posValidationError,
                 responsive([
                   DropdownButtonFormField<String>(
                     initialValue: _dueDateBasis,
-                    decoration:  InputDecoration(
+                    isExpanded: true,
+                    decoration: InputDecoration(
                       labelText: ('Dasar jatuh tempo').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -2837,9 +2924,10 @@ errorBuilder: posValidationError,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Uang muka yang disepakati').tr(context),
-                      helperText: ('Rencana saja; pembayaran dilakukan Finance').tr(context),
+                      helperText: ('Rencana saja; pembayaran dilakukan Finance')
+                          .tr(context),
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (value) =>
@@ -2848,7 +2936,7 @@ errorBuilder: posValidationError,
                   TextFormField(
                     initialValue: _paymentTermNote,
                     maxLength: 500,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Catatan termin').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -2866,13 +2954,19 @@ errorBuilder: posValidationError,
                 responsive([
                   DropdownButtonFormField<String>(
                     initialValue: _discountType,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Jenis diskon').tr(context),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'persen', child: PosText('Persen')),
-                      DropdownMenuItem(value: 'fixed', child: PosText('Nominal')),
+                      DropdownMenuItem(
+                        value: 'persen',
+                        child: PosText('Persen'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'fixed',
+                        child: PosText('Nominal'),
+                      ),
                     ],
                     onChanged: (value) =>
                         setState(() => _discountType = value ?? 'persen'),
@@ -2912,7 +3006,9 @@ errorBuilder: posValidationError,
                     ),
                     decoration: InputDecoration(
                       labelText: ('PPN (%)').tr(context),
-                      helperText: _supplierIsPkp ? ('Supplier PKP').tr(context) : ('Manual').tr(context),
+                      helperText: _supplierIsPkp
+                          ? ('Supplier PKP').tr(context)
+                          : ('Manual').tr(context),
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: (value) => setState(() {
@@ -2926,7 +3022,8 @@ errorBuilder: posValidationError,
                 const SizedBox(height: 12),
                 Text(
                   _vendorBillPurchase
-                      ? ('Estimasi biaya tidak menambah tagihan atau nilai stok. Catat biaya aktual saat penerimaan atau lewat landed cost.').tr(context)
+                      ? ('Estimasi biaya tidak menambah tagihan atau nilai stok. Catat biaya aktual saat penerimaan atau lewat landed cost.')
+                            .tr(context)
                       : ('Biaya tambahan mengikuti alur PO lama.').tr(context),
                 ),
                 if (_vendorBillPurchase)
@@ -2962,7 +3059,7 @@ errorBuilder: posValidationError,
                     Widget feeTypeField() => DropdownButtonFormField<String>(
                       initialValue: row['jenis_biaya']?.toString() ?? 'lainnya',
                       isExpanded: true,
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Jenis biaya').tr(context),
                         border: OutlineInputBorder(),
                       ),
@@ -2996,7 +3093,7 @@ errorBuilder: posValidationError,
                     );
                     Widget descriptionField() => TextFormField(
                       initialValue: row['deskripsi']?.toString() ?? '',
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Deskripsi').tr(context),
                         border: OutlineInputBorder(),
                       ),
@@ -3012,7 +3109,7 @@ errorBuilder: posValidationError,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration:  InputDecoration(
+                      decoration: InputDecoration(
                         labelText: ('Nominal').tr(context),
                         border: OutlineInputBorder(),
                       ),
@@ -3067,7 +3164,7 @@ errorBuilder: posValidationError,
                     responsive([
                       DropdownButtonFormField<String>(
                         initialValue: _costMode,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Perlakuan biaya').tr(context),
                           border: OutlineInputBorder(),
                         ),
@@ -3086,7 +3183,7 @@ errorBuilder: posValidationError,
                       ),
                       DropdownButtonFormField<String>(
                         initialValue: _costAllocation,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Alokasi biaya').tr(context),
                           border: OutlineInputBorder(),
                         ),
@@ -3143,7 +3240,11 @@ errorBuilder: posValidationError,
               }
             }),
             icon: Icon(enabled ? Icons.close : Icons.swap_horiz),
-            label: Text(enabled ? ('Tutup konversi').tr(context) : ('Hitung dengan konversi').tr(context)),
+            label: Text(
+              enabled
+                  ? ('Tutup konversi').tr(context)
+                  : ('Hitung dengan konversi').tr(context),
+            ),
           ),
         ),
         if (enabled)
@@ -3181,10 +3282,16 @@ errorBuilder: posValidationError,
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        labelText: posLocale(context).posfed87456b577((row['unit']).toString()),
+                        labelText: posLocale(
+                          context,
+                        ).posfed87456b577((row['unit']).toString()),
                         helperText: factor == 1
                             ? ('Satuan dasar').tr(context)
-                            : posLocale(context).pos87d507a0208a((row['unit']).toString(), (_numberText(factor)).toString(), (baseUnit).toString()),
+                            : posLocale(context).pos87d507a0208a(
+                                (row['unit']).toString(),
+                                (_numberText(factor)).toString(),
+                                (baseUnit).toString(),
+                              ),
                         border: const OutlineInputBorder(),
                       ),
                       onChanged: (value) => setState(() {
@@ -3197,7 +3304,10 @@ errorBuilder: posValidationError,
                   );
                 }),
                 Text(
-                  posLocale(context).posd6f7fd5de931((_numberText(item['input_qty'])).toString(), (baseUnit).toString()),
+                  posLocale(context).posd6f7fd5de931(
+                    (_numberText(item['input_qty'])).toString(),
+                    (baseUnit).toString(),
+                  ),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ],
@@ -3221,7 +3331,9 @@ errorBuilder: posValidationError,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _editing ? ('Informasi & lokasi opname').tr(context) : ('Buat opname baru').tr(context),
+              _editing
+                  ? ('Informasi & lokasi opname').tr(context)
+                  : ('Buat opname baru').tr(context),
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -3229,8 +3341,10 @@ errorBuilder: posValidationError,
             const SizedBox(height: 4),
             Text(
               _editing
-                  ? ('Perbarui informasi dokumen dan hasil penghitungan stok.').tr(context)
-                  : ('Pilih lokasi yang akan dihitung. Saldo akan dipotret otomatis.').tr(context),
+                  ? ('Perbarui informasi dokumen dan hasil penghitungan stok.')
+                        .tr(context)
+                  : ('Pilih lokasi yang akan dihitung. Saldo akan dipotret otomatis.')
+                        .tr(context),
               style: const TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 16),
@@ -3252,7 +3366,7 @@ errorBuilder: posValidationError,
                     }
                   },
                   child: InputDecorator(
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Tanggal opname *').tr(context),
                       prefixIcon: Icon(Icons.calendar_today_outlined),
                       border: OutlineInputBorder(),
@@ -3262,7 +3376,7 @@ errorBuilder: posValidationError,
                 );
                 final location = _opnameScopeLocked
                     ? InputDecorator(
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Lokasi snapshot (terkunci)').tr(context),
                           border: OutlineInputBorder(),
                         ),
@@ -3274,7 +3388,7 @@ errorBuilder: posValidationError,
                     : DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _sourceId.isEmpty ? null : _sourceId,
-                        decoration:  InputDecoration(
+                        decoration: InputDecoration(
                           labelText: ('Cabang / lokasi stok *').tr(context),
                           prefixIcon: Icon(Icons.warehouse_outlined),
                           border: OutlineInputBorder(),
@@ -3328,7 +3442,7 @@ errorBuilder: posValidationError,
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: _buildingCode.isEmpty ? null : _buildingCode,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Gedung (opsional)').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -3353,7 +3467,7 @@ errorBuilder: posValidationError,
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: _roomCode.isEmpty ? null : _roomCode,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Ruangan (opsional)').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -3377,7 +3491,7 @@ errorBuilder: posValidationError,
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: _rackName.isEmpty ? null : _rackName,
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       labelText: ('Rak (opsional)').tr(context),
                       border: OutlineInputBorder(),
                     ),
@@ -3418,9 +3532,11 @@ errorBuilder: posValidationError,
             TextField(
               controller: _notes,
               maxLines: 2,
-              decoration:  InputDecoration(
+              decoration: InputDecoration(
                 labelText: ('Tujuan / catatan opname').tr(context),
-                hintText: ('Contoh: opname bulanan atau audit gudang').tr(context),
+                hintText: ('Contoh: opname bulanan atau audit gudang').tr(
+                  context,
+                ),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -3526,7 +3642,11 @@ errorBuilder: posValidationError,
                             ),
                           ),
                           Text(
-                            posLocale(context).pos70272f418def((_PurchaseSummaryRow._currency(_purchaseGrandTotal)).toString()),
+                            posLocale(context).pos70272f418def(
+                              (_PurchaseSummaryRow._currency(
+                                _purchaseGrandTotal,
+                              )).toString(),
+                            ),
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -3563,7 +3683,9 @@ errorBuilder: posValidationError,
             )
           : null,
       body: _loading && _lookups == null
-          ? PosDocumentFormSkeleton(fieldGroups: isMobilePurchase ? const [3] : const [3, 4])
+          ? PosDocumentFormSkeleton(
+              fieldGroups: isMobilePurchase ? const [3] : const [3, 4],
+            )
           : Column(
               children: [
                 if (isMobilePurchase) _buildPurchaseTabs(),
@@ -3592,7 +3714,7 @@ errorBuilder: posValidationError,
                               initialValue: _sourceId.isEmpty
                                   ? null
                                   : _sourceId,
-                              decoration:  InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: ('Lokasi sumber').tr(context),
                                 border: OutlineInputBorder(),
                               ),
@@ -3639,7 +3761,7 @@ errorBuilder: posValidationError,
                               initialValue: _destinationId.isEmpty
                                   ? null
                                   : _destinationId,
-                              decoration:  InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: ('Lokasi tujuan').tr(context),
                                 border: OutlineInputBorder(),
                               ),
@@ -3679,7 +3801,7 @@ errorBuilder: posValidationError,
                                 }
                               },
                               child: InputDecorator(
-                                decoration:  InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: ('Tanggal kejadian').tr(context),
                                   prefixIcon: Icon(
                                     Icons.calendar_today_outlined,
@@ -3693,8 +3815,10 @@ errorBuilder: posValidationError,
                             DropdownButtonFormField<String>(
                               isExpanded: true,
                               initialValue: _scrapReason,
-                              decoration:  InputDecoration(
-                                labelText: ('Alasan barang terbuang').tr(context),
+                              decoration: InputDecoration(
+                                labelText: ('Alasan barang terbuang').tr(
+                                  context,
+                                ),
                                 border: OutlineInputBorder(),
                               ),
                               items: (_lookups?.scrapReasons ?? const [])
@@ -3723,7 +3847,7 @@ errorBuilder: posValidationError,
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
                               initialValue: _incidentLocation,
-                              decoration:  InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: ('Lokasi kejadian').tr(context),
                                 border: OutlineInputBorder(),
                               ),
@@ -3746,8 +3870,10 @@ errorBuilder: posValidationError,
                             const SizedBox(height: 12),
                             TextField(
                               controller: _reasonDetail,
-                              decoration:  InputDecoration(
-                                labelText: ('Detail alasan / kronologi').tr(context),
+                              decoration: InputDecoration(
+                                labelText: ('Detail alasan / kronologi').tr(
+                                  context,
+                                ),
                                 border: OutlineInputBorder(),
                               ),
                             ),
@@ -3906,7 +4032,17 @@ errorBuilder: posValidationError,
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              posLocale(context).posd94b4f688664((item['kode_inventaris'] ?? '-').toString(), (_numberText(item['qty_system'] ?? item['qty'])).toString(), (item['unit'] ?? '').toString()),
+                                              posLocale(
+                                                context,
+                                              ).posd94b4f688664(
+                                                (item['kode_inventaris'] ?? '-')
+                                                    .toString(),
+                                                (_numberText(
+                                                  item['qty_system'] ??
+                                                      item['qty'],
+                                                )).toString(),
+                                                (item['unit'] ?? '').toString(),
+                                              ),
                                               style: const TextStyle(
                                                 color: Colors.black54,
                                                 fontSize: 12,
@@ -3983,8 +4119,15 @@ errorBuilder: posValidationError,
                                                         widget.type ==
                                                             PosInventoryDocumentType
                                                                 .opname
-                                                        ? ('Jumlah fisik').tr(context)
-                                                        : posLocale(context).pos8109832b1b60((item['unit'] ?? '').toString()),
+                                                        ? ('Jumlah fisik').tr(
+                                                            context,
+                                                          )
+                                                        : posLocale(
+                                                            context,
+                                                          ).pos8109832b1b60(
+                                                            (item['unit'] ?? '')
+                                                                .toString(),
+                                                          ),
                                                     border:
                                                         const OutlineInputBorder(),
                                                   ),
@@ -4019,13 +4162,12 @@ errorBuilder: posValidationError,
                                                     ],
                                                     keyboardType:
                                                         TextInputType.number,
-                                                    decoration:
-                                                         InputDecoration(
-                                                          labelText:
-                                                              ('Harga beli').tr(context),
-                                                          border:
-                                                              OutlineInputBorder(),
-                                                        ),
+                                                    decoration: InputDecoration(
+                                                      labelText: ('Harga beli')
+                                                          .tr(context),
+                                                      border:
+                                                          OutlineInputBorder(),
+                                                    ),
                                                     onChanged: (value) => setState(
                                                       () =>
                                                           item['input_price'] =
@@ -4053,13 +4195,14 @@ errorBuilder: posValidationError,
                                                       _purchaseUnits(
                                                         item,
                                                       ).first,
-                                                  decoration:
-                                                       InputDecoration(
-                                                        labelText:
-                                                            ('Satuan pembelian').tr(context),
-                                                        border:
-                                                            OutlineInputBorder(),
-                                                      ),
+                                                  decoration: InputDecoration(
+                                                    labelText:
+                                                        ('Satuan pembelian').tr(
+                                                          context,
+                                                        ),
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                  ),
                                                   items: _purchaseUnits(item)
                                                       .map(
                                                         (unit) =>
@@ -4069,24 +4212,25 @@ errorBuilder: posValidationError,
                                                             ),
                                                       )
                                                       .toList(),
-                                                  onChanged: (value) =>
-                                                      setState(
-                                                        () => item['unit'] =
-                                                            value ?? 'unit',
-                                                      ),
+                                                  onChanged: (value) => setState(
+                                                    () => changePosPurchaseUnit(
+                                                      item,
+                                                      value ?? 'unit',
+                                                    ),
+                                                  ),
                                                 ),
                                                 DropdownButtonFormField<String>(
                                                   initialValue:
                                                       item['diskon_item_type']
                                                           ?.toString() ??
                                                       'persen',
-                                                  decoration:
-                                                       InputDecoration(
-                                                        labelText:
-                                                            ('Jenis diskon item').tr(context),
-                                                        border:
-                                                            OutlineInputBorder(),
-                                                      ),
+                                                  decoration: InputDecoration(
+                                                    labelText:
+                                                        ('Jenis diskon item')
+                                                            .tr(context),
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                  ),
                                                   items: const [
                                                     DropdownMenuItem(
                                                       value: 'persen',
@@ -4131,13 +4275,12 @@ errorBuilder: posValidationError,
                                                       const TextInputType.numberWithOptions(
                                                         decimal: true,
                                                       ),
-                                                  decoration:
-                                                       InputDecoration(
-                                                        labelText:
-                                                            ('Diskon item').tr(context),
-                                                        border:
-                                                            OutlineInputBorder(),
-                                                      ),
+                                                  decoration: InputDecoration(
+                                                    labelText: ('Diskon item')
+                                                        .tr(context),
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                  ),
                                                   onChanged: (value) => setState(
                                                     () => item['diskon_item'] =
                                                         (item['diskon_item_type'] ==
@@ -4197,8 +4340,10 @@ errorBuilder: posValidationError,
                                                 item['catatan_item']
                                                     ?.toString() ??
                                                 '',
-                                            decoration:  InputDecoration(
-                                              labelText: ('Catatan item').tr(context),
+                                            decoration: InputDecoration(
+                                              labelText: ('Catatan item').tr(
+                                                context,
+                                              ),
                                               border: OutlineInputBorder(),
                                             ),
                                             onChanged: (value) =>
@@ -4211,7 +4356,22 @@ errorBuilder: posValidationError,
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              posLocale(context).pos9a3af49b041e((_balanceLocationLabel(Map<String, dynamic>.from(item['selected_balance'] as Map? ?? const {}))).toString(), (_numberText(item['available_qty'] ?? item['qty'])).toString(), (item['unit'] ?? '').toString()),
+                                              posLocale(
+                                                context,
+                                              ).pos9a3af49b041e(
+                                                (_balanceLocationLabel(
+                                                  Map<String, dynamic>.from(
+                                                    item['selected_balance']
+                                                            as Map? ??
+                                                        const {},
+                                                  ),
+                                                )).toString(),
+                                                (_numberText(
+                                                  item['available_qty'] ??
+                                                      item['qty'],
+                                                )).toString(),
+                                                (item['unit'] ?? '').toString(),
+                                              ),
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.black54,
@@ -4231,22 +4391,33 @@ errorBuilder: posValidationError,
                                                       .isEmpty
                                                   ? null
                                                   : item['no_batch'].toString(),
-                                              decoration:  InputDecoration(
-                                                labelText: ('Batch sumber *').tr(context),
+                                              decoration: InputDecoration(
+                                                labelText: ('Batch sumber *')
+                                                    .tr(context),
                                                 border: OutlineInputBorder(),
                                               ),
                                               items: (item['batch_options'] as List)
                                                   .whereType<Map>()
                                                   .map(
-                                                    (
-                                                      batch,
-                                                    ) => DropdownMenuItem<String>(
-                                                      value: batch['no_batch']
-                                                          .toString(),
-                                                      child: Text(
-                                                        posLocale(context).posbc5439bf7220((batch['no_batch']).toString(), (_numberText(batch['qty'])).toString()),
-                                                      ),
-                                                    ),
+                                                    (batch) =>
+                                                        DropdownMenuItem<
+                                                          String
+                                                        >(
+                                                          value:
+                                                              batch['no_batch']
+                                                                  .toString(),
+                                                          child: Text(
+                                                            posLocale(
+                                                              context,
+                                                            ).posbc5439bf7220(
+                                                              (batch['no_batch'])
+                                                                  .toString(),
+                                                              (_numberText(
+                                                                batch['qty'],
+                                                              )).toString(),
+                                                            ),
+                                                          ),
+                                                        ),
                                                   )
                                                   .toList(),
                                               onChanged: (value) => setState(
@@ -4260,8 +4431,10 @@ errorBuilder: posValidationError,
                                             initialValue:
                                                 item['tindakan']?.toString() ??
                                                 'kurangi_stok',
-                                            decoration:  InputDecoration(
-                                              labelText: ('Tindakan stok').tr(context),
+                                            decoration: InputDecoration(
+                                              labelText: ('Tindakan stok').tr(
+                                                context,
+                                              ),
                                               border: OutlineInputBorder(),
                                             ),
                                             items: const [
@@ -4273,7 +4446,9 @@ errorBuilder: posValidationError,
                                               ),
                                               DropdownMenuItem(
                                                 value: 'recycle',
-                                                child: PosText('Recycle sebagian'),
+                                                child: PosText(
+                                                  'Recycle sebagian',
+                                                ),
                                               ),
                                             ],
                                             onChanged: (value) => setState(
@@ -4294,9 +4469,11 @@ errorBuilder: posValidationError,
                                                   ),
                                               decoration: InputDecoration(
                                                 labelText:
-                                                    ('Jumlah berhasil direcycle').tr(context),
+                                                    ('Jumlah berhasil direcycle')
+                                                        .tr(context),
                                                 helperText:
-                                                    ('Kerugian bersih = jumlah disposal dikurangi hasil recycle').tr(context),
+                                                    ('Kerugian bersih = jumlah disposal dikurangi hasil recycle')
+                                                        .tr(context),
                                                 suffixText: item['unit']
                                                     ?.toString(),
                                                 border:
@@ -4319,8 +4496,10 @@ errorBuilder: posValidationError,
                                                 item['catatan_item']
                                                     ?.toString() ??
                                                 '',
-                                            decoration:  InputDecoration(
-                                              labelText: ('Catatan barang').tr(context),
+                                            decoration: InputDecoration(
+                                              labelText: ('Catatan barang').tr(
+                                                context,
+                                              ),
                                               border: OutlineInputBorder(),
                                             ),
                                             onChanged: (value) =>
@@ -4340,10 +4519,14 @@ errorBuilder: posValidationError,
                                                       item['catatan_item']
                                                           ?.toString() ??
                                                       '',
-                                                  decoration:  InputDecoration(
-                                                    labelText: ('Alasan selisih').tr(context),
+                                                  decoration: InputDecoration(
+                                                    labelText:
+                                                        ('Alasan selisih').tr(
+                                                          context,
+                                                        ),
                                                     hintText:
-                                                        ('Wajib diisi jika stok fisik berbeda').tr(context),
+                                                        ('Wajib diisi jika stok fisik berbeda')
+                                                            .tr(context),
                                                     border:
                                                         OutlineInputBorder(),
                                                   ),
@@ -4419,7 +4602,9 @@ errorBuilder: posValidationError,
                                       value: -_purchaseDiscount,
                                     ),
                                     _PurchaseSummaryRow(
-                                      label: posLocale(context).posc53479dd68b9((_ppnPercent).toString()),
+                                      label: posLocale(context).posc53479dd68b9(
+                                        (_ppnPercent).toString(),
+                                      ),
                                       value: _purchaseTax,
                                     ),
                                     _PurchaseSummaryRow(
@@ -4437,7 +4622,9 @@ errorBuilder: posValidationError,
                                     if (_vendorBillPurchase &&
                                         _effectivePurchaseCost > 0)
                                       _PurchaseSummaryRow(
-                                        label: ('Perkiraan kebutuhan dana').tr(context),
+                                        label: ('Perkiraan kebutuhan dana').tr(
+                                          context,
+                                        ),
                                         value:
                                             _purchaseGrandTotal +
                                             _effectivePurchaseCost,
@@ -4455,7 +4642,7 @@ errorBuilder: posValidationError,
                             TextField(
                               controller: _notes,
                               maxLines: 3,
-                              decoration:  InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: ('Catatan').tr(context),
                                 border: OutlineInputBorder(),
                               ),
@@ -4471,7 +4658,9 @@ errorBuilder: posValidationError,
                                     : widget.type ==
                                           PosInventoryDocumentType.opname
                                     ? widget.opnameTarget != null
-                                          ? ('Mulai hitung barang ini').tr(context)
+                                          ? ('Mulai hitung barang ini').tr(
+                                              context,
+                                            )
                                           : ('Buat Opname').tr(context)
                                     : ('Simpan Draft').tr(context),
                               ),
@@ -4730,7 +4919,9 @@ class _PurchaseItemPickerTable extends StatelessWidget {
                             SizedBox(
                               width: 58,
                               child: Text(
-                                disabled ? ('Dipilih').tr(context) : ('Pilih').tr(context),
+                                disabled
+                                    ? ('Dipilih').tr(context)
+                                    : ('Pilih').tr(context),
                                 style: TextStyle(
                                   color: disabled
                                       ? Colors.black45
@@ -4855,7 +5046,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
             TextField(
               controller: _searchController,
               onChanged: _onSearch,
-              decoration:  InputDecoration(
+              decoration: InputDecoration(
                 labelText: ('Cari nama, kode, atau telepon').tr(context),
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
@@ -4880,7 +5071,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
               TextField(
                 controller: _nameController,
                 maxLength: 120,
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Nama supplier *').tr(context),
                   border: OutlineInputBorder(),
                   isDense: true,
@@ -4891,7 +5082,7 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 maxLength: 30,
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Telepon (opsional)').tr(context),
                   border: OutlineInputBorder(),
                   isDense: true,
@@ -4902,7 +5093,11 @@ class _PurchaseSupplierPickerState extends State<_PurchaseSupplierPicker> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _saving ? null : _createSupplier,
-                  child: Text(_saving ? ('Menyimpan…').tr(context) : ('Simpan & pilih').tr(context)),
+                  child: Text(
+                    _saving
+                        ? ('Menyimpan…').tr(context)
+                        : ('Simpan & pilih').tr(context),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
