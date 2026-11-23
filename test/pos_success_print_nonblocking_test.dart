@@ -5,6 +5,7 @@ import 'package:mobile_pos_pantoo/domain/models/pos_transaction_result.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_success_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,10 +51,20 @@ void main() {
         paymentMethod: method,
       );
       await tester.pumpWidget(
-        MaterialApp(home: PosSuccessPage(transaction: transaction)),
+        MaterialApp(locale: const Locale('en'), localizationsDelegates: AppLocalizations.localizationsDelegates, supportedLocales: AppLocalizations.supportedLocales, home: PosSuccessPage(transaction: transaction)),
       );
       await tester.pumpAndSettle();
-      final label = find.text(method.toUpperCase());
+      final label = find.text(switch (method) {
+        'cash' || 'tunai' => 'Cash',
+        'qris' => 'QRIS',
+        'transfer' => 'Transfer',
+        'debit' => 'Debit Card',
+        'e_wallet' => 'E-Wallet',
+        'kartu_kredit' || 'credit_card' => 'Credit Card',
+        'split' => 'Split Payment',
+        'tempo' => 'Credit / Receivables',
+        _ => throw StateError('missing test label'),
+      });
       final row = find.ancestor(of: label, matching: find.byType(Row)).first;
       expect(
         find.descendant(
