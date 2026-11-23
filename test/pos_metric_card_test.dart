@@ -121,21 +121,54 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('legacy summary cards render through the shared design', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SizedBox(width: 164,
-      child: PosStatCard(label: 'Penerimaan Tunai', value: 'Rp 123.456.789', icon: Icons.payments_outlined),
-    ))));
+  testWidgets('legacy summary cards render through the shared design', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 164,
+            child: PosStatCard(
+              label: 'Penerimaan Tunai',
+              value: 'Rp 123.456.789',
+              icon: Icons.payments_outlined,
+            ),
+          ),
+        ),
+      ),
+    );
     expect(find.byType(PosMetricCard), findsOneWidget);
     expect(find.text('Rp 123.456.789'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('POS loading summary fits a small phone', (tester) async {
+  testWidgets(
+    'POS loading catalog fits a small phone without obsolete summary cards',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: PosPageSkeleton())),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byType(SkeletonBox), findsWidgets);
+      expect(find.byType(PosMetricCardSkeleton), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('shared summary loading card fits a small phone', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: PosPageSkeleton())));
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(find.byType(PosMetricCardSkeleton), findsWidgets);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(child: SkeletonSummaryCard()),
+        ),
+      ),
+    );
+    expect(find.byType(PosMetricCardSkeleton), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

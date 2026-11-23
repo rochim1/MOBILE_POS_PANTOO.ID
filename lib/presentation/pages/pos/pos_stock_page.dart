@@ -419,9 +419,11 @@ class _PosStockViewState extends State<_PosStockView> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: PosMetricGrid(
+        compact: true,
         children: [
           for (final card in cards)
             PosMetricCard(
+              compact: true,
               title: card.$1.tr(context),
               value: card.$2,
               icon: card.$3,

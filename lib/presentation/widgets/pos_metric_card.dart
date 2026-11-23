@@ -11,6 +11,7 @@ class PosMetricCard extends StatelessWidget {
     this.description = '',
     this.isLoading = false,
     this.growth,
+    this.compact = false,
   });
 
   final String title;
@@ -19,6 +20,7 @@ class PosMetricCard extends StatelessWidget {
   final String description;
   final double? growth;
   final bool isLoading;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -34,8 +36,8 @@ class PosMetricCard extends StatelessWidget {
     )..maximumFractionDigits = 1;
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 180),
-      padding: const EdgeInsets.all(18),
+      constraints: BoxConstraints(minHeight: compact ? 92 : 180),
+      padding: EdgeInsets.all(compact ? 12 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -62,7 +64,7 @@ class PosMetricCard extends StatelessWidget {
               Icon(icon, size: 18, color: const Color(0xFF98A2B3)),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: compact ? 8 : 16),
           // Preserve the full amount on narrow phones instead of truncating it.
           if (isLoading)
             const _MetricPlaceholder(width: 100, height: 26)
@@ -75,8 +77,8 @@ class PosMetricCard extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 26,
+                  style: TextStyle(
+                    fontSize: compact ? 22 : 26,
                     height: 1.2,
                     letterSpacing: -.6,
                     fontWeight: FontWeight.w700,
@@ -131,16 +133,21 @@ class PosMetricCard extends StatelessWidget {
 
 /// All summary sections use the same breakpoints and gutters.
 class PosMetricGrid extends StatelessWidget {
-  const PosMetricGrid({super.key, required this.children});
+  const PosMetricGrid({
+    super.key,
+    required this.children,
+    this.compact = false,
+  });
   final List<Widget> children;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       if (children.isEmpty) return const SizedBox.shrink();
-      final availableColumns = constraints.maxWidth >= 1000
+      final availableColumns = constraints.maxWidth >= (compact ? 800 : 1000)
           ? 4
-          : constraints.maxWidth >= 340
+          : constraints.maxWidth >= (compact ? 280 : 340)
           ? 2
           : 1;
       final columns = children.length < availableColumns
