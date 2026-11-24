@@ -1,5 +1,7 @@
 # Panel PIN ringkas tanpa scroll pada HP umum — 24 November 2026
 
+> Pembaruan 25 November 2026: preferensi ini digantikan atas permintaan pengguna untuk kembali ke susunan lega. Tes dipindahkan ke `pin_classic_layout_test.dart`, bukan dihapus. Bukti terkini: [Panel PIN kembali lega](POS_PIN_CLASSIC_LAYOUT_20261125.md). Hasil di bawah merupakan riwayat pengujian versi ringkas.
+
 ## Permintaan dan kriteria
 
 Pengguna meminta panel PIN tidak perlu di-scroll, dengan angka sedikit lebih kecil. TEST-POS-PIN-COMPACT-HEIGHT-2411: semua aksi terlihat pada viewport umum dengan ukuran teks normal; tombol tetap minimal48dp; layar sangat pendek/teks besar mempunyai scroll pengaman, bukan konten terpotong atau seluruh panel diperkecil.
