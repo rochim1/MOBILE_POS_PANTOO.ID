@@ -865,9 +865,33 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   MainAxisAlignment.spaceEvenly,
                                               children: [
                                                 Flexible(
-                                                  child: SizedBox(
-                                                    width: 80,
-                                                    height: _keypadButtonHeight,
+                                                  child: Tooltip(
+                                                    message: ('Hapus').tr(
+                                                      context,
+                                                    ),
+                                                    child: SizedBox(
+                                                      width: 80,
+                                                      height:
+                                                          _keypadButtonHeight,
+                                                      child: TextButton(
+                                                        onPressed:
+                                                            _isVerifying ||
+                                                                pinLocked
+                                                            ? null
+                                                            : _onDeleteTap,
+                                                        style: TextButton.styleFrom(
+                                                          shape:
+                                                              const CircleBorder(),
+                                                          foregroundColor:
+                                                              AppColors.body,
+                                                        ),
+                                                        child: const Icon(
+                                                          Icons
+                                                              .backspace_outlined,
+                                                          size: 30,
+                                                        ),
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
                                                 Flexible(
@@ -876,25 +900,63 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   ),
                                                 ),
                                                 Flexible(
-                                                  child: SizedBox(
-                                                    width: 80,
-                                                    height: _keypadButtonHeight,
-                                                    child: TextButton(
-                                                      onPressed:
-                                                          _isVerifying ||
-                                                              pinLocked
-                                                          ? null
-                                                          : _onDeleteTap,
-                                                      style: TextButton.styleFrom(
-                                                        shape:
-                                                            const CircleBorder(),
-                                                        foregroundColor:
-                                                            AppColors.body,
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons
-                                                            .backspace_outlined,
-                                                        size: 30,
+                                                  child: Tooltip(
+                                                    message:
+                                                        ('Masuk sebagai Kasir')
+                                                            .tr(context),
+                                                    child: SizedBox(
+                                                      width: 80,
+                                                      height:
+                                                          _keypadButtonHeight,
+                                                      child: ElevatedButton(
+                                                        key:
+                                                            posPinSubmitTourTarget,
+                                                        onPressed:
+                                                            !_isVerifying &&
+                                                                !pinLocked &&
+                                                                state
+                                                                    .hasPinConfigured &&
+                                                                _pin.length >= 4
+                                                            ? _verifyPin
+                                                            : null,
+                                                        style: ElevatedButton.styleFrom(
+                                                          minimumSize:
+                                                              const Size(
+                                                                48,
+                                                                48,
+                                                              ),
+                                                          padding:
+                                                              EdgeInsets.zero,
+                                                          shape:
+                                                              const CircleBorder(),
+                                                          backgroundColor:
+                                                              AppColors.primary,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          disabledBackgroundColor:
+                                                              _isVerifying
+                                                              ? AppColors
+                                                                    .primary
+                                                              : AppColors
+                                                                    .neutralBorder,
+                                                          disabledForegroundColor:
+                                                              AppColors
+                                                                  .textMuted,
+                                                        ),
+                                                        child: _isVerifying
+                                                            ? const SizedBox.square(
+                                                                dimension: 24,
+                                                                child: CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
+                                                              )
+                                                            : const Icon(
+                                                                Icons.check,
+                                                                size: 32,
+                                                              ),
                                                       ),
                                                     ),
                                                   ),
@@ -903,65 +965,56 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             ),
                                             const SizedBox(height: 14),
                                           ],
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton.icon(
-                                              key: posPinSubmitTourTarget,
-                                              onPressed:
-                                                  _isVerifying || pinLocked
-                                                  ? null
-                                                  : canCreateOwnPin
-                                                  ? _createPinForLoginUser
-                                                  : state.hasPinConfigured &&
-                                                        _pin.length >= 4
-                                                  ? _verifyPin
-                                                  : null,
-                                              icon: _isVerifying
-                                                  ? const SizedBox(
-                                                      width: 18,
-                                                      height: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                    )
-                                                  : Icon(
-                                                      canCreateOwnPin
-                                                          ? Icons
-                                                                .add_moderator_outlined
-                                                          : Icons.lock_open,
-                                                    ),
-                                              label: Text(
-                                                canCreateOwnPin
-                                                    ? ('Buat PIN Akun Ini').tr(
-                                                        context,
+                                          if (canCreateOwnPin)
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton.icon(
+                                                key: posPinSubmitTourTarget,
+                                                onPressed:
+                                                    _isVerifying || pinLocked
+                                                    ? null
+                                                    : _createPinForLoginUser,
+                                                icon: _isVerifying
+                                                    ? const SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
                                                       )
-                                                    : ('Masuk sebagai Kasir')
-                                                          .tr(context),
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                minimumSize:
-                                                    const Size.fromHeight(48),
-                                                textStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .labelLarge
-                                                    ?.copyWith(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 13,
-                                                    ),
-                                                backgroundColor:
-                                                    AppColors.primary,
-                                                foregroundColor: Colors.white,
-                                                disabledBackgroundColor:
-                                                    AppColors.neutralBorder,
+                                                    : const Icon(
+                                                        Icons
+                                                            .add_moderator_outlined,
+                                                      ),
+                                                label: Text(
+                                                  ('Buat PIN Akun Ini').tr(
+                                                    context,
+                                                  ),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  minimumSize:
+                                                      const Size.fromHeight(48),
+                                                  textStyle: Theme.of(context)
+                                                      .textTheme
+                                                      .labelLarge
+                                                      ?.copyWith(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 13,
+                                                      ),
+                                                  backgroundColor:
+                                                      AppColors.primary,
+                                                  foregroundColor: Colors.white,
+                                                  disabledBackgroundColor:
+                                                      AppColors.neutralBorder,
+                                                ),
                                               ),
                                             ),
-                                          ),
                                           const SizedBox(height: 8),
                                           Text(
                                             canCreateOwnPin
