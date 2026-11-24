@@ -1277,7 +1277,7 @@ class _PosShellPageState extends State<PosShellPage>
                       appBar: AppBar(
                         elevation: 0,
                         backgroundColor: AppColors.primary,
-                        toolbarHeight: 64,
+                        toolbarHeight: PosNavbarIdentity.toolbarHeight(context),
                         // Di mobile navigasi sekunder berada di tab Lainnya.
                         // Tombol sidebar hanya dipertahankan pada layar lebar.
                         leadingWidth: isMobile

@@ -16,6 +16,14 @@ class PosNavbarIdentity extends StatelessWidget {
   final Map<String, dynamic>? employee;
   final bool compact;
   final VoidCallback onTap;
+
+  /// Keep both lines readable when accessibility text is enlarged.
+  static double toolbarHeight(BuildContext context) =>
+      64 +
+      (MediaQuery.textScalerOf(context).scale(18) - 18)
+              .clamp(0, 72)
+              .toDouble() *
+          2;
   @override
   Widget build(BuildContext context) => Tooltip(
     message: ('Profil Pengguna').tr(context),

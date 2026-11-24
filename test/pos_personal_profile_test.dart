@@ -8,6 +8,7 @@ import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dartz/dartz.dart' hide State;
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -141,6 +142,14 @@ class _Lock extends AppLockCubit {
 }
 
 void main() {
+  setUpAll(() async {
+    final font = FontLoader('Roboto')
+      ..addFont(rootBundle.load('assets/fonts/roboto-regular.ttf'));
+    await font.load();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await icons.load();
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
   late _Provider provider;
   late SharedPreferences prefs;
@@ -297,22 +306,32 @@ void main() {
         final repo = _Repository()..pending = Completer();
         var updated = 0;
         await tester.pumpWidget(
-          RepaintBoundary(key: const ValueKey('profile_preview'), child: MaterialApp(
-            theme: AppTheme.light(),
-            locale: const Locale('id'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: ProfilePage(repository: repo, onUpdated: (_) => updated++),
-          )),
+          RepaintBoundary(
+            key: const ValueKey('profile_preview'),
+            child: MaterialApp(
+              theme: AppTheme.light(),
+              locale: const Locale('id'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: ProfilePage(repository: repo, onUpdated: (_) => updated++),
+            ),
+          ),
         );
         await tester.pumpAndSettle();
         if (const bool.fromEnvironment('CAPTURE_PERSONAL_PROFILE')) {
           await tester.runAsync(() async {
-            final boundary=tester.renderObject<RenderRepaintBoundary>(find.byKey(const ValueKey('profile_preview')));
-            final image=await boundary.toImage(pixelRatio:2);
-            final png=await image.toByteData(format:ui.ImageByteFormat.png);
-            await Directory('output/personal-profile-20261124').create(recursive:true);
-            await File('output/personal-profile-20261124/profile-'+size.width.toInt().toString()+'.png').writeAsBytes(png!.buffer.asUint8List());image.dispose();
+            final boundary = tester.renderObject<RenderRepaintBoundary>(
+              find.byKey(const ValueKey('profile_preview')),
+            );
+            final image = await boundary.toImage(pixelRatio: 2);
+            final png = await image.toByteData(format: ui.ImageByteFormat.png);
+            await Directory(
+              'output/personal-profile-20261124',
+            ).create(recursive: true);
+            await File(
+              'output/personal-profile-20261124/profile-${size.width.toInt()}.png',
+            ).writeAsBytes(png!.buffer.asUint8List());
+            image.dispose();
           });
         }
         for (final label in [
