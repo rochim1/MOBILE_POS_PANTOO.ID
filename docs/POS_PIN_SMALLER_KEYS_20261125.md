@@ -1,5 +1,17 @@
 # Tombol PIN lebih kecil tanpa scroll — 25 November 2026
 
+## Penyesuaian terbaru: tombol lebih tinggi dan nyaman
+
+Masukan pengguna berikutnya: tombol terlalu kecil dan pendek. Pada layar pendek, tinggi keypad dinaikkan **48→56dp**, angka **28→30sp**; layar lega tetap memakai ukuran sebelumnya. Journey tetap sama: semua tombol dan aksi bawah terlihat tanpa scroll pada HP normal. Keterangan umum pengelolaan PIN disembunyikan hanya pada layar pendek untuk operator yang sudah memiliki PIN; panduan akun tanpa PIN, pesan error, lockout, verifikasi dan semua aksi tetap tersedia. Footer tetap vertikal.
+
+RED `28dffbf`:7PASS/4FAIL karena tinggi48dp belum memenuhi56dp. GREEN akhir: **82PASS**, exit0,1menit19detik;11kasus layout tetap, tanpa skip/deletion. Analyze dua berkas **No issues found** (6,9detik). Coverage PIN **482/567baris (85%)**. Delapan viewport×bahasa normal tetap tanpa scroll dan target angka≥56dp; layar sangat pendek/skala besar tetap dapat scroll. Keyboard/centang/loader dan guard akses dilindungi enam suite regresi yang sama.
+
+Perintah akhir sama dengan blok di bawah, dengan `--dart-define=PIN_CLASSIC_PHASE=comfortable` dan `--coverage-path=output/pin-classic-layout-20261125/comfortable-lcov.info`. Log `comfortable-verification.log`; preview `id-comfortable.png`/`en-comfortable.png` dalam folder yang sama. Preview Indonesia diperiksa: seluruh panel terlihat dengan angka lebih besar. Tidak build/deploy atau menguji GUI Android fisik.
+
+Evaluasi hasil terbaru: akurasi5 (tes, analyzer, preview), kelengkapan4 (konfirmasi visual HP pengguna belum dilakukan), kejelasan5, tindak lanjut4 (perlu hot restart `R`), keringkasan5; total4,6/5, tanpa masalah kritis pada lingkup perubahan. Layak diserahkan; kenyamanan akhir tetap perlu umpan balik pengguna pada HP sebenarnya.
+
+## Riwayat penyesuaian sebelumnya
+
 Permintaan terbaru: kecilkan sedikit tombol angka agar panel cukup tanpa scroll. Perubahan hanya presentasi PIN; susunan hapus–0–centang dan footer vertikal dengan label lengkap tetap.
 
 Pada tinggi tersedia di bawah720dp, tombol keypad menjadi48dp dan angka28sp (sebelumnya64dp/32sp pada HP), dengan jarak/padding lebih rapat. Area sentuh tetap minimal48dp. Judul24sp, teks bantuan12sp, nama operator16sp. Layar lebih tinggi tetap memakai ukuran lega sebelumnya. Layar sangat pendek, teks diperbesar atau pesan tambahan masih dapat scroll agar konten tidak terpotong; tidak memakai FittedBox atau mematikan scroll secara paksa.
