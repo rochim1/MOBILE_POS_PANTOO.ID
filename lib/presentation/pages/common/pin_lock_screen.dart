@@ -14,6 +14,7 @@ import '../../widgets/pos_employee_avatar.dart';
 import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_customer_display_pairing.dart';
 import '../pos/widgets/pos_setup_tour.dart';
+import 'pos_pin_access_viewport.dart';
 
 class PinLockScreen extends StatefulWidget {
   const PinLockScreen({super.key});
@@ -644,269 +645,109 @@ class _PinLockScreenState extends State<PinLockScreen> {
                               top: 8,
                               bottom: 8,
                             ),
-                            child: Align(
-                              alignment: Alignment.center,
-                              child: FittedBox(
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                                child: SizedBox(
-                                  key: posPinSetupTourTarget,
-                                  width: 420,
-                                  height: 810,
-                                  child: BlocBuilder<AppLockCubit, AppLockState>(
-                                    builder: (context, state) {
-                                      final selectedEmployee = state.employees
-                                          .where(
-                                            (employee) =>
-                                                employee['_id']?.toString() ==
-                                                state.selectedEmployeeId,
-                                          )
-                                          .firstOrNull;
-                                      final canCreateOwnPin =
-                                          selectedEmployee?['is_login_user'] ==
-                                              true &&
-                                          state.hasPinConfigured == false;
-                                      final pinLocked =
-                                          state.lockedUntil != null &&
-                                          state.lockedUntil!.isAfter(
-                                            DateTime.now(),
-                                          );
-                                      final lockoutSeconds = pinLocked
-                                          ? ((state.lockedUntil!
-                                                            .difference(
-                                                              DateTime.now(),
-                                                            )
-                                                            .inMilliseconds /
-                                                        1000)
-                                                    .ceil())
-                                                .clamp(1, 30)
-                                          : 0;
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 28,
-                                          vertical: 14,
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const PosText(
-                                              'Akses Kasir',
-                                              style: TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.heading,
-                                              ),
+                            child: PosPinAccessViewport(
+                              child: SizedBox(
+                                key: posPinSetupTourTarget,
+                                width: double.infinity,
+                                child: BlocBuilder<AppLockCubit, AppLockState>(
+                                  builder: (context, state) {
+                                    final selectedEmployee = state.employees
+                                        .where(
+                                          (employee) =>
+                                              employee['_id']?.toString() ==
+                                              state.selectedEmployeeId,
+                                        )
+                                        .firstOrNull;
+                                    final canCreateOwnPin =
+                                        selectedEmployee?['is_login_user'] ==
+                                            true &&
+                                        state.hasPinConfigured == false;
+                                    final pinLocked =
+                                        state.lockedUntil != null &&
+                                        state.lockedUntil!.isAfter(
+                                          DateTime.now(),
+                                        );
+                                    final lockoutSeconds = pinLocked
+                                        ? ((state.lockedUntil!
+                                                          .difference(
+                                                            DateTime.now(),
+                                                          )
+                                                          .inMilliseconds /
+                                                      1000)
+                                                  .ceil())
+                                              .clamp(1, 30)
+                                        : 0;
+                                    return Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: constraints.maxWidth < 600
+                                            ? 8
+                                            : 28,
+                                        vertical: 14,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const PosText(
+                                            'Akses Kasir',
+                                            style: TextStyle(
+                                              fontSize: 26,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.heading,
                                             ),
-                                            const PosText(
-                                              'Pilih operator dan masukkan PIN untuk melanjutkan',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontSize: 13,
-                                              ),
+                                          ),
+                                          const PosText(
+                                            'Pilih operator dan masukkan PIN untuk melanjutkan',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 14,
                                             ),
-                                            const SizedBox(height: 12),
-                                            Material(
-                                              key: posPinOperatorTourTarget,
-                                              color: AppColors.surfaceSecondary,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Material(
+                                            key: posPinOperatorTourTarget,
+                                            color: AppColors.surfaceSecondary,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: InkWell(
                                               borderRadius:
                                                   BorderRadius.circular(12),
-                                              child: InkWell(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                onTap: state.loadingEmployees
-                                                    ? null
-                                                    : _showEmployeePicker,
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 14,
-                                                        vertical: 13,
-                                                      ),
-                                                  child: Row(
-                                                    children: [
-                                                      PosEmployeeAvatar(
-                                                        employee:
-                                                            selectedEmployee,
-                                                        radius: 15,
-                                                      ),
-                                                      const SizedBox(width: 12),
-                                                      Expanded(
-                                                        child: Text(
-                                                          _employeeName(
-                                                            selectedEmployee,
-                                                          ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                      if (state
-                                                          .loadingEmployees)
-                                                        const SizedBox(
-                                                          width: 18,
-                                                          height: 18,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                                strokeWidth: 2,
-                                                              ),
-                                                        )
-                                                      else
-                                                        const Icon(
-                                                          Icons.expand_more,
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Text(
-                                              state.errorMessage.isNotEmpty
-                                                  ? state.errorMessage.tr(
-                                                      context,
-                                                    )
-                                                  : canCreateOwnPin
-                                                  ? ('Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.')
-                                                        .tr(context)
-                                                  : ('Masukkan PIN 4–6 digit karyawan')
-                                                        .tr(context),
-                                              style: TextStyle(
-                                                color:
-                                                    state
-                                                        .errorMessage
-                                                        .isNotEmpty
-                                                    ? AppColors.danger
-                                                    : AppColors.textSecondary,
-                                                fontSize: 13,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 2,
-                                            ),
-                                            if (pinLocked) ...[
-                                              const SizedBox(height: 8),
-                                              Container(
+                                              onTap: state.loadingEmployees
+                                                  ? null
+                                                  : _showEmployeePicker,
+                                              child: Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 8,
+                                                      horizontal: 14,
+                                                      vertical: 13,
                                                     ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors
-                                                      .warningBackground,
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                  border: Border.all(
-                                                    color:
-                                                        AppColors.warningBorder,
-                                                  ),
-                                                ),
                                                 child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
                                                   children: [
-                                                    const Icon(
-                                                      Icons.timer_outlined,
-                                                      size: 18,
-                                                      color: AppColors.warning,
+                                                    PosEmployeeAvatar(
+                                                      employee:
+                                                          selectedEmployee,
+                                                      radius: 15,
                                                     ),
-                                                    const SizedBox(width: 7),
-                                                    Text(
-                                                      posLocale(
-                                                        context,
-                                                      ).poseb9c086c8b8f(
-                                                        (lockoutSeconds)
-                                                            .toString(),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Text(
+                                                        _employeeName(
+                                                          selectedEmployee,
+                                                        ),
+                                                        style: const TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
-                                                      style: const TextStyle(
-                                                        color:
-                                                            AppColors.heading,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
                                                     ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                            const SizedBox(height: 14),
-                                            Row(
-                                              key: posPinEntryTourTarget,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: List.generate(
-                                                _pinLength,
-                                                (index) => Container(
-                                                  margin:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 7,
-                                                      ),
-                                                  width: 13,
-                                                  height: 13,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: index < _pin.length
-                                                        ? AppColors.primary
-                                                        : AppColors.border,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 18),
-                                            _buildKeypadRow(['1', '2', '3']),
-                                            const SizedBox(height: 10),
-                                            _buildKeypadRow(['4', '5', '6']),
-                                            const SizedBox(height: 10),
-                                            _buildKeypadRow(['7', '8', '9']),
-                                            const SizedBox(height: 10),
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.spaceEvenly,
-                                              children: [
-                                                const SizedBox(
-                                                  width: 80,
-                                                  height: 80,
-                                                ),
-                                                _buildKeypadButton('0'),
-                                                SizedBox(
-                                                  width: 80,
-                                                  height: 80,
-                                                  child: TextButton(
-                                                    onPressed:
-                                                        _isVerifying ||
-                                                            pinLocked
-                                                        ? null
-                                                        : _onDeleteTap,
-                                                    style: TextButton.styleFrom(
-                                                      shape:
-                                                          const CircleBorder(),
-                                                      foregroundColor:
-                                                          AppColors.body,
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.backspace_outlined,
-                                                      size: 30,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 14),
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: ElevatedButton.icon(
-                                                key: posPinSubmitTourTarget,
-                                                onPressed:
-                                                    _isVerifying || pinLocked
-                                                    ? null
-                                                    : canCreateOwnPin
-                                                    ? _createPinForLoginUser
-                                                    : state.hasPinConfigured &&
-                                                          _pin.length >= 4
-                                                    ? _verifyPin
-                                                    : null,
-                                                icon: _isVerifying
-                                                    ? const SizedBox(
+                                                    if (state.loadingEmployees)
+                                                      const SizedBox(
                                                         width: 18,
                                                         height: 18,
                                                         child:
@@ -914,97 +755,265 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                               strokeWidth: 2,
                                                             ),
                                                       )
-                                                    : Icon(
-                                                        canCreateOwnPin
-                                                            ? Icons
-                                                                  .add_moderator_outlined
-                                                            : Icons.lock_open,
+                                                    else
+                                                      const Icon(
+                                                        Icons.expand_more,
                                                       ),
-                                                label: Text(
-                                                  canCreateOwnPin
-                                                      ? ('Buat PIN Akun Ini')
-                                                            .tr(context)
-                                                      : ('Masuk sebagai Kasir')
-                                                            .tr(context),
-                                                ),
-                                                style: ElevatedButton.styleFrom(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        vertical: 13,
-                                                      ),
-                                                  backgroundColor:
-                                                      AppColors.primary,
-                                                  foregroundColor: Colors.white,
-                                                  disabledBackgroundColor:
-                                                      AppColors.neutralBorder,
+                                                  ],
                                                 ),
                                               ),
                                             ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            state.errorMessage.isNotEmpty
+                                                ? state.errorMessage.tr(context)
+                                                : canCreateOwnPin
+                                                ? ('Akun login belum memiliki PIN. Buat PIN untuk melanjutkan.')
+                                                      .tr(context)
+                                                : ('Masukkan PIN 4–6 digit karyawan')
+                                                      .tr(context),
+                                            style: TextStyle(
+                                              color:
+                                                  state.errorMessage.isNotEmpty
+                                                  ? AppColors.danger
+                                                  : AppColors.textSecondary,
+                                              fontSize: 14,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                          ),
+                                          if (pinLocked) ...[
                                             const SizedBox(height: 8),
-                                            Text(
-                                              canCreateOwnPin
-                                                  ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
-                                                        .tr(context)
-                                                  : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.')
-                                                        .tr(context),
-                                              style: TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontSize: 11,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            TextButton.icon(
-                                              onPressed: () =>
-                                                  showPosCustomerDisplayPairing(
-                                                    context,
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
                                                   ),
-                                              style: TextButton.styleFrom(
-                                                foregroundColor:
-                                                    AppColors.primary,
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    AppColors.warningBackground,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color:
+                                                      AppColors.warningBorder,
+                                                ),
                                               ),
-                                              icon: const Icon(
-                                                Icons.connected_tv_outlined,
-                                                size: 18,
-                                              ),
-                                              label: const PosText(
-                                                'Hubungkan layar pelanggan',
-                                              ),
-                                            ),
-                                            TextButton.icon(
-                                              onPressed: _isLoggingOut
-                                                  ? null
-                                                  : _confirmLogout,
-                                              style: TextButton.styleFrom(
-                                                foregroundColor:
-                                                    AppColors.danger,
-                                                disabledForegroundColor:
-                                                    AppColors.textMuted,
-                                              ),
-                                              icon: _isLoggingOut
-                                                  ? const SizedBox(
-                                                      width: 16,
-                                                      height: 16,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: AppColors
-                                                                .danger,
-                                                          ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.logout,
-                                                      size: 18,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.timer_outlined,
+                                                    size: 18,
+                                                    color: AppColors.warning,
+                                                  ),
+                                                  const SizedBox(width: 7),
+                                                  Text(
+                                                    posLocale(
+                                                      context,
+                                                    ).poseb9c086c8b8f(
+                                                      (lockoutSeconds)
+                                                          .toString(),
                                                     ),
-                                              label: const PosText(
-                                                'Logout akun',
+                                                    style: const TextStyle(
+                                                      color: AppColors.heading,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                          const SizedBox(height: 14),
+                                          Row(
+                                            key: posPinEntryTourTarget,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: List.generate(
+                                              _pinLength,
+                                              (index) => Container(
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 7,
+                                                    ),
+                                                width: 13,
+                                                height: 13,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: index < _pin.length
+                                                      ? AppColors.primary
+                                                      : AppColors.border,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 18),
+                                          _buildKeypadRow(['1', '2', '3']),
+                                          const SizedBox(height: 10),
+                                          _buildKeypadRow(['4', '5', '6']),
+                                          const SizedBox(height: 10),
+                                          _buildKeypadRow(['7', '8', '9']),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              SizedBox(
+                                                width: 80,
+                                                height: _keypadButtonHeight,
+                                              ),
+                                              _buildKeypadButton('0'),
+                                              SizedBox(
+                                                width: 80,
+                                                height: _keypadButtonHeight,
+                                                child: TextButton(
+                                                  onPressed:
+                                                      _isVerifying || pinLocked
+                                                      ? null
+                                                      : _onDeleteTap,
+                                                  style: TextButton.styleFrom(
+                                                    shape: const CircleBorder(),
+                                                    foregroundColor:
+                                                        AppColors.body,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.backspace_outlined,
+                                                    size: 30,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 14),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton.icon(
+                                              key: posPinSubmitTourTarget,
+                                              onPressed:
+                                                  _isVerifying || pinLocked
+                                                  ? null
+                                                  : canCreateOwnPin
+                                                  ? _createPinForLoginUser
+                                                  : state.hasPinConfigured &&
+                                                        _pin.length >= 4
+                                                  ? _verifyPin
+                                                  : null,
+                                              icon: _isVerifying
+                                                  ? const SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                    )
+                                                  : Icon(
+                                                      canCreateOwnPin
+                                                          ? Icons
+                                                                .add_moderator_outlined
+                                                          : Icons.lock_open,
+                                                    ),
+                                              label: Text(
+                                                canCreateOwnPin
+                                                    ? ('Buat PIN Akun Ini').tr(
+                                                        context,
+                                                      )
+                                                    : ('Masuk sebagai Kasir')
+                                                          .tr(context),
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                minimumSize:
+                                                    const Size.fromHeight(48),
+                                                textStyle: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 13,
+                                                    ),
+                                                backgroundColor:
+                                                    AppColors.primary,
+                                                foregroundColor: Colors.white,
+                                                disabledBackgroundColor:
+                                                    AppColors.neutralBorder,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            canCreateOwnPin
+                                                ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
+                                                      .tr(context)
+                                                : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.')
+                                                      .tr(context),
+                                            style: TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 14,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          TextButton.icon(
+                                            onPressed: () =>
+                                                showPosCustomerDisplayPairing(
+                                                  context,
+                                                ),
+                                            style: TextButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(48),
+                                              textStyle: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              foregroundColor:
+                                                  AppColors.primary,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.connected_tv_outlined,
+                                              size: 18,
+                                            ),
+                                            label: const PosText(
+                                              'Hubungkan layar pelanggan',
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                            onPressed: _isLoggingOut
+                                                ? null
+                                                : _confirmLogout,
+                                            style: TextButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(48),
+                                              textStyle: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              foregroundColor: AppColors.danger,
+                                              disabledForegroundColor:
+                                                  AppColors.textMuted,
+                                            ),
+                                            icon: _isLoggingOut
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color:
+                                                              AppColors.danger,
+                                                        ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.logout,
+                                                    size: 18,
+                                                  ),
+                                            label: const PosText('Logout akun'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -1029,10 +1038,13 @@ class _PinLockScreenState extends State<PinLockScreen> {
     );
   }
 
+  double get _keypadButtonHeight =>
+      MediaQuery.sizeOf(context).width < 600 ? 64 : 80;
+
   Widget _buildKeypadButton(String text) {
     return SizedBox(
       width: 80,
-      height: 80,
+      height: _keypadButtonHeight,
       child: TextButton(
         onPressed: _isVerifying || _isPinLocked
             ? null
@@ -1044,7 +1056,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w500),
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w500),
         ),
       ),
     );
