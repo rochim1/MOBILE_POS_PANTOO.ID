@@ -159,6 +159,11 @@ void main() {
           }
           final font = tester.widget<Text>(find.text('1')).style?.fontSize;
           expect(font, size.height < 720 ? 30 : 32);
+          for (final pair in [('1', '4'), ('4', '7'), ('7', '0')]) {
+            final upper = tester.getRect(find.widgetWithText(TextButton, pair.$1));
+            final lower = tester.getRect(find.widgetWithText(TextButton, pair.$2));
+            expect(lower.top - upper.bottom, greaterThanOrEqualTo(12));
+          }
           expect(tester.takeException(), isNull);
         },
       );
