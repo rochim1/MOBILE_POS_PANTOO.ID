@@ -1,6 +1,22 @@
 # Tombol PIN lebih kecil tanpa scroll — 25 November 2026
 
-## Penyesuaian terbaru: tombol lebih tinggi dan nyaman
+## Penyesuaian terbaru: jarak antarbaris lebih lega
+
+Journey dari masukan pengguna: jarak atas–bawah antar tombol masih terlalu rapat. Gap antarbaris keypad dinaikkan **4→12dp** pada layar pendek (10→12dp pada layar lega), tanpa mengecilkan tombol56dp/angka30sp. Di tinggi tersedia<560dp, pengantar generik tidak ditampilkan bagi operator yang sudah memiliki PIN; petunjuk PIN, pemilih operator dan semua aksi tetap. Padding panel layar lega dikurangi2dp per sisi vertikal agar tablet tidak mendapat scroll4dp setelah gap diperbesar.
+
+RED `7d60949`:3PASS/8FAIL karena gap4/10dp belum mencapai12dp. Percobaan pertama80PASS/2FAIL: HP sudah muat, tablet768×800 masih scroll4dp; diperbaiki melalui padding, bukan pelonggaran tes. GREEN `832188d`: **82PASS**, exit0,1menit10detik. Analyze akhir **No issues found**,6,8detik. Coverage halaman PIN **480/565baris (85%)**.
+
+| Jaminan | Bukti |
+|---|---|
+| Jarak tiga pasangan baris 1–4/4–7/7–0 minimal12dp, tombol≥56dp, angka30/32sp dan nol scroll normal |8kasus layout ID/EN pada320×568,360×640,390×844,768×800|
+| Layar pendek/font besar tetap bisa scroll; akun tanpa PIN tetap bisa membuat PIN |3kasus layout lain, seluruh11kasus dipertahankan|
+| Keyboard, centang, loader, lockout, resize dan pembatasan akses tetap |Enam suite regresi; total82PASS|
+
+Perintah tujuh suite pada blok di bagian riwayat dijalankan dengan `--dart-define=PIN_CLASSIC_PHASE=spaced` dan `--coverage-path=output/pin-classic-layout-20261125/spaced-final-lcov.info`. Log `spaced-final-verification.log`; preview widget `id-spaced.png`/`en-spaced.png` di folder yang sama. Preview Indonesia diperiksa: keypad lebih renggang, footer lengkap, tidak terpotong. Tidak build/deploy, mengubah otorisasi/server atau menguji GUI Android fisik. Hot restart `R` untuk melihat perubahan.
+
+Evaluasi: akurasi5 (tes/preview/analyzer), kelengkapan4 (kenyamanan di HP pengguna belum dikonfirmasi), kejelasan5, tindak lanjut4 (perlu hot restart), keringkasan5;4,6/5, tanpa masalah kritis pada lingkup ini. Bukti memastikan dimensi dan perilaku, bukan menjamin preferensi visual pengguna; tindak lanjut relevan adalah meninjau di HP sebenarnya.
+
+## Penyesuaian sebelumnya: tombol lebih tinggi dan nyaman
 
 Masukan pengguna berikutnya: tombol terlalu kecil dan pendek. Pada layar pendek, tinggi keypad dinaikkan **48→56dp**, angka **28→30sp**; layar lega tetap memakai ukuran sebelumnya. Journey tetap sama: semua tombol dan aksi bawah terlihat tanpa scroll pada HP normal. Keterangan umum pengelolaan PIN disembunyikan hanya pada layar pendek untuk operator yang sudah memiliki PIN; panduan akun tanpa PIN, pesan error, lockout, verifikasi dan semua aksi tetap tersedia. Footer tetap vertikal.
 
