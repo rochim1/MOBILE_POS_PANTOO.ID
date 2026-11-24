@@ -1,0 +1,97 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:dartz/dartz.dart' hide State;
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
+import 'package:mobile_pos_pantoo/core/error/failures.dart';
+import 'package:mobile_pos_pantoo/core/utils/product_image_picker.dart';
+import 'package:mobile_pos_pantoo/domain/repositories/pos_personal_profile_repository.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/profile/profile_page.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
+
+class _Provider extends Fake implements GraphQLClientProvider {
+  @override late GraphQLClient client;
+  @override String subscriptionScope='endpoint|tenant|terminal|operator';
+  @override String endpointUrl='http://localhost:8080/graphql';
+  @override String resolveMediaUrl(dynamic value)=>value==null||value==''?'':Uri.parse('http://localhost:8080/').resolve(value.toString()).toString();
+  @override Future<Map<String,String>> authenticatedRequestHeaders() async=>{'Authorization':'Bearer fixture','apps':'pos','x-pos-operator-token':'fixture-operator'};
+}
+const data={'__typename':'POSPersonalProfile','_id':'operator','name':'Kasir Uji','username':'kasir','email':'qa@example.invalid','phone':'081234567890','address':'Jalan uji','photo':'/static/t/profile/photo.png','version':'2026-11-24T01:00:00.000Z'};
+class _Upload extends http.BaseClient {
+  late http.MultipartRequest request;
+  @override Future<http.StreamedResponse> send(http.BaseRequest value) async {
+    request=value as http.MultipartRequest;
+    return http.StreamedResponse(Stream.value(utf8.encode(jsonEncode({'data':{'UpdateMyPOSPersonalProfile':data}}))),200);
+  }
+}
+class _Repository extends Fake implements PosPersonalProfileRepository {
+  int saves=0; Completer<Either<Failure,PosPersonalProfile>>? pending;
+  final bool cached;
+  _Repository({this.cached=false});
+  @override Future<Either<Failure,PosPersonalProfile>> getProfile() async=>Right(PosPersonalProfile(id:'operator',name:'Kasir Uji',username:'kasir',email:'qa@example.invalid',phone:'081234567890',address:'Jalan uji',photo:'',version:'v1',cached:cached));
+  @override Future<Either<Failure,PosPersonalProfile>> save({required String name,required String phone,required String address,required String expectedVersion,PickedProductImage? photo,bool removePhoto=false}) async {
+    saves++;expect(expectedVersion,'v1');expect(name,'Nama Baru');
+    return pending?.future??Future.value(Right(PosPersonalProfile(id:'operator',name:name,username:'kasir',email:'qa@example.invalid',phone:phone,address:address,photo:'',version:'v2')));
+  }
+}
+void main(){
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late _Provider provider;late SharedPreferences prefs;
+  setUp(() async{SharedPreferences.setMockInitialValues({'user_id':'terminal','username':'Pemilik Terminal'});prefs=await SharedPreferences.getInstance();provider=_Provider();});
+  void response({OperationException? failure}){provider.client=GraphQLClient(cache:GraphQLCache(),link:Link.function((request,[forward])async*{
+    if(failure!=null)throw failure;yield Response(data:{'__typename':'Query','GetMyPOSPersonalProfile':data},response:{});
+  }));}
+  test('profile caches per PIN operator and never uses cache on authorization failure',()async{
+    response();final repo=PosPersonalProfileRepository(provider,prefs);
+    final online=(await repo.getProfile()).getOrElse(()=>throw StateError('load failed'));
+    expect(online.photo,'http://localhost:8080/static/t/profile/photo.png');
+    response(failure:OperationException(linkException:ServerException(originalException:TimeoutException('timeout'))));
+    expect((await repo.getProfile()).getOrElse(()=>throw StateError('cache failed')).cached,isTrue);
+    provider.subscriptionScope='endpoint|tenant|terminal|other';expect((await repo.getProfile()).isLeft(),isTrue);
+    provider.subscriptionScope='endpoint|tenant|terminal|operator';response(failure:OperationException(graphqlErrors:[GraphQLError(message:'Forbidden',extensions:{'code':'FORBIDDEN'})]));
+    expect((await repo.getProfile()).isLeft(),isTrue);
+  });
+  test('multipart preserves operator identity and whitelists only editable personal data',()async{
+    final upload=_Upload();final repo=PosPersonalProfileRepository(provider,prefs,uploadClient:upload);
+    final result=await repo.save(name:'Kasir Uji',phone:'081234567890',address:'Jalan uji',expectedVersion:'v1',photo:PickedProductImage(name:'photo.png',bytes:Uint8List.fromList([1,2,3])));
+    expect(result.isRight(),isTrue);
+    expect(upload.request.headers['x-pos-operator-token'],'fixture-operator');
+    final operations=jsonDecode(upload.request.fields['operations']!) as Map;
+    final input=(operations['variables'] as Map)['input'] as Map;
+    expect(input.keys.toSet(),{'name','phone','address','expected_version'});
+    expect(jsonDecode(upload.request.fields['map']!),{'0':['variables.photo']});
+    expect(prefs.getString('username'),'Pemilik Terminal',reason:'editing an operator must not rename the login owner');
+  });
+  test('invalid photo and upload/remove conflict are rejected before a request',()async{
+    final repo=PosPersonalProfileRepository(provider,prefs);
+    for(final image in [PickedProductImage(name:'photo.svg',bytes:Uint8List(1)),PickedProductImage(name:'photo.png',bytes:Uint8List(5*1024*1024+1))]){
+      expect((await repo.save(name:'Kasir',phone:'',address:'',expectedVersion:'v1',photo:image)).isLeft(),isTrue);
+    }
+  });
+  for(final size in [const Size(320,568),const Size(768,800)]){
+    testWidgets('personal profile labels, progress and save stay usable at $size',(tester)async{
+      tester.view.physicalSize=size;tester.view.devicePixelRatio=1;addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+      final repo=_Repository()..pending=Completer();var updated=0;
+      await tester.pumpWidget(MaterialApp(locale:const Locale('id'),localizationsDelegates:AppLocalizations.localizationsDelegates,supportedLocales:AppLocalizations.supportedLocales,home:ProfilePage(repository:repo,onUpdated:(_)=>updated++)));
+      await tester.pumpAndSettle();
+      for(final label in ['Nama lengkap','Nomor telepon','Alamat','Email','Username'])expect(find.text(label),findsWidgets);
+      expect(tester.widget<TextFormField>(find.byKey(const ValueKey('profile_email'))).enabled,isFalse);
+      await tester.ensureVisible(find.byKey(const ValueKey('profile_name')));await tester.enterText(find.byKey(const ValueKey('profile_name')),'Nama Baru');
+      final save=find.byKey(const ValueKey('profile_save'));await tester.ensureVisible(save);await tester.tap(save);await tester.pump();
+      expect(repo.saves,1);expect(find.byType(CircularProgressIndicator),findsOneWidget);await tester.tap(save);expect(repo.saves,1);
+      repo.pending!.complete(Right(const PosPersonalProfile(id:'operator',name:'Nama Baru',username:'kasir',email:'qa@example.invalid',phone:'',address:'',photo:'',version:'v2')));await tester.pumpAndSettle();
+      expect(updated,1);expect(tester.takeException(),isNull);
+    });
+  }
+  testWidgets('cached profile is readable but cannot queue profile changes offline',(tester)async{
+    final repo=_Repository(cached:true);
+    await tester.pumpWidget(MaterialApp(home:ProfilePage(repository:repo)));await tester.pumpAndSettle();
+    final save=find.byKey(const ValueKey('profile_save'));await tester.ensureVisible(save);
+    expect(tester.widget<FilledButton>(save).onPressed,isNull);expect(repo.saves,0);
+  });
+}
