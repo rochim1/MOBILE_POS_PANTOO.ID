@@ -160,10 +160,20 @@ void main() {
           final font = tester.widget<Text>(find.text('1')).style?.fontSize;
           expect(font, size.height < 720 ? 30 : 32);
           final hintBounds = tester.getRect(find.textContaining('4–6'));
-          final indicatorBounds = tester.getRect(find.byKey(posPinEntryTourTarget));
-          final firstKeyBounds = tester.getRect(find.widgetWithText(TextButton, '1'));
-          expect(indicatorBounds.top - hintBounds.bottom, greaterThanOrEqualTo(14));
-          expect(firstKeyBounds.top - indicatorBounds.bottom, greaterThanOrEqualTo(16));
+          final indicatorBounds = tester.getRect(
+            find.byKey(posPinEntryTourTarget),
+          );
+          final firstKeyBounds = tester.getRect(
+            find.widgetWithText(TextButton, '1'),
+          );
+          expect(
+            indicatorBounds.top - hintBounds.bottom,
+            greaterThanOrEqualTo(14),
+          );
+          expect(
+            firstKeyBounds.top - indicatorBounds.bottom,
+            greaterThanOrEqualTo(16),
+          );
           for (final pair in [('1', '4'), ('4', '7'), ('7', '0')]) {
             final upper = tester.getRect(
               find.widgetWithText(TextButton, pair.$1),

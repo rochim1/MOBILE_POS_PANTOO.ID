@@ -684,7 +684,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                         horizontal: constraints.maxWidth < 600
                                             ? 8
                                             : 28,
-                                        vertical: compact ? 2 : 12,
+                                        vertical: compact ? 0 : 12,
                                       ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -830,7 +830,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               ),
                                             ),
                                           ],
-                                          SizedBox(height: compact ? 6 : 14),
+                                          const SizedBox(height: 14),
                                           if (!canCreateOwnPin) ...[
                                             Row(
                                               key: posPinEntryTourTarget,
@@ -856,7 +856,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(height: compact ? 8 : 18),
+                                            SizedBox(height: compact ? 16 : 18),
                                             _buildKeypadRow([
                                               '1',
                                               '2',
