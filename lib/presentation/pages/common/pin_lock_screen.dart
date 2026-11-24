@@ -835,18 +835,20 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   MainAxisAlignment.center,
                                               children: List.generate(
                                                 _pinLength,
-                                                (index) => Container(
-                                                  margin:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 7,
-                                                      ),
-                                                  width: 13,
-                                                  height: 13,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: index < _pin.length
-                                                        ? AppColors.primary
-                                                        : AppColors.border,
+                                                (index) => Flexible(
+                                                  child: Container(
+                                                    margin:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 7,
+                                                        ),
+                                                    width: 13,
+                                                    height: 13,
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: index < _pin.length
+                                                          ? AppColors.primary
+                                                          : AppColors.border,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -862,29 +864,38 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
                                               children: [
-                                                SizedBox(
-                                                  width: 80,
-                                                  height: _keypadButtonHeight,
+                                                Flexible(
+                                                  child: SizedBox(
+                                                    width: 80,
+                                                    height: _keypadButtonHeight,
+                                                  ),
                                                 ),
-                                                _buildKeypadButton('0'),
-                                                SizedBox(
-                                                  width: 80,
-                                                  height: _keypadButtonHeight,
-                                                  child: TextButton(
-                                                    onPressed:
-                                                        _isVerifying ||
-                                                            pinLocked
-                                                        ? null
-                                                        : _onDeleteTap,
-                                                    style: TextButton.styleFrom(
-                                                      shape:
-                                                          const CircleBorder(),
-                                                      foregroundColor:
-                                                          AppColors.body,
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.backspace_outlined,
-                                                      size: 30,
+                                                Flexible(
+                                                  child: _buildKeypadButton(
+                                                    '0',
+                                                  ),
+                                                ),
+                                                Flexible(
+                                                  child: SizedBox(
+                                                    width: 80,
+                                                    height: _keypadButtonHeight,
+                                                    child: TextButton(
+                                                      onPressed:
+                                                          _isVerifying ||
+                                                              pinLocked
+                                                          ? null
+                                                          : _onDeleteTap,
+                                                      style: TextButton.styleFrom(
+                                                        shape:
+                                                            const CircleBorder(),
+                                                        foregroundColor:
+                                                            AppColors.body,
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons
+                                                            .backspace_outlined,
+                                                        size: 30,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -1044,7 +1055,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
   Widget _buildKeypadRow(List<String> keys) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: keys.map((key) => _buildKeypadButton(key)).toList(),
+      children: keys
+          .map((key) => Flexible(child: _buildKeypadButton(key)))
+          .toList(),
     );
   }
 

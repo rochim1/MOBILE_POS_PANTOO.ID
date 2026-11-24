@@ -12,8 +12,8 @@ class PosPinAccessViewport extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: constraints.maxHeight),
         child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+          child: SizedBox(
+            width: constraints.maxWidth.clamp(0.0, 420.0),
             child: child,
           ),
         ),
