@@ -121,7 +121,7 @@ class PosPersonalProfileRepository {
           /* Invalid cache does not block retry. */
         }
       }
-      return Left(AppErrorHandler.handle(error));
+      return Left(error is Failure ? error : AppErrorHandler.handle(error));
     }
   }
 
@@ -193,7 +193,7 @@ class PosPersonalProfileRepository {
       }
       return Right(profile);
     } catch (error) {
-      return Left(AppErrorHandler.handle(error));
+      return Left(error is Failure ? error : AppErrorHandler.handle(error));
     }
   }
 
@@ -234,7 +234,20 @@ class PosPersonalProfileRepository {
           ? request.send()
           : uploadClient!.send(request)),
     );
-    final payload = jsonDecode(response.body) as Map;
+    Object? decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } catch (_) {
+      throw const ServerFailure(
+        'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.',
+      );
+    }
+    if (decoded is! Map) {
+      throw const ServerFailure(
+        'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.',
+      );
+    }
+    final payload = decoded;
     final errors = payload['errors'];
     if (errors is List && errors.isNotEmpty) {
       throw OperationException(

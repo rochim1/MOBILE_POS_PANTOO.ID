@@ -1,5 +1,9 @@
 {
   "@@locale": "id",
+  "personalProfileInvalidPhoto": "Foto tidak valid",
+  "personalProfileInvalidPhotoContent": "Isi file foto bukan gambar yang valid",
+  "personalProfileInvalidPhotoPath": "Lokasi foto tidak valid",
+  "personalProfileUploadError": "Unggah foto gagal",
   "personalProfileTitle": "Profil kasir aktif",
   "personalProfileScope": "Data pribadi kasir yang sudah diverifikasi dengan PIN. Hak akses, outlet, dan PIN tidak berubah.",
   "personalProfileCached": "Menampilkan data terakhir. Sambungkan internet untuk mengubah profil.",

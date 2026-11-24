@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
@@ -63,10 +62,11 @@ class _Upload extends http.BaseClient {
     request = value as http.MultipartRequest;
     return http.StreamedResponse(
       Stream.value(
-        utf8.encode(body ??
-          jsonEncode({
-            'data': {'UpdateMyPOSPersonalProfile': data},
-          }),
+        utf8.encode(
+          body ??
+              jsonEncode({
+                'data': {'UpdateMyPOSPersonalProfile': data},
+              }),
         ),
       ),
       status,
@@ -297,11 +297,30 @@ void main() {
       }
     },
   );
-  test('upload HTTP failure does not expose HTML or raw parsing errors', () async {
-    final upload=_Upload()..status=502..body='<html>private-proxy-details</html>';
-    final result=await PosPersonalProfileRepository(provider,prefs,uploadClient:upload).save(name:'Kasir',phone:'',address:'',expectedVersion:'v1',photo:PickedProductImage(name:'photo.png',bytes:Uint8List(1)));
-    expect(result.fold((f)=>f.message,(_)=>'saved'),'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.');
-  });
+  test(
+    'upload HTTP failure does not expose HTML or raw parsing errors',
+    () async {
+      final upload = _Upload()
+        ..status = 502
+        ..body = '<html>private-proxy-details</html>';
+      final result =
+          await PosPersonalProfileRepository(
+            provider,
+            prefs,
+            uploadClient: upload,
+          ).save(
+            name: 'Kasir',
+            phone: '',
+            address: '',
+            expectedVersion: 'v1',
+            photo: PickedProductImage(name: 'photo.png', bytes: Uint8List(1)),
+          );
+      expect(
+        result.fold((f) => f.message, (_) => 'saved'),
+        'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.',
+      );
+    },
+  );
   for (final size in [const Size(320, 568), const Size(768, 800)]) {
     testWidgets(
       'personal profile labels, progress and save stay usable at $size',

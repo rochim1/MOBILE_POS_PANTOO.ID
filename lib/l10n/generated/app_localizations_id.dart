@@ -9,6 +9,19 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get personalProfileInvalidPhoto => 'Foto tidak valid';
+
+  @override
+  String get personalProfileInvalidPhotoContent =>
+      'Isi file foto bukan gambar yang valid';
+
+  @override
+  String get personalProfileInvalidPhotoPath => 'Lokasi foto tidak valid';
+
+  @override
+  String get personalProfileUploadError => 'Unggah foto gagal';
+
+  @override
   String get personalProfileTitle => 'Profil kasir aktif';
 
   @override

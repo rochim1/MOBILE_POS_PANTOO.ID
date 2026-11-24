@@ -98,6 +98,30 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @personalProfileInvalidPhoto.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto tidak valid'**
+  String get personalProfileInvalidPhoto;
+
+  /// No description provided for @personalProfileInvalidPhotoContent.
+  ///
+  /// In id, this message translates to:
+  /// **'Isi file foto bukan gambar yang valid'**
+  String get personalProfileInvalidPhotoContent;
+
+  /// No description provided for @personalProfileInvalidPhotoPath.
+  ///
+  /// In id, this message translates to:
+  /// **'Lokasi foto tidak valid'**
+  String get personalProfileInvalidPhotoPath;
+
+  /// No description provided for @personalProfileUploadError.
+  ///
+  /// In id, this message translates to:
+  /// **'Unggah foto gagal'**
+  String get personalProfileUploadError;
+
   /// No description provided for @personalProfileTitle.
   ///
   /// In id, this message translates to:

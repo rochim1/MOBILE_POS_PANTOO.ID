@@ -8,6 +8,10 @@ class _PosPattern {
   final String Function(AppLocalizations, List<String>) render;
 }
 final Map<String, _PosValue> _exact = {
+  "Foto tidak valid": (l) => l.personalProfileInvalidPhoto,
+  "Isi file foto bukan gambar yang valid": (l) => l.personalProfileInvalidPhotoContent,
+  "Lokasi foto tidak valid": (l) => l.personalProfileInvalidPhotoPath,
+  "Unggah foto gagal": (l) => l.personalProfileUploadError,
   "Profil kasir aktif": (l) => l.personalProfileTitle,
   "Data pribadi kasir yang sudah diverifikasi dengan PIN. Hak akses, outlet, dan PIN tidak berubah.": (l) => l.personalProfileScope,
   "Menampilkan data terakhir. Sambungkan internet untuk mengubah profil.": (l) => l.personalProfileCached,

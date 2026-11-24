@@ -9,6 +9,19 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get personalProfileInvalidPhoto => 'Invalid photo';
+
+  @override
+  String get personalProfileInvalidPhotoContent =>
+      'The photo file does not contain a valid image';
+
+  @override
+  String get personalProfileInvalidPhotoPath => 'Invalid photo location';
+
+  @override
+  String get personalProfileUploadError => 'Photo upload failed';
+
+  @override
   String get personalProfileTitle => 'Active cashier profile';
 
   @override

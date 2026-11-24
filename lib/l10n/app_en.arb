@@ -1,5 +1,9 @@
 {
   "@@locale": "en",
+  "personalProfileInvalidPhoto": "Invalid photo",
+  "personalProfileInvalidPhotoContent": "The photo file does not contain a valid image",
+  "personalProfileInvalidPhotoPath": "Invalid photo location",
+  "personalProfileUploadError": "Photo upload failed",
   "personalProfileTitle": "Active cashier profile",
   "personalProfileScope": "Personal details of the PIN-verified cashier. Permissions, outlet and PIN stay unchanged.",
   "personalProfileCached": "Showing the last saved details. Connect to the internet to edit your profile.",
