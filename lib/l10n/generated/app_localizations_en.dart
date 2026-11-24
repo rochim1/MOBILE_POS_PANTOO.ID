@@ -9,6 +9,88 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get personalProfileTitle => 'Active cashier profile';
+
+  @override
+  String get personalProfileScope =>
+      'Personal details of the PIN-verified cashier. Permissions, outlet and PIN stay unchanged.';
+
+  @override
+  String get personalProfileCached =>
+      'Showing the last saved details. Connect to the internet to edit your profile.';
+
+  @override
+  String get personalProfilePhotoChange => 'Change profile photo';
+
+  @override
+  String get personalProfilePhotoRemove => 'Remove photo';
+
+  @override
+  String get personalProfilePhotoFormats => 'JPG, PNG or WebP. Up to 5 MB.';
+
+  @override
+  String get personalProfileIdentityReadOnly =>
+      'Login details can only be changed through account security settings.';
+
+  @override
+  String get personalProfileSave => 'Save profile';
+
+  @override
+  String get personalProfileSaved => 'Profile updated successfully';
+
+  @override
+  String get personalProfileUnavailable => 'Unable to load your profile';
+
+  @override
+  String get personalProfilePickFailed =>
+      'Unable to select a photo. Please try again.';
+
+  @override
+  String get personalProfileEmptyPhoto => 'The photo file is empty';
+
+  @override
+  String get personalProfilePhotoSize => 'Photos must be no larger than 5 MB';
+
+  @override
+  String get personalProfilePhotoType => 'Use a JPG, PNG or WebP photo';
+
+  @override
+  String get personalProfileInvalidInput =>
+      'Name, phone number or address is invalid';
+
+  @override
+  String get personalProfilePhotoConflict =>
+      'Choose either upload or remove photo, not both';
+
+  @override
+  String get personalProfileUploadFailed =>
+      'Photo upload failed. Check your connection and try again.';
+
+  @override
+  String get personalProfileServerFailed =>
+      'Unable to save or load your profile. Please try again.';
+
+  @override
+  String get personalProfileVersionConflict =>
+      'Your profile has changed. Reload it before saving.';
+
+  @override
+  String get personalProfileReload => 'Reload profile';
+
+  @override
+  String get personalProfileInvalidSession => 'The cashier session is invalid';
+
+  @override
+  String get personalProfileNoSession => 'The cashier session is unavailable';
+
+  @override
+  String get personalProfileNotFound => 'Cashier profile not found';
+
+  @override
+  String get personalProfileServerValidation =>
+      'Name, phone number, address or photo choice is invalid';
+
+  @override
   String get setupAutomaticContextHelp =>
       'Your first store and stock location are created automatically. Next, add products or services. Other settings can wait.';
 

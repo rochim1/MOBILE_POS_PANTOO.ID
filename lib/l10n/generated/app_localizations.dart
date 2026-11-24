@@ -98,6 +98,150 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @personalProfileTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil kasir aktif'**
+  String get personalProfileTitle;
+
+  /// No description provided for @personalProfileScope.
+  ///
+  /// In id, this message translates to:
+  /// **'Data pribadi kasir yang sudah diverifikasi dengan PIN. Hak akses, outlet, dan PIN tidak berubah.'**
+  String get personalProfileScope;
+
+  /// No description provided for @personalProfileCached.
+  ///
+  /// In id, this message translates to:
+  /// **'Menampilkan data terakhir. Sambungkan internet untuk mengubah profil.'**
+  String get personalProfileCached;
+
+  /// No description provided for @personalProfilePhotoChange.
+  ///
+  /// In id, this message translates to:
+  /// **'Ubah foto profil'**
+  String get personalProfilePhotoChange;
+
+  /// No description provided for @personalProfilePhotoRemove.
+  ///
+  /// In id, this message translates to:
+  /// **'Hapus foto'**
+  String get personalProfilePhotoRemove;
+
+  /// No description provided for @personalProfilePhotoFormats.
+  ///
+  /// In id, this message translates to:
+  /// **'JPG, PNG, atau WebP. Maksimal 5 MB.'**
+  String get personalProfilePhotoFormats;
+
+  /// No description provided for @personalProfileIdentityReadOnly.
+  ///
+  /// In id, this message translates to:
+  /// **'Identitas login hanya dapat diubah melalui pengaturan keamanan akun.'**
+  String get personalProfileIdentityReadOnly;
+
+  /// No description provided for @personalProfileSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan profil'**
+  String get personalProfileSave;
+
+  /// No description provided for @personalProfileSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil berhasil diperbarui'**
+  String get personalProfileSaved;
+
+  /// No description provided for @personalProfileUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil belum dapat dimuat'**
+  String get personalProfileUnavailable;
+
+  /// No description provided for @personalProfilePickFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto belum dapat dipilih. Silakan coba lagi.'**
+  String get personalProfilePickFailed;
+
+  /// No description provided for @personalProfileEmptyPhoto.
+  ///
+  /// In id, this message translates to:
+  /// **'File foto kosong'**
+  String get personalProfileEmptyPhoto;
+
+  /// No description provided for @personalProfilePhotoSize.
+  ///
+  /// In id, this message translates to:
+  /// **'Ukuran foto maksimal 5 MB'**
+  String get personalProfilePhotoSize;
+
+  /// No description provided for @personalProfilePhotoType.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto harus JPG, PNG, atau WebP'**
+  String get personalProfilePhotoType;
+
+  /// No description provided for @personalProfileInvalidInput.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama, nomor telepon, atau alamat tidak valid'**
+  String get personalProfileInvalidInput;
+
+  /// No description provided for @personalProfilePhotoConflict.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih unggah atau hapus foto, bukan keduanya'**
+  String get personalProfilePhotoConflict;
+
+  /// No description provided for @personalProfileUploadFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.'**
+  String get personalProfileUploadFailed;
+
+  /// No description provided for @personalProfileServerFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil belum berhasil disimpan atau dimuat. Silakan coba lagi.'**
+  String get personalProfileServerFailed;
+
+  /// No description provided for @personalProfileVersionConflict.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil berubah. Muat ulang sebelum menyimpan.'**
+  String get personalProfileVersionConflict;
+
+  /// No description provided for @personalProfileReload.
+  ///
+  /// In id, this message translates to:
+  /// **'Muat ulang profil'**
+  String get personalProfileReload;
+
+  /// No description provided for @personalProfileInvalidSession.
+  ///
+  /// In id, this message translates to:
+  /// **'Sesi kasir tidak valid'**
+  String get personalProfileInvalidSession;
+
+  /// No description provided for @personalProfileNoSession.
+  ///
+  /// In id, this message translates to:
+  /// **'Sesi kasir tidak tersedia'**
+  String get personalProfileNoSession;
+
+  /// No description provided for @personalProfileNotFound.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil kasir tidak ditemukan'**
+  String get personalProfileNotFound;
+
+  /// No description provided for @personalProfileServerValidation.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama, nomor telepon, alamat, atau pilihan foto tidak valid'**
+  String get personalProfileServerValidation;
+
   /// No description provided for @setupAutomaticContextHelp.
   ///
   /// In id, this message translates to:

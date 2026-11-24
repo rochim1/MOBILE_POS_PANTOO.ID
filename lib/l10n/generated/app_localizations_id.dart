@@ -9,6 +9,89 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get personalProfileTitle => 'Profil kasir aktif';
+
+  @override
+  String get personalProfileScope =>
+      'Data pribadi kasir yang sudah diverifikasi dengan PIN. Hak akses, outlet, dan PIN tidak berubah.';
+
+  @override
+  String get personalProfileCached =>
+      'Menampilkan data terakhir. Sambungkan internet untuk mengubah profil.';
+
+  @override
+  String get personalProfilePhotoChange => 'Ubah foto profil';
+
+  @override
+  String get personalProfilePhotoRemove => 'Hapus foto';
+
+  @override
+  String get personalProfilePhotoFormats =>
+      'JPG, PNG, atau WebP. Maksimal 5 MB.';
+
+  @override
+  String get personalProfileIdentityReadOnly =>
+      'Identitas login hanya dapat diubah melalui pengaturan keamanan akun.';
+
+  @override
+  String get personalProfileSave => 'Simpan profil';
+
+  @override
+  String get personalProfileSaved => 'Profil berhasil diperbarui';
+
+  @override
+  String get personalProfileUnavailable => 'Profil belum dapat dimuat';
+
+  @override
+  String get personalProfilePickFailed =>
+      'Foto belum dapat dipilih. Silakan coba lagi.';
+
+  @override
+  String get personalProfileEmptyPhoto => 'File foto kosong';
+
+  @override
+  String get personalProfilePhotoSize => 'Ukuran foto maksimal 5 MB';
+
+  @override
+  String get personalProfilePhotoType => 'Foto harus JPG, PNG, atau WebP';
+
+  @override
+  String get personalProfileInvalidInput =>
+      'Nama, nomor telepon, atau alamat tidak valid';
+
+  @override
+  String get personalProfilePhotoConflict =>
+      'Pilih unggah atau hapus foto, bukan keduanya';
+
+  @override
+  String get personalProfileUploadFailed =>
+      'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.';
+
+  @override
+  String get personalProfileServerFailed =>
+      'Profil belum berhasil disimpan atau dimuat. Silakan coba lagi.';
+
+  @override
+  String get personalProfileVersionConflict =>
+      'Profil berubah. Muat ulang sebelum menyimpan.';
+
+  @override
+  String get personalProfileReload => 'Muat ulang profil';
+
+  @override
+  String get personalProfileInvalidSession => 'Sesi kasir tidak valid';
+
+  @override
+  String get personalProfileNoSession => 'Sesi kasir tidak tersedia';
+
+  @override
+  String get personalProfileNotFound => 'Profil kasir tidak ditemukan';
+
+  @override
+  String get personalProfileServerValidation =>
+      'Nama, nomor telepon, alamat, atau pilihan foto tidak valid';
+
+  @override
   String get setupAutomaticContextHelp =>
       'Toko dan lokasi stok awal dibuat otomatis. Setelah ini cukup tambahkan produk atau layanan. Pengaturan lain bisa menyusul.';
 

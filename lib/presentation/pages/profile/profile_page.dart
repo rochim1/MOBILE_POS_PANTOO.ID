@@ -60,6 +60,9 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _loading = true;
       _error = null;
+      _profile = null;
+      _photo = null;
+      _removePhoto = false;
     });
     final result = await _repository.getProfile();
     if (!mounted) return;
@@ -87,8 +90,9 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Foto belum dapat dipilih. Silakan coba lagi.');
+      }
     } finally {
       if (mounted) setState(() => _picking = false);
     }
@@ -99,8 +103,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_busy ||
         profile == null ||
         profile.cached ||
-        !_form.currentState!.validate())
+        !_form.currentState!.validate()) {
       return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -141,7 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final preview = _removePhoto
         ? ''
         : _photo != null
-        ? 'data:image/png;base64,' + base64Encode(_photo!.bytes)
+        ? 'data:image/png;base64,${base64Encode(_photo!.bytes)}'
         : profile.photo;
     return Form(
       key: _form,
@@ -272,6 +277,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: _busy ? null : _load,
+                      child: const PosText('Muat ulang profil'),
+                    ),
                   ],
                   FilledButton.icon(
                     key: const ValueKey('profile_save'),

@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:mobile_pos_pantoo/core/themes/app_theme.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_cubit.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/lock/lock_state.dart';
 import 'package:flutter/material.dart';
@@ -119,12 +123,21 @@ class _Repository extends Fake implements PosPersonalProfileRepository {
 }
 
 class _Lock extends AppLockCubit {
-  void seed(AppLockStatus status) => emit(AppLockState(
-    status: status, activeEmployeeId: 'operator', activeEmployeeName: 'Lama',
-    activeEmployeeRole: 'cashier', operatorSessionToken: 'verified-token',
-    selectedEmployeeId: 'operator', hasPinConfigured: true,
-    employees: const [{'_id':'operator','name':'Lama','has_pin':true}, {'_id':'other','name':'Lain'}],
-  ));
+  void seed(AppLockStatus status) => emit(
+    AppLockState(
+      status: status,
+      activeEmployeeId: 'operator',
+      activeEmployeeName: 'Lama',
+      activeEmployeeRole: 'cashier',
+      operatorSessionToken: 'verified-token',
+      selectedEmployeeId: 'operator',
+      hasPinConfigured: true,
+      employees: const [
+        {'_id': 'operator', 'name': 'Lama', 'has_pin': true},
+        {'_id': 'other', 'name': 'Lain'},
+      ],
+    ),
+  );
 }
 
 void main() {
@@ -143,13 +156,23 @@ void main() {
     provider.client = GraphQLClient(
       cache: GraphQLCache(),
       link: Link.function((request, [forward]) async* {
-          if (failure != null) {
-            if (failure.graphqlErrors.isNotEmpty) {
-              yield Response(errors: failure.graphqlErrors.map((e) => GraphQLError(message: e.message, extensions: e.extensions)).toList(), response: {});
-              return;
-            }
-            throw failure;
+        if (failure != null) {
+          if (failure.graphqlErrors.isNotEmpty) {
+            yield Response(
+              errors: failure.graphqlErrors
+                  .map(
+                    (e) => GraphQLError(
+                      message: e.message,
+                      extensions: e.extensions,
+                    ),
+                  )
+                  .toList(),
+              response: {},
+            );
+            return;
           }
+          throw failure;
+        }
         yield Response(
           data: {'__typename': 'Query', 'GetMyPOSPersonalProfile': data},
           response: {},
@@ -274,22 +297,33 @@ void main() {
         final repo = _Repository()..pending = Completer();
         var updated = 0;
         await tester.pumpWidget(
-          MaterialApp(
+          RepaintBoundary(key: const ValueKey('profile_preview'), child: MaterialApp(
+            theme: AppTheme.light(),
             locale: const Locale('id'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: ProfilePage(repository: repo, onUpdated: (_) => updated++),
-          ),
+          )),
         );
         await tester.pumpAndSettle();
+        if (const bool.fromEnvironment('CAPTURE_PERSONAL_PROFILE')) {
+          await tester.runAsync(() async {
+            final boundary=tester.renderObject<RenderRepaintBoundary>(find.byKey(const ValueKey('profile_preview')));
+            final image=await boundary.toImage(pixelRatio:2);
+            final png=await image.toByteData(format:ui.ImageByteFormat.png);
+            await Directory('output/personal-profile-20261124').create(recursive:true);
+            await File('output/personal-profile-20261124/profile-'+size.width.toInt().toString()+'.png').writeAsBytes(png!.buffer.asUint8List());image.dispose();
+          });
+        }
         for (final label in [
           'Nama lengkap',
           'Nomor telepon',
           'Alamat',
           'Email',
           'Username',
-        ])
+        ]) {
           expect(find.text(label), findsWidgets);
+        }
         expect(
           tester
               .widget<TextFormField>(
@@ -347,58 +381,166 @@ void main() {
       expect(repo.saves, 0);
     },
   );
-  test('cosmetic identity refresh cannot unlock, change role/session or another operator', () async {
-    final lock = _Lock();
-    for(final status in [AppLockStatus.locked, AppLockStatus.unlocked]) {
-      lock.seed(status);
-      lock.applyActiveEmployeeProfile(id:'operator',name:'Baru',photoUrl:'/photo.png');
-      expect(lock.state.status,status); expect(lock.state.activeEmployeeName,'Baru');
-      expect(lock.state.operatorSessionToken,'verified-token'); expect(lock.state.activeEmployeeRole,'cashier');
-      expect(lock.state.selectedEmployeeId,'operator');expect(lock.state.hasPinConfigured,isTrue);
-      expect(lock.state.employees.first['photo_url'],'/photo.png');expect(lock.state.employees.last['name'],'Lain');
-      lock.applyActiveEmployeeProfile(id:'other',name:'Wrong',photoUrl:'');expect(lock.state.activeEmployeeName,'Baru');
-    }
-    await lock.close();
-    lock.applyActiveEmployeeProfile(id:'operator',name:'Closed',photoUrl:'');
-  });
+  test(
+    'cosmetic identity refresh cannot unlock, change role/session or another operator',
+    () async {
+      final lock = _Lock();
+      for (final status in [AppLockStatus.locked, AppLockStatus.unlocked]) {
+        lock.seed(status);
+        lock.applyActiveEmployeeProfile(
+          id: 'operator',
+          name: 'Baru',
+          photoUrl: '/photo.png',
+        );
+        expect(lock.state.status, status);
+        expect(lock.state.activeEmployeeName, 'Baru');
+        expect(lock.state.operatorSessionToken, 'verified-token');
+        expect(lock.state.activeEmployeeRole, 'cashier');
+        expect(lock.state.selectedEmployeeId, 'operator');
+        expect(lock.state.hasPinConfigured, isTrue);
+        expect(lock.state.employees.first['photo_url'], '/photo.png');
+        expect(lock.state.employees.last['name'], 'Lain');
+        lock.applyActiveEmployeeProfile(
+          id: 'other',
+          name: 'Wrong',
+          photoUrl: '',
+        );
+        expect(lock.state.activeEmployeeName, 'Baru');
+      }
+      await lock.close();
+      lock.applyActiveEmployeeProfile(
+        id: 'operator',
+        name: 'Closed',
+        photoUrl: '',
+      );
+    },
+  );
   test('late server profile from previous operator is discarded', () async {
     final pending = Completer<Response>();
-    provider.client=GraphQLClient(cache:GraphQLCache(),link:Link.function((request,[forward])=>pending.future.asStream()));
-    final read=PosPersonalProfileRepository(provider,prefs).getProfile();
+    provider.client = GraphQLClient(
+      cache: GraphQLCache(),
+      link: Link.function((request, [forward]) => pending.future.asStream()),
+    );
+    final read = PosPersonalProfileRepository(provider, prefs).getProfile();
     await Future<void>.delayed(Duration.zero);
-    provider.subscriptionScope='endpoint|tenant|terminal|new';
-    pending.complete(Response(data:{'__typename':'Query','GetMyPOSPersonalProfile':data},response:{}));
-    expect((await read).isLeft(),isTrue);
-    expect(prefs.getKeys().where((key)=>key.startsWith('pos_personal_profile_v1:')),isEmpty);
+    provider.subscriptionScope = 'endpoint|tenant|terminal|new';
+    pending.complete(
+      Response(
+        data: {'__typename': 'Query', 'GetMyPOSPersonalProfile': data},
+        response: {},
+      ),
+    );
+    expect((await read).isLeft(), isTrue);
+    expect(
+      prefs.getKeys().where(
+        (key) => key.startsWith('pos_personal_profile_v1:'),
+      ),
+      isEmpty,
+    );
   });
-  test('text-only save and removal use exact API input; owner name updates only for self', () async {
-    Map<String,dynamic>? variables;
-    provider.client=GraphQLClient(cache:GraphQLCache(),link:Link.function((request,[forward])async*{
-      variables=request.variables; yield Response(data:{'__typename':'Mutation','UpdateMyPOSPersonalProfile':data},response:{});
-    }));
-    await prefs.setString('user_id','operator');
-    final result=await PosPersonalProfileRepository(provider,prefs).save(name:'Kasir Uji',phone:'',address:'',expectedVersion:'v1',removePhoto:true);
-    expect(result.isRight(),isTrue);expect(variables?['input'],{'name':'Kasir Uji','phone':'','address':'','expected_version':'v1','remove_photo':true});
-    expect(prefs.getString('username'),'Kasir Uji');
-  });
-  testWidgets('photo selection is previewed and submitted once; rejected save preserves draft', (tester) async {
-    final repo=_Repository()..pending=Completer();
-    final image=PickedProductImage(name:'photo.png',bytes:base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=='));
-    await tester.pumpWidget(MaterialApp(home:ProfilePage(repository:repo,imagePicker:() async=>image)));
-    await tester.pumpAndSettle();await tester.tap(find.text('Ubah foto profil'));await tester.pumpAndSettle();
-    expect(find.text('Hapus foto'),findsOneWidget);
-    await tester.enterText(find.byKey(const ValueKey('profile_name')),'Nama Baru');
-    tester.testTextInput.hide(); FocusManager.instance.primaryFocus?.unfocus(); await tester.pumpAndSettle();
-    final save=find.byKey(const ValueKey('profile_save'));await tester.ensureVisible(save);await tester.pumpAndSettle();
-    await tester.tap(save);await tester.pump();expect(repo.savedPhoto,same(image));expect(repo.saves,1);
-    repo.pending!.complete(const Left(ServerFailure('Profil berubah. Muat ulang sebelum menyimpan.')));await tester.pumpAndSettle();
-    expect(tester.widget<TextFormField>(find.byKey(const ValueKey('profile_name'))).controller!.text,'Nama Baru');
-    expect(find.text('Profil berubah. Muat ulang sebelum menyimpan.'),findsOneWidget);expect(repo.saves,1);
-  });
-  testWidgets('English profile actions and notices are translated', (tester) async {
-    await tester.pumpWidget(MaterialApp(locale:const Locale('en'),localizationsDelegates:AppLocalizations.localizationsDelegates,
-      supportedLocales:AppLocalizations.supportedLocales,home:ProfilePage(repository:_Repository())));
-    await tester.pumpAndSettle();expect(find.text('Active cashier profile'),findsOneWidget);
-    expect(find.text('Change profile photo'),findsOneWidget);expect(find.text('Save profile'),findsOneWidget);
+  test(
+    'text-only save and removal use exact API input; owner name updates only for self',
+    () async {
+      Map<String, dynamic>? variables;
+      provider.client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          variables = request.variables;
+          yield Response(
+            data: {
+              '__typename': 'Mutation',
+              'UpdateMyPOSPersonalProfile': data,
+            },
+            response: {},
+          );
+        }),
+      );
+      await prefs.setString('user_id', 'operator');
+      final result = await PosPersonalProfileRepository(provider, prefs).save(
+        name: 'Kasir Uji',
+        phone: '',
+        address: '',
+        expectedVersion: 'v1',
+        removePhoto: true,
+      );
+      expect(result.isRight(), isTrue);
+      expect(variables?['input'], {
+        'name': 'Kasir Uji',
+        'phone': '',
+        'address': '',
+        'expected_version': 'v1',
+        'remove_photo': true,
+      });
+      expect(prefs.getString('username'), 'Kasir Uji');
+    },
+  );
+  testWidgets(
+    'photo selection is previewed and submitted once; rejected save preserves draft',
+    (tester) async {
+      final repo = _Repository()..pending = Completer();
+      final image = PickedProductImage(
+        name: 'photo.png',
+        bytes: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ProfilePage(repository: repo, imagePicker: () async => image),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ubah foto profil'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hapus foto'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('profile_name')),
+        'Nama Baru',
+      );
+      tester.testTextInput.hide();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      final save = find.byKey(const ValueKey('profile_save'));
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
+      await tester.pump();
+      expect(repo.savedPhoto, same(image));
+      expect(repo.saves, 1);
+      repo.pending!.complete(
+        const Left(
+          ServerFailure('Profil berubah. Muat ulang sebelum menyimpan.'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const ValueKey('profile_name')))
+            .controller!
+            .text,
+        'Nama Baru',
+      );
+      expect(
+        find.text('Profil berubah. Muat ulang sebelum menyimpan.'),
+        findsOneWidget,
+      );
+      expect(repo.saves, 1);
+    },
+  );
+  testWidgets('English profile actions and notices are translated', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ProfilePage(repository: _Repository()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Active cashier profile'), findsOneWidget);
+    expect(find.text('Change profile photo'), findsOneWidget);
+    expect(find.text('Save profile'), findsOneWidget);
   });
 }

@@ -44,8 +44,9 @@ String? personalPhotoValidation(PickedProductImage image) {
     'jpeg',
     'png',
     'webp',
-  ].contains(image.name.split('.').last.toLowerCase()))
+  ].contains(image.name.split('.').last.toLowerCase())) {
     return 'Foto harus JPG, PNG, atau WebP';
+  }
   return null;
 }
 
@@ -59,12 +60,13 @@ class PosPersonalProfileRepository {
   static const mutation =
       r'''mutation UpdateMyPOSPersonalProfile($input:POSPersonalProfileInput!,$photo:Upload){UpdateMyPOSPersonalProfile(input:$input,photo:$photo){_id name username email phone address photo version}}''';
   String _key(String scope) =>
-      'pos_personal_profile_v1:' + Uri.encodeComponent(scope);
+      'pos_personal_profile_v1:${Uri.encodeComponent(scope)}';
   PosPersonalProfile _decode(Map value, {bool cached = false}) {
     if (value['_id'] == null ||
         value['name'] == null ||
-        value['version'] == null)
+        value['version'] == null) {
       throw const FormatException('Profil tidak lengkap');
+    }
     return PosPersonalProfile(
       id: value['_id'].toString(),
       name: value['name'].toString(),
@@ -89,8 +91,9 @@ class PosPersonalProfileRepository {
 
   Future<Either<Failure, PosPersonalProfile>> getProfile() async {
     final scope = provider.subscriptionScope;
-    if (scope.isEmpty)
+    if (scope.isEmpty) {
       return const Left(AuthFailure('Sesi kasir tidak tersedia'));
+    }
     try {
       final result = await provider.client
           .query(
@@ -101,8 +104,9 @@ class PosPersonalProfileRepository {
           )
           .timeout(const Duration(seconds: 15));
       if (result.hasException) throw result.exception!;
-      if (scope != provider.subscriptionScope)
+      if (scope != provider.subscriptionScope) {
         return const Left(AuthFailure('Sesi telah berubah'));
+      }
       final profile = _decode(result.data?['GetMyPOSPersonalProfile'] as Map);
       await _cache(scope, profile);
       return Right(profile);
@@ -110,8 +114,9 @@ class PosPersonalProfileRepository {
       if (scope == provider.subscriptionScope && isOfflineReadFailure(error)) {
         try {
           final raw = prefs.getString(_key(scope));
-          if (raw != null)
+          if (raw != null) {
             return Right(_decode(jsonDecode(raw) as Map, cached: true));
+          }
         } catch (_) {
           /* Invalid cache does not block retry. */
         }
@@ -129,23 +134,26 @@ class PosPersonalProfileRepository {
     bool removePhoto = false,
   }) async {
     final scope = provider.subscriptionScope;
-    if (scope.isEmpty)
+    if (scope.isEmpty) {
       return const Left(AuthFailure('Sesi kasir tidak tersedia'));
+    }
     if (name.trim().isEmpty ||
         name.trim().length > 160 ||
         address.trim().length > 1000 ||
         (phone.trim().isNotEmpty &&
-            !RegExp(r'^\+?\d{8,15}$').hasMatch(phone.trim())))
+            !RegExp(r'^\+?\d{8,15}$').hasMatch(phone.trim()))) {
       return const Left(
         ServerFailure('Nama, nomor telepon, atau alamat tidak valid'),
       );
+    }
     if (photo != null) {
       final error = personalPhotoValidation(photo);
       if (error != null) return Left(ServerFailure(error));
-      if (removePhoto)
+      if (removePhoto) {
         return const Left(
           ServerFailure('Pilih unggah atau hapus foto, bukan keduanya'),
         );
+      }
     }
     final input = <String, dynamic>{
       'name': name.trim(),
@@ -175,12 +183,14 @@ class PosPersonalProfileRepository {
           scope,
         ).timeout(const Duration(seconds: 25));
       }
-      if (scope != provider.subscriptionScope)
+      if (scope != provider.subscriptionScope) {
         return const Left(AuthFailure('Sesi telah berubah'));
+      }
       final profile = _decode(data?['UpdateMyPOSPersonalProfile'] as Map);
       await _cache(scope, profile);
-      if (profile.id == prefs.getString('user_id'))
+      if (profile.id == prefs.getString('user_id')) {
         await prefs.setString('username', profile.name);
+      }
       return Right(profile);
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
@@ -197,8 +207,9 @@ class PosPersonalProfileRepository {
       Uri.parse(provider.endpointUrl),
     );
     request.headers.addAll(await provider.authenticatedRequestHeaders());
-    if (scope != provider.subscriptionScope)
+    if (scope != provider.subscriptionScope) {
       throw const AuthFailure('Sesi telah berubah');
+    }
     request.fields['operations'] = jsonEncode({
       'query': mutation,
       'variables': {'input': input, 'photo': null},
@@ -225,7 +236,7 @@ class PosPersonalProfileRepository {
     );
     final payload = jsonDecode(response.body) as Map;
     final errors = payload['errors'];
-    if (errors is List && errors.isNotEmpty)
+    if (errors is List && errors.isNotEmpty) {
       throw OperationException(
         graphqlErrors: errors
             .map(
@@ -239,12 +250,14 @@ class PosPersonalProfileRepository {
             )
             .toList(),
       );
+    }
     if (response.statusCode < 200 ||
         response.statusCode >= 300 ||
-        payload['data'] is! Map)
+        payload['data'] is! Map) {
       throw const ServerFailure(
         'Foto belum berhasil diunggah. Periksa koneksi lalu coba lagi.',
       );
+    }
     return Map<String, dynamic>.from(payload['data'] as Map);
   }
 }
