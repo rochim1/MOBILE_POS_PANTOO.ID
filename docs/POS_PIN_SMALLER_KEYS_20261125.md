@@ -1,6 +1,23 @@
 # Tombol PIN lebih kecil tanpa scroll — 25 November 2026
 
-## Penyesuaian terbaru: jarak antarbaris lebih lega
+## Penyesuaian terbaru: hanya ruang di sekitar indikator PIN
+
+Pengguna mengklarifikasi lewat screenshot bahwa ukuran/susunan sudah cukup, hanya area keterangan dan titik PIN perlu lebih lega. Permintaan sebelumnya untuk kembali ke awal dibatalkan oleh klarifikasi ini; restorasi tidak dilakukan. Journey: melihat petunjuk PIN, titik indikator dan keypad dengan pemisahan vertikal yang jelas tanpa mengubah tombol.
+
+Perubahan produksi hanya3baris: jarak petunjuk→titik pada layar pendek6→14dp; titik→keypad8→16dp (layar lega tetap18dp); padding vertikal dalam panel pendek2→0dp per sisi untuk mengimbangi ruang tambahan, sementara SafeArea dan padding luar tetap. Ukuran keypad56dp/angka30sp, gap antarbaris12dp, footer dan autentikasi tidak berubah.
+
+RED `c95a30b`:7PASS/4FAIL karena gap petunjuk6dp. Percobaan pertama9PASS/2FAIL: tersisa4dp scroll pada320×568; dikoreksi lewat padding internal, bukan mengurangi tombol atau melonggarkan tes. GREEN `0a861b6`: **82PASS**, exit0,1menit12detik. Analyze akhir **No issues found**,3,8detik; coverage PIN **480/565baris (85%)**.
+
+| Jaminan widget/integration | Bukti |
+|---|---|
+| Petunjuk→titik≥14dp dan titik→keypad≥16dp; keypad/gap baris tetap, nol scroll normal |Assertion tambahan dalam8layout ID/EN pada320×568,360×640,390×844,768×800|
+| Layar pendek/font besar tetap bisa scroll; create-PIN/keyboard/centang/loader/guard tetap |Seluruh11kasus layout dan enam suite regresi;82PASS tanpa skip/deletion|
+
+Perintah tujuh suite pada blok riwayat dijalankan dengan `--dart-define=PIN_CLASSIC_PHASE=indicator` dan `--coverage-path=output/pin-classic-layout-20261125/indicator-lcov.info`. Log `indicator-verification.log`, preview widget `id-indicator.png`/`en-indicator.png` di folder yang sama. Preview Indonesia diperiksa. Tidak build/deploy, mengubah backend atau menguji GUI Android fisik; gunakan hot restart `R`.
+
+Evaluasi: akurasi5 (diff3baris/tes/preview), kelengkapan4 (kenyamanan HP pengguna belum dikonfirmasi), kejelasan5, tindak lanjut4 (perlu restart), keringkasan5;4,6/5. Tidak ada masalah kritis pada lingkup ini. Hasil sesuai klarifikasi; verifikasi visual oleh pengguna tetap menjadi tindak lanjut yang relevan.
+
+## Penyesuaian sebelumnya: jarak antarbaris lebih lega
 
 Journey dari masukan pengguna: jarak atas–bawah antar tombol masih terlalu rapat. Gap antarbaris keypad dinaikkan **4→12dp** pada layar pendek (10→12dp pada layar lega), tanpa mengecilkan tombol56dp/angka30sp. Di tinggi tersedia<560dp, pengantar generik tidak ditampilkan bagi operator yang sudah memiliki PIN; petunjuk PIN, pemilih operator dan semua aksi tetap. Padding panel layar lega dikurangi2dp per sisi vertikal agar tablet tidak mendapat scroll4dp setelah gap diperbesar.
 
