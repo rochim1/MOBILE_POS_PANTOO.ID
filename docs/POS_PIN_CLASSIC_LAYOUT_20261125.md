@@ -1,5 +1,7 @@
 # Panel PIN kembali lega — 25 November 2026
 
+> Permintaan lanjutan pada hari yang sama mengecilkan tombol agar HP normal tidak perlu scroll, dengan footer tetap vertikal. Lihat [hasil terkini](POS_PIN_SMALLER_KEYS_20261125.md). Bukti di bawah merekam tahap restorasi sebelum penyesuaian ukuran tersebut.
+
 ## Permintaan dan batas perubahan
 
 Permintaan: “tolong rapikan pin seperti di awal”. Interpretasi yang disampaikan kepada pengguna: kembalikan susunan sebelum pemadatan terakhir, bukan membatalkan seluruh perbaikan PIN sebelumnya.
