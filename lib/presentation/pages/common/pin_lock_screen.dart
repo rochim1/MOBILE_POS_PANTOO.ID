@@ -684,7 +684,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                         horizontal: constraints.maxWidth < 600
                                             ? 8
                                             : 28,
-                                        vertical: compact ? 2 : 14,
+                                        vertical: compact ? 2 : 12,
                                       ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -699,14 +699,16 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               color: AppColors.heading,
                                             ),
                                           ),
-                                          PosText(
-                                            'Pilih operator dan masukkan PIN untuk melanjutkan',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: compact ? 12 : 14,
+                                          if (constraints.maxHeight >= 560 ||
+                                              canCreateOwnPin)
+                                            PosText(
+                                              'Pilih operator dan masukkan PIN untuk melanjutkan',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontSize: compact ? 12 : 14,
+                                              ),
                                             ),
-                                          ),
                                           SizedBox(height: compact ? 6 : 12),
                                           Material(
                                             key: posPinOperatorTourTarget,
@@ -860,19 +862,19 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               '2',
                                               '3',
                                             ], compact: compact),
-                                            SizedBox(height: compact ? 4 : 10),
+                                            const SizedBox(height: 12),
                                             _buildKeypadRow([
                                               '4',
                                               '5',
                                               '6',
                                             ], compact: compact),
-                                            SizedBox(height: compact ? 4 : 10),
+                                            const SizedBox(height: 12),
                                             _buildKeypadRow([
                                               '7',
                                               '8',
                                               '9',
                                             ], compact: compact),
-                                            SizedBox(height: compact ? 4 : 10),
+                                            const SizedBox(height: 12),
                                             Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
