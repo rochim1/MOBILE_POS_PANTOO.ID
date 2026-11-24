@@ -64,17 +64,17 @@ void main() {
     );
   }
   test(
-    'the real POS shell reserves dock space under the same visibility guard as its cashier button',
+    'the real POS shell keeps cashier access guarded inside the bottom bar',
     () {
       final source = File(
         'lib/presentation/pages/pos/pos_shell_page.dart',
       ).readAsStringSync();
-      expect(source, contains('child: PosCashierDockBody('));
+      expect(source, contains('PosMobileBottomBar('));
+      expect(source, contains('_mobilePrimaryIndex == 1 &&'));
+      expect(source, contains('MediaQuery.of(context).viewInsets.bottom == 0'));
       expect(
         source,
-        contains(
-          'enabled: isMobile && _mobilePrimaryIndex == 1 && MediaQuery.of(context).viewInsets.bottom == 0',
-        ),
+        isNot(contains('FloatingActionButtonLocation.centerDocked')),
       );
     },
   );

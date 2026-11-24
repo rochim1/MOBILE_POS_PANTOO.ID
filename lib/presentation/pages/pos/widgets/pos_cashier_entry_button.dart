@@ -8,16 +8,19 @@ class PosCashierEntryButton extends StatelessWidget {
   final VoidCallback onOpenCashier;
 
   @override
-  Widget build(BuildContext context) => FloatingActionButton.small(
-    // This shell action remains visible beside nested pages with their own FAB.
-    // It switches tabs, so no shared-element flight is needed.
-    heroTag: null,
-    backgroundColor: AppColors.primary,
-    foregroundColor: Colors.white,
-    shape: const CircleBorder(),
-    elevation: 2,
-    tooltip: ('Buka kasir').tr(context),
-    onPressed: onOpenCashier,
-    child: const Icon(Icons.point_of_sale, size: 20),
-  );
+  Widget build(BuildContext context) {
+    return FloatingActionButton.small(
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      // This shell action remains visible beside nested pages with their own FAB.
+      // It switches tabs, so no shared-element flight is needed.
+      heroTag: null,
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      tooltip: ('Buka kasir').tr(context),
+      onPressed: onOpenCashier,
+      child: const Icon(Icons.point_of_sale, size: 20),
+    );
+  }
 }

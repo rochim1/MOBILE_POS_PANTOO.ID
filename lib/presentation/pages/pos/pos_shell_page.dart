@@ -35,8 +35,7 @@ import 'pos_onboarding_page.dart';
 import 'pos_notification_page.dart';
 import 'pos_kitchen_display_page.dart';
 import 'widgets/pos_cashier_tour.dart';
-import 'widgets/pos_cashier_entry_button.dart';
-import 'widgets/pos_cashier_dock_body.dart';
+import 'widgets/pos_mobile_bottom_bar.dart';
 import 'widgets/pos_navbar_context_actions.dart';
 import 'utils/pos_navbar_action_policy.dart';
 import 'widgets/pos_setup_suggestion.dart';
@@ -1771,9 +1770,7 @@ class _PosShellPageState extends State<PosShellPage>
                         ],
                       ),
                       body: SafeArea(
-                        child: PosCashierDockBody(
-                          enabled: isMobile && _mobilePrimaryIndex == 1 && MediaQuery.of(context).viewInsets.bottom == 0,
-                          child: isMobile
+                        child: isMobile
                             ? Theme(
                                 data: Theme.of(context).copyWith(
                                   visualDensity: const VisualDensity(
@@ -1788,125 +1785,43 @@ class _PosShellPageState extends State<PosShellPage>
                             : _withKeyboardNavigation(
                                 _buildShellBody(isMobile),
                               ),
-                        ),
                       ),
-                      floatingActionButton:
-                          isMobile &&
-                              _mobilePrimaryIndex == 1 &&
-                              MediaQuery.of(context).viewInsets.bottom == 0
-                          ? PosCashierEntryButton(
-                              onOpenCashier: _openCashierWorkspace,
-                            )
-                          : null,
-                      floatingActionButtonLocation:
-                          FloatingActionButtonLocation.centerDocked,
                       bottomNavigationBar: isMobile
-                          ? BottomAppBar(
-                              shape: const CircularNotchedRectangle(),
-                              notchMargin: 4.0,
-                              color: Colors.white,
-                              padding: EdgeInsets.zero,
-                              height: 60,
-                              child: Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: _buildBottomNavItem(
-                                            icon: Icons.bar_chart_outlined,
-                                            selectedIcon: Icons.bar_chart,
-                                            label: ('Laporan').tr(context),
-                                            index: 12,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: _buildBottomNavItem(
-                                            icon: Icons.inventory_2_outlined,
-                                            selectedIcon: Icons.inventory_2,
-                                            label: ('Katalog').tr(context),
-                                            index: 2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 56),
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: _buildBottomNavItem(
-                                            icon: Icons.receipt_long_outlined,
-                                            selectedIcon: Icons.receipt_long,
-                                            label: ('Transaksi').tr(context),
-                                            index: 3,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: _buildBottomNavItem(
-                                            icon: Icons.menu_outlined,
-                                            selectedIcon: Icons.menu,
-                                            label: ('Lainnya').tr(context),
-                                            index: 4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                          ? PosMobileBottomBar(
+                              onOpenCashier:
+                                  _mobilePrimaryIndex == 1 &&
+                                      MediaQuery.of(context).viewInsets.bottom == 0
+                                  ? _openCashierWorkspace
+                                  : null,
+                              reports: _buildBottomNavItem(
+                                icon: Icons.bar_chart_outlined,
+                                selectedIcon: Icons.bar_chart,
+                                label: ('Laporan').tr(context),
+                                index: 12,
+                              ),
+                              catalog: _buildBottomNavItem(
+                                icon: Icons.inventory_2_outlined,
+                                selectedIcon: Icons.inventory_2,
+                                label: ('Katalog').tr(context),
+                                index: 2,
+                              ),
+                              transactions: _buildBottomNavItem(
+                                icon: Icons.receipt_long_outlined,
+                                selectedIcon: Icons.receipt_long,
+                                label: ('Transaksi').tr(context),
+                                index: 3,
+                              ),
+                              more: _buildBottomNavItem(
+                                icon: Icons.menu_outlined,
+                                selectedIcon: Icons.menu,
+                                label: ('Lainnya').tr(context),
+                                index: 4,
                               ),
                             )
                           : null,
                     ),
                     if (_showUnlockLoading)
-                      Positioned.fill(
-                        child: ColoredBox(
-                          color: Colors.white,
-                          child: SafeArea(
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 112,
-                                    height: 112,
-                                    child: ClipRect(
-                                      child: Image.asset(
-                                        'assets/images/pantoo_loading.gif',
-                                        fit: BoxFit.contain,
-                                        gaplessPlayback: true,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  PosText(
-                                    posLocale(context).posPreparingSales,
-                                    textScaler: TextScaler.noScaling,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.primary,
-                                      decoration: TextDecoration.none,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const PosText(
-                                    'Mohon tunggu sebentar',
-                                    textScaler: TextScaler.noScaling,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w400,
-                                      color: Colors.black54,
-                                      decoration: TextDecoration.none,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                      const Positioned.fill(child: PosStartupLoading()),
                   ],
                 ),
               ),
