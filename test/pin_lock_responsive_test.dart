@@ -152,14 +152,21 @@ void main() {
                   localizationsDelegates:
                       AppLocalizations.localizationsDelegates,
                   supportedLocales: AppLocalizations.supportedLocales,
-                  theme: AppTheme.light(),
+                  theme: AppTheme.light().copyWith(
+                    textTheme: AppTheme.light().textTheme.apply(
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
                   builder: (context, child) => MediaQuery(
                     data: MediaQuery.of(
                       context,
                     ).copyWith(textScaler: TextScaler.linear(scale)),
                     child: child!,
                   ),
-                  home: const PinLockScreen(),
+                  home: const RepaintBoundary(
+                    key: ValueKey('pin_readability_preview'),
+                    child: PinLockScreen(),
+                  ),
                 ),
               ),
             );
@@ -176,6 +183,29 @@ void main() {
               reason: 'readable text must never be shrunk to fit an 810px form',
             );
             expect(find.byType(FittedBox), findsNothing);
+            Future<void> capturePreview(String position) async {
+              if (size != const Size(360, 640) || scale != 1) return;
+              final boundary = tester.renderObject<RenderRepaintBoundary>(
+                find.byKey(const ValueKey('pin_readability_preview')),
+              );
+              await tester.runAsync(() async {
+                final image = await boundary.toImage(pixelRatio: 2);
+                try {
+                  final bytes = await image.toByteData(
+                    format: ui.ImageByteFormat.png,
+                  );
+                  final file = File(
+                    'output/pin-readability-20261124/${locale.languageCode}-$position.png',
+                  );
+                  await file.parent.create(recursive: true);
+                  await file.writeAsBytes(bytes!.buffer.asUint8List());
+                } finally {
+                  image.dispose();
+                }
+              });
+            }
+
+            await capturePreview('top');
             final name = tester.widget<Text>(find.text('Kasir Satu'));
             expect(name.style?.fontSize, greaterThanOrEqualTo(16));
             await tester.ensureVisible(find.widgetWithText(TextButton, '1'));
@@ -201,6 +231,7 @@ void main() {
               tester.getRect(logout).bottom,
               lessThanOrEqualTo(size.height),
             );
+            await capturePreview('bottom');
             expect(tester.takeException(), isNull);
             await tester.pumpWidget(const SizedBox.shrink());
           },
