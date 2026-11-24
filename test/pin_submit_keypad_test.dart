@@ -214,4 +214,22 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'switching between create PIN and keypad never duplicates the tour target',
+    (tester) async {
+      final lock = _Lock()..seedLoginWithoutPin();
+      await mount(tester, lock);
+      lock.seedLocked();
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.check), findsOneWidget);
+      expect(find.byKey(posPinSubmitTourTarget), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      lock.seedLoginWithoutPin();
+      await tester.pumpAndSettle();
+      expect(find.text('Buat PIN Akun Ini'), findsOneWidget);
+      expect(find.byKey(posPinSubmitTourTarget), findsOneWidget);
+      expect(find.byIcon(Icons.check), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
