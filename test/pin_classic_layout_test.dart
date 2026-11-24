@@ -27,7 +27,7 @@ void main() {
   });
   setUp(() async {
     SharedPreferences.setMockInitialValues({
-      'instansi_id': 'pin-compact-fixture',
+      'instansi_id': 'pin-classic-fixture',
     });
     sl.registerSingleton<SharedPreferences>(
       await SharedPreferences.getInstance(),
@@ -71,7 +71,7 @@ void main() {
             child: child!,
           ),
           home: const RepaintBoundary(
-            key: ValueKey('compact_pin_preview'),
+            key: ValueKey('classic_pin_preview'),
             child: PinLockScreen(),
           ),
         ),
@@ -96,36 +96,39 @@ void main() {
   ]) {
     for (final locale in [const Locale('id'), const Locale('en')]) {
       testWidgets(
-        'PIN fits all actions without scrolling at $size ${locale.languageCode}',
+        'classic PIN spacing and stacked actions stay usable at $size ${locale.languageCode}',
         (tester) async {
           await mount(tester, size, locale);
-          const phase = String.fromEnvironment('PIN_COMPACT_PHASE');
+          const phase = String.fromEnvironment('PIN_CLASSIC_PHASE');
           if (phase.isNotEmpty && size == const Size(320, 568)) {
             await tester.runAsync(() async {
               final image = await tester
                   .renderObject<RenderRepaintBoundary>(
-                    find.byKey(const ValueKey('compact_pin_preview')),
+                    find.byKey(const ValueKey('classic_pin_preview')),
                   )
                   .toImage(pixelRatio: 2);
               final bytes = await image.toByteData(
                 format: ui.ImageByteFormat.png,
               );
               final file = File(
-                'output/pin-compact-height-20261124/${locale.languageCode}-$phase.png',
+                'output/pin-classic-layout-20261125/${locale.languageCode}-$phase.png',
               );
               await file.parent.create(recursive: true);
               await file.writeAsBytes(bytes!.buffer.asUint8List());
               image.dispose();
             });
           }
-          expect(
-            position(tester).maxScrollExtent,
-            lessThanOrEqualTo(.1),
-            reason: 'all normal PIN actions should fit the safe viewport',
-          );
+          // The user restored the roomy layout; vertical scrolling is allowed.
+          // Do not scale down controls or put the footer into two columns.
+          expect(tester.widget<Text>(find.text('1')).style?.fontSize, 32);
+          final customer = find.widgetWithText(TextButton,
+            locale.languageCode == 'en' ? 'Connect customer display' : 'Hubungkan layar pelanggan');
           final logout = find.text(
             locale.languageCode == 'en' ? 'Sign out of account' : 'Logout akun',
           );
+          expect(tester.getRect(customer).bottom, lessThanOrEqualTo(tester.getRect(logout).top));
+          await tester.ensureVisible(logout);
+          await tester.pumpAndSettle();
           expect(
             tester.getRect(logout).bottom,
             lessThanOrEqualTo(size.height - 24),
@@ -147,11 +150,11 @@ void main() {
             final bounds = tester.getRect(
               find.widgetWithText(TextButton, digit),
             );
-            expect(bounds.height, greaterThanOrEqualTo(48));
+            expect(bounds.height, greaterThanOrEqualTo(64));
             expect(bounds.width, greaterThanOrEqualTo(48));
           }
           final font = tester.widget<Text>(find.text('1')).style?.fontSize;
-          expect(font, greaterThanOrEqualTo(28));
+          expect(font, 32);
           expect(tester.takeException(), isNull);
         },
       );
