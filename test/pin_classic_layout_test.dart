@@ -118,7 +118,7 @@ void main() {
               image.dispose();
             });
           }
-          // Smaller keys on short screens must not rearrange the stacked footer.
+          // Comfortable keys must fit without rearranging the stacked footer.
           expect(position(tester).maxScrollExtent, lessThanOrEqualTo(.1));
           final customer = find.widgetWithText(
             TextButton,
@@ -154,11 +154,11 @@ void main() {
             final bounds = tester.getRect(
               find.widgetWithText(TextButton, digit),
             );
-            expect(bounds.height, greaterThanOrEqualTo(48));
+            expect(bounds.height, greaterThanOrEqualTo(56));
             expect(bounds.width, greaterThanOrEqualTo(48));
           }
           final font = tester.widget<Text>(find.text('1')).style?.fontSize;
-          expect(font, size.height < 720 ? 28 : 32);
+          expect(font, size.height < 720 ? 30 : 32);
           expect(tester.takeException(), isNull);
         },
       );
