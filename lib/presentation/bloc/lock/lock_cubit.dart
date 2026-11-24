@@ -46,6 +46,27 @@ class AppLockCubit extends Cubit<AppLockState> {
     await loadEmployees();
   }
 
+  /// Cosmetic refresh only: never renew a session, switch cashier or unlock.
+  void applyActiveEmployeeProfile({
+    required String id,
+    required String name,
+    required String photoUrl,
+  }) {
+    if (isClosed || state.activeEmployeeId != id) return;
+    emit(
+      state.copyWith(
+        activeEmployeeName: name,
+        employees: state.employees
+            .map(
+              (employee) => employee['_id']?.toString() == id
+                  ? {...employee, 'name': name, 'photo_url': photoUrl}
+                  : employee,
+            )
+            .toList(),
+      ),
+    );
+  }
+
   Future<void> loadEmployees({String search = ''}) async {
     final revision = ++_employeeLoadRevision;
     final prefs = sl<SharedPreferences>();

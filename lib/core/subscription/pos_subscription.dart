@@ -85,6 +85,7 @@ const posSubscriptionRecoveryMutations = {
   'VerifyPOSUserPin',
   'ClosePOSKasirShift',
   'UpdateProfile',
+  'UpdateMyPOSPersonalProfile',
   'RequestChangePassword',
   'CreateSupportTicket',
   'ReplySupportTicket',
