@@ -746,6 +746,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Buat PIN Akun Ini'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '1'), findsNothing,
+        reason: 'an account without a PIN should see its create action, not an unusable keypad');
+    expect(tester.getRect(find.text('Buat PIN Akun Ini')).bottom,
+        lessThanOrEqualTo(tester.view.physicalSize.height / tester.view.devicePixelRatio));
     await tester.tap(find.text('Buat PIN Akun Ini'));
     await tester.pumpAndSettle();
 
