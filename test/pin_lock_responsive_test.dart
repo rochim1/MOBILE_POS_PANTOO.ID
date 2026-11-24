@@ -154,7 +154,7 @@ void main() {
           ));
           await tester.pumpAndSettle();
           final title = find.text(locale.languageCode == 'en' ? 'Cashier Access' : 'Akses Kasir');
-          expect(tester.renderObject(title).getTransformTo(null).getMaxScaleOnAxis(), closeTo(1, .001),
+          expect(MatrixUtils.transformRect(tester.renderObject(title).getTransformTo(null), const Rect.fromLTWH(0, 0, 100, 100)).width, closeTo(100, .001),
               reason: 'readable text must never be shrunk to fit an 810px form');
           expect(find.byType(FittedBox), findsNothing);
           final name = tester.widget<Text>(find.text('Kasir Satu'));
