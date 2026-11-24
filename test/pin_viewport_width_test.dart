@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,6 +51,7 @@ void main() {
           expect(tester.takeException(), isNull);
           final viewport = tester.getRect(find.byType(PosPinAccessViewport));
           final panel = tester.getRect(find.byKey(posPinSetupTourTarget));
+          expect(panel.width, lessThanOrEqualTo(420));
           expect(panel.left, greaterThanOrEqualTo(viewport.left));
           expect(panel.right, lessThanOrEqualTo(viewport.right));
           for (final digit in [
@@ -70,6 +72,12 @@ void main() {
             expect(bounds.right, lessThanOrEqualTo(panel.right));
             expect(bounds.width, greaterThanOrEqualTo(48));
           }
+          final deleteBounds = tester.getRect(
+            find.widgetWithIcon(TextButton, Icons.backspace_outlined),
+          );
+          expect(deleteBounds.left, greaterThanOrEqualTo(panel.left));
+          expect(deleteBounds.right, lessThanOrEqualTo(panel.right));
+          expect(deleteBounds.width, greaterThanOrEqualTo(48));
           final zero = find.widgetWithText(TextButton, '0');
           await tester.ensureVisible(zero);
           await tester.tap(zero);
@@ -112,4 +120,33 @@ void main() {
     expect(one.left, greaterThanOrEqualTo(panel.left));
     expect(three.right, lessThanOrEqualTo(panel.right));
   });
+  testWidgets(
+    'resizing to a narrow viewport preserves entered PIN and selected operator',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final cubit = TestLockCubit()..seedLocked();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        BlocProvider<AppLockCubit>.value(
+          value: cubit,
+          child: const MaterialApp(home: PinLockScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      tester.view.physicalSize = const Size(240, 400);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit3);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit4);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(cubit.enteredPins, ['1234']);
+      expect(cubit.state.selectedEmployeeId, 'u1');
+    },
+  );
 }
