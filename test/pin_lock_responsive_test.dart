@@ -128,6 +128,55 @@ void main() {
   tearDown(() async {
     await sl.reset();
   });
+  for (final size in [const Size(320, 568), const Size(360, 640), const Size(768, 800)]) {
+    for (final locale in [const Locale('id'), const Locale('en')]) {
+      for (final scale in [1.0, 1.5]) {
+        testWidgets('PIN text is not shrunk at $size, ${locale.languageCode}, scale $scale', (tester) async {
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          final cubit = TestLockCubit()..seedLocked();
+          addTearDown(cubit.close);
+          await tester.pumpWidget(BlocProvider<AppLockCubit>.value(
+            value: cubit,
+            child: MaterialApp(
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: AppTheme.light(),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: const PinLockScreen(),
+            ),
+          ));
+          await tester.pumpAndSettle();
+          final title = find.text(locale.languageCode == 'en' ? 'Cashier Access' : 'Akses Kasir');
+          expect(tester.renderObject(title).getTransformTo(null).getMaxScaleOnAxis(), closeTo(1, .001),
+              reason: 'readable text must never be shrunk to fit an 810px form');
+          expect(find.byType(FittedBox), findsNothing);
+          final name = tester.widget<Text>(find.text('Kasir Satu'));
+          expect(name.style?.fontSize, greaterThanOrEqualTo(16));
+          await tester.ensureVisible(find.widgetWithText(TextButton, '1'));
+          await tester.tap(find.widgetWithText(TextButton, '1'));
+          await tester.pump();
+          expect(cubit.enteredPins, isEmpty, reason: 'one digit must not unlock or verify');
+          final submit = find.byKey(posPinSubmitTourTarget);
+          await tester.ensureVisible(submit);
+          expect(tester.getSize(submit).height, greaterThanOrEqualTo(48));
+          expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
+          final logout = find.text(locale.languageCode == 'en' ? 'Sign out of account' : 'Logout akun');
+          await tester.ensureVisible(logout);
+          await tester.pumpAndSettle();
+          expect(tester.getRect(logout).bottom, lessThanOrEqualTo(size.height));
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+      }
+    }
+  }
   testWidgets(
     'PIN failure text translates without changing the locked state or retry policy',
     (tester) async {
