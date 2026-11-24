@@ -628,6 +628,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final showMarketingPanel = constraints.maxWidth >= 1000;
+            final compact = constraints.maxHeight < 720;
+            final keypadHeight = compact ? 48.0 : _keypadButtonHeight;
             return Row(
               children: [
                 if (showMarketingPanel)
@@ -642,8 +644,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                             padding: EdgeInsets.only(
                               left: 16,
                               right: 16,
-                              top: 8,
-                              bottom: 8,
+                              top: compact ? 4 : 8,
+                              bottom: compact ? 4 : 8,
                             ),
                             child: PosPinAccessViewport(
                               child: SizedBox(
@@ -682,30 +684,30 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                         horizontal: constraints.maxWidth < 600
                                             ? 8
                                             : 28,
-                                        vertical: 14,
+                                        vertical: compact ? 2 : 14,
                                       ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          const PosText(
+                                          PosText(
                                             'Akses Kasir',
                                             style: TextStyle(
-                                              fontSize: 26,
+                                              fontSize: compact ? 24 : 26,
                                               fontWeight: FontWeight.bold,
                                               color: AppColors.heading,
                                             ),
                                           ),
-                                          const PosText(
+                                          PosText(
                                             'Pilih operator dan masukkan PIN untuk melanjutkan',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               color: AppColors.textSecondary,
-                                              fontSize: 14,
+                                              fontSize: compact ? 12 : 14,
                                             ),
                                           ),
-                                          const SizedBox(height: 12),
+                                          SizedBox(height: compact ? 6 : 12),
                                           Material(
                                             key: posPinOperatorTourTarget,
                                             color: AppColors.surfaceSecondary,
@@ -719,11 +721,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   ? null
                                                   : _showEmployeePicker,
                                               child: Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 14,
-                                                      vertical: 13,
-                                                    ),
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: compact ? 9 : 13,
+                                                ),
                                                 child: Row(
                                                   children: [
                                                     PosEmployeeAvatar(
@@ -764,7 +765,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(height: 10),
+                                          SizedBox(height: compact ? 6 : 10),
                                           Text(
                                             state.errorMessage.isNotEmpty
                                                 ? state.errorMessage.tr(context)
@@ -778,7 +779,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   state.errorMessage.isNotEmpty
                                                   ? AppColors.danger
                                                   : AppColors.textSecondary,
-                                              fontSize: 14,
+                                              fontSize: compact ? 12 : 14,
                                             ),
                                             textAlign: TextAlign.center,
                                             maxLines: 2,
@@ -827,7 +828,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               ),
                                             ),
                                           ],
-                                          const SizedBox(height: 14),
+                                          SizedBox(height: compact ? 6 : 14),
                                           if (!canCreateOwnPin) ...[
                                             Row(
                                               key: posPinEntryTourTarget,
@@ -841,8 +842,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                         const EdgeInsets.symmetric(
                                                           horizontal: 7,
                                                         ),
-                                                    width: 13,
-                                                    height: 13,
+                                                    width: compact ? 10 : 13,
+                                                    height: compact ? 10 : 13,
                                                     decoration: BoxDecoration(
                                                       shape: BoxShape.circle,
                                                       color: index < _pin.length
@@ -853,13 +854,25 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(height: 18),
-                                            _buildKeypadRow(['1', '2', '3']),
-                                            const SizedBox(height: 10),
-                                            _buildKeypadRow(['4', '5', '6']),
-                                            const SizedBox(height: 10),
-                                            _buildKeypadRow(['7', '8', '9']),
-                                            const SizedBox(height: 10),
+                                            SizedBox(height: compact ? 8 : 18),
+                                            _buildKeypadRow([
+                                              '1',
+                                              '2',
+                                              '3',
+                                            ], compact: compact),
+                                            SizedBox(height: compact ? 4 : 10),
+                                            _buildKeypadRow([
+                                              '4',
+                                              '5',
+                                              '6',
+                                            ], compact: compact),
+                                            SizedBox(height: compact ? 4 : 10),
+                                            _buildKeypadRow([
+                                              '7',
+                                              '8',
+                                              '9',
+                                            ], compact: compact),
+                                            SizedBox(height: compact ? 4 : 10),
                                             Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
@@ -871,8 +884,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                     ),
                                                     child: SizedBox(
                                                       width: 80,
-                                                      height:
-                                                          _keypadButtonHeight,
+                                                      height: keypadHeight,
                                                       child: TextButton(
                                                         onPressed:
                                                             _isVerifying ||
@@ -897,6 +909,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 Flexible(
                                                   child: _buildKeypadButton(
                                                     '0',
+                                                    compact: compact,
                                                   ),
                                                 ),
                                                 Flexible(
@@ -906,8 +919,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                             .tr(context),
                                                     child: SizedBox(
                                                       width: 80,
-                                                      height:
-                                                          _keypadButtonHeight,
+                                                      height: keypadHeight,
                                                       child: ElevatedButton(
                                                         key:
                                                             posPinSubmitTourTarget,
@@ -963,7 +975,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ],
                                             ),
-                                            const SizedBox(height: 14),
+                                            SizedBox(height: compact ? 4 : 14),
                                           ],
                                           if (canCreateOwnPin)
                                             SizedBox(
@@ -1015,7 +1027,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ),
                                             ),
-                                          const SizedBox(height: 8),
+                                          SizedBox(height: compact ? 4 : 8),
                                           Text(
                                             canCreateOwnPin
                                                 ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
@@ -1024,7 +1036,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       .tr(context),
                                             style: TextStyle(
                                               color: AppColors.textSecondary,
-                                              fontSize: 14,
+                                              fontSize: compact ? 12 : 14,
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
@@ -1105,11 +1117,13 @@ class _PinLockScreenState extends State<PinLockScreen> {
     );
   }
 
-  Widget _buildKeypadRow(List<String> keys) {
+  Widget _buildKeypadRow(List<String> keys, {required bool compact}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: keys
-          .map((key) => Flexible(child: _buildKeypadButton(key)))
+          .map(
+            (key) => Flexible(child: _buildKeypadButton(key, compact: compact)),
+          )
           .toList(),
     );
   }
@@ -1117,10 +1131,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
   double get _keypadButtonHeight =>
       MediaQuery.sizeOf(context).width < 600 ? 64 : 80;
 
-  Widget _buildKeypadButton(String text) {
+  Widget _buildKeypadButton(String text, {required bool compact}) {
     return SizedBox(
       width: 80,
-      height: _keypadButtonHeight,
+      height: compact ? 48 : _keypadButtonHeight,
       child: TextButton(
         onPressed: _isVerifying || _isPinLocked
             ? null
@@ -1132,7 +1146,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: compact ? 28 : 32,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );
