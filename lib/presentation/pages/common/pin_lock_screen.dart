@@ -828,66 +828,70 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             ),
                                           ],
                                           const SizedBox(height: 14),
-                                          Row(
-                                            key: posPinEntryTourTarget,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: List.generate(
-                                              _pinLength,
-                                              (index) => Container(
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 7,
-                                                    ),
-                                                width: 13,
-                                                height: 13,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: index < _pin.length
-                                                      ? AppColors.primary
-                                                      : AppColors.border,
+                                          if (!canCreateOwnPin) ...[
+                                            Row(
+                                              key: posPinEntryTourTarget,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: List.generate(
+                                                _pinLength,
+                                                (index) => Container(
+                                                  margin:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 7,
+                                                      ),
+                                                  width: 13,
+                                                  height: 13,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: index < _pin.length
+                                                        ? AppColors.primary
+                                                        : AppColors.border,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 18),
-                                          _buildKeypadRow(['1', '2', '3']),
-                                          const SizedBox(height: 10),
-                                          _buildKeypadRow(['4', '5', '6']),
-                                          const SizedBox(height: 10),
-                                          _buildKeypadRow(['7', '8', '9']),
-                                          const SizedBox(height: 10),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceEvenly,
-                                            children: [
-                                              SizedBox(
-                                                width: 80,
-                                                height: _keypadButtonHeight,
-                                              ),
-                                              _buildKeypadButton('0'),
-                                              SizedBox(
-                                                width: 80,
-                                                height: _keypadButtonHeight,
-                                                child: TextButton(
-                                                  onPressed:
-                                                      _isVerifying || pinLocked
-                                                      ? null
-                                                      : _onDeleteTap,
-                                                  style: TextButton.styleFrom(
-                                                    shape: const CircleBorder(),
-                                                    foregroundColor:
-                                                        AppColors.body,
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.backspace_outlined,
-                                                    size: 30,
+                                            const SizedBox(height: 18),
+                                            _buildKeypadRow(['1', '2', '3']),
+                                            const SizedBox(height: 10),
+                                            _buildKeypadRow(['4', '5', '6']),
+                                            const SizedBox(height: 10),
+                                            _buildKeypadRow(['7', '8', '9']),
+                                            const SizedBox(height: 10),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: [
+                                                SizedBox(
+                                                  width: 80,
+                                                  height: _keypadButtonHeight,
+                                                ),
+                                                _buildKeypadButton('0'),
+                                                SizedBox(
+                                                  width: 80,
+                                                  height: _keypadButtonHeight,
+                                                  child: TextButton(
+                                                    onPressed:
+                                                        _isVerifying ||
+                                                            pinLocked
+                                                        ? null
+                                                        : _onDeleteTap,
+                                                    style: TextButton.styleFrom(
+                                                      shape:
+                                                          const CircleBorder(),
+                                                      foregroundColor:
+                                                          AppColors.body,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.backspace_outlined,
+                                                      size: 30,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 14),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 14),
+                                          ],
                                           SizedBox(
                                             width: double.infinity,
                                             child: ElevatedButton.icon(
