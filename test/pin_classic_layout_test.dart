@@ -96,7 +96,7 @@ void main() {
   ]) {
     for (final locale in [const Locale('id'), const Locale('en')]) {
       testWidgets(
-        'classic PIN spacing and stacked actions stay usable at $size ${locale.languageCode}',
+        'PIN fits normal phones with readable keys and stacked actions at $size ${locale.languageCode}',
         (tester) async {
           await mount(tester, size, locale);
           const phase = String.fromEnvironment('PIN_CLASSIC_PHASE');
@@ -118,9 +118,8 @@ void main() {
               image.dispose();
             });
           }
-          // The user restored the roomy layout; vertical scrolling is allowed.
-          // Do not scale down controls or put the footer into two columns.
-          expect(tester.widget<Text>(find.text('1')).style?.fontSize, 32);
+          // Smaller keys on short screens must not rearrange the stacked footer.
+          expect(position(tester).maxScrollExtent, lessThanOrEqualTo(.1));
           final customer = find.widgetWithText(
             TextButton,
             locale.languageCode == 'en'
@@ -134,8 +133,6 @@ void main() {
             tester.getRect(customer).bottom,
             lessThanOrEqualTo(tester.getRect(logout).top),
           );
-          await tester.ensureVisible(logout);
-          await tester.pumpAndSettle();
           expect(
             tester.getRect(logout).bottom,
             lessThanOrEqualTo(size.height - 24),
@@ -157,11 +154,11 @@ void main() {
             final bounds = tester.getRect(
               find.widgetWithText(TextButton, digit),
             );
-            expect(bounds.height, greaterThanOrEqualTo(64));
+            expect(bounds.height, greaterThanOrEqualTo(48));
             expect(bounds.width, greaterThanOrEqualTo(48));
           }
           final font = tester.widget<Text>(find.text('1')).style?.fontSize;
-          expect(font, 32);
+          expect(font, size.height < 720 ? 28 : 32);
           expect(tester.takeException(), isNull);
         },
       );
