@@ -629,7 +629,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
           builder: (context, constraints) {
             final showMarketingPanel = constraints.maxWidth >= 1000;
             final compact = constraints.maxHeight < 720;
-            final keypadHeight = compact ? 48.0 : _keypadButtonHeight;
+            final keypadHeight = compact ? 56.0 : _keypadButtonHeight;
             return Row(
               children: [
                 if (showMarketingPanel)
@@ -1027,19 +1027,23 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ),
                                             ),
-                                          SizedBox(height: compact ? 4 : 8),
-                                          Text(
-                                            canCreateOwnPin
-                                                ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
-                                                      .tr(context)
-                                                : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.')
-                                                      .tr(context),
-                                            style: TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: compact ? 12 : 14,
+                                          // On short screens, prioritize comfortable keys over
+                                          // the generic hint for an already configured PIN.
+                                          if (!compact || canCreateOwnPin) ...[
+                                            SizedBox(height: compact ? 4 : 8),
+                                            Text(
+                                              canCreateOwnPin
+                                                  ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
+                                                        .tr(context)
+                                                  : ('PIN dapat dibuat sendiri untuk akun login atau dikelola oleh admin POS.')
+                                                        .tr(context),
+                                              style: TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontSize: compact ? 12 : 14,
+                                              ),
+                                              textAlign: TextAlign.center,
                                             ),
-                                            textAlign: TextAlign.center,
-                                          ),
+                                          ],
                                           const SizedBox(height: 4),
                                           TextButton.icon(
                                             onPressed: () =>
@@ -1134,7 +1138,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
   Widget _buildKeypadButton(String text, {required bool compact}) {
     return SizedBox(
       width: 80,
-      height: compact ? 48 : _keypadButtonHeight,
+      height: compact ? 56 : _keypadButtonHeight,
       child: TextButton(
         onPressed: _isVerifying || _isPinLocked
             ? null
@@ -1147,7 +1151,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         child: Text(
           text,
           style: TextStyle(
-            fontSize: compact ? 28 : 32,
+            fontSize: compact ? 30 : 32,
             fontWeight: FontWeight.w500,
           ),
         ),
