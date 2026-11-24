@@ -121,12 +121,19 @@ void main() {
           // The user restored the roomy layout; vertical scrolling is allowed.
           // Do not scale down controls or put the footer into two columns.
           expect(tester.widget<Text>(find.text('1')).style?.fontSize, 32);
-          final customer = find.widgetWithText(TextButton,
-            locale.languageCode == 'en' ? 'Connect customer display' : 'Hubungkan layar pelanggan');
+          final customer = find.widgetWithText(
+            TextButton,
+            locale.languageCode == 'en'
+                ? 'Connect customer display'
+                : 'Hubungkan layar pelanggan',
+          );
           final logout = find.text(
             locale.languageCode == 'en' ? 'Sign out of account' : 'Logout akun',
           );
-          expect(tester.getRect(customer).bottom, lessThanOrEqualTo(tester.getRect(logout).top));
+          expect(
+            tester.getRect(customer).bottom,
+            lessThanOrEqualTo(tester.getRect(logout).top),
+          );
           await tester.ensureVisible(logout);
           await tester.pumpAndSettle();
           expect(

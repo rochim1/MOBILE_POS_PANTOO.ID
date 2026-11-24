@@ -628,14 +628,6 @@ class _PinLockScreenState extends State<PinLockScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final showMarketingPanel = constraints.maxWidth >= 1000;
-            final compact = constraints.maxHeight < 720;
-            final inlineFooter = compact && constraints.maxWidth >= 280;
-            final keypadHeight = compact
-                ? 48.0
-                : constraints.maxWidth < 600
-                ? 64.0
-                : 80.0;
-            final digitFontSize = compact ? 28.0 : 32.0;
             return Row(
               children: [
                 if (showMarketingPanel)
@@ -685,90 +677,22 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   .ceil())
                                               .clamp(1, 30)
                                         : 0;
-                                    final customerDisplayButton = Tooltip(
-                                      message: ('Hubungkan layar pelanggan').tr(
-                                        context,
-                                      ),
-                                      child: TextButton.icon(
-                                        onPressed: () =>
-                                            showPosCustomerDisplayPairing(
-                                              context,
-                                            ),
-                                        style: TextButton.styleFrom(
-                                          padding: inlineFooter
-                                              ? const EdgeInsets.symmetric(
-                                                  horizontal: 6,
-                                                  vertical: 4,
-                                                )
-                                              : null,
-                                          minimumSize: const Size.fromHeight(
-                                            48,
-                                          ),
-                                          textStyle: Theme.of(context)
-                                              .textTheme
-                                              .labelLarge
-                                              ?.copyWith(fontSize: 14),
-                                          foregroundColor: AppColors.primary,
-                                        ),
-                                        icon: const Icon(
-                                          Icons.connected_tv_outlined,
-                                          size: 18,
-                                        ),
-                                        label: PosText(
-                                          inlineFooter
-                                              ? 'Layar pelanggan'
-                                              : 'Hubungkan layar pelanggan',
-                                        ),
-                                      ),
-                                    );
-                                    final logoutButton = TextButton.icon(
-                                      onPressed: _isLoggingOut
-                                          ? null
-                                          : _confirmLogout,
-                                      style: TextButton.styleFrom(
-                                        padding: inlineFooter
-                                            ? const EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                                vertical: 4,
-                                              )
-                                            : null,
-                                        minimumSize: const Size.fromHeight(48),
-                                        textStyle: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(fontSize: 14),
-                                        foregroundColor: AppColors.danger,
-                                        disabledForegroundColor:
-                                            AppColors.textMuted,
-                                      ),
-                                      icon: _isLoggingOut
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: AppColors.danger,
-                                              ),
-                                            )
-                                          : const Icon(Icons.logout, size: 18),
-                                      label: const PosText('Logout akun'),
-                                    );
                                     return Padding(
                                       padding: EdgeInsets.symmetric(
                                         horizontal: constraints.maxWidth < 600
                                             ? 8
                                             : 28,
-                                        vertical: compact ? 6 : 14,
+                                        vertical: 14,
                                       ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          PosText(
+                                          const PosText(
                                             'Akses Kasir',
                                             style: TextStyle(
-                                              fontSize: compact ? 24 : 26,
+                                              fontSize: 26,
                                               fontWeight: FontWeight.bold,
                                               color: AppColors.heading,
                                             ),
@@ -781,7 +705,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               fontSize: 14,
                                             ),
                                           ),
-                                          SizedBox(height: compact ? 8 : 12),
+                                          const SizedBox(height: 12),
                                           Material(
                                             key: posPinOperatorTourTarget,
                                             color: AppColors.surfaceSecondary,
@@ -795,10 +719,11 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                   ? null
                                                   : _showEmployeePicker,
                                               child: Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 14,
-                                                  vertical: compact ? 9 : 13,
-                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 13,
+                                                    ),
                                                 child: Row(
                                                   children: [
                                                     PosEmployeeAvatar(
@@ -839,7 +764,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               ),
                                             ),
                                           ),
-                                          SizedBox(height: compact ? 6 : 10),
+                                          const SizedBox(height: 10),
                                           Text(
                                             state.errorMessage.isNotEmpty
                                                 ? state.errorMessage.tr(context)
@@ -902,7 +827,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                               ),
                                             ),
                                           ],
-                                          SizedBox(height: compact ? 8 : 14),
+                                          const SizedBox(height: 14),
                                           if (!canCreateOwnPin) ...[
                                             Row(
                                               key: posPinEntryTourTarget,
@@ -928,25 +853,13 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(height: compact ? 10 : 18),
-                                            _buildKeypadRow(
-                                              ['1', '2', '3'],
-                                              height: keypadHeight,
-                                              fontSize: digitFontSize,
-                                            ),
-                                            SizedBox(height: compact ? 4 : 10),
-                                            _buildKeypadRow(
-                                              ['4', '5', '6'],
-                                              height: keypadHeight,
-                                              fontSize: digitFontSize,
-                                            ),
-                                            SizedBox(height: compact ? 4 : 10),
-                                            _buildKeypadRow(
-                                              ['7', '8', '9'],
-                                              height: keypadHeight,
-                                              fontSize: digitFontSize,
-                                            ),
-                                            SizedBox(height: compact ? 4 : 10),
+                                            const SizedBox(height: 18),
+                                            _buildKeypadRow(['1', '2', '3']),
+                                            const SizedBox(height: 10),
+                                            _buildKeypadRow(['4', '5', '6']),
+                                            const SizedBox(height: 10),
+                                            _buildKeypadRow(['7', '8', '9']),
+                                            const SizedBox(height: 10),
                                             Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
@@ -958,7 +871,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                     ),
                                                     child: SizedBox(
                                                       width: 80,
-                                                      height: keypadHeight,
+                                                      height:
+                                                          _keypadButtonHeight,
                                                       child: TextButton(
                                                         onPressed:
                                                             _isVerifying ||
@@ -983,8 +897,6 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 Flexible(
                                                   child: _buildKeypadButton(
                                                     '0',
-                                                    height: keypadHeight,
-                                                    fontSize: digitFontSize,
                                                   ),
                                                 ),
                                                 Flexible(
@@ -994,7 +906,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                             .tr(context),
                                                     child: SizedBox(
                                                       width: 80,
-                                                      height: keypadHeight,
+                                                      height:
+                                                          _keypadButtonHeight,
                                                       child: ElevatedButton(
                                                         key:
                                                             posPinSubmitTourTarget,
@@ -1050,7 +963,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ],
                                             ),
-                                            SizedBox(height: compact ? 6 : 14),
+                                            const SizedBox(height: 14),
                                           ],
                                           if (canCreateOwnPin)
                                             SizedBox(
@@ -1102,7 +1015,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                 ),
                                               ),
                                             ),
-                                          SizedBox(height: compact ? 4 : 8),
+                                          const SizedBox(height: 8),
                                           Text(
                                             canCreateOwnPin
                                                 ? ('PIN akun lain tetap dibuat atau direset oleh admin POS.')
@@ -1111,24 +1024,66 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                                       .tr(context),
                                             style: TextStyle(
                                               color: AppColors.textSecondary,
-                                              fontSize: compact ? 12 : 14,
+                                              fontSize: 14,
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
                                           const SizedBox(height: 4),
-                                          if (inlineFooter)
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: customerDisplayButton,
+                                          TextButton.icon(
+                                            onPressed: () =>
+                                                showPosCustomerDisplayPairing(
+                                                  context,
                                                 ),
-                                                Expanded(child: logoutButton),
-                                              ],
-                                            )
-                                          else ...[
-                                            customerDisplayButton,
-                                            logoutButton,
-                                          ],
+                                            style: TextButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(48),
+                                              textStyle: Theme.of(context)
+                                                  .textTheme
+                                                  .labelLarge
+                                                  ?.copyWith(fontSize: 14),
+                                              foregroundColor:
+                                                  AppColors.primary,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.connected_tv_outlined,
+                                              size: 18,
+                                            ),
+                                            label: const PosText(
+                                              'Hubungkan layar pelanggan',
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                            onPressed: _isLoggingOut
+                                                ? null
+                                                : _confirmLogout,
+                                            style: TextButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(48),
+                                              textStyle: Theme.of(context)
+                                                  .textTheme
+                                                  .labelLarge
+                                                  ?.copyWith(fontSize: 14),
+                                              foregroundColor: AppColors.danger,
+                                              disabledForegroundColor:
+                                                  AppColors.textMuted,
+                                            ),
+                                            icon: _isLoggingOut
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color:
+                                                              AppColors.danger,
+                                                        ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.logout,
+                                                    size: 18,
+                                                  ),
+                                            label: const PosText('Logout akun'),
+                                          ),
                                         ],
                                       ),
                                     );
@@ -1150,35 +1105,22 @@ class _PinLockScreenState extends State<PinLockScreen> {
     );
   }
 
-  Widget _buildKeypadRow(
-    List<String> keys, {
-    required double height,
-    required double fontSize,
-  }) {
+  Widget _buildKeypadRow(List<String> keys) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: keys
-          .map(
-            (key) => Flexible(
-              child: _buildKeypadButton(
-                key,
-                height: height,
-                fontSize: fontSize,
-              ),
-            ),
-          )
+          .map((key) => Flexible(child: _buildKeypadButton(key)))
           .toList(),
     );
   }
 
-  Widget _buildKeypadButton(
-    String text, {
-    required double height,
-    required double fontSize,
-  }) {
+  double get _keypadButtonHeight =>
+      MediaQuery.sizeOf(context).width < 600 ? 64 : 80;
+
+  Widget _buildKeypadButton(String text) {
     return SizedBox(
       width: 80,
-      height: height,
+      height: _keypadButtonHeight,
       child: TextButton(
         onPressed: _isVerifying || _isPinLocked
             ? null
@@ -1190,7 +1132,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         ),
         child: Text(
           text,
-          style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w500),
         ),
       ),
     );
