@@ -103,7 +103,10 @@ class HeldBloc extends PosBloc {
   }
   final errors = <Object>[];
   @override
-  void onError(Object error, StackTrace stackTrace) => errors.add(error);
+  void onError(Object error, StackTrace stackTrace) {
+    errors.add(error);
+    super.onError(error, stackTrace);
+  }
 }
 
 Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 30));

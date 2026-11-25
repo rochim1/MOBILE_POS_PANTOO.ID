@@ -259,6 +259,10 @@ class _PosPageViewState extends State<PosPageView> {
           const SingleActivator(LogicalKeyboardKey.f4): () {
             final bloc = context.read<PosBloc>();
             if (bloc.state.cart.isEmpty) return;
+            if (bloc.state.editingOrderId != null) {
+              _saveTableOrder(context, bloc.state);
+              return;
+            }
             if (bloc.state.orderType == 'dine_in' &&
                 (bloc.state.selectedTableId == null ||
                     bloc.state.selectedTableId!.isEmpty)) {
@@ -835,6 +839,10 @@ class _PosPageViewState extends State<PosPageView> {
                     ? null
                     : () {
                         final posBloc = context.read<PosBloc>();
+                        if (posBloc.state.editingOrderId != null) {
+                          _saveTableOrder(context, posBloc.state);
+                          return;
+                        }
                         if (posBloc.state.orderType == 'dine_in' &&
                             (posBloc.state.selectedTableId == null ||
                                 posBloc.state.selectedTableId!.isEmpty)) {
@@ -1120,8 +1128,9 @@ class _PosPageViewState extends State<PosPageView> {
           bloc,
           (completion) => HoldCurrentOrder(notes, completion: completion),
         );
-        if (saved && context.mounted)
+        if (saved && context.mounted) {
           AppToast.success(context, 'Pesanan disimpan sementara');
+        }
       }
     } finally {
       _heldOrderFlowOpen = false;
