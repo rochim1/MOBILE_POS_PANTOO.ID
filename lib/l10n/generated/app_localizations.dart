@@ -22026,6 +22026,18 @@ abstract class AppLocalizations {
   /// **'Tampilkan {field}'**
   String secretShow(String field);
 
+  /// No description provided for @googleSignInIncomplete.
+  ///
+  /// In id, this message translates to:
+  /// **'Login Google dibatalkan atau belum selesai. Jika Anda sudah memilih akun, coba lagi atau gunakan email dan password.'**
+  String get googleSignInIncomplete;
+
+  /// No description provided for @googleSignInConfigurationError.
+  ///
+  /// In id, this message translates to:
+  /// **'Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.'**
+  String get googleSignInConfigurationError;
+
   /// No description provided for @secretHide.
   ///
   /// In id, this message translates to:

@@ -16532,6 +16532,8 @@
   "@pinIncorrectAttemptsRemaining": {"placeholders": {"count": {"type": "String"}}},
   "secretShow": "Show {field}",
   "@secretShow": {"placeholders": {"field": {"type": "String"}}},
+  "googleSignInIncomplete": "Google sign-in was canceled or did not finish. If you already selected an account, try again or use your email and password.",
+  "googleSignInConfigurationError": "Google sign-in is not configured correctly for this app version. Use your email and password for now and contact Pantoo support.",
   "secretHide": "Hide {field}",
   "@secretHide": {"placeholders": {"field": {"type": "String"}}}
 }

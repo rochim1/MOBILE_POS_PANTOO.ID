@@ -12476,6 +12476,14 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get googleSignInIncomplete =>
+      'Login Google dibatalkan atau belum selesai. Jika Anda sudah memilih akun, coba lagi atau gunakan email dan password.';
+
+  @override
+  String get googleSignInConfigurationError =>
+      'Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.';
+
+  @override
   String secretHide(String field) {
     return 'Sembunyikan $field';
   }

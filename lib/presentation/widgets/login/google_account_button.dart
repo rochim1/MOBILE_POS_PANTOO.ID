@@ -74,12 +74,14 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
             }
           },
           onError: (Object error) {
-            if (error is GoogleSignInException &&
-                error.code == GoogleSignInExceptionCode.canceled) {
-              return;
-            }
             if (mounted && (ModalRoute.of(context)?.isCurrent ?? true)) {
-              _showError('Google belum dapat dihubungkan. Silakan coba lagi.');
+              if (error is GoogleSignInException) {
+                _showGoogleError(error);
+              } else {
+                _showError(
+                  'Google belum dapat dihubungkan. Silakan coba lagi.',
+                );
+              }
             }
           },
         );
@@ -88,7 +90,8 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
         _ready = true;
         _error = null;
       });
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Google setup unavailable (${error.runtimeType}).');
       if (mounted) {
         setState(
           () => _error =
@@ -113,9 +116,29 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
   void _showError(String message) {
     if (!mounted) return;
     setState(() => _error = message);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: PosText(message)));
+    final colors = Theme.of(context).colorScheme;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        backgroundColor: colors.error,
+        content: PosText(message, style: TextStyle(color: colors.onError)),
+      ),
+    );
+  }
+
+  void _showGoogleError(GoogleSignInException error) {
+    if (!mounted) return;
+    final message = switch (error.code) {
+      GoogleSignInExceptionCode.canceled => posLocale(
+        context,
+      ).googleSignInIncomplete,
+      GoogleSignInExceptionCode.clientConfigurationError ||
+      GoogleSignInExceptionCode.providerConfigurationError => posLocale(
+        context,
+      ).googleSignInConfigurationError,
+      _ =>
+        'Login Google belum berhasil. Coba lagi atau gunakan email dan password.',
+    };
+    _showError(message);
   }
 
   Future<void> _authenticate() async {
@@ -138,11 +161,9 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
       );
       if (mounted) await _login(account);
     } on GoogleSignInException catch (error) {
-      if (mounted && error.code != GoogleSignInExceptionCode.canceled) {
-        _showError(
-          'Login Google belum berhasil. Coba lagi atau gunakan email dan password.',
-        );
-      }
+      _showGoogleError(error);
+    } on TimeoutException {
+      _showError('Login Google terlalu lama. Periksa koneksi lalu coba lagi.');
     } catch (_) {
       if (mounted) {
         _showError('Google belum dapat dihubungkan. Silakan coba lagi.');
@@ -170,7 +191,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
 
   Future<void> _login(GoogleSignInAccount account) async {
     setState(() => _progress = 'Memverifikasi akun ke Pantoo POS…');
-    final token = account.authentication.idToken;
+    final token = account.authentication.idToken?.trim();
     if (token == null || token.isEmpty) {
       _showError('Google belum memberikan verifikasi akun. Silakan coba lagi.');
       return;
@@ -272,7 +293,7 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
                           state.isCheckingSubscription
                               ? ('Memeriksa langganan…').tr(context)
                               : _busy
-                              ? _progress
+                              ? _progress.tr(context)
                               : ('Menyiapkan login Google…').tr(context),
                           textAlign: TextAlign.center,
                         ),
@@ -283,10 +304,41 @@ class _GoogleAccountButtonState extends State<GoogleAccountButton> {
               if (_error != null || state.canRetrySubscription)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: PosText(
-                    state.canRetrySubscription ? state.error! : _error!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  child: Semantics(
+                    key: const Key('google_auth_error'),
+                    liveRegion: true,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: PosText(
+                              state.canRetrySubscription
+                                  ? state.error!
+                                  : _error!,
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onErrorContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               const SizedBox(height: 16),

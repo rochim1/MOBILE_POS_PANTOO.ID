@@ -16532,6 +16532,8 @@
   "@pinIncorrectAttemptsRemaining": {"placeholders": {"count": {"type": "String"}}},
   "secretShow": "Tampilkan {field}",
   "@secretShow": {"placeholders": {"field": {"type": "String"}}},
+  "googleSignInIncomplete": "Login Google dibatalkan atau belum selesai. Jika Anda sudah memilih akun, coba lagi atau gunakan email dan password.",
+  "googleSignInConfigurationError": "Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.",
   "secretHide": "Sembunyikan {field}",
   "@secretHide": {"placeholders": {"field": {"type": "String"}}}
 }

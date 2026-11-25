@@ -12460,6 +12460,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get googleSignInIncomplete =>
+      'Google sign-in was canceled or did not finish. If you already selected an account, try again or use your email and password.';
+
+  @override
+  String get googleSignInConfigurationError =>
+      'Google sign-in is not configured correctly for this app version. Use your email and password for now and contact Pantoo support.';
+
+  @override
   String secretHide(String field) {
     return 'Hide $field';
   }
