@@ -1,5 +1,7 @@
 # Audit tambahan transaksi POS — 25 November 2026
 
+Lanjutan pemeriksaan retur, piutang, refund dan penutupan shift: [audit alur terkait](POS_RELATED_TRANSACTION_FLOWS_AUDIT_20261125.md). Hasil historis pada laporan ini tidak diganti dengan klaim GUI atau deployment baru.
+
 ## Hasil dan batas
 
 Permintaan: periksa bug lain ketika melakukan transaksi, setelah laporan kasir terus menampilkan pemulihan pembayaran. Lima kelompok temuan diperbaiki pada source mobile/web. Gate akhir: **1.227 tes Flutter PASS**, **403 tes POS web PASS**, **34 tes server PASS**. Analisis delapan berkas Dart bersih. Tidak membuat APK/AAB, deploy web/server, menghapus proof atau data HP, mereset akun, melewati PIN/izin, atau menulis database produksi.
