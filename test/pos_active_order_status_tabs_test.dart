@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_active_order_status_tabs.dart';
 
 void main() {
@@ -37,4 +38,23 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('English service status tabs translate All before adding the count', (tester) async {
+    String? selected;
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: PosActiveOrderStatusTabs(
+        selectedStatus: 'Baru', counts: const {'': 1, 'Baru': 1},
+        labels: const {'Baru': 'Accepted', 'Diproses': 'In progress', 'Siap': 'Ready for Pickup'},
+        onSelected: (status) => selected = status,
+      )),
+    ));
+    expect(find.text('All 1'), findsOneWidget);
+    expect(find.text('Semua 1'), findsNothing);
+    expect(find.text('Accepted 1'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('order-status-all')));
+    expect(selected, '');
+    expect(tester.takeException(), isNull);
+  });
 }
