@@ -602,9 +602,7 @@ class PosSuccessPage extends StatelessWidget {
           !printService.hasConfiguredPrinter) {
         throw StateError('PRINTER_NOT_CONFIGURED');
       }
-      // Mini Bluetooth printers are text/ESC-POS devices. Use their direct
-      // text channel instead of rendering a PDF to a bitmap first. The PDF
-      // option remains available when visual fidelity/logo is preferred.
+      // Keep text fast; only the optional business logo needs a small bitmap.
       if (printService.selectedBluetoothAddress.isNotEmpty &&
           printService.renderMode == 'fast') {
         final printData = await _loadReceiptPrintData().timeout(
@@ -616,6 +614,10 @@ class PosSuccessPage extends StatelessWidget {
         );
         await printService.printText(
           text: _buildThermalReceiptText(printData),
+          logoBytes: await PosReceiptDocumentBuilder.loadLogoBytes(
+            printData.template,
+            printData.company,
+          ),
           charactersPerLine: printData.template.paperWidth == 80 ? 48 : 32,
         );
         return;

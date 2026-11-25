@@ -33,8 +33,8 @@ class PosReceiptPrintService {
   String get selectedBluetoothName =>
       preferences.getString(_bluetoothNameKey)?.trim() ?? '';
 
-  /// `fast` sends template-aware ESC/POS text; `pdf` renders the full visual
-  /// template (including logo) before sending it to the printer.
+  /// `fast` sends ESC/POS text with a compact raster logo; `pdf` renders the
+  /// full visual template before sending it to the printer.
   String get renderMode =>
       preferences.getString(_renderModeKey)?.trim() == 'pdf' ? 'pdf' : 'fast';
 
@@ -199,6 +199,7 @@ class PosReceiptPrintService {
   /// for Wi-Fi/system printers and sharing.
   Future<bool> printText({
     required String text,
+    Uint8List? logoBytes,
     int addFeeds = 3,
     int charactersPerLine = 32,
   }) async {
@@ -211,6 +212,7 @@ class PosReceiptPrintService {
         text: text,
         addFeeds: addFeeds,
         charactersPerLine: charactersPerLine,
+        logoBytes: logoBytes,
       ),
     );
     _bluetoothPrintQueue = current.then<void>(
@@ -224,10 +226,12 @@ class PosReceiptPrintService {
     required String text,
     required int addFeeds,
     required int charactersPerLine,
+    Uint8List? logoBytes,
   }) async {
     final normalized = text.replaceAll('\r\n', '\n').trimRight();
     final lines = normalized.split('\n');
     final data = <int>[0x1B, 0x40]; // initialize
+    if (logoBytes != null) data.addAll(await _logoCommands(logoBytes));
     var centered = false;
     var footer = false;
     for (final sourceLine in lines) {
@@ -290,6 +294,69 @@ class PosReceiptPrintService {
           selectedBluetoothAddress,
         ).timeout(const Duration(seconds: 2));
       } catch (_) {}
+    }
+  }
+
+  /// One bounded 34x16 mm logo at 203dpi, in the same job as receipt text.
+  /// Transparent pixels are composited on white before monochrome conversion.
+  Future<List<int>> _logoCommands(Uint8List bytes) async {
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? descriptor;
+    ui.Codec? codec;
+    ui.Image? image;
+    try {
+      if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) return [];
+      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      if (descriptor.width * descriptor.height > 16000000) return [];
+      final scale = (272 / descriptor.width).clamp(0.0, 1.0);
+      final heightScale = (128 / descriptor.height).clamp(0.0, scale);
+      final width = (descriptor.width * heightScale).round().clamp(1, 272);
+      final height = (descriptor.height * heightScale).round().clamp(1, 128);
+      codec = await descriptor.instantiateCodec(
+        targetWidth: width,
+        targetHeight: height,
+      );
+      image = (await codec.getNextFrame()).image;
+      final rgba = await image.toByteData(
+        format: ui.ImageByteFormat.rawStraightRgba,
+      );
+      if (rgba == null) return [];
+      final stride = (width + 7) ~/ 8;
+      final raster = Uint8List(stride * height);
+      for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+          final i = (y * width + x) * 4;
+          final alpha = rgba.getUint8(i + 3) / 255;
+          final luminance =
+              (rgba.getUint8(i) * 0.299 +
+                      rgba.getUint8(i + 1) * 0.587 +
+                      rgba.getUint8(i + 2) * 0.114) *
+                  alpha +
+              255 * (1 - alpha);
+          if (luminance < 160) raster[y * stride + x ~/ 8] |= 0x80 >> (x % 8);
+        }
+      }
+      return [
+        0x1b, 0x61, 1, // centered
+        0x1d,
+        0x76,
+        0x30,
+        0,
+        stride & 255,
+        stride >> 8,
+        height & 255,
+        height >> 8,
+        ...raster, 0x0a, 0x1b, 0x61, 0,
+      ];
+    } catch (_) {
+      // Logo decoding happens before the single printer write. Text still prints.
+      return [];
+    } finally {
+      image?.dispose();
+      codec?.dispose();
+      descriptor?.dispose();
+      buffer?.dispose();
     }
   }
 

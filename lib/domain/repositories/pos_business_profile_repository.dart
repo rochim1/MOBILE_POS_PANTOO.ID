@@ -45,10 +45,16 @@ String? businessLogoValidation(PickedProductImage image) {
 }
 
 class PosBusinessProfileRepository {
-  PosBusinessProfileRepository(this.provider, this.prefs, {this.uploadClient});
+  PosBusinessProfileRepository(
+    this.provider,
+    this.prefs, {
+    this.uploadClient,
+    this.onSaved,
+  });
   final GraphQLClientProvider provider;
   final SharedPreferences prefs;
   final http.Client? uploadClient;
+  final void Function(PosBusinessProfile)? onSaved;
   static const query = r'''query GetMyPOSBusinessProfile {
     GetMyPOSBusinessProfile { _id name phone address logo }
   }''';
@@ -169,6 +175,7 @@ class PosBusinessProfileRepository {
       }
       final profile = _decode(data?['UpdateMyPOSBusinessProfile'] as Map);
       await _cache(scope, profile);
+      if (scope == provider.subscriptionScope) onSaved?.call(profile);
       return Right(profile);
     } catch (error) {
       return Left(AppErrorHandler.handle(error));

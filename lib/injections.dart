@@ -137,7 +137,18 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
     () => PosPersonalProfileRepository(sl(), sl()),
   );
   sl.registerLazySingleton<PosBusinessProfileRepository>(
-    () => PosBusinessProfileRepository(sl(), sl()),
+    () => PosBusinessProfileRepository(
+      sl(),
+      sl(),
+      onSaved: (profile) {
+        sl<PosReceiptRepository>().updateCompany({
+          'nama_instansi': profile.name,
+          'telpon_number': profile.phone,
+          'alamat': profile.address,
+          'logo': profile.logo,
+        });
+      },
+    ),
   );
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepository(sl(), sl(), sl()),

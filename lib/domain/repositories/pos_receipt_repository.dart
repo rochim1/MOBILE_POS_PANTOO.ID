@@ -4,6 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../../core/error/error_handler.dart';
 import '../../core/error/failures.dart';
 import '../../core/network/graphql_client_provider.dart';
+import '../../core/network/offline_network_failure.dart';
 import '../../data/graphql/pos_receipt_queries.dart';
 import '../models/pos_receipt_template.dart';
 
@@ -23,8 +24,35 @@ class PosReceiptRepository {
   // cashier and success page from fetching the same template concurrently.
   PosReceiptPrintData? _cachedPrintData;
   Future<Either<Failure, PosReceiptPrintData>>? _inFlightPrintData;
+  String? _scope;
+  int _companyRevision = 0;
+  Map<String, String> _companyUpdates = {};
 
   PosReceiptRepository(this._clientProvider);
+
+  void _ensureScope() {
+    final scope = _clientProvider.subscriptionScope;
+    if (_scope == scope) return;
+    _scope = scope;
+    _cachedPrintData = null;
+    _inFlightPrintData = null;
+    _companyUpdates = {};
+    _companyRevision++;
+  }
+
+  /// Apply a confirmed profile save immediately, including explicit logo removal.
+  void updateCompany(Map<String, String> company) {
+    _ensureScope();
+    _companyUpdates = {..._companyUpdates, ...company};
+    _companyRevision++;
+    final cached = _cachedPrintData;
+    if (cached != null) {
+      _cachedPrintData = PosReceiptPrintData(
+        template: cached.template,
+        company: {...cached.company, ...company},
+      );
+    }
+  }
 
   Future<Either<Failure, PosReceiptTemplate>> getReceiptTemplate() async {
     final result = await getReceiptPrintData();
@@ -34,13 +62,14 @@ class PosReceiptRepository {
   Future<Either<Failure, PosReceiptPrintData>> getReceiptPrintData({
     bool forceRefresh = false,
   }) async {
+    _ensureScope();
     final cached = _cachedPrintData;
     if (cached != null && !forceRefresh) return Right(cached);
 
     final inFlight = _inFlightPrintData;
     if (inFlight != null) return inFlight;
 
-    final request = _fetchReceiptPrintData();
+    final request = _fetchReceiptPrintData(_scope, _companyRevision);
     _inFlightPrintData = request;
     final result = await request;
     if (identical(_inFlightPrintData, request)) {
@@ -56,7 +85,10 @@ class PosReceiptRepository {
     return getReceiptPrintData();
   }
 
-  Future<Either<Failure, PosReceiptPrintData>> _fetchReceiptPrintData() async {
+  Future<Either<Failure, PosReceiptPrintData>> _fetchReceiptPrintData(
+    String? scope,
+    int revision,
+  ) async {
     try {
       final options = QueryOptions(
         document: gql(PosReceiptQueries.getReceipt),
@@ -64,10 +96,14 @@ class PosReceiptRepository {
       );
 
       final result = await _clientProvider.client.query(options);
+      if (scope != _clientProvider.subscriptionScope) {
+        return const Left(AuthFailure('Sesi telah berubah'));
+      }
 
       if (result.hasException) {
         final cached = _cachedPrintData;
-        if (cached != null) return Right(cached);
+        if (cached != null && isOfflineReadFailure(result.exception!))
+          return Right(cached);
         return Left(AppErrorHandler.handle(result.exception!));
       }
 
@@ -85,17 +121,22 @@ class PosReceiptRepository {
         (key, value) => MapEntry(key, value?.toString() ?? ''),
       );
       company['logo'] = _clientProvider.resolveMediaUrl(rawCompany['logo']);
+      if (revision != _companyRevision) company.addAll(_companyUpdates);
       final data = PosReceiptPrintData(
         template: PosReceiptTemplate.fromJson(templateData),
         company: company,
       );
       _cachedPrintData = data;
+      if (revision == _companyRevision) _companyUpdates = {};
       return Right(data);
     } catch (e) {
       // A previously loaded template is still safer than falling back to a
       // blank receipt when the network briefly disappears.
+      if (scope != _clientProvider.subscriptionScope) {
+        return const Left(AuthFailure('Sesi telah berubah'));
+      }
       final cached = _cachedPrintData;
-      if (cached != null) return Right(cached);
+      if (cached != null && isOfflineReadFailure(e)) return Right(cached);
       return Left(AppErrorHandler.handle(e));
     }
   }
@@ -103,6 +144,8 @@ class PosReceiptRepository {
   Future<Either<Failure, PosReceiptTemplate>> updateReceiptTemplate(
     Map<String, dynamic> input,
   ) async {
+    _ensureScope();
+    final scope = _scope;
     try {
       final options = MutationOptions(
         document: gql(PosReceiptQueries.updateReceipt),
@@ -110,6 +153,9 @@ class PosReceiptRepository {
       );
 
       final result = await _clientProvider.client.mutate(options);
+      if (scope != _clientProvider.subscriptionScope) {
+        return const Left(AuthFailure('Sesi telah berubah'));
+      }
 
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));

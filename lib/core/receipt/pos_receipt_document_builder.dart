@@ -57,7 +57,7 @@ class PosReceiptDocumentData {
 }
 
 class PosReceiptDocumentBuilder {
-  static final Map<String, Future<pw.MemoryImage?>> _logoCache = {};
+  static final Map<String, Future<Uint8List?>> _logoCache = {};
 
   static Future<Uint8List> build({
     required PosReceiptDocumentData data,
@@ -97,7 +97,8 @@ class PosReceiptDocumentBuilder {
               (line) => _resolve(line, company, cashierName: data.cashierName),
             )
             .where((line) => line.isNotEmpty);
-    final logo = await _loadLogo(template, company);
+    final logoBytes = await loadLogoBytes(template, company);
+    final logo = logoBytes == null ? null : pw.MemoryImage(logoBytes);
 
     document.addPage(
       pw.Page(
@@ -468,7 +469,7 @@ class PosReceiptDocumentBuilder {
     return value.replaceAll(RegExp(r'\{\{[^}]+\}\}'), '').trim();
   }
 
-  static Future<pw.MemoryImage?> _loadLogo(
+  static Future<Uint8List?> loadLogoBytes(
     PosReceiptTemplate template,
     Map<String, String> company,
   ) async {
@@ -478,6 +479,8 @@ class PosReceiptDocumentBuilder {
     final cached = _logoCache[url];
     if (cached != null) return cached;
 
+    // Bound memory when operators switch businesses or upload replacement logos.
+    if (_logoCache.length >= 16) _logoCache.remove(_logoCache.keys.first);
     final request = _downloadLogo(url);
     _logoCache[url] = request;
     final logo = await request;
@@ -485,7 +488,7 @@ class PosReceiptDocumentBuilder {
     return logo;
   }
 
-  static Future<pw.MemoryImage?> _downloadLogo(String url) async {
+  static Future<Uint8List?> _downloadLogo(String url) async {
     try {
       final response = await http
           .get(Uri.parse(url))
@@ -498,7 +501,13 @@ class PosReceiptDocumentBuilder {
           (contentType.isNotEmpty && !contentType.startsWith('image/'))) {
         return null;
       }
-      return pw.MemoryImage(response.bodyBytes);
+      // Validate before either renderer uses the bytes. A corrupt upload must
+      // not break a paid transaction's receipt.
+      final image = pw.MemoryImage(response.bodyBytes);
+      final width = image.width ?? 0;
+      final height = image.height ?? 0;
+      if (width <= 0 || height <= 0 || width * height > 16000000) return null;
+      return response.bodyBytes;
     } catch (_) {
       // Kegagalan logo tidak boleh menggagalkan pencetakan transaksi.
       return null;
