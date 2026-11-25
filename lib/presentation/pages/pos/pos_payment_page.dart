@@ -959,56 +959,61 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
   Future<void> _payPendingInvoice(String method) async {
     final order = widget.pendingOrder;
     if (order == null || _payingPendingInvoice) return;
-    final state = context.read<PosBloc>().state;
-    if (!await _ensureRequiredCustomer(state)) {
-      return;
-    }
-    if (!mounted) return;
+    // Reserve this flow before the first await: a second tap can otherwise
+    // enter while the already-resolved customer check yields to the event loop.
     setState(() => _payingPendingInvoice = true);
-    final result = await sl<PosRepository>().payPendingOrder(
-      orderId: order.id,
-      method: method,
-      cashReceived: (method == 'tunai' ? _cashReceived : order.total)
-          .roundToDouble(),
-      splitPayments: method == 'split' ? _splitPayments : const [],
-      customerId:
-          _paymentCustomer?.id ??
-          widget.pendingOrder?.customerId ??
-          (widget.pendingOrder == null ? state.selectedCustomer?.id : null),
-    );
-    if (!mounted) return;
-    setState(() => _payingPendingInvoice = false);
-    result.fold(
-      (failure) {
-        if (failure.message.toLowerCase().contains('pelanggan')) {
-          _showRequiredCustomerFlow(
-            context.read<PosBloc>().state,
-            message: failure.message,
-            invalidateSelection:
-                failure.message.toLowerCase().contains('tidak ditemukan') ||
-                failure.message.toLowerCase().contains('tidak valid'),
+    try {
+      final state = context.read<PosBloc>().state;
+      if (!await _ensureRequiredCustomer(state) || !mounted) return;
+      final result = await sl<PosRepository>().payPendingOrder(
+        orderId: order.id,
+        method: method,
+        cashReceived: (method == 'tunai' ? _cashReceived : order.total)
+            .roundToDouble(),
+        splitPayments: method == 'split' ? _splitPayments : const [],
+        customerId:
+            _paymentCustomer?.id ??
+            widget.pendingOrder?.customerId ??
+            (widget.pendingOrder == null ? state.selectedCustomer?.id : null),
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) {
+          if (failure.message.toLowerCase().contains('pelanggan')) {
+            _showRequiredCustomerFlow(
+              context.read<PosBloc>().state,
+              message: failure.message,
+              invalidateSelection:
+                  failure.message.toLowerCase().contains('tidak ditemukan') ||
+                  failure.message.toLowerCase().contains('tidak valid'),
+            );
+            return;
+          }
+          AppToast.error(context, failure.message);
+        },
+        (_) {
+          sl<PosCustomerDisplayService>().publishCart(
+            items: const [],
+            subtotal: order.subtotal,
+            discount: order.discountAmount,
+            total: order.total,
+            storeName: _activeStoreName(context),
+            status: 'payment_success',
           );
-          return;
-        }
-        AppToast.error(context, failure.message);
-      },
-      (_) {
-        sl<PosCustomerDisplayService>().publishCart(
-          items: const [],
-          subtotal: order.subtotal,
-          discount: order.discountAmount,
-          total: order.total,
-          storeName: _activeStoreName(context),
-          status: 'payment_success',
-        );
-        context.read<PosBloc>().add(RefreshOrders());
-        context.read<PosBloc>().add(
-          const RefreshPosRuntimeConfig(preserveCheckout: true),
-        );
-        AppToast.success(context, 'Invoice ${order.invoice} berhasil dibayar');
-        Navigator.pop(context);
-      },
-    );
+          context.read<PosBloc>().add(RefreshOrders());
+          context.read<PosBloc>().add(
+            const RefreshPosRuntimeConfig(preserveCheckout: true),
+          );
+          AppToast.success(
+            context,
+            'Invoice ${order.invoice} berhasil dibayar',
+          );
+          Navigator.pop(context);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _payingPendingInvoice = false);
+    }
   }
 
   bool _requiresCustomer(PosState state) {
@@ -2335,8 +2340,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                   _ => '',
                 };
                 if (normalizedMethod.isEmpty) return;
-                if (normalizedMethod == 'tempo' &&
-                    (_paymentCustomer ?? state.selectedCustomer) == null) {
+                if (normalizedMethod == 'tempo' && !_hasCustomer(state)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: PosText(
