@@ -137,22 +137,71 @@ void main() {
     expect(large.availableWidth, greaterThan(small.availableWidth));
   });
   test('thermal money columns fit a 32-character 58mm printer', () {
-    const data=PosReceiptDocumentData(invoice:'INV-1',dateLabel:'26/11/2026',paymentMethod:'tunai',subtotal:123456789,total:123456789,items:[{'name':'Produk','qty':1,'harga_jual':123456789,'subtotal':123456789}]);
-    final text=PosReceiptDocumentBuilder.buildThermalText(data:data,template:receiptTemplate,company:receiptCompany);
-    final amounts=text.split('\n').where((line)=>line.contains('123.456.789'));
-    expect(amounts,isNotEmpty);
-    expect(amounts.every((line)=>line.length<=32),isTrue);
+    const data = PosReceiptDocumentData(
+      invoice: 'INV-1',
+      dateLabel: '26/11/2026',
+      paymentMethod: 'tunai',
+      subtotal: 123456789,
+      total: 123456789,
+      items: [
+        {
+          'name': 'Produk',
+          'qty': 1,
+          'harga_jual': 123456789,
+          'subtotal': 123456789,
+        },
+      ],
+    );
+    final text = PosReceiptDocumentBuilder.buildThermalText(
+      data: data,
+      template: receiptTemplate,
+      company: receiptCompany,
+    );
+    final amounts = text
+        .split('\n')
+        .where((line) => line.contains('123.456.789'));
+    expect(amounts, isNotEmpty);
+    expect(amounts.every((line) => line.length <= 32), isTrue);
   });
-  test('long product and large amounts keep a complete dynamic receipt', () async {
-    final items=List.generate(12,(i)=>{'name':'Layanan perawatan produk dengan nama panjang nomor ${i+1}', 'qty':1.0, 'harga_jual':123456789, 'subtotal':123456789});
-    final data=PosReceiptDocumentData(invoice:'PANTOO-LONG-20261126',dateLabel:'26/11/2026 08:00',paymentMethod:'tunai',subtotal:1481481468,total:1481481468,cashReceived:1500000000,change:18518532,items:items);
-    final bytes=await PosReceiptDocumentBuilder.build(data:data,template:receiptTemplate,company:receiptCompany);
-    expect(bytes.length,greaterThan(500));
-    final box=RegExp(r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]').firstMatch(latin1.decode(bytes));
-    expect(double.parse(box![2]!),greaterThan(140*PdfPageFormat.mm));
-    final directory=Platform.environment['POS_RECEIPT_FIXTURES'];
-    if(directory!=null) { await Directory(directory).create(recursive:true);await File('$directory/receipt-58-long.pdf').writeAsBytes(bytes); }
-  });
+  test(
+    'long product and large amounts keep a complete dynamic receipt',
+    () async {
+      final items = List.generate(
+        12,
+        (i) => {
+          'name': 'Layanan perawatan produk dengan nama panjang nomor ${i + 1}',
+          'qty': 1.0,
+          'harga_jual': 123456789,
+          'subtotal': 123456789,
+        },
+      );
+      final data = PosReceiptDocumentData(
+        invoice: 'PANTOO-LONG-20261126',
+        dateLabel: '26/11/2026 08:00',
+        paymentMethod: 'tunai',
+        subtotal: 1481481468,
+        total: 1481481468,
+        cashReceived: 1500000000,
+        change: 18518532,
+        items: items,
+      );
+      final bytes = await PosReceiptDocumentBuilder.build(
+        data: data,
+        template: receiptTemplate,
+        company: receiptCompany,
+      );
+      expect(bytes.length, greaterThan(500));
+      final box = RegExp(
+        r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+      ).firstMatch(latin1.decode(bytes));
+      expect(double.parse(box![2]!), greaterThan(140 * PdfPageFormat.mm));
+      final directory = Platform.environment['POS_RECEIPT_FIXTURES'];
+      if (directory != null) {
+        await Directory(directory).create(recursive: true);
+        await File('$directory/receipt-58-long.pdf').writeAsBytes(bytes);
+      }
+    },
+  );
   test(
     'generate real PDF fixtures for visual and text inspection when requested',
     () async {

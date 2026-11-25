@@ -308,8 +308,6 @@ class PosSuccessPage extends StatelessWidget {
       '${'Struk ${transaction.invoice}'.trCurrent()}\n'
       '${transaction.storeName.isEmpty ? '' : '${transaction.storeName}\n'}'
       '${transaction.cashierName.isEmpty ? '' : '${'Kasir'.trCurrent()}: ${transaction.cashierName}\n'}'
-      '${transaction.shiftReference.isEmpty ? '' : '${'Shift'.trCurrent()}: ${transaction.shiftReference}\n'}'
-      '${transaction.transactionReference.isEmpty ? '' : '${'Referensi'.trCurrent()}: ${transaction.transactionReference}\n'}'
       '${transaction.customerName.isEmpty ? '' : '${posCurrentLocale().receiptCustomerLabel}: ${transaction.customerName}\n'}'
       '${transaction.date.isEmpty ? '' : '${transaction.date}\n'}'
       '\n'

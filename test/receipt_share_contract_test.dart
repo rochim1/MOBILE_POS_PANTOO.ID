@@ -38,26 +38,23 @@ void main() {
     expect(renderer, contains("_totalRow('Pajak'"));
   });
 
-  test('struk final memuat shift dan referensi transaksi idempoten', () {
-    final renderer = File(
-      'lib/core/receipt/pos_receipt_document_builder.dart',
-    ).readAsStringSync();
-    final query = File('lib/data/graphql/pos_queries.dart').readAsStringSync();
+  test(
+    'nota pelanggan menyembunyikan ID internal tanpa menghapus query pelacakan',
+    () {
+      final renderer = File(
+        'lib/core/receipt/pos_receipt_document_builder.dart',
+      ).readAsStringSync();
+      final query = File(
+        'lib/data/graphql/pos_queries.dart',
+      ).readAsStringSync();
 
-    expect(renderer, contains('pw.Text(posCurrentLocale().pos98c99bd51ac2((data.shiftReference).toString()))'));
-    expect(
-      renderer,
-      contains('pw.Text(posCurrentLocale().pos96b044b6e7c2((data.transactionReference).toString()))'),
-    );
-    expect(renderer, contains('add(posCurrentLocale().pos98c99bd51ac2((data.shiftReference).toString()))'));
-    expect(
-      renderer,
-      contains('add(posCurrentLocale().pos96b044b6e7c2((data.transactionReference).toString()))'),
-    );
-    expect(query, contains('client_transaction_id'));
-    expect(query, contains('kasir_shift_id'));
-    expect(query, contains('kasir_name'));
-  });
+      expect(renderer, isNot(contains('pos98c99bd51ac2')));
+      expect(renderer, isNot(contains('pos96b044b6e7c2')));
+      expect(query, contains('client_transaction_id'));
+      expect(query, contains('kasir_shift_id'));
+      expect(query, contains('kasir_name'));
+    },
+  );
 
   test('penjualan tempo memakai aksi invoice kredit yang eksplisit', () {
     final repository = File(

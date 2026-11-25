@@ -208,7 +208,7 @@ void main() {
     expect(text, contains('Receipt POS-001'));
     expect(text, contains('Cashier: Simpan'));
     expect(text, contains('Customer: Bayar'));
-    expect(text, contains('Reference: REF-001'));
+    expect(text, isNot(contains('Reference: REF-001')));
     expect(text, contains('Detail x1'));
     expect(text, contains('Rp10.000'));
     expect(text, contains('Notes: Catatan asli'));

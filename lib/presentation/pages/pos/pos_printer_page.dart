@@ -58,7 +58,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
   bool _showOrderType = true;
 
   int _paperWidth = 58;
-  int _fontSize = 12;
+  int _fontSize = 8;
 
   bool _isInitialized = false;
   bool _printersLoading = true;
@@ -230,7 +230,9 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
     // Template lama web menyimpan lebar dalam px (umumnya 280). Mulai kini
     // kontrak lintas platform menyimpan ukuran fisik 58 atau 80 mm.
     _paperWidth = storedWidth == 80 ? 80 : 58;
-    _fontSize = t.fontSize ?? 12;
+    _fontSize = PosReceiptDocumentBuilder.fontSizeFor(
+      t.copyWith(paperWidth: _paperWidth),
+    ).round();
 
     _isInitialized = true;
   }
@@ -330,8 +332,14 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         ('Sub Judul (Baris 2)').tr(context),
                         _headerSubtitleController,
                       ),
-                      _buildTextField(('Baris 3').tr(context), _headerLine3Controller),
-                      _buildTextField(('Baris 4').tr(context), _headerLine4Controller),
+                      _buildTextField(
+                        ('Baris 3').tr(context),
+                        _headerLine3Controller,
+                      ),
+                      _buildTextField(
+                        ('Baris 4').tr(context),
+                        _headerLine4Controller,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -418,25 +426,24 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         label: ('Lebar Kertas').tr(context),
                         value: _paperWidth.toString(),
                         items: const ['58', '80'],
-                        onChanged: (val) =>
-                            setState(() => _paperWidth = int.parse(val!)),
+                        onChanged: (val) => setState(() {
+                          _paperWidth = int.parse(val!);
+                          _fontSize = PosReceiptDocumentBuilder.fontSizeFor(
+                            _draftTemplate,
+                          ).round();
+                        }),
                         suffix: 'mm',
                       ),
                       _buildDropdown(
                         label: ('Ukuran Font Default').tr(context),
                         value: _fontSize.toString(),
-                        items: const [
-                          '8',
-                          '9',
-                          '10',
-                          '11',
-                          '12',
-                          '13',
-                          '14',
-                          '15',
-                          '16',
-                          '17',
-                          '18',
+                        items: [
+                          for (
+                            var size = _paperWidth == 58 ? 7 : 8;
+                            size <= (_paperWidth == 58 ? 9 : 18);
+                            size++
+                          )
+                            size.toString(),
                         ],
                         onChanged: (val) =>
                             setState(() => _fontSize = int.parse(val!)),
@@ -558,11 +565,13 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             children: [
               Icon(icon, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              PosText(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              Expanded(
+                child: PosText(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -639,6 +648,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         children: [
           Expanded(
             child: DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: safeValue,
               decoration: InputDecoration(
                 labelText: (label).tr(context),
@@ -654,7 +664,10 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   .map(
                     (item) => DropdownMenuItem(
                       value: item,
-                      child: PosText(labels?[item] ?? item),
+                      child: PosText(
+                        labels?[item] ?? item,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   )
                   .toList(),
@@ -775,119 +788,136 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
       color: AppColors.bgSecondary,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
       alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: receiptWidth),
-        child: Material(
-          color: Colors.white,
-          elevation: 2,
-          borderRadius: BorderRadius.circular(4),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: DefaultTextStyle(
-              style: TextStyle(
-                color: Colors.black87,
-                fontSize: (template.fontSize ?? 12).clamp(10, 14).toDouble(),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (template.showLogo != false &&
-                      (company['logo'] ?? '').trim().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Image.network(
-                        company['logo']!,
-                        height: 60,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  if (title.isNotEmpty)
-                    PosText(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  for (final value in [
-                    template.headerSubtitle,
-                    template.headerLine3,
-                    template.headerLine4,
-                  ])
-                    if (_interpolate(
-                      value,
-                      company,
-                      cashierName: previewCashierName,
-                    ).isNotEmpty)
-                      Text(
-                        _interpolate(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth.clamp(0.0, receiptWidth);
+          final format = PosReceiptDocumentBuilder.pageFormatFor(template, 2);
+          final scale = width / format.width;
+          final fontSize = PosReceiptDocumentBuilder.fontSizeFor(template);
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: receiptWidth),
+            child: Material(
+              color: Colors.white,
+              elevation: 2,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: EdgeInsets.all(format.marginLeft * scale),
+                child: DefaultTextStyle(
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: fontSize * scale,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (template.showLogo != false &&
+                          (company['logo'] ?? '').trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Image.network(
+                            company['logo']!,
+                            height: 60,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                          ),
+                        ),
+                      if (title.isNotEmpty)
+                        PosText(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: (fontSize + 2) * scale,
+                          ),
+                        ),
+                      for (final value in [
+                        template.headerSubtitle,
+                        template.headerLine3,
+                        template.headerLine4,
+                      ])
+                        if (_interpolate(
                           value,
                           company,
                           cashierName: previewCashierName,
-                        ),
-                        textAlign: TextAlign.center,
+                        ).isNotEmpty)
+                          Text(
+                            _interpolate(
+                              value,
+                              company,
+                              cashierName: previewCashierName,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                      const Divider(height: 18),
+                      if (template.showInvoice != false)
+                        const PosText('No: INV-20260909-001'),
+                      if (template.showTanggal != false)
+                        const PosText('Tanggal: 09/09/2026 14:30'),
+                      if (template.showKasir != false)
+                        const PosText('Kasir: Kasir Pantoo'),
+                      if (template.showToko != false)
+                        const PosText('Toko: Toko Utama'),
+                      if (template.showPelanggan != false)
+                        const PosText('Pelanggan: Pelanggan Umum'),
+                      if (template.showChannel == true)
+                        const PosText('Channel: Retail'),
+                      if (template.showSegment == true)
+                        const PosText('Segmen: Regular'),
+                      if (template.showOrderType != false)
+                        const PosText('Jenis pesanan: Bawa Pulang'),
+                      const PosText('Bayar: TUNAI'),
+                      const Divider(height: 18),
+                      const PosText(
+                        'Produk Contoh A',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                  const Divider(height: 18),
-                  if (template.showInvoice != false)
-                    const PosText('No: INV-20260909-001'),
-                  if (template.showTanggal != false)
-                    const PosText('Tanggal: 09/09/2026 14:30'),
-                  if (template.showKasir != false)
-                    const PosText('Kasir: Kasir Pantoo'),
-                  if (template.showToko != false)
-                    const PosText('Toko: Toko Utama'),
-                  if (template.showPelanggan != false)
-                    const PosText('Pelanggan: Pelanggan Umum'),
-                  if (template.showChannel == true)
-                    const PosText('Channel: Retail'),
-                  if (template.showSegment == true)
-                    const PosText('Segmen: Regular'),
-                  if (template.showOrderType != false)
-                    const PosText('Jenis pesanan: Bawa Pulang'),
-                  const PosText('Bayar: TUNAI'),
-                  const Divider(height: 18),
-                  const PosText(
-                    'Produk Contoh A',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  line('2 x ${currency.format(15000)}', currency.format(30000)),
-                  const SizedBox(height: 4),
-                  const PosText(
-                    'Produk Contoh B',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  line('1 x ${currency.format(25000)}', currency.format(25000)),
-                  const Divider(height: 18),
-                  line('Subtotal', currency.format(55000)),
-                  if (template.showPromo != false)
-                    line('Promo', '-${currency.format(5000)}'),
-                  line('Pajak', currency.format(5500)),
-                  line('TOTAL', currency.format(55500), bold: true),
-                  line('Diterima', currency.format(60000)),
-                  line('Kembalian', currency.format(4500)),
-                  const SizedBox(height: 12),
-                  for (final value in [
-                    template.footerLine1,
-                    template.footerLine2,
-                    template.footerLine3,
-                  ])
-                    if (_interpolate(
-                      value,
-                      company,
-                      cashierName: previewCashierName,
-                    ).isNotEmpty)
-                      Text(
-                        _interpolate(
+                      line(
+                        '2 x ${currency.format(15000)}',
+                        currency.format(30000),
+                      ),
+                      const SizedBox(height: 4),
+                      const PosText(
+                        'Produk Contoh B',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      line(
+                        '1 x ${currency.format(25000)}',
+                        currency.format(25000),
+                      ),
+                      const Divider(height: 18),
+                      line('Subtotal', currency.format(55000)),
+                      if (template.showPromo != false)
+                        line('Promo', '-${currency.format(5000)}'),
+                      line('Pajak', currency.format(5500)),
+                      line('TOTAL', currency.format(55500), bold: true),
+                      line('Diterima', currency.format(60000)),
+                      line('Kembalian', currency.format(4500)),
+                      const SizedBox(height: 12),
+                      for (final value in [
+                        template.footerLine1,
+                        template.footerLine2,
+                        template.footerLine3,
+                      ])
+                        if (_interpolate(
                           value,
                           company,
                           cashierName: previewCashierName,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                ],
+                        ).isNotEmpty)
+                          Text(
+                            _interpolate(
+                              value,
+                              company,
+                              cashierName: previewCashierName,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -937,7 +967,11 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
             trailing: FilledButton.icon(
               onPressed: _selectBluetoothPrinter,
               icon: const Icon(Icons.search, size: 17),
-              label: Text(_selectedBluetoothName.isEmpty ? ('Pilih').tr(context) : ('Ganti').tr(context)),
+              label: Text(
+                _selectedBluetoothName.isEmpty
+                    ? ('Pilih').tr(context)
+                    : ('Ganti').tr(context),
+              ),
             ),
           ),
           if (_selectedBluetoothName.isNotEmpty)
@@ -959,8 +993,10 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         else if (!isAndroid && _printers.isEmpty) ...[
           Text(
             kIsWeb
-                ? ('Situs web tidak dapat meminta izin untuk membaca daftar printer sistem. Buka contoh struk PDF, lalu pilih printer melalui dialog cetak browser.').tr(context)
-                : ('Belum ada printer sistem yang terdeteksi. Periksa koneksi dan driver printer, lalu muat ulang.').tr(context),
+                ? ('Situs web tidak dapat meminta izin untuk membaca daftar printer sistem. Buka contoh struk PDF, lalu pilih printer melalui dialog cetak browser.')
+                      .tr(context)
+                : ('Belum ada printer sistem yang terdeteksi. Periksa koneksi dan driver printer, lalu muat ulang.')
+                      .tr(context),
             style: const TextStyle(color: Colors.black54),
           ),
           if (kIsWeb) ...[
@@ -1010,7 +1046,7 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
         ] else if (!isAndroid) ...[
           DropdownButtonFormField<String>(
             initialValue: _selectedPrinterUrl,
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               labelText: ('Printer default terminal').tr(context),
               border: OutlineInputBorder(),
             ),
@@ -1024,7 +1060,9 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                   value: printer.url,
                   child: Text(
                     printer.isDefault
-                        ? posLocale(context).posb572718edb66((printer.name).toString())
+                        ? posLocale(
+                            context,
+                          ).posb572718edb66((printer.name).toString())
                         : printer.name,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1053,7 +1091,11 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.print_outlined),
-                  label: Text(_isTestPrinting ? ('Menyiapkan…').tr(context) : ('Tes cetak').tr(context)),
+                  label: Text(
+                    _isTestPrinting
+                        ? ('Menyiapkan…').tr(context)
+                        : ('Tes cetak').tr(context),
+                  ),
                 ),
               ),
             ],
@@ -1078,7 +1120,9 @@ class _PosPrinterViewState extends State<_PosPrinterView> {
                         )
                       : const Icon(Icons.print_outlined),
                   label: Text(
-                    _isTestPrinting ? ('Menyiapkan…').tr(context) : ('Tes cetak Bluetooth').tr(context),
+                    _isTestPrinting
+                        ? ('Menyiapkan…').tr(context)
+                        : ('Tes cetak Bluetooth').tr(context),
                   ),
                 ),
               ),
