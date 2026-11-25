@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_mobile_bottom_bar.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_system_safe_area.dart';
 
 void main() {
   for (final width in [320.0, 360.0, 768.0]) {
@@ -32,7 +33,7 @@ void main() {
                 data: MediaQuery.of(
                   context,
                 ).copyWith(textScaler: const TextScaler.linear(1.5)),
-                child: child!,
+                child: PosSystemSafeArea(child: child!),
               ),
               home: Scaffold(
                 body: Align(
@@ -59,6 +60,7 @@ void main() {
           );
           final bar = tester.getRect(find.byType(BottomAppBar));
           final pay = tester.getRect(find.byKey(const ValueKey('pay')));
+          expect(bar.bottom, lessThanOrEqualTo(800 - 24));
           expect(
             pay.bottom,
             closeTo(bar.top, .01),
@@ -86,6 +88,7 @@ void main() {
             final nav = tester.getRect(find.text(labels[i]));
             expect(nav.top, greaterThanOrEqualTo(bar.top));
             expect(nav.bottom, lessThanOrEqualTo(bar.bottom));
+            expect(nav.bottom, lessThanOrEqualTo(800 - 24));
             await tester.tap(find.text(labels[i]));
             expect(taps[i], 1);
           }

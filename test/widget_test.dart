@@ -28,7 +28,9 @@ void main() {
     expect(find.byType(App), findsOneWidget);
   });
 
-  testWidgets('all app routes reserve the phone system navigation area', (tester) async {
+  testWidgets('all app routes reserve the phone system navigation area', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
