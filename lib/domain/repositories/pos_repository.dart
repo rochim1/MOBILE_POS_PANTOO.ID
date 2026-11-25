@@ -2437,6 +2437,7 @@ class PosRepository {
     String closeNotes,
   ) async {
     try {
+      _assertNoUnconfirmedShiftCheckout(shiftId);
       // Browser testing has no SQLite queue. Android must still block closure
       // until its local pending transactions have been reconciled.
       if (supportsOfflineDatabase) {
@@ -2457,6 +2458,8 @@ class PosRepository {
           );
         }
       }
+      // Recheck after awaiting SQLite: a checkout may have started meanwhile.
+      _assertNoUnconfirmedShiftCheckout(shiftId);
       final MutationOptions options = MutationOptions(
         document: gql(PosQueries.closePOSKasirShift),
         variables: {
@@ -2480,7 +2483,32 @@ class PosRepository {
       }
       return const Left(ServerFailure('Gagal menutup shift'));
     } catch (e) {
-      return Left(AppErrorHandler.handle(e));
+      return Left(e is StateError ? ServerFailure(e.message.toString()) : AppErrorHandler.handle(e));
+    }
+  }
+
+  void _assertNoUnconfirmedShiftCheckout(String shiftId) {
+    const prefix = 'pos_checkout_pending_v1:';
+    for (final key in _prefs.getKeys().where((key) => key.startsWith(prefix))) {
+      List<dynamic> scope;
+      try {
+        scope = jsonDecode(key.substring(prefix.length)) as List<dynamic>;
+      } catch (_) {
+        continue; // Not a recognized scoped checkout record.
+      }
+      if (scope.length != 4 ||
+          scope[0] != _clientProvider.endpointUrl ||
+          scope[1] != _prefs.getString('instansi_id') ||
+          scope[2] != terminalUserId) {
+        continue;
+      }
+      final record = PosCheckoutRequestStore(_prefs, key.substring(prefix.length)).load();
+      final pendingShift = (record?['input'] as Map?)?['shift_id'];
+      // Shared drawers also include unresolved proof owned by another PIN on
+      // this terminal. Never delete it or replay it as the closing operator.
+      if (record != null && (pendingShift == null || pendingShift == shiftId)) {
+        throw StateError('Shift belum dapat ditutup karena masih ada pembayaran belum terkonfirmasi. Pulihkan pembayaran dengan kasir asal terlebih dahulu.');
+      }
     }
   }
 
