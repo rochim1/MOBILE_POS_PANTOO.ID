@@ -826,6 +826,7 @@ class _TradeEntryFormState extends State<_TradeEntryForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
+            spacing: 16,
             children: [
               Text(
                 l.tradeCreate,
@@ -834,12 +835,10 @@ class _TradeEntryFormState extends State<_TradeEntryForm> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
               Text(
                 l.tradeManualNote,
                 style: const TextStyle(fontSize: 12, height: 1.5),
               ),
-              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _basis,
                 isExpanded: true,
@@ -857,12 +856,9 @@ class _TradeEntryFormState extends State<_TradeEntryForm> {
                 onChanged: (v) => setState(() => _basis = v!),
               ),
               if (_basis == 'opening')
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    l.tradeOpeningNote,
-                    style: const TextStyle(fontSize: 12, height: 1.5),
-                  ),
+                Text(
+                  l.tradeOpeningNote,
+                  style: const TextStyle(fontSize: 12, height: 1.5),
                 ),
               if (ar && widget.options.list('customers').isNotEmpty)
                 DropdownButtonFormField<String>(
@@ -921,6 +917,7 @@ class _TradeEntryFormState extends State<_TradeEntryForm> {
               ),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   TextButton.icon(
                     onPressed: () => _pick(false),
@@ -977,7 +974,6 @@ class _TradeEntryFormState extends State<_TradeEntryForm> {
               ),
               if (_control.isEmpty || _counter.isEmpty)
                 Text(l.tradeNoAccounts, style: const TextStyle(fontSize: 12)),
-              const SizedBox(height: 12),
               FilledButton(
                 onPressed: _control.isEmpty || _counter.isEmpty ? null : _save,
                 child: Text(l.tradeSave),
@@ -1105,6 +1101,7 @@ class _TradePaymentFormState extends State<_TradePaymentForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
+            spacing: 16,
             children: [
               Text(
                 ar ? l.tradeReceive : l.tradePay,
@@ -1113,13 +1110,17 @@ class _TradePaymentFormState extends State<_TradePaymentForm> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 10),
-              Text(doc.party),
-              Text(
-                l.tradePaymentNote,
-                style: const TextStyle(fontSize: 12, height: 1.5),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 4,
+                children: [
+                  Text(doc.party),
+                  Text(
+                    l.tradePaymentNote,
+                    style: const TextStyle(fontSize: 12, height: 1.5),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
               if (doc.terms.isNotEmpty)
                 DropdownButtonFormField<int>(
                   initialValue: _term,
@@ -1239,7 +1240,6 @@ class _TradePaymentFormState extends State<_TradePaymentForm> {
               ),
               if (!ready)
                 Text(l.tradeNoAccounts, style: const TextStyle(fontSize: 12)),
-              const SizedBox(height: 12),
               FilledButton(
                 onPressed: ready ? _save : null,
                 child: Text(ar ? l.tradeReceive : l.tradePay),

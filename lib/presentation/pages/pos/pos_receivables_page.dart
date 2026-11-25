@@ -469,9 +469,12 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
               ),
               const SizedBox(height: 16),
               if (_pending != null)
-                const PosText(
-                  'Ada bukti belum terkonfirmasi. Data dikunci; kirim ulang bukti yang sama untuk memeriksa hasil tanpa pembayaran ganda.',
-                  style: TextStyle(color: Colors.deepOrange),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: PosText(
+                    'Ada bukti belum terkonfirmasi. Data dikunci; kirim ulang bukti yang sama untuk memeriksa hasil tanpa pembayaran ganda.',
+                    style: TextStyle(color: Colors.deepOrange),
+                  ),
                 ),
               if (widget.canCollect &&
                   ((_pending != null) ||
@@ -484,6 +487,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                     labelText: ('Jumlah penerimaan (Rp)').tr(context),
                   ),
                 ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: _method,
                   decoration: InputDecoration(
@@ -507,6 +511,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                           });
                         },
                 ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   key: ValueKey('$_method:$_destination'),
                   initialValue:
@@ -541,6 +546,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                           setState(() => _destination = v!);
                         },
                 ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: _reference,
                   enabled: !_sending && _pending == null,
@@ -551,6 +557,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: _sending ? null : _collect,
                   icon: _sending
