@@ -72,8 +72,9 @@ class _Auth extends Fake implements AuthRepository {
     googleLogins++;
     if (googleFailure != null) return Left(googleFailure!);
     if (requireGoogleDetails) {
-      if (!consent || phone == null)
+      if (!consent || phone == null) {
         return const Left(GoogleRegistrationRequiredFailure());
+      }
       await sl<SharedPreferences>().remove('instansi_id');
       await sl<SharedPreferences>().setBool('needs_workspace_setup', true);
     }
