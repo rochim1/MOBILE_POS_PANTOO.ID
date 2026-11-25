@@ -3711,7 +3711,13 @@ class PosRepository {
       final QueryResult result = await _clientProvider.client.mutate(options);
 
       if (result.hasException) {
-        if (result.exception!.graphqlErrors.any(
+        final exception = result.exception!;
+        final link = exception.linkException;
+        final errors = [
+          ...exception.graphqlErrors,
+          if (link is ServerException) ...?link.parsedResponse?.errors,
+        ];
+        if (errors.any(
           (error) => error.extensions?['return_draft_write_rejected'] == true,
         )) {
           await store.acknowledge(frozen['client_request_id'] as String);
@@ -3778,13 +3784,14 @@ class PosRepository {
   }
 
   Future<Either<Failure, bool>> processSalesReturn(String id) async {
+    final session = _bootstrapSession;
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PosReturnQueries.processSalesReturn),
         variables: {'_id': id},
       );
       final QueryResult result = await _clientProvider.client.mutate(options);
-
+      _assertBootstrapSession(session);
       if (!result.hasException &&
           result.data?['ProcessSalesReturn']?['_id'] == id &&
           result.data?['ProcessSalesReturn']?['status'] == 'completed') {
@@ -3792,21 +3799,32 @@ class PosRepository {
       }
       if (result.hasException) {
         if (isOfflineReadFailure(result.exception!)) {
-          return _recoverProcessedReturn(id);
+          return _recoverProcessedReturn(id, session);
         }
         return Left(AppErrorHandler.handle(result.exception!));
       }
-      return _recoverProcessedReturn(id);
+      return _recoverProcessedReturn(id, session);
     } catch (e) {
-      if (isOfflineReadFailure(e)) return _recoverProcessedReturn(id);
-      return Left(AppErrorHandler.handle(e));
+      if (session != _bootstrapSession) {
+        return const Left(
+          AuthFailure(
+            'Sesi kasir berubah. Periksa refund dengan akun asal; jangan keluarkan uang lagi.',
+          ),
+        );
+      }
+      if (isOfflineReadFailure(e)) return _recoverProcessedReturn(id, session);
+      return Left(e is Failure ? e : AppErrorHandler.handle(e));
     }
   }
 
-  Future<Either<Failure, bool>> _recoverProcessedReturn(String id) async {
+  Future<Either<Failure, bool>> _recoverProcessedReturn(
+    String id,
+    String session,
+  ) async {
     // A lost mutation response is not a rejected refund. Confirm using a
     // fresh, authorized read of the same ID, never another money mutation.
     try {
+      _assertBootstrapSession(session);
       final result = await _clientProvider.client.query(
         QueryOptions(
           document: gql(PosReturnQueries.getOneSalesReturn),
@@ -3814,12 +3832,15 @@ class PosRepository {
           fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
+      _assertBootstrapSession(session);
       final canonical = result.data?['GetOneSalesReturn'];
       if (!result.hasException &&
           canonical?['_id'] == id &&
           canonical?['status'] == 'completed') {
         return const Right(true);
       }
+    } on AuthFailure catch (failure) {
+      return Left(failure);
     } catch (_) {
       /* Keep the result uncertain when confirmation is unavailable. */
     }

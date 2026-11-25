@@ -24,22 +24,27 @@ class PosFinancialRequestStore {
     if (raw == null) return null;
     try {
       final value = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final amount = value['amount'];
-      if (value['request_id'] is! String ||
-          (value['request_id'] as String).trim().isEmpty ||
-          amount is! num ||
-          !amount.isFinite ||
-          amount <= 0 ||
-          amount > 9007199254740991 ||
-          amount != amount.round() ||
-          (value['invoice_id'] != null && value['invoice_id'] != invoice)) {
-        throw const FormatException();
-      }
+      _validate(invoice, value);
       return value;
     } catch (_) {
       throw StateError(
         'Bukti penerimaan lokal tidak terbaca. Jangan membuat pembayaran baru; minta pemeriksaan administrator.',
       );
+    }
+  }
+
+  static void _validate(String invoice, Map<String, dynamic> value) {
+    final amount = value['amount'];
+    if (invoice.trim().isEmpty ||
+        value['request_id'] is! String ||
+        (value['request_id'] as String).trim().isEmpty ||
+        amount is! num ||
+        !amount.isFinite ||
+        amount <= 0 ||
+        amount > 9007199254740991 ||
+        amount != amount.round() ||
+        (value['invoice_id'] != null && value['invoice_id'] != invoice)) {
+      throw const FormatException();
     }
   }
 
@@ -50,12 +55,25 @@ class PosFinancialRequestStore {
     final existing = load(invoice);
     if (existing != null) return existing;
     final value = {...input, 'request_id': const Uuid().v4()};
+    try {
+      _validate(invoice, value);
+    } catch (_) {
+      throw StateError(
+        'Data penerimaan belum valid. Periksa isian; pembayaran belum dikirim.',
+      );
+    }
     if (!await preferences.setString(_key(invoice), jsonEncode(value))) {
       throw StateError(
         'Bukti penerimaan tidak dapat disimpan. Pembayaran belum dikirim.',
       );
     }
-    return value;
+    final persisted = load(invoice);
+    if (persisted?['request_id'] != value['request_id']) {
+      throw StateError(
+        'Bukti penerimaan gagal diverifikasi. Pembayaran belum dikirim.',
+      );
+    }
+    return persisted!;
   }
 
   Future<void> acknowledge(String invoice) async {

@@ -15,21 +15,25 @@ class PosReturnDraftRequestStore {
     if (raw == null) return null;
     try {
       final value = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final requestId = value['client_request_id'];
-      if (requestId is! String ||
-          !RegExp(r'^[\w-]{16,150}$').hasMatch(requestId) ||
-          value['sumber'] != 'pos' ||
-          value['sumber_id'] is! String ||
-          (value['sumber_id'] as String).isEmpty ||
-          value['items'] is! List ||
-          (value['items'] as List).isEmpty) {
-        throw const FormatException();
-      }
+      _validate(value);
       return value;
     } catch (_) {
       throw StateError(
         'Bukti draft retur lokal tidak terbaca. Jangan buat pengganti; minta pemeriksaan administrator.',
       );
+    }
+  }
+
+  static void _validate(Map<String, dynamic> value) {
+    final requestId = value['client_request_id'];
+    if (requestId is! String ||
+        !RegExp(r'^[\w-]{16,150}$').hasMatch(requestId) ||
+        value['sumber'] != 'pos' ||
+        value['sumber_id'] is! String ||
+        (value['sumber_id'] as String).trim().isEmpty ||
+        value['items'] is! List ||
+        (value['items'] as List).isEmpty) {
+      throw const FormatException();
     }
   }
 
@@ -40,6 +44,13 @@ class PosReturnDraftRequestStore {
       throw StateError('Tidak ada draft retur untuk dipulihkan.');
     }
     final value = {...input, 'client_request_id': const Uuid().v4()};
+    try {
+      _validate(value);
+    } catch (_) {
+      throw StateError(
+        'Data draft retur belum valid. Periksa isian; retur belum dikirim.',
+      );
+    }
     if (!await preferences.setString(_key, jsonEncode(value))) {
       throw StateError(
         'Bukti draft tidak dapat disimpan. Retur belum dikirim.',

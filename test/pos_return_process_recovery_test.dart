@@ -31,37 +31,52 @@ void main() {
     }),
   );
   for (final stage in ['ack', 'lost-ack', 'recovery']) {
-    test('refund ignores the former cashier response after switch: $stage', () async {
-      final prefs = await SharedPreferences.getInstance();
-      var reads = 0, writes = 0;
-      late PosRepository repo;
-      final client = GraphQLClient(
-        cache: GraphQLCache(),
-        defaultPolicies: DefaultPolicies(mutate: Policies(fetch: FetchPolicy.noCache)),
-        link: Link.function((request, [forward]) async* {
-          final mutation = request.operation.document == gql(PosReturnQueries.processSalesReturn);
-          if (mutation) {
-            writes++;
-            if (stage != 'recovery') repo.setOperatorSessionToken('offline_operator:other');
-            if (stage != 'ack') throw ServerException(originalException: Exception('QA lost ACK'));
-          } else {
-            reads++;
-            repo.setOperatorSessionToken('offline_operator:other');
-          }
-          yield Response(data: {
-            mutation ? 'ProcessSalesReturn' : 'GetOneSalesReturn': {
-              '_id': 'ret-1', 'status': 'completed',
-            },
-          }, response: {});
-        }),
-      );
-      repo = PosRepository(_Provider(client), prefs);
-      repo.setOperatorSessionToken('offline_operator:original');
-      final result = await repo.processSalesReturn('ret-1');
-      expect(result.fold((f) => f, (_) => null), isA<AuthFailure>());
-      expect(writes, 1);
-      expect(reads, stage == 'recovery' ? 1 : 0);
-    });
+    test(
+      'refund ignores the former cashier response after switch: $stage',
+      () async {
+        final prefs = await SharedPreferences.getInstance();
+        var reads = 0, writes = 0;
+        late PosRepository repo;
+        final client = GraphQLClient(
+          cache: GraphQLCache(),
+          defaultPolicies: DefaultPolicies(
+            mutate: Policies(fetch: FetchPolicy.noCache),
+          ),
+          link: Link.function((request, [forward]) async* {
+            final mutation =
+                request.operation.document ==
+                gql(PosReturnQueries.processSalesReturn);
+            if (mutation) {
+              writes++;
+              if (stage != 'recovery')
+                repo.setOperatorSessionToken('offline_operator:other');
+              if (stage != 'ack')
+                throw ServerException(
+                  originalException: Exception('QA lost ACK'),
+                );
+            } else {
+              reads++;
+              repo.setOperatorSessionToken('offline_operator:other');
+            }
+            yield Response(
+              data: {
+                mutation ? 'ProcessSalesReturn' : 'GetOneSalesReturn': {
+                  '_id': 'ret-1',
+                  'status': 'completed',
+                },
+              },
+              response: {},
+            );
+          }),
+        );
+        repo = PosRepository(_Provider(client), prefs);
+        repo.setOperatorSessionToken('offline_operator:original');
+        final result = await repo.processSalesReturn('ret-1');
+        expect(result.fold((f) => f, (_) => null), isA<AuthFailure>());
+        expect(writes, 1);
+        expect(reads, stage == 'recovery' ? 1 : 0);
+      },
+    );
   }
   test(
     'pending refund rejects duplicate clicks before the first response',
