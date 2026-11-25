@@ -137,6 +137,12 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        final inputs = find.byType(InputDecorator);
+        final inputRects = inputs.evaluate().map((e) => tester.getRect(find.byWidget(e.widget))).toList()
+          ..sort((a, b) => a.top.compareTo(b.top));
+        for (var i = 1; i < inputRects.length; i++) {
+          expect(inputRects[i].top - inputRects[i - 1].bottom, greaterThanOrEqualTo(12), reason: 'Collection inputs need a clear vertical gap');
+        }
         if (scenario == 'operator-change-before-submit') {
           await tester.pumpWidget(
             MaterialApp(
