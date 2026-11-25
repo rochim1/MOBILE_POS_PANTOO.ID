@@ -203,7 +203,8 @@ class PosReceiptPrintService {
     int addFeeds = 3,
     int charactersPerLine = 32,
   }) async {
-    if (selectedBluetoothAddress.isEmpty) {
+    final address = selectedBluetoothAddress;
+    if (address.isEmpty) {
       throw StateError('PRINTER_NOT_CONFIGURED');
     }
     final previous = _bluetoothPrintQueue;
@@ -213,6 +214,7 @@ class PosReceiptPrintService {
         addFeeds: addFeeds,
         charactersPerLine: charactersPerLine,
         logoBytes: logoBytes,
+        address: address,
       ),
     );
     _bluetoothPrintQueue = current.then<void>(
@@ -227,11 +229,18 @@ class PosReceiptPrintService {
     required int addFeeds,
     required int charactersPerLine,
     Uint8List? logoBytes,
+    required String address,
   }) async {
+    if (selectedBluetoothAddress != address) {
+      throw StateError('PRINTER_NOT_CONFIGURED');
+    }
     final normalized = text.replaceAll('\r\n', '\n').trimRight();
     final lines = normalized.split('\n');
     final data = <int>[0x1B, 0x40]; // initialize
     if (logoBytes != null) data.addAll(await _logoCommands(logoBytes));
+    if (selectedBluetoothAddress != address) {
+      throw StateError('PRINTER_NOT_CONFIGURED');
+    }
     var centered = false;
     var footer = false;
     for (final sourceLine in lines) {
@@ -265,7 +274,7 @@ class PosReceiptPrintService {
     // same bytes automatically can produce a second PO/payment receipt.
     try {
       final success = await FlutterBluetoothPrinter.printBytes(
-        address: selectedBluetoothAddress,
+        address: address,
         data: Uint8List.fromList(data),
         // Keep the native connection until the write has completed, then
         // close it ourselves. This avoids the second-print close race.
@@ -291,7 +300,7 @@ class PosReceiptPrintService {
     } finally {
       try {
         await FlutterBluetoothPrinter.disconnect(
-          selectedBluetoothAddress,
+          address,
         ).timeout(const Duration(seconds: 2));
       } catch (_) {}
     }

@@ -778,9 +778,15 @@ class _PosShellPageState extends State<PosShellPage>
     }
     if (!_showSetupGuide && !_navigation.canGoBack &&
         _selectedIndex == _mobilePrimaryIndex) {
+      final lock = context.read<AppLockCubit>().state;
+      final scope = sl<GraphQLClientProvider>().subscriptionScope;
       unawaited(_appExit.request(context, canExit: () =>
         !_backNavigationBlocked && !_showSetupGuide &&
         !_navigation.canGoBack && _selectedIndex == _mobilePrimaryIndex,
+        isSameSession: () => mounted &&
+          scope == sl<GraphQLClientProvider>().subscriptionScope &&
+          lock.activeEmployeeId == context.read<AppLockCubit>().state.activeEmployeeId &&
+          lock.operatorSessionToken == context.read<AppLockCubit>().state.operatorSessionToken,
       ));
       return;
     }

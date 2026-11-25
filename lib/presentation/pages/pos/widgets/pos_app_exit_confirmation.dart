@@ -11,6 +11,7 @@ class PosAppExitConfirmation {
   Future<void> request(
     BuildContext context, {
     required bool Function() canExit,
+    bool Function()? isSameSession,
   }) async {
     if (_open ||
         kIsWeb ||
@@ -50,7 +51,10 @@ class PosAppExitConfirmation {
           );
         },
       );
-      if (confirmed == true && context.mounted && canExit()) {
+      if (confirmed == true &&
+          context.mounted &&
+          canExit() &&
+          (isSameSession?.call() ?? true)) {
         await SystemNavigator.pop();
       }
     } on PlatformException {

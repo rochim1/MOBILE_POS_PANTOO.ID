@@ -26,6 +26,9 @@ class PosReceiptRepository {
   Future<Either<Failure, PosReceiptPrintData>>? _inFlightPrintData;
   String? _scope;
   int _companyRevision = 0;
+  int _scopeRevision = 0;
+  int _templateRevision = 0;
+  PosReceiptTemplate? _savedTemplate;
   Map<String, String> _companyUpdates = {};
 
   PosReceiptRepository(this._clientProvider);
@@ -37,6 +40,8 @@ class PosReceiptRepository {
     _cachedPrintData = null;
     _inFlightPrintData = null;
     _companyUpdates = {};
+    _savedTemplate = null;
+    _scopeRevision++;
     _companyRevision++;
   }
 
@@ -69,7 +74,12 @@ class PosReceiptRepository {
     final inFlight = _inFlightPrintData;
     if (inFlight != null) return inFlight;
 
-    final request = _fetchReceiptPrintData(_scope, _companyRevision);
+    final request = _fetchReceiptPrintData(
+      _scope,
+      _scopeRevision,
+      _companyRevision,
+      _templateRevision,
+    );
     _inFlightPrintData = request;
     final result = await request;
     if (identical(_inFlightPrintData, request)) {
@@ -87,7 +97,9 @@ class PosReceiptRepository {
 
   Future<Either<Failure, PosReceiptPrintData>> _fetchReceiptPrintData(
     String? scope,
+    int scopeRevision,
     int revision,
+    int templateRevision,
   ) async {
     try {
       final options = QueryOptions(
@@ -96,7 +108,8 @@ class PosReceiptRepository {
       );
 
       final result = await _clientProvider.client.query(options);
-      if (scope != _clientProvider.subscriptionScope) {
+      if (scope != _clientProvider.subscriptionScope ||
+          scopeRevision != _scopeRevision) {
         return const Left(AuthFailure('Sesi telah berubah'));
       }
 
@@ -124,7 +137,10 @@ class PosReceiptRepository {
       company['logo'] = _clientProvider.resolveMediaUrl(rawCompany['logo']);
       if (revision != _companyRevision) company.addAll(_companyUpdates);
       final data = PosReceiptPrintData(
-        template: PosReceiptTemplate.fromJson(templateData),
+        template:
+            templateRevision != _templateRevision && _savedTemplate != null
+            ? _savedTemplate!
+            : PosReceiptTemplate.fromJson(templateData),
         company: company,
       );
       _cachedPrintData = data;
@@ -133,7 +149,8 @@ class PosReceiptRepository {
     } catch (e) {
       // A previously loaded template is still safer than falling back to a
       // blank receipt when the network briefly disappears.
-      if (scope != _clientProvider.subscriptionScope) {
+      if (scope != _clientProvider.subscriptionScope ||
+          scopeRevision != _scopeRevision) {
         return const Left(AuthFailure('Sesi telah berubah'));
       }
       final cached = _cachedPrintData;
@@ -147,6 +164,7 @@ class PosReceiptRepository {
   ) async {
     _ensureScope();
     final scope = _scope;
+    final scopeRevision = _scopeRevision;
     try {
       final options = MutationOptions(
         document: gql(PosReceiptQueries.updateReceipt),
@@ -154,7 +172,8 @@ class PosReceiptRepository {
       );
 
       final result = await _clientProvider.client.mutate(options);
-      if (scope != _clientProvider.subscriptionScope) {
+      if (scope != _clientProvider.subscriptionScope ||
+          scopeRevision != _scopeRevision) {
         return const Left(AuthFailure('Sesi telah berubah'));
       }
 
@@ -169,6 +188,8 @@ class PosReceiptRepository {
       }
 
       final template = PosReceiptTemplate.fromJson(data);
+      _templateRevision++;
+      _savedTemplate = template;
       final cached = _cachedPrintData;
       if (cached != null) {
         _cachedPrintData = PosReceiptPrintData(

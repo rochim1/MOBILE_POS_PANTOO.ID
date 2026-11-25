@@ -74,7 +74,12 @@ class _AuthRepo extends Fake implements AuthRepository {}
 
 class _Lock extends AppLockCubit {
   void locked() => emit(state.copyWith(status: AppLockStatus.locked));
-  void anotherOperator() => emit(state.copyWith(status: AppLockStatus.unlocked, activeEmployeeId: 'another-operator'));
+  void anotherOperator() => emit(
+    state.copyWith(
+      status: AppLockStatus.unlocked,
+      activeEmployeeId: 'another-operator',
+    ),
+  );
 }
 
 class _Pos extends PosBloc {
@@ -237,7 +242,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Keluar aplikasi'));
       await tester.pumpAndSettle();
-      expect(platformCalls, isNot(contains('SystemNavigator.pop')), reason: 'Old operator confirmation must not close the new operator session');
+      expect(
+        platformCalls,
+        isNot(contains('SystemNavigator.pop')),
+        reason:
+            'Old operator confirmation must not close the new operator session',
+      );
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.tap(find.text('Keluar aplikasi'));
