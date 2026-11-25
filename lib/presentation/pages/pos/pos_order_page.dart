@@ -38,6 +38,8 @@ class PosOrderPage extends StatefulWidget {
 }
 
 class _PosOrderPageState extends State<PosOrderPage> {
+  final TextEditingController _searchController = TextEditingController();
+  bool _filtersExpanded = false;
   String _searchQuery = '';
   String _selectedStatus = 'Semua';
   String _selectedCashier = 'Semua';
@@ -52,6 +54,12 @@ class _PosOrderPageState extends State<PosOrderPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<PosBloc>().add(RefreshOrders());
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   List<PosOrder> _getFilteredOrders(List<PosOrder> orders) {
@@ -110,48 +118,51 @@ class _PosOrderPageState extends State<PosOrderPage> {
               ..sort();
 
         final categories = _categoryItems(state.orders);
-        final content = Column(
-          children: [
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: _buildFilterPanel(cashiers),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child:
-                    state.ordersRefreshing ||
-                        (state.status == PosStatus.loading &&
-                            state.orders.isEmpty)
-                    ? widget.isGridView
-                          ? const PosRecordListSkeleton(
-                              kind: PosRecordSkeletonKind.transaction,
-                              padding: EdgeInsets.zero,
-                            )
-                          : const PosDataTableSkeleton(
-                              columns: 7,
-                              minWidth: 1000,
-                            )
-                    : widget.isGridView
-                    ? _buildOrderCards(
-                        filteredOrders,
-                        hasMore: state.ordersHasMore,
-                        loadingMore: state.ordersLoadingMore,
-                      )
-                    : _buildOrderTable(
-                        filteredOrders,
-                        hasMore: state.ordersHasMore,
-                        loadingMore: state.ordersLoadingMore,
-                      ),
-              ),
-            ),
-          ],
-        );
         return LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth >= 760) {
+            final compact = constraints.maxWidth < 760;
+            final content = Column(
+              children: [
+                _buildTransactionFilters(
+                  cashiers,
+                  compact: compact,
+                  maxPanelHeight: (constraints.maxHeight * .45 - 48)
+                      .clamp(0.0, 240.0)
+                      .toDouble(),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child:
+                        state.ordersRefreshing ||
+                            (state.status == PosStatus.loading &&
+                                state.orders.isEmpty)
+                        ? widget.isGridView
+                              ? const PosRecordListSkeleton(
+                                  kind: PosRecordSkeletonKind.transaction,
+                                  padding: EdgeInsets.zero,
+                                )
+                              : const PosDataTableSkeleton(
+                                  columns: 7,
+                                  minWidth: 1000,
+                                )
+                        : widget.isGridView
+                        ? _buildOrderCards(
+                            filteredOrders,
+                            hasMore: state.ordersHasMore,
+                            loadingMore: state.ordersLoadingMore,
+                          )
+                        : _buildOrderTable(
+                            filteredOrders,
+                            hasMore: state.ordersHasMore,
+                            loadingMore: state.ordersLoadingMore,
+                          ),
+                  ),
+                ),
+              ],
+            );
+            if (!compact) {
               return Row(
                 children: [
                   PosCategorySidebar<_OrderCategory>(
@@ -222,6 +233,74 @@ class _PosOrderPageState extends State<PosOrderPage> {
     return source.contains('online') ||
         source.contains('marketplace') ||
         source.contains('ecommerce');
+  }
+
+  Widget _buildTransactionFilters(
+    List<String> cashiers, {
+    required bool compact,
+    required double maxPanelHeight,
+  }) {
+    final count = [
+      _searchQuery.isNotEmpty,
+      _selectedStatus != 'Semua',
+      _selectedCashier != 'Semua',
+      _selectedPeriod != 'Semua',
+    ].where((active) => active).length;
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: !compact
+          ? _buildFilterPanel(cashiers)
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: Semantics(
+                    expanded: _filtersExpanded,
+                    child: OutlinedButton.icon(
+                      key: const Key('transaction_filter_toggle'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: () {
+                        if (_filtersExpanded) {
+                          FocusScope.of(context).unfocus();
+                        }
+                        setState(() => _filtersExpanded = !_filtersExpanded);
+                      },
+                      icon: Badge(
+                        isLabelVisible: count > 0,
+                        label: Text('$count'),
+                        child: const Icon(Icons.filter_list_rounded),
+                      ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const PosText('Filter'),
+                          const SizedBox(width: 8),
+                          Icon(
+                            _filtersExpanded
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_filtersExpanded) ...[
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxPanelHeight),
+                    child: SingleChildScrollView(
+                      child: _buildFilterPanel(cashiers),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
   }
 
   Widget _buildFilterPanel(List<String> cashiers) {
@@ -332,6 +411,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
     return SizedBox(
       height: 56,
       child: TextField(
+        controller: _searchController,
         decoration: InputDecoration(
           labelText: ('Transaksi').tr(context),
           hintText: ('Cari invoice atau pelanggan...').tr(context),
