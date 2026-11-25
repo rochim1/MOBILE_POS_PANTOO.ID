@@ -9,6 +9,19 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get exitAppTitle => 'Exit the app?';
+
+  @override
+  String get exitAppMessage =>
+      'Unsaved changes may be lost. Closing the app does not close the cashier shift or sign you out.';
+
+  @override
+  String get exitAppConfirm => 'Exit app';
+
+  @override
+  String get exitAppFailed => 'The app could not be closed. Please try again.';
+
+  @override
   String get pendingCreditRecorded =>
       'Order recorded as a receivable. Continue collecting payment from Customer Receivables.';
 

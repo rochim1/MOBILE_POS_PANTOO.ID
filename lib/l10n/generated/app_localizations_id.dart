@@ -9,6 +9,20 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get exitAppTitle => 'Keluar dari aplikasi?';
+
+  @override
+  String get exitAppMessage =>
+      'Perubahan yang belum disimpan bisa hilang. Menutup aplikasi tidak menutup shift kasir atau mengeluarkan akun Anda.';
+
+  @override
+  String get exitAppConfirm => 'Keluar aplikasi';
+
+  @override
+  String get exitAppFailed =>
+      'Aplikasi belum dapat ditutup. Silakan coba lagi.';
+
+  @override
   String get pendingCreditRecorded =>
       'Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.';
 

@@ -1,5 +1,9 @@
 {
   "@@locale": "en",
+  "exitAppTitle": "Exit the app?",
+  "exitAppMessage": "Unsaved changes may be lost. Closing the app does not close the cashier shift or sign you out.",
+  "exitAppConfirm": "Exit app",
+  "exitAppFailed": "The app could not be closed. Please try again.",
   "pendingCreditRecorded": "Order recorded as a receivable. Continue collecting payment from Customer Receivables.",
   "creditSaleRecorded": "Credit sale recorded",
   "creditSalePending": "Not paid in full. The balance is saved as a customer receivable.",

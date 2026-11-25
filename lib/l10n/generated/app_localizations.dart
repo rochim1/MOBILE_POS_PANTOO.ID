@@ -98,6 +98,30 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @exitAppTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Keluar dari aplikasi?'**
+  String get exitAppTitle;
+
+  /// No description provided for @exitAppMessage.
+  ///
+  /// In id, this message translates to:
+  /// **'Perubahan yang belum disimpan bisa hilang. Menutup aplikasi tidak menutup shift kasir atau mengeluarkan akun Anda.'**
+  String get exitAppMessage;
+
+  /// No description provided for @exitAppConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Keluar aplikasi'**
+  String get exitAppConfirm;
+
+  /// No description provided for @exitAppFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Aplikasi belum dapat ditutup. Silakan coba lagi.'**
+  String get exitAppFailed;
+
   /// No description provided for @pendingCreditRecorded.
   ///
   /// In id, this message translates to:

@@ -1,5 +1,9 @@
 {
   "@@locale": "id",
+  "exitAppTitle": "Keluar dari aplikasi?",
+  "exitAppMessage": "Perubahan yang belum disimpan bisa hilang. Menutup aplikasi tidak menutup shift kasir atau mengeluarkan akun Anda.",
+  "exitAppConfirm": "Keluar aplikasi",
+  "exitAppFailed": "Aplikasi belum dapat ditutup. Silakan coba lagi.",
   "pendingCreditRecorded": "Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.",
   "creditSaleRecorded": "Penjualan tempo dicatat",
   "creditSalePending": "Belum lunas. Tagihan tersimpan sebagai piutang pelanggan.",

@@ -48,6 +48,7 @@ import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
 import 'utils/pos_navigation_history.dart';
 import 'widgets/pos_back_navigation.dart';
+import 'widgets/pos_app_exit_confirmation.dart';
 import 'utils/pos_order_workspace_policy.dart';
 import '../login/login_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -80,6 +81,7 @@ class PosShellPage extends StatefulWidget {
 class _PosShellPageState extends State<PosShellPage>
     with WidgetsBindingObserver {
   final _navigation = PosNavigationHistory();
+  final _appExit = PosAppExitConfirmation();
   int get _selectedIndex => _navigation.current;
   set _selectedIndex(int index) => _navigation.visit(index);
   // Asal halaman sekunder untuk tombol kembali di mobile.
@@ -763,14 +765,23 @@ class _PosShellPageState extends State<PosShellPage>
     });
   }
 
-  void _backWithinMobileShell() {
-    if (!mounted || _showUnlockLoading || _checkoutRecoveryBusy ||
+  bool get _backNavigationBlocked =>
+        !mounted || _showUnlockLoading || _checkoutRecoveryBusy ||
         _posBloc.state.paymentInProgress ||
-        context.read<AppLockCubit>().state.status != AppLockStatus.unlocked) {
-      return;
-    }
+        context.read<AppLockCubit>().state.status != AppLockStatus.unlocked;
+
+  void _backWithinMobileShell() {
+    if (_backNavigationBlocked) return;
     if (MediaQuery.viewInsetsOf(context).bottom > 0) {
       FocusManager.instance.primaryFocus?.unfocus();
+      return;
+    }
+    if (!_showSetupGuide && !_navigation.canGoBack &&
+        _selectedIndex == _mobilePrimaryIndex) {
+      unawaited(_appExit.request(context, canExit: () =>
+        !_backNavigationBlocked && !_showSetupGuide &&
+        !_navigation.canGoBack && _selectedIndex == _mobilePrimaryIndex,
+      ));
       return;
     }
     setState(() {
