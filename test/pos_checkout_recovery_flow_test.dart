@@ -182,6 +182,15 @@ void main() {
     },
   );
 
+  testWidgets('recovery shows selectable original request reference without sending a payment', (tester) async {
+    final (repo, _) = await open(tester);
+    expect(find.text('original-request-1234'), findsOneWidget);
+    expect(find.byType(SelectableText), findsWidgets);
+    expect(repo.recoveries, 0);
+    expect(repo.record, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'invalid receipt comparison reports an error without sending a payment',
     (tester) async {
