@@ -59,6 +59,18 @@ void main() {
     return repo;
   }
 
+  test('HTTP-wrapped durable rejection releases the rejected draft only', () async {
+    final repo = await repository(Link.function((request, [forward]) async* {
+      throw ServerException(parsedResponse: Response(response: {}, errors: [
+        const GraphQLError(message: 'QA terminal rejection', extensions: {
+          'code': 'BAD_USER_INPUT', 'return_draft_write_rejected': true,
+        }),
+      ]));
+    }));
+    expect((await repo.createSalesReturn(input)).isLeft(), isTrue);
+    expect(repo.pendingReturnDraft(), isNull);
+  });
+
   test(
     'repository restart after lost ACK sends original identity and payload, not edited form',
     () async {

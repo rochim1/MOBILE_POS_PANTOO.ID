@@ -4,6 +4,22 @@ import 'package:mobile_pos_pantoo/core/network/pos_financial_request_store.dart'
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final bad in [
+    {'amount': 0},
+    {'amount': -1},
+    {'amount': 0.5},
+    {'amount': 4000, 'invoice_id': 'other'},
+  ]) {
+    test('invalid fresh collection never persists or sends: $bad', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final store = PosFinancialRequestStore(prefs, 'qa');
+      await expectLater(store.begin('invoice', bad), throwsStateError);
+      expect(prefs.getKeys(), isEmpty);
+      expect(store.load('invoice'), isNull);
+      expect((await store.begin('invoice', {'amount': 4000}))['amount'], 4000);
+    });
+  }
   test(
     'invalid persisted receipts fail closed without replacing the original proof',
     () async {

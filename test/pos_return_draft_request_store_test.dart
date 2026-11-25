@@ -35,6 +35,21 @@ void main() {
     ],
   };
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  for (final bad in [
+    {...input, 'sumber': 'other'},
+    {...input, 'sumber_id': ''},
+    {...input, 'sumber_id': 123},
+    {...input, 'items': <dynamic>[]},
+  ]) {
+    test('invalid fresh return does not poison recovery: $bad', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final store = PosReturnDraftRequestStore(prefs, 'scope');
+      await expectLater(store.begin(bad), throwsStateError);
+      expect(prefs.getKeys(), isEmpty);
+      expect(store.load(), isNull);
+      expect((await store.begin(input))['sumber_id'], 'sale-1');
+    });
+  }
   test('disk refuses persistence: no new request may be sent', () async {
     final prefs = _DeniedStorage();
     final store = PosReturnDraftRequestStore(prefs, 'scope');
