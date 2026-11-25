@@ -5,6 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
+import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
+import 'package:mobile_pos_pantoo/core/auth/google_identity_service.dart';
 import 'package:mobile_pos_pantoo/app.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
@@ -32,6 +35,8 @@ import 'pos_subscription_test.dart' as subscription;
 class _Auth extends Fake implements AuthRepository {
   int logins = 0, googleLogins = 0;
   bool hasSession = false;
+  bool sdkEnabled = false, requireGoogleDetails = false;
+  Failure? googleFailure;
   @override
   String? getSavedUsername() => 'Kasir';
   @override
@@ -53,7 +58,10 @@ class _Auth extends Fake implements AuthRepository {
   @override
   Future<bool> checkSession() async => hasSession;
   @override
-  Future<String> googleClientId() async => throw StateError('SDK outside test');
+  Future<String> googleClientId() async {
+    if (!sdkEnabled) throw StateError('SDK outside test');
+    return 'qa-native.apps.googleusercontent.com';
+  }
   @override
   Future<Either<Failure, String>> loginWithGoogle(
     String token, {
@@ -61,6 +69,12 @@ class _Auth extends Fake implements AuthRepository {
     bool consent = false,
   }) async {
     googleLogins++;
+    if (googleFailure != null) return Left(googleFailure!);
+    if (requireGoogleDetails) {
+      if (!consent || phone == null) return const Left(GoogleRegistrationRequiredFailure());
+      await sl<SharedPreferences>().remove('instansi_id');
+      await sl<SharedPreferences>().setBool('needs_workspace_setup', true);
+    }
     return const Right('Google user');
   }
 }
@@ -113,6 +127,27 @@ class _Navigation extends NavigatorObserver {
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => pushes++;
 }
 
+class _NativeGoogle extends GoogleSignInPlatform {
+  int calls = 0;
+  GoogleSignInException? failure;
+  Completer<AuthenticationResults>? pending;
+  String? token = 'google-native-proof';
+  @override
+  Future<void> init(InitParameters params) async {}
+  @override
+  Future<AuthenticationResults> authenticate(AuthenticateParameters params) async {
+    calls++;
+    if (failure != null) throw failure!;
+    if (pending != null) return pending!.future;
+    return AuthenticationResults(
+      user: const GoogleSignInUserData(email: 'qa@example.test', id: 'qa-google'),
+      authenticationTokens: AuthenticationTokenData(idToken: token),
+    );
+  }
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 Future<void> _disposeTestTree(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   // These tests intentionally hold the workspace gate. Finish its settings
@@ -126,7 +161,16 @@ Future<void> _disposeTestTree(WidgetTester tester) async {
 }
 
 void main() {
+  final nativeGoogle = _NativeGoogle();
+  setUpAll(() async {
+    GoogleSignInPlatform.instance = nativeGoogle;
+    await GoogleIdentityService.initialize(_Auth()..sdkEnabled = true);
+  });
   setUp(() async {
+    nativeGoogle.calls = 0;
+    nativeGoogle.failure = null;
+    nativeGoogle.pending = null;
+    nativeGoogle.token = 'google-native-proof';
     SharedPreferences.setMockInitialValues({
       'has_seen_intro': true,
       'instansi_id': 'tenant',
@@ -137,6 +181,7 @@ void main() {
     sl.registerSingleton<SharedPreferences>(
       await SharedPreferences.getInstance(),
     );
+    await AppLanguageController.instance.select('id');
     sl.registerSingleton<FlavorConfig>(FlavorConfig.production());
     sl.registerSingleton<AuthRepository>(auth);
     sl.registerFactory<AuthCubit>(
@@ -155,6 +200,86 @@ void main() {
     sl.registerSingleton<PosCustomerDisplayService>(_Display());
   });
   tearDown(() async => sl.reset());
+
+  for (final register in [false, true]) {
+    testWidgets('native Google ${register ? "register" : "login"} cancellation has visible feedback and retry', (tester) async {
+      (sl<AuthRepository>() as _Auth).sdkEnabled = true;
+      final access = subscription.service(() async => subscription.status());
+      sl.registerSingleton<PosSubscriptionService>(access);
+      nativeGoogle.failure = const GoogleSignInException(code: GoogleSignInExceptionCode.canceled);
+      await tester.pumpWidget(const App()); await tester.pumpAndSettle();
+      if (register) {
+        unawaited(App.navigatorKey.currentState!.push(MaterialPageRoute<void>(builder: (_) => const RegisterPage())));
+        await tester.pumpAndSettle();
+      }
+      final button = find.widgetWithText(OutlinedButton, 'Lanjutkan dengan Google').last;
+      await tester.ensureVisible(button); await tester.tap(button); await tester.pumpAndSettle();
+      expect(nativeGoogle.calls, 1);
+      expect(find.byKey(const Key('google_auth_error')), findsOneWidget);
+      expect(find.textContaining('dibatalkan atau belum selesai'), findsWidgets);
+      expect((sl<AuthRepository>() as _Auth).googleLogins, 0);
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Coba hubungkan Google').last).onPressed, isNotNull);
+      await _disposeTestTree(tester); access.dispose();
+    });
+    testWidgets('native Google ${register ? "register" : "login"} actually redirects from account picker', (tester) async {
+      final auth = sl<AuthRepository>() as _Auth;
+      auth.sdkEnabled = true;
+      auth.requireGoogleDetails = register;
+      final access = subscription.service(() async => subscription.status());
+      sl.registerSingleton<PosSubscriptionService>(access);
+      await tester.pumpWidget(const App()); await tester.pumpAndSettle();
+      if (register) {
+        unawaited(App.navigatorKey.currentState!.push(MaterialPageRoute<void>(builder: (_) => const RegisterPage())));
+        await tester.pumpAndSettle();
+      }
+      final button = find.widgetWithText(OutlinedButton, 'Lanjutkan dengan Google').last;
+      await tester.ensureVisible(button); await tester.tap(button); await tester.pumpAndSettle();
+      if (register) {
+        expect(find.text('Lengkapi akun Pantoo'), findsOneWidget);
+        await tester.enterText(find.byType(TextFormField).last, '08123456789');
+        await tester.tap(find.byType(CheckboxListTile)); await tester.pumpAndSettle();
+        final submit = find.text('Buat akun dan lanjutkan');
+        await tester.ensureVisible(submit); await tester.tap(submit);
+      }
+      for (var i=0;i<35;i++) { await tester.pump(const Duration(milliseconds: 30)); }
+      expect(nativeGoogle.calls, 1);
+      expect(auth.googleLogins, register ? 2 : 1);
+      expect(find.byType(register ? BusinessSetupPage : PosOnboardingGate), findsOneWidget);
+      expect(App.navigatorKey.currentState!.canPop(), isFalse);
+      await _disposeTestTree(tester); access.dispose();
+    });
+  }
+
+  testWidgets('native Google server rejection shows persistent error without redirect', (tester) async {
+    final auth = sl<AuthRepository>() as _Auth;
+    auth.sdkEnabled = true;
+    auth.googleFailure = const ServerFailure('Akun ditolak server QA');
+    final access = subscription.service(() async => subscription.status());
+    sl.registerSingleton<PosSubscriptionService>(access);
+    await tester.pumpWidget(const App()); await tester.pumpAndSettle();
+    final button = find.widgetWithText(OutlinedButton, 'Lanjutkan dengan Google');
+    await tester.ensureVisible(button); await tester.tap(button); await tester.pumpAndSettle();
+    expect(find.byKey(const Key('google_auth_error')), findsOneWidget);
+    expect(find.text('Akun ditolak server QA'), findsWidgets);
+    expect(find.byType(LoginPage), findsOneWidget);
+    await _disposeTestTree(tester); access.dispose();
+  });
+
+  testWidgets('native Google stalled picker shows timeout and unlocks retry', (tester) async {
+    (sl<AuthRepository>() as _Auth).sdkEnabled = true;
+    nativeGoogle.pending = Completer<AuthenticationResults>();
+    final access = subscription.service(() async => subscription.status());
+    sl.registerSingleton<PosSubscriptionService>(access);
+    await tester.pumpWidget(const App()); await tester.pumpAndSettle();
+    final button = find.widgetWithText(OutlinedButton, 'Lanjutkan dengan Google');
+    await tester.ensureVisible(button); await tester.tap(button); await tester.pump();
+    for (var i=0;i<10;i++) { await tester.pump(); }
+    expect(find.byType(LinearProgressIndicator), findsWidgets);
+    await tester.pump(const Duration(seconds: 91)); await tester.pump();
+    expect(find.text('Login Google terlalu lama. Periksa koneksi lalu coba lagi.'), findsWidgets);
+    expect(find.byKey(const Key('google_auth_error')), findsOneWidget);
+    await _disposeTestTree(tester); access.dispose();
+  });
 
   testWidgets(
     'saved session prepares behind branded startup, not billing or login',
