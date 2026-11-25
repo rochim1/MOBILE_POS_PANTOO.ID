@@ -1,4 +1,5 @@
 import '../../widgets/pos_content_skeletons.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
@@ -323,16 +324,38 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           final visibleTables = _visibleTables(state.tables, activeCapacity);
           return Column(
             children: [
-              _buildSearchBar(),
+              Padding(
+                padding: EdgeInsets.all(
+                  MediaQuery.sizeOf(context).width < 600 ? 12 : 0,
+                ),
+                child: PosCollapsibleFilters(
+                  toggleKey: const Key('table_filter_toggle'),
+                  activeCount: [
+                    _searchController.text.trim().isNotEmpty,
+                    _statusFilter.isNotEmpty,
+                    _locationFilter.isNotEmpty,
+                    activeCapacity != null,
+                    _sort != 'occupied_first',
+                  ].where((active) => active).length,
+                  actions: MediaQuery.sizeOf(context).width < 600
+                      ? [_buildQrButton()]
+                      : const [],
+                  child: Column(
+                    children: [
+                      _buildSearchBar(),
+                      if (state.tables.isNotEmpty)
+                        _buildFilterPills(
+                          sortedCapacities,
+                          activeCapacity,
+                          locations,
+                          state.tables.length,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
               if (state.status == PosTableStatus.loading)
                 const LinearProgressIndicator(minHeight: 3),
-              if (state.tables.isNotEmpty)
-                _buildFilterPills(
-                  sortedCapacities,
-                  activeCapacity,
-                  locations,
-                  state.tables.length,
-                ),
               Expanded(child: _buildBody(state, visibleTables)),
             ],
           );
@@ -548,21 +571,7 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
                           setState(() => _sort = value ?? 'occupied_first'),
                     ),
                   ),
-                  SizedBox(
-                    width: controlHeight,
-                    height: controlHeight,
-                    child: IconButton(
-                      tooltip: ('Cetak QR semua meja').tr(context),
-                      icon: _printingAllQr
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.qr_code_2_outlined),
-                      onPressed: _printingAllQr ? null : _printAllTableQr,
-                    ),
-                  ),
+                  if (MediaQuery.sizeOf(context).width >= 600) _buildQrButton(),
                 ],
               );
               if (constraints.maxWidth < 650) {
@@ -584,6 +593,22 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
       },
     );
   }
+
+  Widget _buildQrButton() => SizedBox(
+    width: 56,
+    height: 56,
+    child: IconButton(
+      tooltip: ('Cetak QR semua meja').tr(context),
+      icon: _printingAllQr
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.qr_code_2_outlined),
+      onPressed: _printingAllQr ? null : _printAllTableQr,
+    ),
+  );
 
   Widget _buildBody(PosTableState state, List<PosTableModel> visibleTables) {
     if (state.status == PosTableStatus.loading && state.tables.isEmpty) {
@@ -667,10 +692,13 @@ class _PosTableManagementViewState extends State<_PosTableManagementView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   Icon(Icons.table_restaurant, size: 23, color: accent),
-                  const Spacer(),
                   IconButton(
                     tooltip: posLocale(
                       context,

@@ -1,4 +1,5 @@
 import 'package:mobile_pos_pantoo/injections.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_inventory_repository.dart';
 import 'pos_receivables_page.dart';
 import 'pos_purchase_payable_page.dart';
@@ -151,7 +152,14 @@ class _BusinessViewState extends State<_BusinessView> {
               const SizedBox(height: 14),
               _note(l.financialScope, l.financialScopeNote),
               const SizedBox(height: 14),
-              _filters(context, state),
+              PosCollapsibleFilters(
+                toggleKey: const Key('business_report_filter_toggle'),
+                activeCount: [
+                  state.filter!.search.isNotEmpty,
+                  state.filter!.sourceScope != 'all',
+                ].where((active) => active).length,
+                child: _filters(context, state),
+              ),
               const SizedBox(height: 16),
             ],
             if (state.status == FinancialReportStatus.initial ||

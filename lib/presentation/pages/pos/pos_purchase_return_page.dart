@@ -1,4 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
@@ -282,6 +283,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     isDense: true,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: ('Status').tr(context),
                       border: OutlineInputBorder(),
@@ -336,6 +338,33 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     child: const Icon(Icons.tune_rounded),
                   ),
                 );
+                if (MediaQuery.sizeOf(context).width < 600) {
+                  return PosCollapsibleFilters(
+                    toggleKey: const Key('purchase_return_filter_toggle'),
+                    activeCount: [
+                      _searchController.text.trim().isNotEmpty,
+                      _status.isNotEmpty,
+                      _reason.isNotEmpty,
+                      _method.isNotEmpty,
+                      _dateFrom != null,
+                      _dateTo != null,
+                    ].where((active) => active).length,
+                    actions: [button],
+                    child: Column(
+                      children: [
+                        search,
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(child: status),
+                            const SizedBox(width: 8),
+                            filter,
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (constraints.maxWidth >= 720) {
                   return Row(
                     children: [

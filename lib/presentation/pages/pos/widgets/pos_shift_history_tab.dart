@@ -1,4 +1,5 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import '../../../widgets/pos_collapsible_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pos_pantoo/core/themes/colors_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,8 +18,15 @@ class PosShiftHistoryTab extends StatefulWidget {
 }
 
 class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
+  final _searchController = TextEditingController();
   String _search = '';
   String _status = 'all';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,66 +83,74 @@ class _PosShiftHistoryTabState extends State<PosShiftHistoryTab> {
   }
 
   Widget _buildFilterToolbar() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const controlHeight = 56.0;
-        final search = SizedBox(
-          height: controlHeight,
-          child: TextField(
-            onChanged: (value) => setState(() => _search = value),
-            decoration: InputDecoration(
-              labelText: ('Shift Kasir').tr(context),
-              hintText: ('Cari toko atau kasir...').tr(context),
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-            ),
-          ),
-        );
-        final filter = SizedBox(
-          height: controlHeight,
-          child: DropdownButtonFormField<String>(
-            initialValue: _status,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: ('Status').tr(context),
-              prefixIcon: const Icon(Icons.filter_list_rounded),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+    return PosCollapsibleFilters(
+      toggleKey: const Key('shift_history_filter_toggle'),
+      activeCount: [
+        _search.trim().isNotEmpty,
+        _status != 'all',
+      ].where((active) => active).length,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const controlHeight = 56.0;
+          final search = SizedBox(
+            height: controlHeight,
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _search = value),
+              decoration: InputDecoration(
+                labelText: ('Shift Kasir').tr(context),
+                hintText: ('Cari toko atau kasir...').tr(context),
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
               ),
             ),
-            items: const [
-              DropdownMenuItem(value: 'all', child: PosText('Semua Status')),
-              DropdownMenuItem(value: 'open', child: PosText('Buka')),
-              DropdownMenuItem(value: 'closed', child: PosText('Tutup')),
-            ],
-            onChanged: (value) => setState(() => _status = value ?? 'all'),
-          ),
-        );
-        if (constraints.maxWidth >= 680) {
-          return Row(
-            children: [
-              Expanded(child: search),
-              const SizedBox(width: 10),
-              SizedBox(width: 190, child: filter),
-            ],
           );
-        }
-        return Column(children: [search, const SizedBox(height: 8), filter]);
-      },
+          final filter = SizedBox(
+            height: controlHeight,
+            child: DropdownButtonFormField<String>(
+              initialValue: _status,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: ('Status').tr(context),
+                prefixIcon: const Icon(Icons.filter_list_rounded),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'all', child: PosText('Semua Status')),
+                DropdownMenuItem(value: 'open', child: PosText('Buka')),
+                DropdownMenuItem(value: 'closed', child: PosText('Tutup')),
+              ],
+              onChanged: (value) => setState(() => _status = value ?? 'all'),
+            ),
+          );
+          if (constraints.maxWidth >= 680) {
+            return Row(
+              children: [
+                Expanded(child: search),
+                const SizedBox(width: 10),
+                SizedBox(width: 190, child: filter),
+              ],
+            );
+          }
+          return Column(children: [search, const SizedBox(height: 8), filter]);
+        },
+      ),
     );
   }
 

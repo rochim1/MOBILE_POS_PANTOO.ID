@@ -1,4 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
@@ -108,6 +109,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                       ),
                     ),
                     onChanged: (val) {
+                      setState(() {});
                       _searchDebounce?.cancel();
                       _searchDebounce = Timer(
                         const Duration(milliseconds: 350),
@@ -175,6 +177,19 @@ class _PosReturnViewState extends State<PosReturnView> {
                     label: const PosText('Tambah Retur'),
                   ),
                 );
+                if (compact) {
+                  return PosCollapsibleFilters(
+                    toggleKey: const Key('return_filter_toggle'),
+                    activeCount: [
+                      _searchController.text.trim().isNotEmpty,
+                      _selectedStatus.isNotEmpty,
+                    ].where((active) => active).length,
+                    actions: [if (_can('create_returns')) addButton],
+                    child: Column(
+                      children: [search, const SizedBox(height: 8), filter],
+                    ),
+                  );
+                }
                 if (constraints.maxWidth >= 680) {
                   return Row(
                     children: [

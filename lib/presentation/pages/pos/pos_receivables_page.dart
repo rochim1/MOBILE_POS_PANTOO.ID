@@ -1,4 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -325,35 +326,52 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                 style: const TextStyle(color: AppColors.primary),
               ),
             if (_loading)
-              PosTradeContentSkeleton(detail: invoice != null, showSummary: false)
+              PosTradeContentSkeleton(
+                detail: invoice != null,
+                showSummary: false,
+              )
             else if (invoice == null) ...[
-              TextField(
-                controller: _search,
-                decoration: InputDecoration(
-                  labelText: ('Cari pelanggan / nomor invoice').tr(context),
-                  suffixIcon: IconButton(
-                    tooltip: ('Cari').tr(context),
-                    onPressed: () {
-                      _page = 1;
-                      _load();
-                    },
-                    icon: const Icon(Icons.search),
-                  ),
+              PosCollapsibleFilters(
+                toggleKey: const Key('receivable_filter_toggle'),
+                activeCount: [
+                  _search.text.trim().isNotEmpty,
+                  _settled,
+                ].where((active) => active).length,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _search,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: ('Cari pelanggan / nomor invoice').tr(
+                          context,
+                        ),
+                        suffixIcon: IconButton(
+                          tooltip: ('Cari').tr(context),
+                          onPressed: () {
+                            _page = 1;
+                            _load();
+                          },
+                          icon: const Icon(Icons.search),
+                        ),
+                      ),
+                      onSubmitted: (_) {
+                        _page = 1;
+                        _load();
+                      },
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const PosText('Termasuk lunas / dikreditkan'),
+                      value: _settled,
+                      onChanged: (v) {
+                        _settled = v;
+                        _page = 1;
+                        _load();
+                      },
+                    ),
+                  ],
                 ),
-                onSubmitted: (_) {
-                  _page = 1;
-                  _load();
-                },
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const PosText('Termasuk lunas / dikreditkan'),
-                value: _settled,
-                onChanged: (v) {
-                  _settled = v;
-                  _page = 1;
-                  _load();
-                },
               ),
               if (_items.isEmpty && _error.isEmpty)
                 const Padding(
@@ -382,8 +400,11 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                     onTap: () => _open(row['_id'].toString()),
                   ),
                 ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   TextButton(
                     onPressed: _page > 1

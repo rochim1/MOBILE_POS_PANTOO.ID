@@ -1,3 +1,4 @@
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
@@ -1590,6 +1591,41 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
                     child: const Icon(Icons.tune_rounded),
                   ),
                 );
+                if (MediaQuery.sizeOf(context).width < 600) {
+                  return PosCollapsibleFilters(
+                    toggleKey: const Key('inventory_filter_toggle'),
+                    activeCount: [
+                      _search.text.trim().isNotEmpty,
+                      _status.isNotEmpty,
+                      _locationId.isNotEmpty,
+                      _reason.isNotEmpty,
+                      _dateFrom != null,
+                      _dateTo != null,
+                    ].where((active) => active).length,
+                    actions: [add],
+                    child: Column(
+                      children: [
+                        search,
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(child: status),
+                            if (widget.type ==
+                                PosInventoryDocumentType.opname) ...[
+                              const SizedBox(width: 8),
+                              opnameFilter,
+                            ],
+                            if (widget.type ==
+                                PosInventoryDocumentType.scrap) ...[
+                              const SizedBox(width: 8),
+                              scrapFilter,
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (constraints.maxWidth >= 700) {
                   return Row(
                     children: [

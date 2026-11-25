@@ -141,6 +141,37 @@ Widget app(
   ),
 );
 void main() {
+  testWidgets(
+    'phone ledger filters preserve edits while payment list stays visible',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final repo = TradeRepository();
+      final store = PosFinancialRequestStore(
+        await SharedPreferences.getInstance(),
+        'qa',
+      );
+      await tester.pumpWidget(app(repo, store));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      final toggle = find.byKey(const Key('trade_filter_toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'INV-QA');
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      expect(repo.writes, isEmpty);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.text('INV-QA'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   setUpAll(() async => initializeDateFormatting());
   setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets(

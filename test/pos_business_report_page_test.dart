@@ -49,8 +49,10 @@ void main() {
   testWidgets(
     'inventory on a narrow phone exposes unavailable evidence and consistent tabs',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(360, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final repo = BusinessRepository();
       await tester.pumpWidget(app(repo, PosBusinessReportKind.inventory));
       await tester.pumpAndSettle();
@@ -72,16 +74,21 @@ void main() {
       }
       await tester.tap(find.byType(ChoiceChip).last);
       await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      await tester.tap(find.byKey(const Key('business_report_filter_toggle')));
+      await tester.pumpAndSettle();
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.byIcon(Icons.calendar_today_outlined), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
   testWidgets(
     'export requires explicit permission and English aging remains usable with enlarged text',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(360, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final repo = BusinessRepository()
         ..options = const Right(
           FinancialReportOptions(

@@ -1,4 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -453,7 +454,11 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
                 ),
             ],
             if (_loading)
-              PosTradeContentSkeleton(detail: _loadingDetail || (!_initialOpened && widget.initialDocumentId != null)),
+              PosTradeContentSkeleton(
+                detail:
+                    _loadingDetail ||
+                    (!_initialOpened && widget.initialDocumentId != null),
+              ),
             if (_sending)
               const Padding(
                 padding: EdgeInsets.all(24),
@@ -461,30 +466,42 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
               ),
             if (!_loading && options != null && doc == null) ...[
               const SizedBox(height: 16),
-              TextField(
-                controller: _search,
-                enabled: !_sending,
-                maxLength: 120,
-                decoration: InputDecoration(
-                  labelText: l.tradeSearch,
-                  counterText: '',
-                  suffixIcon: IconButton(
-                    onPressed: _sending ? null : () => _loadPage(1),
-                    icon: const Icon(Icons.search),
-                  ),
+              PosCollapsibleFilters(
+                toggleKey: const Key('trade_filter_toggle'),
+                activeCount: [
+                  _search.text.trim().isNotEmpty,
+                  _settled,
+                ].where((active) => active).length,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _search,
+                      enabled: !_sending,
+                      onChanged: (_) => setState(() {}),
+                      maxLength: 120,
+                      decoration: InputDecoration(
+                        labelText: l.tradeSearch,
+                        counterText: '',
+                        suffixIcon: IconButton(
+                          onPressed: _sending ? null : () => _loadPage(1),
+                          icon: const Icon(Icons.search),
+                        ),
+                      ),
+                      onSubmitted: (_) => _loadPage(1),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l.tradeSettled),
+                      value: _settled,
+                      onChanged: _sending
+                          ? null
+                          : (value) {
+                              _settled = value;
+                              _loadPage(1);
+                            },
+                    ),
+                  ],
                 ),
-                onSubmitted: (_) => _loadPage(1),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l.tradeSettled),
-                value: _settled,
-                onChanged: _sending
-                    ? null
-                    : (value) {
-                        _settled = value;
-                        _loadPage(1);
-                      },
               ),
               if (page != null) ...[
                 PosMetricGrid(

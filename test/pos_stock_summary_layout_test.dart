@@ -62,6 +62,7 @@ Future<void> _mount(
   double scale, {
   bool loading = false,
   bool canView = true,
+  GlobalKey? tourKey,
 }) async {
   tester.view.physicalSize = Size(width, 640);
   tester.view.devicePixelRatio = 1;
@@ -84,9 +85,9 @@ Future<void> _mount(
           ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
-        home: const RepaintBoundary(
-          key: ValueKey('stock-summary-preview'),
-          child: Scaffold(body: PosStockPage()),
+        home: RepaintBoundary(
+          key: const ValueKey('stock-summary-preview'),
+          child: Scaffold(body: PosStockPage(locationTourKey: tourKey)),
         ),
       ),
     ),
@@ -99,17 +100,36 @@ Future<void> _mount(
 }
 
 void main() {
-  testWidgets('phone stock filters collapse without hiding history', (tester) async {
+  testWidgets(
+    'stock location guide target remains visible with filters collapsed',
+    (tester) async {
+      final key = GlobalKey();
+      await _mount(tester, 390, 1, tourKey: key);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.byKey(key).hitTestable(), findsOneWidget);
+      await tester.tap(find.byKey(const Key('stock_filter_toggle')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(key), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets('phone stock filters collapse without hiding history', (
+    tester,
+  ) async {
     await _mount(tester, 390, 1);
     expect(find.byType(TextField), findsNothing);
     expect(find.text('Riwayat Shift'), findsOneWidget);
     final toggle = find.byKey(const Key('stock_filter_toggle'));
-    await tester.tap(toggle); await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'QA stock');
     await tester.pump(const Duration(milliseconds: 500));
-    await tester.tap(toggle); await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
     expect(find.byType(TextField), findsNothing);
-    await tester.tap(toggle); await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
     expect(find.text('QA stock'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

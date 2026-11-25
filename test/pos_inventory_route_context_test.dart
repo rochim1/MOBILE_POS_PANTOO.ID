@@ -103,7 +103,13 @@ class _Inventory extends Fake implements PosInventoryRepository {
 }
 
 void main() {
-  testWidgets('phone procurement filters collapse but Add stays available', (tester) async {
+  testWidgets('phone procurement filters collapse but Add stays available', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    sl.registerSingleton<SharedPreferences>(
+      await SharedPreferences.getInstance(),
+    );
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -111,22 +117,31 @@ void main() {
     sl.registerSingleton<PosInventoryRepository>(_Inventory());
     final bloc = _Bloc();
     addTearDown(bloc.close);
-    await tester.pumpWidget(MaterialApp(
-      locale: const Locale('id'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: BlocProvider<PosBloc>.value(value: bloc,
-        child: const Scaffold(body: PosInventoryPage(initialSection: 'purchase'))),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('id'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: BlocProvider<PosBloc>.value(
+          value: bloc,
+          child: const Scaffold(
+            body: PosInventoryPage(initialSection: 'purchase'),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(TextField), findsNothing);
     expect(find.text('Tambah'), findsOneWidget);
     final toggle = find.byKey(const Key('inventory_filter_toggle'));
-    await tester.tap(toggle); await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'PO-QA');
     await tester.pump(const Duration(milliseconds: 600));
-    await tester.tap(toggle); await tester.pumpAndSettle();
-    await tester.tap(toggle); await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
     expect(find.text('PO-QA'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

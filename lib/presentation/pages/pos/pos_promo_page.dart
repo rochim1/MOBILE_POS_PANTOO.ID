@@ -1,4 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
@@ -116,7 +117,19 @@ class _PosPromoViewState extends State<_PosPromoView> {
                 final search = _buildSearchField();
                 final filter = _buildStatusFilter();
                 final addButton = _buildAddButton();
-
+                if (compact) {
+                  return PosCollapsibleFilters(
+                    toggleKey: const Key('promo_filter_toggle'),
+                    activeCount: [
+                      _searchController.text.trim().isNotEmpty,
+                      _filterIsActive != null,
+                    ].where((active) => active).length,
+                    actions: [addButton],
+                    child: Column(
+                      children: [search, const SizedBox(height: 8), filter],
+                    ),
+                  );
+                }
                 if (constraints.maxWidth >= 680) {
                   return Row(
                     children: [

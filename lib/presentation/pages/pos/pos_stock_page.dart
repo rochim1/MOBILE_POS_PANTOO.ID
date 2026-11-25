@@ -1,4 +1,5 @@
 import '../../widgets/pos_metric_card.dart';
+import '../../widgets/pos_collapsible_filters.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
@@ -593,6 +594,40 @@ class _PosStockViewState extends State<_PosStockView> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          if (compact) {
+            return Column(
+              children: [
+                PosCollapsibleFilters(
+                  toggleKey: const Key('stock_filter_toggle'),
+                  activeCount: [
+                    _searchController.text.trim().isNotEmpty,
+                    state.currentFilter != 'all',
+                    selectedLocation.isNotEmpty,
+                  ].where((active) => active).length,
+                  actions: [if (_canViewStock) historyButton],
+                  child: Column(
+                    children: [
+                      SizedBox(height: controlHeight, child: searchField),
+                      if (widget.locationTourKey == null) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: locationHeight,
+                          child: locationDropdown,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      SizedBox(height: controlHeight, child: filterDropdown),
+                    ],
+                  ),
+                ),
+                // The setup tour needs this target visible even before filters open.
+                if (widget.locationTourKey != null) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(height: locationHeight, child: locationDropdown),
+                ],
+              ],
+            );
+          }
           if (constraints.maxWidth >= 900) {
             return Row(
               children: [
