@@ -27,4 +27,20 @@ void main() {
 
     expect(find.byType(App), findsOneWidget);
   });
+
+  testWidgets('all app routes reserve the phone system navigation area', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
+    tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 48);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    await tester.pumpWidget(const App());
+    await tester.pump();
+    final viewport = tester.getRect(find.byKey(App.navigatorKey));
+    expect(viewport.bottom, lessThanOrEqualTo(844 - 48));
+    await tester.pumpWidget(const SizedBox());
+  });
 }
