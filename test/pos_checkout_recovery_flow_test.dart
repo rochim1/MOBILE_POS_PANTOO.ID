@@ -105,6 +105,7 @@ class _Bloc extends PosBloc {
     );
   }
   final events = <PosEvent>[];
+  void changeCart() => emit(state.copyWith(cart: {_product: 2}));
   @override
   void add(PosEvent event) => events.add(event);
 }
@@ -153,6 +154,7 @@ void main() {
     'recovery immediately shows progress, prevents duplicate taps and shows failure',
     (tester) async {
       final (repo, _) = await open(tester);
+      await tester.tap(find.byKey(const Key('recover_checkout')));
       await tester.tap(find.byKey(const Key('recover_checkout')));
       await tester.pump();
       expect(repo.recoveries, 1);
@@ -236,4 +238,33 @@ void main() {
       },
     );
   }
+
+  testWidgets('recovery never clears a different active cart', (tester) async {
+    final (repo, bloc) = await open(tester);
+    bloc.changeCart();
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('recover_checkout')));
+    await tester.pump();
+    repo.response.complete(const Right(_transaction));
+    await tester.pumpAndSettle();
+    expect(find.byType(PosSuccessPage), findsOneWidget);
+    expect(bloc.state.cart[_product], 2);
+    expect(bloc.events.whereType<ClearCart>(), isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'late failure after leaving the page does not update disposed UI',
+    (tester) async {
+      final (repo, _) = await open(tester);
+      await tester.tap(find.byKey(const Key('recover_checkout')));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      repo.response.complete(const Left(NetworkFailure()));
+      await tester.pumpAndSettle();
+      expect(repo.record, isNotNull);
+      expect(repo.recoveries, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

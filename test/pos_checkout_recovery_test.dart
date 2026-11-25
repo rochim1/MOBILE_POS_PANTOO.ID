@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/services.dart';
@@ -327,8 +328,9 @@ void main() {
       final client = GraphQLClient(
         cache: GraphQLCache(),
         link: Link.function((request, [forward]) async* {
-          if (++writes == 1)
+          if (++writes == 1) {
             throw ServerException(originalException: Exception('lost ACK'));
+          }
           yield Response(
             data: const {'__typename': 'Mutation'},
             errors: [
@@ -353,6 +355,33 @@ void main() {
       expect(writes, 2);
     },
   );
+
+  test('hung Android connectivity probe releases recovery without sending a second payment', () async {
+    var writes = 0;
+    final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
+      writes++;
+      throw ServerException(originalException: Exception('lost ACK'));
+    }));
+    final repo = PosRepository(Provider(client), prefs);
+    await pay(repo);
+    final original = repo.pendingCheckout!;
+    final probe = Completer<List<String>>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'), (_) => probe.future,
+    );
+    final recovery = repo.recoverPendingCheckout();
+    try {
+      final finished = await recovery.then((_) => true).timeout(const Duration(seconds: 5), onTimeout: () => false);
+      expect(finished, true, reason: 'A stuck native probe must not leave the recovery button loading indefinitely');
+      final result = await recovery;
+      expect(result.fold((failure) => failure.message, (_) => ''), contains('koneksi internet'));
+      expect(repo.pendingCheckout, original);
+      expect(writes, 1);
+    } finally {
+      probe.complete(['none']);
+      await recovery;
+    }
+  });
 
   for (final startsOffline in [true, false]) {
     test(
