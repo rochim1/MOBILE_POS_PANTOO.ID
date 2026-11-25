@@ -24,31 +24,48 @@ void main() {
   });
   tearDown(() async => sl.reset());
   for (final size in [const Size(390, 640), const Size(320, 568)]) {
-    testWidgets('PIN keypad remains reachable above Android navigation at $size', (tester) async {
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
-      tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
-      tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 48);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetPadding);
-      addTearDown(tester.view.resetViewPadding);
-      final cubit = TestLockCubit()..seedLocked();
-      addTearDown(cubit.close);
-      await tester.pumpWidget(BlocProvider<AppLockCubit>.value(value: cubit,
-        child: MaterialApp(builder: (context, child) => PosSystemSafeArea(child: child!),
-          home: const PinLockScreen()),
-      ));
-      await tester.pumpAndSettle();
-      final zero = find.widgetWithText(TextButton, '0');
-      await tester.ensureVisible(zero); await tester.pumpAndSettle();
-      expect(zero.hitTestable(), findsOneWidget);
-      expect(tester.getRect(zero).bottom, lessThanOrEqualTo(size.height - 48));
-      await tester.tap(zero); await tester.pump();
-      expect(cubit.enteredPins, isEmpty, reason: 'safe layout must not bypass PIN');
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-    });
+    testWidgets(
+      'PIN keypad remains reachable above Android navigation at $size',
+      (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
+        tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 48);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPadding);
+        addTearDown(tester.view.resetViewPadding);
+        final cubit = TestLockCubit()..seedLocked();
+        addTearDown(cubit.close);
+        await tester.pumpWidget(
+          BlocProvider<AppLockCubit>.value(
+            value: cubit,
+            child: MaterialApp(
+              builder: (context, child) => PosSystemSafeArea(child: child!),
+              home: const PinLockScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final zero = find.widgetWithText(TextButton, '0');
+        await tester.ensureVisible(zero);
+        await tester.pumpAndSettle();
+        expect(zero.hitTestable(), findsOneWidget);
+        expect(
+          tester.getRect(zero).bottom,
+          lessThanOrEqualTo(size.height - 48),
+        );
+        await tester.tap(zero);
+        await tester.pump();
+        expect(
+          cubit.enteredPins,
+          isEmpty,
+          reason: 'safe layout must not bypass PIN',
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
   }
   for (final width in [200.0, 240.0, 280.0, 320.0, 390.0, 1024.0]) {
     for (final scale in [1.0, 1.5]) {
