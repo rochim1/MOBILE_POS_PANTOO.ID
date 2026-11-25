@@ -2347,6 +2347,7 @@ class PosRepository {
     String? customerId,
   }) async {
     try {
+      final session = _bootstrapSession;
       final result = await _clientProvider.client.mutate(
         MutationOptions(
           document: gql(PosQueries.payPOSOrder),
@@ -2362,16 +2363,37 @@ class PosRepository {
           },
         ),
       );
+      _assertBootstrapSession(session);
       if (result.hasException) {
         return Left(AppErrorHandler.handle(result.exception!));
       }
       final data = result.data?['PayPOSOrder'];
-      if (data is! Map) {
-        return const Left(ServerFailure('Pembayaran invoice gagal diproses'));
+      final committedMethod = data is Map
+          ? data['metode_pembayaran']?.toString()
+          : null;
+      final committedStatus = data is Map
+          ? data['status_pembayaran']?.toString()
+          : null;
+      // Replaying the same order may return its originally committed tender.
+      // A credit invoice is not cash-paid, but must still have a sale receipt.
+      if (data is! Map ||
+          data['_id']?.toString() != orderId ||
+          (data['pos_transaction_invoice']?.toString().trim() ?? '').isEmpty ||
+          !(committedStatus == 'lunas' ||
+              (committedMethod == 'tempo' &&
+                  const {
+                    'belum_bayar',
+                    'partial',
+                  }.contains(committedStatus)))) {
+        return const Left(
+          ServerFailure(
+            'Hasil pembayaran pesanan belum terkonfirmasi. Periksa pesanan yang sama atau hubungi admin; jangan terima pembayaran kedua.',
+          ),
+        );
       }
       return Right(Map<String, dynamic>.from(data));
     } catch (e) {
-      return Left(AppErrorHandler.handle(e));
+      return Left(e is Failure ? e : AppErrorHandler.handle(e));
     }
   }
 

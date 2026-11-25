@@ -12471,6 +12471,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutRecoveryReference => 'Payment reference';
 
   @override
+  String get orderPaymentUnconfirmed =>
+      'The order payment has not been confirmed. Check the same order or contact an administrator; do not collect a second payment.';
+
+  @override
   String get checkoutInvalidFreshData =>
       'Payment data is not valid yet. Check the cart and payment amounts, then try again. The payment has not been sent.';
 

@@ -22044,6 +22044,12 @@ abstract class AppLocalizations {
   /// **'Referensi pembayaran'**
   String get checkoutRecoveryReference;
 
+  /// No description provided for @orderPaymentUnconfirmed.
+  ///
+  /// In id, this message translates to:
+  /// **'Hasil pembayaran pesanan belum terkonfirmasi. Periksa pesanan yang sama atau hubungi admin; jangan terima pembayaran kedua.'**
+  String get orderPaymentUnconfirmed;
+
   /// No description provided for @checkoutInvalidFreshData.
   ///
   /// In id, this message translates to:
