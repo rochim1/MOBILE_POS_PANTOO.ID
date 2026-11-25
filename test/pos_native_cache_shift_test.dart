@@ -115,6 +115,69 @@ void main() {
     );
   }
 
+  for (final context in [
+    'other-api',
+    'other-tenant',
+    'other-terminal',
+    'other-shift',
+    'corrupt',
+    'unknown-scope',
+  ]) {
+    test('online recovery fence respects close scope: $context', () async {
+      final scope = context == 'unknown-scope'
+          ? 'legacy-not-json'
+          : jsonEncode([
+              context == 'other-api'
+                  ? 'https://other.invalid'
+                  : 'https://qa.invalid/graphql',
+              context == 'other-tenant' ? 'other' : 'tenant',
+              context == 'other-terminal' ? 'other' : 'cashier',
+              'cashier',
+            ]);
+      await prefs.setString(
+        'pos_checkout_pending_v1:$scope',
+        context == 'corrupt'
+            ? '{bad'
+            : jsonEncode({
+                'input': {
+                  'client_transaction_id': 'qa-1234567890123456',
+                  'toko_id': 'shop',
+                  'shift_id': context == 'other-shift' ? 'other' : 'shift',
+                  'metode_pembayaran': 'tunai',
+                  'items': [{}],
+                },
+                'receipt': {
+                  'receipt_items': [{}],
+                  'subtotal': 1000,
+                  'manual_discount': 0,
+                  'tax': 0,
+                  'total': 1000,
+                  'cash_received': 1000,
+                },
+              }),
+      );
+      var writes = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          writes++;
+          yield const Response(
+            data: {
+              'ClosePOSKasirShift': {'_id': 'shift'},
+            },
+            response: {},
+          );
+        }),
+      );
+      final result = await PosRepository(
+        NativeProvider(client),
+        prefs,
+      ).closeShift('shift', 1000, 'QA');
+      expect(result.isRight(), context != 'corrupt');
+      expect(writes, context == 'corrupt' ? 0 : 1);
+    });
+  }
+
   for (final status in ['pending', 'syncing', 'needs_review', 'rejected']) {
     test(
       'native shift closure keeps blocking unresolved $status transactions',

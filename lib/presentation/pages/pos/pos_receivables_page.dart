@@ -40,10 +40,13 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
   String _error = '', _message = '', _method = 'cash', _destination = '';
   bool _loading = true, _sending = false, _settled = false;
   int _page = 1, _total = 0, _generation = 0;
+  String get _requestOwner =>
+      '${_provider.endpointUrl}:${_provider.sharedPreferences.getString('instansi_id')}:${_provider.sharedPreferences.getString('user_id')}:${widget.operatorId}';
+  late final String _initialOwner;
   String get _sessionIdentity =>
-      '${identityHashCode(_provider.client)}:${_provider.endpointUrl}:${_provider.sharedPreferences.getString('instansi_id')}:${_provider.sharedPreferences.getString('user_id')}:${widget.operatorId}';
+      '${identityHashCode(_provider.client)}:$_requestOwner';
   void _assertSession(String session) {
-    if (session != _sessionIdentity) {
+    if (session != _sessionIdentity || _initialOwner != _requestOwner) {
       throw StateError(
         'Sesi kasir berubah. Periksa penerimaan dengan akun asal; jangan menerima uang dua kali.',
       );
@@ -63,6 +66,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
   @override
   void initState() {
     super.initState();
+    _initialOwner = _requestOwner;
     unawaited(
       widget.initialInvoiceId == null
           ? _load()
@@ -84,6 +88,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
     Map<String, dynamic> variables,
   ) async {
     final session = _sessionIdentity;
+    _assertSession(session);
     final result = await _provider.client
         .query(
           QueryOptions(
@@ -207,6 +212,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
       _message = '';
     });
     try {
+      _assertSession(session);
       final payload = await _requests.begin(id, {
         'invoice_id': id,
         'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),

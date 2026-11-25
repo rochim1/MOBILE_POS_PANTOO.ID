@@ -73,15 +73,17 @@ void main() {
                 (request.variables['input'] as Map)['request_id'],
                 proof['request_id'],
               );
-              if (scenario == 'tenant-change')
+              if (scenario == 'tenant-change') {
                 await prefs.setString('instansi_id', 'other');
-              if (scenario == 'client-change')
+              }
+              if (scenario == 'client-change') {
                 provider.client = GraphQLClient(
                   cache: GraphQLCache(),
                   link: Link.function(
                     (r, [f]) => const Stream<Response>.empty(),
                   ),
                 );
+              }
               yield Response(
                 data: {
                   'RecordPOSReceivablePayment': {
@@ -136,7 +138,20 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (scenario == 'operator-change-before-submit') {
-          await tester.pumpWidget(MaterialApp(locale:const Locale('id'),localizationsDelegates:AppLocalizations.localizationsDelegates,supportedLocales:AppLocalizations.supportedLocales,home:const Scaffold(body:PosReceivablesPage(canCollect:true,operatorId:'other',initialInvoiceId:'inv-1'))));
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: const Locale('id'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const Scaffold(
+                body: PosReceivablesPage(
+                  canCollect: true,
+                  operatorId: 'other',
+                  initialInvoiceId: 'inv-1',
+                ),
+              ),
+            ),
+          );
           await tester.pumpAndSettle();
         }
         final send = find.widgetWithText(

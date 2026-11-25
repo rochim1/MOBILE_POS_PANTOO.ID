@@ -2,8 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_pos_pantoo/core/network/pos_financial_request_store.dart';
 
+class _LostWrite extends Fake implements SharedPreferences {
+  @override
+  String? getString(String key) => null;
+  @override
+  Future<bool> setString(String key, String value) async => true;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'collection is never sent when storage silently loses the proof',
+    () async {
+      await expectLater(
+        PosFinancialRequestStore(
+          _LostWrite(),
+          'qa',
+        ).begin('invoice', {'amount': 4000}),
+        throwsStateError,
+      );
+    },
+  );
   for (final bad in [
     {'amount': 0},
     {'amount': -1},

@@ -48,12 +48,14 @@ void main() {
                 gql(PosReturnQueries.processSalesReturn);
             if (mutation) {
               writes++;
-              if (stage != 'recovery')
+              if (stage != 'recovery') {
                 repo.setOperatorSessionToken('offline_operator:other');
-              if (stage != 'ack')
+              }
+              if (stage != 'ack') {
                 throw ServerException(
                   originalException: Exception('QA lost ACK'),
                 );
+              }
             } else {
               reads++;
               repo.setOperatorSessionToken('offline_operator:other');
