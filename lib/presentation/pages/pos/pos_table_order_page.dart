@@ -493,10 +493,13 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                         : () => _reload(page: state.page - 1),
                     icon: const Icon(Icons.chevron_left),
                   ),
-                  Text(
-                    posLocale(context).posd628bb3772f8(
-                      (state.page + 1).toString(),
-                      (state.total).toString(),
+                  Flexible(
+                    child: Text(
+                      posLocale(context).posd628bb3772f8(
+                        (state.page + 1).toString(),
+                        (state.total).toString(),
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   IconButton(

@@ -60,6 +60,21 @@ Coverage run67: method `_payPendingInvoice` baris959–1027 **38/44 (86,4%)**, b
 - Halaman piutang mempunyai request proof yang tahan respons hilang dan guard canCollect di UI, tetapi hasil jurnal, saldo bank, permission server dan semua race lintas perangkat perlu dicocokkan dengan laporan server/E2E utama. Tidak mengubah cara bank/Finance memposting.
 - Perubahan pengguna pada bloc/shell/startup, versi, terjemahan, katalog dan coverage tidak dimasukkan ke commit sub-audit. Terjemahan3getter disediakan audit utama; tidak membuat katalog paralel.
 
+## Tindak lanjut GUI: bahasa detail pesanan dan navigasi HP
+
+Temuan dari GUI Android utama direproduksi pada widget halaman nyata dengan repository palsu: chip Inggris masih `Semua 1`; nama pelanggan digabung dengan fallback `Tanpa meja`; durasi dan status item layanan disisipkan ke kalimat Inggris tanpa diterjemahkan. Fallback dan fragmen kini memakai katalog yang sudah ada sebelum digabungkan. Nama pelanggan, nama produk, jumlah, harga, kode status API, dan hak akses tidak diubah. Widget detail EN/ID membuktikan `QA customer`/`QA Service` tetap sama, sedangkan fallback, durasi dan `Accepted`/`Diterima` sesuai bahasa.
+
+Pengujian tambahan menemukan pager pesanan melampaui layar: ID360dp 59px, ID390dp29px dan EN360dp2,3px. Perbaikan membatasi lebar label dengan Flexible agar teks dapat turun baris dan tetap utuh; tombol sebelumnya/berikutnya tidak dikecilkan, tidak dipotong atau disembunyikan. Empat widget360/390dp × ID/EN membuktikan tidak ada overflow, halaman0→1→2→1, tombol batas pertama/terakhir nonaktif, dan kedua tombol nonaktif selama respons berikutnya tertunda.
+
+RED bahasa:4PASS/2FAIL (checkpoint52f1bc7). GREEN bahasa:17/17PASS (706bc18). RED pager:3PASS/3FAIL, overflow di atas (checkpoint e32fb42; import fixture sesudahnya dirapikan). GREEN gabungan akhir: **21/21PASS**, empat suite, 20detik. Coverage lokal `output/operational-readiness-20261125/service-order-i18n-lcov.info` mencakup jalur tampilan yang diubah; tidak mengklaim coverage80% seluruh halaman/aplikasi.
+
+```text
+flutter test --no-pub --concurrency=1 --coverage --coverage-path=output/operational-readiness-20261125/service-order-i18n-lcov.info test/pos_active_order_status_tabs_test.dart test/pos_active_order_detail_locale_test.dart test/pos_order_workspace_policy_test.dart test/pos_order_age_test.dart
+flutter analyze --no-pub lib/presentation/pages/pos/pos_table_order_page.dart lib/presentation/pages/pos/widgets/pos_active_order_status_tabs.dart test/pos_active_order_status_tabs_test.dart test/pos_active_order_detail_locale_test.dart
+```
+
+Tidak membuat APK atau data produksi untuk tindak lanjut ini. GUI Android setelah pemasangan build terbaru tetap bagian verifikasi utama, bukan klaim dari pengujian widget ini.
+
 ## Evaluasi mandiri
 
 Akurasi5 (RED/GREEN, source diff, angka coverage aktual); kelengkapan4 (GUI Android/server dan hardware belum diverifikasi dalam sub-audit ini); kejelasan5 (pemisahan pesanan, penjualan tempo dan pelunasan); tindak lanjut4 (memerlukan E2E perangkat/jurnal untuk keputusan produksi); keringkasan4 (detail bukti panjang agar audit dapat diteruskan). Total4,4/5. Tidak ada klaim seluruh POS bebas bug. Hasil siap digabung sebagai perbaikan terbatas; prioritas berikutnya ialah pembuktian GUI dua akun dan rekonsiliasi Finance pada build terbaru.
