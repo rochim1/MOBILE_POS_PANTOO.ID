@@ -12471,6 +12471,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutRecoveryReference => 'Payment reference';
 
   @override
+  String get checkoutInvalidFreshData =>
+      'Payment data is not valid yet. Check the cart and payment amounts, then try again. The payment has not been sent.';
+
+  @override
   String get checkoutRecoveryConnection =>
       'Could not connect to the server while recovering the payment. The payment record is still saved; try again when the server is reachable. Do not pay again.';
 

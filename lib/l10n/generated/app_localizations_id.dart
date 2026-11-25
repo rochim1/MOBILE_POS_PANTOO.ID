@@ -12487,6 +12487,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get checkoutRecoveryReference => 'Referensi pembayaran';
 
   @override
+  String get checkoutInvalidFreshData =>
+      'Data pembayaran belum valid. Periksa keranjang dan jumlah pembayaran, lalu coba lagi. Pembayaran belum dikirim.';
+
+  @override
   String get checkoutRecoveryConnection =>
       'Koneksi ke server belum berhasil saat memulihkan pembayaran. Bukti transaksi tetap tersimpan; coba lagi saat server dapat dijangkau. Jangan bayar ulang.';
 

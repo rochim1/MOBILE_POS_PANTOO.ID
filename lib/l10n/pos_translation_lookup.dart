@@ -3185,6 +3185,7 @@ final Map<String, _PosValue> _exact = {
   "Login Google dibatalkan atau belum selesai. Jika Anda sudah memilih akun, coba lagi atau gunakan email dan password.": (l) => l.googleSignInIncomplete,
   "Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.": (l) => l.googleSignInConfigurationError,
   "Referensi pembayaran": (l) => l.checkoutRecoveryReference,
+  "Data pembayaran belum valid. Periksa keranjang dan jumlah pembayaran, lalu coba lagi. Pembayaran belum dikirim.": (l) => l.checkoutInvalidFreshData,
   "Koneksi ke server belum berhasil saat memulihkan pembayaran. Bukti transaksi tetap tersimpan; coba lagi saat server dapat dijangkau. Jangan bayar ulang.": (l) => l.checkoutRecoveryConnection,
   "Server belum dapat memastikan hasil pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan membuat pembayaran pengganti.": (l) => l.checkoutRecoveryUnconfirmed,
   "Respons server belum cocok dengan bukti pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan bayar ulang.": (l) => l.checkoutRecoveryResponse,

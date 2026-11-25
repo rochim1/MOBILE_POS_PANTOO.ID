@@ -22044,6 +22044,12 @@ abstract class AppLocalizations {
   /// **'Referensi pembayaran'**
   String get checkoutRecoveryReference;
 
+  /// No description provided for @checkoutInvalidFreshData.
+  ///
+  /// In id, this message translates to:
+  /// **'Data pembayaran belum valid. Periksa keranjang dan jumlah pembayaran, lalu coba lagi. Pembayaran belum dikirim.'**
+  String get checkoutInvalidFreshData;
+
   /// No description provided for @checkoutRecoveryConnection.
   ///
   /// In id, this message translates to:

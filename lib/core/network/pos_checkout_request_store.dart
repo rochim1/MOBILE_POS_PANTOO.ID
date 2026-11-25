@@ -15,36 +15,36 @@ class PosCheckoutRequestStore {
     if (raw == null) return null;
     try {
       final value = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final input = value['input'] as Map;
-      final receipt = value['receipt'] as Map;
-      if (input['client_transaction_id'] is! String ||
-          !RegExp(
-            r'^[\w-]{16,100}$',
-          ).hasMatch(input['client_transaction_id'] as String) ||
-          input['toko_id'] is! String ||
-          (input['toko_id'] as String).isEmpty ||
-          input['items'] is! List ||
-          (input['items'] as List).isEmpty ||
-          input['metode_pembayaran'] is! String ||
-          receipt['receipt_items'] is! List ||
-          (receipt['receipt_items'] as List).isEmpty ||
-          ![
-            'subtotal',
-            'manual_discount',
-            'tax',
-            'total',
-            'cash_received',
-          ].every((key) {
-            final amount = receipt[key];
-            return amount is num && amount.isFinite && amount >= 0;
-          })) {
-        throw const FormatException();
-      }
+      _validate(value);
       return value;
     } catch (_) {
       throw StateError(
         'Bukti pembayaran lokal tidak terbaca. Jangan bayar ulang; minta pemeriksaan administrator.',
       );
+    }
+  }
+
+  static void _validate(Map<String, dynamic> value) {
+    final input = value['input'] as Map;
+    final receipt = value['receipt'] as Map;
+    if (input['client_transaction_id'] is! String ||
+        !RegExp(
+          r'^[\w-]{16,100}$',
+        ).hasMatch(input['client_transaction_id'] as String) ||
+        input['toko_id'] is! String ||
+        (input['toko_id'] as String).isEmpty ||
+        input['items'] is! List ||
+        (input['items'] as List).isEmpty ||
+        input['metode_pembayaran'] is! String ||
+        receipt['receipt_items'] is! List ||
+        (receipt['receipt_items'] as List).isEmpty ||
+        !['subtotal', 'manual_discount', 'tax', 'total', 'cash_received'].every(
+          (key) {
+            final amount = receipt[key];
+            return amount is num && amount.isFinite && amount >= 0;
+          },
+        )) {
+      throw const FormatException();
     }
   }
 
@@ -96,6 +96,15 @@ class PosCheckoutRequestStore {
       },
       'receipt': receipt,
     };
+    // Validate before the first durable write. This attempt has not been
+    // transmitted, so invalid fresh data must not strand the next checkout.
+    try {
+      _validate(value);
+    } catch (_) {
+      throw StateError(
+        'Data pembayaran belum valid. Periksa keranjang dan jumlah pembayaran, lalu coba lagi. Pembayaran belum dikirim.',
+      );
+    }
     if (!await preferences.setString(key, jsonEncode(value))) {
       throw StateError(
         'Bukti pembayaran gagal disimpan. Pembayaran belum dikirim; periksa penyimpanan perangkat.',

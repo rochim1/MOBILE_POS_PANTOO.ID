@@ -2826,6 +2826,13 @@ class PosRepository {
         clientSnapshot: snapshot,
       );
       if (failure != null) return Left(failure);
+      if (!currentScope()) {
+        return const Left(
+          AuthFailure(
+            'Identitas kasir berubah. Login sebagai kasir asal untuk memulihkan pembayaran.',
+          ),
+        );
+      }
       await store.acknowledge(requestId);
       return Right(
         _pendingOfflineResult(
@@ -2852,10 +2859,17 @@ class PosRepository {
     }
 
     if (supportsOfflineDatabase) {
-      final probe = Connectivity().checkConnectivity();
-      final connectivity = await (recovery
-          ? probe.timeout(const Duration(seconds: 3))
-          : probe);
+      final List<ConnectivityResult> connectivity;
+      try {
+        connectivity = await Connectivity().checkConnectivity().timeout(
+          const Duration(seconds: 3),
+        );
+      } on TimeoutException {
+        // This preflight occurs before any network mutation. Only a fresh,
+        // known-unsent intent may be released; a replay's old result is unknown.
+        if (!replay) await store.acknowledge(requestId);
+        return const Left(NetworkFailure());
+      }
       if (connectivity.contains(ConnectivityResult.none)) {
         if (recovery) return const Left(NetworkFailure());
         if (!replay && !_isOfflinePaymentAllowed(method, payments)) {
@@ -3369,6 +3383,8 @@ class PosRepository {
       return null;
     } on StateError catch (error) {
       return ServerFailure(error.message.toString());
+    } on Failure catch (error) {
+      return error;
     } catch (error, stackTrace) {
       appLogger.e(
         '[POS] Gagal menyimpan transaksi offline',
@@ -3387,7 +3403,9 @@ class PosRepository {
     required String shiftId,
     required Map<String, dynamic> clientSnapshot,
   }) async {
+    final session = _bootstrapSession;
     final subscriptionDenial = await _clientProvider.checkOfflineSubscription();
+    _assertBootstrapSession(session);
     if (subscriptionDenial != null) throw StateError(subscriptionDenial);
     final clientTransactionId = payload['client_transaction_id']?.toString();
     if (clientTransactionId == null || clientTransactionId.isEmpty) {
@@ -3399,6 +3417,7 @@ class PosRepository {
       );
     }
     final db = await PosLocalDatabase.instance.database;
+    _assertBootstrapSession(session);
     await db.transaction((txn) async {
       final stores = await txn.query(
         'stores',
@@ -3473,6 +3492,7 @@ class PosRepository {
       final operatorUserId = operatorIdFromToken(
         payload['operator_session_token']?.toString() ?? '',
       );
+      _assertBootstrapSession(session);
       final safePayload = Map<String, dynamic>.from(payload)
         ..remove('operator_session_token');
       final rowId = await txn.insert('offline_transactions', {
@@ -3503,7 +3523,10 @@ class PosRepository {
         });
       }
       // Derived availability must also follow shared ingredients after a sale.
-      if (!trackStock) return;
+      if (!trackStock) {
+        _assertBootstrapSession(session);
+        return;
+      }
       for (final product in catalog.values.where(
         (p) => p.packageComponents.isNotEmpty,
       )) {
@@ -3548,6 +3571,9 @@ class PosRepository {
         }),
         'cached_at': DateTime.now().toUtc().toIso8601String(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
+      // A changed operator/session during any SQLite await must roll back
+      // both the queued payment and its local stock deduction atomically.
+      _assertBootstrapSession(session);
     });
   }
 

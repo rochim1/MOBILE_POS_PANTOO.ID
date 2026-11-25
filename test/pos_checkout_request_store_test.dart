@@ -56,19 +56,32 @@ void main() {
       throwsStateError,
     );
   });
-  for (final invalid in ['empty-items', 'missing-store', 'negative-total', 'missing-subtotal']) {
-    test('invalid fresh $invalid cannot leave an unreadable payment fence', () async {
-      final badInput = {...input};
-      final badReceipt = {...receipt};
-      if (invalid == 'empty-items') badInput['items'] = [];
-      if (invalid == 'missing-store') badInput.remove('toko_id');
-      if (invalid == 'negative-total') badReceipt['total'] = -1;
-      if (invalid == 'missing-subtotal') badReceipt.remove('subtotal');
-      await expectLater(store.begin(badInput, badReceipt), throwsStateError);
-      expect(prefs.getString(store.key), isNull, reason: 'Nothing was transmitted; invalid new data must not poison recovery');
-      final next = await store.begin(input, receipt);
-      expect(store.load(), next);
-    });
+  for (final invalid in [
+    'empty-items',
+    'missing-store',
+    'negative-total',
+    'missing-subtotal',
+  ]) {
+    test(
+      'invalid fresh $invalid cannot leave an unreadable payment fence',
+      () async {
+        final badInput = {...input};
+        final badReceipt = {...receipt};
+        if (invalid == 'empty-items') badInput['items'] = [];
+        if (invalid == 'missing-store') badInput.remove('toko_id');
+        if (invalid == 'negative-total') badReceipt['total'] = -1;
+        if (invalid == 'missing-subtotal') badReceipt.remove('subtotal');
+        await expectLater(store.begin(badInput, badReceipt), throwsStateError);
+        expect(
+          prefs.getString(store.key),
+          isNull,
+          reason:
+              'Nothing was transmitted; invalid new data must not poison recovery',
+        );
+        final next = await store.begin(input, receipt);
+        expect(store.load(), next);
+      },
+    );
   }
   test('write success without readable original ID is rejected', () async {
     final prefs = FlakyPreferences()..loseWrite = true;

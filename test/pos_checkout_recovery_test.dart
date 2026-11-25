@@ -565,53 +565,111 @@ void main() {
     },
   );
 
-  test('fresh payment cannot hang or leave a fence when native connectivity never answers', () async {
-    var writes = 0;
-    final repo = PosRepository(Provider(GraphQLClient(
-      cache: GraphQLCache(),
-      link: Link.function((request, [forward]) async* {
-        writes++;
-        throw StateError('Must not transmit without completed preflight');
-      }),
-    )), prefs);
-    final probe = Completer<List<String>>();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/connectivity'), (_) => probe.future,
-    );
-    final payment = pay(repo);
-    try {
-      final finished = await payment.then((_) => true).timeout(const Duration(seconds: 5), onTimeout: () => false);
-      expect(finished, true, reason: 'Fresh checkout must also bound the native connectivity probe');
-      expect((await payment).isLeft(), true);
-      expect(repo.pendingCheckout, isNull, reason: 'A known-unsent first attempt must not require uncertain-payment recovery');
-      expect(writes, 0);
-      expect(await db.query('offline_transactions'), isEmpty);
-    } finally {
-      probe.complete(['none']);
-      await payment;
-    }
-  });
+  test(
+    'fresh payment cannot hang or leave a fence when native connectivity never answers',
+    () async {
+      var writes = 0;
+      final repo = PosRepository(
+        Provider(
+          GraphQLClient(
+            cache: GraphQLCache(),
+            link: Link.function((request, [forward]) async* {
+              writes++;
+              throw StateError('Must not transmit without completed preflight');
+            }),
+          ),
+        ),
+        prefs,
+      );
+      final probe = Completer<List<String>>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+            (_) => probe.future,
+          );
+      final payment = pay(repo);
+      try {
+        final finished = await payment
+            .then((_) => true)
+            .timeout(const Duration(seconds: 5), onTimeout: () => false);
+        expect(
+          finished,
+          true,
+          reason:
+              'Fresh checkout must also bound the native connectivity probe',
+        );
+        expect((await payment).isLeft(), true);
+        expect(
+          repo.pendingCheckout,
+          isNull,
+          reason:
+              'A known-unsent first attempt must not require uncertain-payment recovery',
+        );
+        expect(writes, 0);
+        expect(await db.query('offline_transactions'), isEmpty);
+      } finally {
+        probe.complete(['none']);
+        await payment;
+      }
+    },
+  );
 
-  test('operator change during offline authorization cannot enqueue or debit cached stock', () async {
-    network = 'none';
-    await db.insert('stores', {'id':'s','name':'QA','branchId':'b','status':'active','address':'','phone':'','branchName':'QA'});
-    await db.insert('products', {'id':'p','code':'P','name':'Product','price':100,'stock':10,'category':'QA','product_json':jsonEncode(product.toJson())});
-    await db.insert('read_snapshots', {'scope_key':'pos_active_product_catalog_v1','payload':jsonEncode({'catalog_key':'pos_product_catalog_v1:tenant:terminal:b'}),'cached_at':DateTime.now().toUtc().toIso8601String()});
-    final provider = Provider(GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
-      throw StateError('No network mutation while offline');
-    })));
-    final repo = PosRepository(provider, prefs)..setOperatorSessionToken('offline_operator:original');
-    provider.authorizeOffline = () async {
-      repo.setOperatorSessionToken('offline_operator:other');
-      return null;
-    };
-    final result = await pay(repo, method: 'tunai');
-    expect(result.isLeft(), true, reason: 'Authorization awaited under a different PIN operator cannot authorize the old checkout');
-    expect(await db.query('offline_transactions'), isEmpty);
-    expect((await db.query('products')).single['stock'], 10);
-    repo.setOperatorSessionToken('offline_operator:original');
-    expect(repo.pendingCheckout, isNotNull);
-  });
+  test(
+    'operator change during offline authorization cannot enqueue or debit cached stock',
+    () async {
+      network = 'none';
+      await db.insert('stores', {
+        'id': 's',
+        'name': 'QA',
+        'branchId': 'b',
+        'status': 'active',
+        'address': '',
+        'phone': '',
+        'branchName': 'QA',
+      });
+      await db.insert('products', {
+        'id': 'p',
+        'code': 'P',
+        'name': 'Product',
+        'price': 100,
+        'stock': 10,
+        'category': 'QA',
+        'product_json': jsonEncode(product.toJson()),
+      });
+      await db.insert('read_snapshots', {
+        'scope_key': 'pos_active_product_catalog_v1',
+        'payload': jsonEncode({
+          'catalog_key': 'pos_product_catalog_v1:tenant:terminal:b',
+        }),
+        'cached_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      final provider = Provider(
+        GraphQLClient(
+          cache: GraphQLCache(),
+          link: Link.function((request, [forward]) async* {
+            throw StateError('No network mutation while offline');
+          }),
+        ),
+      );
+      final repo = PosRepository(provider, prefs)
+        ..setOperatorSessionToken('offline_operator:original');
+      provider.authorizeOffline = () async {
+        repo.setOperatorSessionToken('offline_operator:other');
+        return null;
+      };
+      final result = await pay(repo, method: 'tunai');
+      expect(
+        result.isLeft(),
+        true,
+        reason:
+            'Authorization awaited under a different PIN operator cannot authorize the old checkout',
+      );
+      expect(await db.query('offline_transactions'), isEmpty);
+      expect((await db.query('products')).single['stock'], 10);
+      repo.setOperatorSessionToken('offline_operator:original');
+      expect(repo.pendingCheckout, isNotNull);
+    },
+  );
 
   for (final startsOffline in [true, false]) {
     test(
