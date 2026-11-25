@@ -99,6 +99,22 @@ Future<void> _mount(
 }
 
 void main() {
+  testWidgets('phone stock filters collapse without hiding history', (tester) async {
+    await _mount(tester, 390, 1);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Riwayat Shift'), findsOneWidget);
+    final toggle = find.byKey(const Key('stock_filter_toggle'));
+    await tester.tap(toggle); await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'QA stock');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(toggle); await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(toggle); await tester.pumpAndSettle();
+    expect(find.text('QA stock'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   setUpAll(() async {
     await initializeDateFormatting('id_ID');
     await (FontLoader(
