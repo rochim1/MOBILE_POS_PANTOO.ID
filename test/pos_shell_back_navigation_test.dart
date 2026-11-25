@@ -225,6 +225,9 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byType(PosPage), findsOneWidget);
+      expect(find.text('Keluar dari aplikasi?'), findsOneWidget);
+      await tester.tap(find.text('Batal'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Lainnya').last);
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Pelanggan'));
