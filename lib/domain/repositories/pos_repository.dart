@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -2758,6 +2759,8 @@ class PosRepository {
         replay: true,
         recovery: true,
       );
+    } on TimeoutException {
+      return const Left(NetworkFailure());
     } on StateError catch (error) {
       return Left(ServerFailure(error.message.toString()));
     } catch (error) {
@@ -2843,7 +2846,10 @@ class PosRepository {
     }
 
     if (supportsOfflineDatabase) {
-      final connectivity = await Connectivity().checkConnectivity();
+      final probe = Connectivity().checkConnectivity();
+      final connectivity = await (recovery
+          ? probe.timeout(const Duration(seconds: 3))
+          : probe);
       if (connectivity.contains(ConnectivityResult.none)) {
         if (recovery) return const Left(NetworkFailure());
         if (!replay && !_isOfflinePaymentAllowed(method, payments)) {
