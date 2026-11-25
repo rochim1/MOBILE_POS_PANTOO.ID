@@ -128,6 +128,7 @@ void main() {
     PosOrder? pendingOrder,
     PosCustomer? selectedCustomer,
     bool pushed = false,
+    Locale locale = const Locale('id'),
   }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -141,7 +142,7 @@ void main() {
       BlocProvider<PosBloc>.value(
         value: bloc,
         child: MaterialApp(
-          locale: const Locale('id'),
+          locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: pushed
@@ -312,4 +313,20 @@ void main() {
       await finish(tester);
     },
   );
+  for (final locale in [const Locale('id'), const Locale('en')]) {
+    testWidgets('pending credit completion states receivable, not money received ${locale.languageCode}', (tester) async {
+      sl.registerSingleton<PosCustomerDisplayService>(_Display());
+      final (_, repo) = await open(tester, pendingOrder: order(), pushed: true, locale: locale);
+      repo.response = const Right({'_id': 'pending-order', 'metode_pembayaran': 'tempo'});
+      submit(tester)();
+      await tester.pumpAndSettle();
+      expect(repo.calls.single['method'], 'tempo');
+      expect(find.text(locale.languageCode == 'id'
+          ? 'Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.'
+          : 'Order recorded as a receivable. Continue collecting payment from Customer Receivables.'), findsOneWidget);
+      expect(find.textContaining('berhasil dibayar'), findsNothing);
+      expect(find.byType(PosPaymentPage), findsNothing);
+      await finish(tester);
+    });
+  }
 }

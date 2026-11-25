@@ -33,7 +33,6 @@ void main() {
         await sl.reset();
       });
       final cash = method == 'cash' || method == 'tunai';
-      final credit = method == 'tempo';
       final transaction = PosTransactionResult(
         id: 'payment-$method',
         invoice: 'QA-001',
@@ -75,15 +74,31 @@ void main() {
         find.descendant(
           of: row,
           matching: find.text(
-            cash
-                ? 'Rp2.000'
-                : credit
-                ? 'Rp0'
-                : 'Rp1.000',
+            cash ? 'Rp2.000' : 'Rp1.000',
           ),
         ),
         findsOneWidget,
       );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final locale in [const Locale('id'), const Locale('en')]) {
+    testWidgets('credit sale completion explains unpaid receivable ${locale.languageCode}', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+      addTearDown(sl.reset);
+      const transaction = PosTransactionResult(id: 'credit-sale', invoice: 'QA-CREDIT', subtotal: 1000, discount: 0, promoDiscount: 0, tax: 0, total: 1000, cashReceived: 0, change: 0, paymentMethod: 'tempo');
+      await tester.pumpWidget(MaterialApp(
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const PosSuccessPage(transaction: transaction),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text(locale.languageCode == 'id' ? 'Penjualan tempo dicatat' : 'Credit sale recorded'), findsOneWidget);
+      expect(find.text(locale.languageCode == 'id' ? 'Belum lunas. Tagihan tersimpan sebagai piutang pelanggan.' : 'Not paid in full. The balance is saved as a customer receivable.'), findsOneWidget);
+      expect(find.text(locale.languageCode == 'id' ? 'Pembayaran Berhasil' : 'Payment Successful'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
