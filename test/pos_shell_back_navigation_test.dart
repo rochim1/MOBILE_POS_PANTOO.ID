@@ -228,6 +228,15 @@ void main() {
       expect(find.text('Keluar dari aplikasi?'), findsOneWidget);
       await tester.tap(find.text('Batal'));
       await tester.pumpAndSettle();
+      expect(platformCalls, isNot(contains('SystemNavigator.pop')));
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Keluar aplikasi'));
+      await tester.pumpAndSettle();
+      expect(
+        platformCalls.where((method) => method == 'SystemNavigator.pop'),
+        hasLength(1),
+      );
       await tester.tap(find.text('Lainnya').last);
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Pelanggan'));
@@ -252,7 +261,10 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byType(PosMoreMenuPage), findsOneWidget);
-      expect(platformCalls, isNot(contains('SystemNavigator.pop')));
+      expect(
+        platformCalls.where((method) => method == 'SystemNavigator.pop'),
+        hasLength(1),
+      );
       expect(tester.takeException(), isNull);
     },
   );

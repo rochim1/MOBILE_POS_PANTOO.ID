@@ -6,6 +6,58 @@ import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_app_exit_confirmation.dart';
 
 void main() {
+  testWidgets('failed native exit reports error and releases dialog guard', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final exit = PosAppExitConfirmation();
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'SystemNavigator.pop') {
+          throw PlatformException(code: 'fixture_exit_failed');
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('id'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => exit.request(context, canExit: () => true),
+              child: const Text('Ask exit'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Ask exit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keluar aplikasi'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Aplikasi belum dapat ditutup. Silakan coba lagi.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Ask exit'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
+  });
   for (final locale in ['id', 'en']) {
     testWidgets('exit needs explicit confirmation and is localized: $locale', (
       tester,

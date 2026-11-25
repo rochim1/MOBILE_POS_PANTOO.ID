@@ -1,5 +1,7 @@
 # Navigasi kembali POS mobile — 26 November 2026
 
+Pembaruan berikutnya: [konfirmasi keluar aplikasi](POS_APP_EXIT_CONFIRMATION_20261126.md) menambahkan dialog pada root setelah riwayat habis. Tidak keluar otomatis; hanya pilihan Keluar aplikasi yang dikonfirmasi menutup activity Android. Jaminan riwayat/guard di bawah tetap berlaku.
+
 ## Permintaan dan penyebab
 
 Pengguna meminta tombol kembali menuju halaman sebelumnya, bukan menutup aplikasi. Perpindahan menu POS sebelumnya hanya mengganti indeks halaman; tidak ada riwayat kunjungan. Guard shell mengizinkan sistem menutup halaman utama kasir, dan tidak melindungi root pada layout lebar.
