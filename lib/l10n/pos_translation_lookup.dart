@@ -8,6 +8,11 @@ class _PosPattern {
   final String Function(AppLocalizations, List<String>) render;
 }
 final Map<String, _PosValue> _exact = {
+  "Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.": (l) => l.pendingCreditRecorded,
+  "Penjualan tempo dicatat": (l) => l.creditSaleRecorded,
+  "Belum lunas. Tagihan tersimpan sebagai piutang pelanggan.": (l) => l.creditSalePending,
+  "Simpan keranjang saat ini sebelum membuka pesanan tersimpan? Barang dan pelanggan saat ini tidak akan hilang.": (l) => l.heldCartRestoreConfirm,
+  "Simpan dan buka": (l) => l.heldCartSaveAndOpen,
   "Simpan atau kosongkan keranjang saat ini sebelum membuka pesanan tersimpan.": (l) => l.heldCartNotEmpty,
   "Pesanan tersimpan berasal dari toko lain. Buka toko asal untuk melanjutkan.": (l) => l.heldCartOtherStore,
   "Pesanan tersimpan belum dapat dibuka. Keranjang tetap aman; coba lagi.": (l) => l.heldCartRestoreFailed,
@@ -3177,6 +3182,12 @@ final Map<String, _PosValue> _exact = {
   "Catatan objek": (l) => l.serviceObjectNotes,
   "Pisahkan 1 ke objek lain": (l) => l.serviceSplitOneItem,
   "Hapus detail objek ini": (l) => l.serviceRemoveObjectDetails,
+  "Login Google dibatalkan atau belum selesai. Jika Anda sudah memilih akun, coba lagi atau gunakan email dan password.": (l) => l.googleSignInIncomplete,
+  "Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.": (l) => l.googleSignInConfigurationError,
+  "Referensi pembayaran": (l) => l.checkoutRecoveryReference,
+  "Koneksi ke server belum berhasil saat memulihkan pembayaran. Bukti transaksi tetap tersimpan; coba lagi saat server dapat dijangkau. Jangan bayar ulang.": (l) => l.checkoutRecoveryConnection,
+  "Server belum dapat memastikan hasil pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan membuat pembayaran pengganti.": (l) => l.checkoutRecoveryUnconfirmed,
+  "Respons server belum cocok dengan bukti pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan bayar ulang.": (l) => l.checkoutRecoveryResponse,
   "\nOriginal journal entry not yet confirmed": (l) => l.posc0a010e50551,
   "\nReversal journal entry not yet confirmed": (l) => l.pos879ea9b51bd7,
   "   and   ": (l) => l.pos5ce2b951d32d,

@@ -427,6 +427,10 @@ class _PosPageViewState extends State<PosPageView> {
                     }
                     if (pendingCheckout != null || invalidCheckout != null) {
                       return PosCheckoutRecoveryPanel(
+                        requestReference:
+                            pendingCheckout?['input']?['client_transaction_id']
+                                ?.toString() ??
+                            '',
                         message:
                             invalidCheckout ??
                             'Hasil pembayaran sebelumnya belum terkonfirmasi. Jangan terima pembayaran kedua. Sambungkan internet lalu pulihkan transaksi yang sama; stok dan kas tidak dicatat dua kali.',

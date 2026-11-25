@@ -22038,6 +22038,30 @@ abstract class AppLocalizations {
   /// **'Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.'**
   String get googleSignInConfigurationError;
 
+  /// No description provided for @checkoutRecoveryReference.
+  ///
+  /// In id, this message translates to:
+  /// **'Referensi pembayaran'**
+  String get checkoutRecoveryReference;
+
+  /// No description provided for @checkoutRecoveryConnection.
+  ///
+  /// In id, this message translates to:
+  /// **'Koneksi ke server belum berhasil saat memulihkan pembayaran. Bukti transaksi tetap tersimpan; coba lagi saat server dapat dijangkau. Jangan bayar ulang.'**
+  String get checkoutRecoveryConnection;
+
+  /// No description provided for @checkoutRecoveryUnconfirmed.
+  ///
+  /// In id, this message translates to:
+  /// **'Server belum dapat memastikan hasil pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan membuat pembayaran pengganti.'**
+  String get checkoutRecoveryUnconfirmed;
+
+  /// No description provided for @checkoutRecoveryResponse.
+  ///
+  /// In id, this message translates to:
+  /// **'Respons server belum cocok dengan bukti pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan bayar ulang.'**
+  String get checkoutRecoveryResponse;
+
   /// No description provided for @secretHide.
   ///
   /// In id, this message translates to:

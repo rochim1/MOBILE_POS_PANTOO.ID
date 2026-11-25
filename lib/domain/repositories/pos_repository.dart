@@ -2806,8 +2806,14 @@ class PosRepository {
       'Hasil pembayaran belum terkonfirmasi. Jangan bayar ulang dengan transaksi baru. Pulihkan pembayaran yang sama saat koneksi tersedia.',
     );
     Future<Either<Failure, PosTransactionResult>> queueCash() async {
-      if (recovery ||
-          !currentScope() ||
+      if (recovery) {
+        return const Left(
+          NetworkFailure(
+            'Koneksi ke server belum berhasil saat memulihkan pembayaran. Bukti transaksi tetap tersimpan; coba lagi saat server dapat dijangkau. Jangan bayar ulang.',
+          ),
+        );
+      }
+      if (!currentScope() ||
           (payload['promo_code']?.toString() ?? '').isNotEmpty ||
           !_isOfflinePaymentAllowed(method, payments) ||
           (payload['expired_sale_reason']?.toString() ?? '').isNotEmpty) {
@@ -2930,6 +2936,18 @@ class PosRepository {
         await store.acknowledge(requestId);
         return Right(transaction);
       }
+      if (data != null) {
+        // A payment response for a different/malformed intent is not an
+        // offline signal, even if the cache also reports a parsing failure.
+        // Never enqueue it or acknowledge it as this request's payment.
+        return recovery
+            ? const Left(
+                ServerFailure(
+                  'Respons server belum cocok dengan bukti pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan bayar ulang.',
+                ),
+              )
+            : const Left(uncertain);
+      }
       if (result.hasException && _isRetryableNetworkFailure(result.exception)) {
         return supportsOfflineDatabase
             ? await queueCash()
@@ -2938,7 +2956,15 @@ class PosRepository {
       if (result.hasException) {
         // Only a first, definitely rejected request may release its fence.
         // An authorization error on replay says nothing about the old commit.
-        final errors = result.exception!.graphqlErrors;
+        final exception = result.exception!;
+        final errors = [
+          ...exception.graphqlErrors,
+          if (exception.linkException is ServerException)
+            ...((exception.linkException as ServerException)
+                    .parsedResponse
+                    ?.errors ??
+                const <GraphQLError>[]),
+        ];
         const rejectedCodes = {
           'BAD_REQUEST',
           'BAD_USER_INPUT',
@@ -2959,8 +2985,26 @@ class PosRepository {
           if (!replay) await store.acknowledge(requestId);
           return Left(AppErrorHandler.handle(result.exception!));
         }
+        if (recovery) {
+          // A transport rejection without GraphQL detail (e.g. HTTP 401 or
+          // an HTML gateway response) still needs an actionable explanation.
+          // Internal/mixed GraphQL errors are not proof of a rejected commit.
+          return Left(
+            errors.isEmpty
+                ? AppErrorHandler.handle(exception)
+                : const ServerFailure(
+                    'Server belum dapat memastikan hasil pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan membuat pembayaran pengganti.',
+                  ),
+          );
+        }
       }
-      return const Left(uncertain);
+      return recovery
+          ? const Left(
+              ServerFailure(
+                'Respons server belum cocok dengan bukti pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan bayar ulang.',
+              ),
+            )
+          : const Left(uncertain);
     } on LinkException {
       return supportsOfflineDatabase
           ? await queueCash()

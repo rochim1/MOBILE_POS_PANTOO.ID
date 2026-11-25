@@ -357,106 +357,164 @@ void main() {
   );
 
   for (final replay in [false, true]) {
-    for (final code in ['BAD_REQUEST', 'GRAPHQL_VALIDATION_FAILED', 'FORBIDDEN', 'SUBSCRIPTION_REQUIRED']) {
-      test('HTTP-wrapped $code explains rejection and preserves only uncertain replay=$replay', () async {
-        final ids = <String>[];
-        final client = GraphQLClient(
-          cache: GraphQLCache(),
-          link: Link.function((request, [forward]) async* {
-            ids.add((request.variables['input'] as Map)['client_transaction_id'] as String);
-            if (replay && ids.length == 1) {
-              throw ServerException(originalException: Exception('lost ACK'));
-            }
-            throw ServerException(
-              statusCode: code == 'FORBIDDEN' ? 403 : 400,
-              parsedResponse: Response(
-                errors: [GraphQLError(message: 'QA rejection $code', extensions: {'code': code})],
-                response: {},
-              ),
-            );
-          }),
-        );
-        final repo = PosRepository(Provider(client), prefs);
-        dynamic result;
-        Map<String, dynamic>? original;
-        if (replay) {
-          await pay(repo);
-          original = repo.pendingCheckout;
-          result = await repo.recoverPendingCheckout();
-        } else {
-          result = await pay(repo);
-        }
-        expect(result.fold((failure) => failure.message, (_) => ''), 'QA rejection $code');
-        expect(repo.pendingCheckout, replay ? original : isNull);
-        if (replay) {
-          expect(ids, [ids.first, ids.first]);
-        } else {
-          await pay(repo, cash: 200);
-          expect(ids.length, 2);
-          expect(ids.first, isNot(ids.last));
-        }
-        expect(await db.query('offline_transactions'), isEmpty);
-      });
+    for (final code in [
+      'BAD_REQUEST',
+      'GRAPHQL_VALIDATION_FAILED',
+      'FORBIDDEN',
+      'SUBSCRIPTION_REQUIRED',
+    ]) {
+      test(
+        'HTTP-wrapped $code explains rejection and preserves only uncertain replay=$replay',
+        () async {
+          final ids = <String>[];
+          final client = GraphQLClient(
+            cache: GraphQLCache(),
+            link: Link.function((request, [forward]) async* {
+              ids.add(
+                (request.variables['input'] as Map)['client_transaction_id']
+                    as String,
+              );
+              if (replay && ids.length == 1) {
+                throw ServerException(originalException: Exception('lost ACK'));
+              }
+              throw ServerException(
+                statusCode: code == 'FORBIDDEN' ? 403 : 400,
+                parsedResponse: Response(
+                  errors: [
+                    GraphQLError(
+                      message: 'QA rejection $code',
+                      extensions: {'code': code},
+                    ),
+                  ],
+                  response: {},
+                ),
+              );
+            }),
+          );
+          final repo = PosRepository(Provider(client), prefs);
+          dynamic result;
+          Map<String, dynamic>? original;
+          if (replay) {
+            await pay(repo);
+            original = repo.pendingCheckout;
+            result = await repo.recoverPendingCheckout();
+          } else {
+            result = await pay(repo);
+          }
+          expect(
+            result.fold((failure) => failure.message, (_) => ''),
+            'QA rejection $code',
+          );
+          expect(repo.pendingCheckout, replay ? original : isNull);
+          if (replay) {
+            expect(ids, [ids.first, ids.first]);
+          } else {
+            await pay(repo, cash: 200);
+            expect(ids.length, 2);
+            expect(ids.first, isNot(ids.last));
+          }
+          expect(await db.query('offline_transactions'), isEmpty);
+        },
+      );
     }
   }
 
-  test('HTTP-wrapped mixed rejection and internal error cannot release first payment proof', () async {
-    final client = GraphQLClient(
-      cache: GraphQLCache(),
-      link: Link.function((request, [forward]) async* {
-        throw ServerException(
-          statusCode: 400,
-          parsedResponse: Response(errors: [
-            GraphQLError(message: 'QA rejected', extensions: {'code': 'BAD_REQUEST'}),
-            GraphQLError(message: 'private internal detail', extensions: {'code': 'INTERNAL_SERVER_ERROR'}),
-          ], response: {}),
-        );
-      }),
-    );
-    final repo = PosRepository(Provider(client), prefs);
-    expect((await pay(repo)).isLeft(), true);
-    expect(repo.pendingCheckout, isNotNull);
-    expect(await db.query('offline_transactions'), isEmpty);
-  });
+  test(
+    'HTTP-wrapped mixed rejection and internal error cannot release first payment proof',
+    () async {
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          throw ServerException(
+            statusCode: 400,
+            parsedResponse: Response(
+              errors: [
+                GraphQLError(
+                  message: 'QA rejected',
+                  extensions: {'code': 'BAD_REQUEST'},
+                ),
+                GraphQLError(
+                  message: 'private internal detail',
+                  extensions: {'code': 'INTERNAL_SERVER_ERROR'},
+                ),
+              ],
+              response: {},
+            ),
+          );
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      expect((await pay(repo)).isLeft(), true);
+      expect(repo.pendingCheckout, isNotNull);
+      expect(await db.query('offline_transactions'), isEmpty);
+    },
+  );
 
-  test('recovery network timeout explains API connection and never queues or replaces the payment', () async {
-    final ids = <String>[];
-    final client = GraphQLClient(
-      cache: GraphQLCache(),
-      link: Link.function((request, [forward]) async* {
-        ids.add((request.variables['input'] as Map)['client_transaction_id'] as String);
-        throw ServerException(originalException: TimeoutException('private transport details'));
-      }),
-    );
-    final repo = PosRepository(Provider(client), prefs);
-    await pay(repo);
-    final original = repo.pendingCheckout;
-    final result = await repo.recoverPendingCheckout();
-    expect(result.fold((failure) => failure.message, (_) => ''), contains('Koneksi ke server'));
-    expect(repo.pendingCheckout, original);
-    expect(ids, [ids.first, ids.first]);
-    expect(await db.query('offline_transactions'), isEmpty);
-  });
+  test(
+    'recovery network timeout explains API connection and never queues or replaces the payment',
+    () async {
+      final ids = <String>[];
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          ids.add(
+            (request.variables['input'] as Map)['client_transaction_id']
+                as String,
+          );
+          throw ServerException(
+            originalException: TimeoutException('private transport details'),
+          );
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      await pay(repo);
+      final original = repo.pendingCheckout;
+      final result = await repo.recoverPendingCheckout();
+      expect(
+        result.fold((failure) => failure.message, (_) => ''),
+        contains('Koneksi ke server'),
+      );
+      expect(repo.pendingCheckout, original);
+      expect(ids, [ids.first, ids.first]);
+      expect(await db.query('offline_transactions'), isEmpty);
+    },
+  );
 
-  test('recovery mismatched ACK explains response problem without clearing proof', () async {
-    var calls = 0;
-    final client = GraphQLClient(
-      cache: GraphQLCache(),
-      link: Link.function((request, [forward]) async* {
-        if (++calls == 1) throw ServerException(originalException: Exception('lost ACK'));
-        yield Response(data: {'ProcessPOSPenjualan': {
-          '_id': 'foreign', 'invoice': 'INV-FOREIGN', 'client_transaction_id': 'foreign-request',
-        }}, response: {});
-      }),
-    );
-    final repo = PosRepository(Provider(client), prefs);
-    await pay(repo);
-    final original = repo.pendingCheckout;
-    final result = await repo.recoverPendingCheckout();
-    expect(result.fold((failure) => failure.message, (_) => ''), contains('Respons server'));
-    expect(repo.pendingCheckout, original);
-    expect(calls, 2);
-  });
+  test(
+    'recovery mismatched ACK explains response problem without clearing proof',
+    () async {
+      var calls = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          if (++calls == 1)
+            throw ServerException(originalException: Exception('lost ACK'));
+          yield Response(
+            data: {
+              'ProcessPOSPenjualan': {
+                '_id': 'foreign',
+                'invoice': 'INV-FOREIGN',
+                'client_transaction_id': 'foreign-request',
+                'total': 100,
+                'subtotal': 100,
+              },
+            },
+            response: {},
+          );
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      await pay(repo);
+      final original = repo.pendingCheckout;
+      final result = await repo.recoverPendingCheckout();
+      expect(
+        result.fold((failure) => failure.message, (_) => ''),
+        contains('Respons server'),
+      );
+      expect(repo.pendingCheckout, original);
+      expect(calls, 2);
+    },
+  );
 
   test(
     'hung Android connectivity probe releases recovery without sending a second payment',

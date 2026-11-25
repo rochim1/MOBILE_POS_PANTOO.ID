@@ -16534,6 +16534,10 @@
   "@secretShow": {"placeholders": {"field": {"type": "String"}}},
   "googleSignInIncomplete": "Google sign-in was canceled or did not finish. If you already selected an account, try again or use your email and password.",
   "googleSignInConfigurationError": "Google sign-in is not configured correctly for this app version. Use your email and password for now and contact Pantoo support.",
+  "checkoutRecoveryReference": "Payment reference",
+  "checkoutRecoveryConnection": "Could not connect to the server while recovering the payment. The payment record is still saved; try again when the server is reachable. Do not pay again.",
+  "checkoutRecoveryUnconfirmed": "The server could not confirm the payment result. Contact an administrator with this payment reference; do not create a replacement payment.",
+  "checkoutRecoveryResponse": "The server response does not match the payment record. Contact an administrator with this payment reference; do not pay again.",
   "secretHide": "Hide {field}",
   "@secretHide": {"placeholders": {"field": {"type": "String"}}}
 }

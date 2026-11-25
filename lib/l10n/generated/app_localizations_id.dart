@@ -12484,6 +12484,21 @@ class AppLocalizationsId extends AppLocalizations {
       'Konfigurasi login Google untuk versi aplikasi ini belum sesuai. Gunakan email dan password sementara, lalu hubungi dukungan Pantoo.';
 
   @override
+  String get checkoutRecoveryReference => 'Referensi pembayaran';
+
+  @override
+  String get checkoutRecoveryConnection =>
+      'Koneksi ke server belum berhasil saat memulihkan pembayaran. Bukti transaksi tetap tersimpan; coba lagi saat server dapat dijangkau. Jangan bayar ulang.';
+
+  @override
+  String get checkoutRecoveryUnconfirmed =>
+      'Server belum dapat memastikan hasil pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan membuat pembayaran pengganti.';
+
+  @override
+  String get checkoutRecoveryResponse =>
+      'Respons server belum cocok dengan bukti pembayaran. Hubungi admin dengan referensi pembayaran ini; jangan bayar ulang.';
+
+  @override
   String secretHide(String field) {
     return 'Sembunyikan $field';
   }

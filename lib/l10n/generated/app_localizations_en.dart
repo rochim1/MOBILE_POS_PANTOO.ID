@@ -12468,6 +12468,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Google sign-in is not configured correctly for this app version. Use your email and password for now and contact Pantoo support.';
 
   @override
+  String get checkoutRecoveryReference => 'Payment reference';
+
+  @override
+  String get checkoutRecoveryConnection =>
+      'Could not connect to the server while recovering the payment. The payment record is still saved; try again when the server is reachable. Do not pay again.';
+
+  @override
+  String get checkoutRecoveryUnconfirmed =>
+      'The server could not confirm the payment result. Contact an administrator with this payment reference; do not create a replacement payment.';
+
+  @override
+  String get checkoutRecoveryResponse =>
+      'The server response does not match the payment record. Contact an administrator with this payment reference; do not pay again.';
+
+  @override
   String secretHide(String field) {
     return 'Hide $field';
   }

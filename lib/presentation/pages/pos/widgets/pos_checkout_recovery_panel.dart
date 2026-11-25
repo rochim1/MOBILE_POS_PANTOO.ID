@@ -7,11 +7,13 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
     required this.message,
     required this.busy,
     this.errorMessage = '',
+    this.requestReference = '',
     this.onRecover,
   });
   final String message;
   final bool busy;
   final String errorMessage;
+  final String requestReference;
   final VoidCallback? onRecover;
 
   @override
@@ -34,6 +36,19 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               PosText(message, textAlign: TextAlign.center),
+              if (requestReference.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                PosText(
+                  posLocale(context).checkoutRecoveryReference,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  requestReference,
+                  key: const Key('checkout_recovery_reference'),
+                  textAlign: TextAlign.center,
+                ),
+              ],
               if (errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Semantics(
