@@ -27,7 +27,7 @@ void main() {
     final reads = <String>[];
     final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) {
       reads.add(request.operation.operationName!);
-      return Stream.value(const Response(data: {'GetPOSReceivables': {
+      return Stream.value(const Response(response: {}, data: {'GetPOSReceivables': {
         'items': [], 'totalCount': 0, 'summary': {'outstanding_amount': 0},
       }}));
     }));
@@ -53,6 +53,5 @@ void main() {
     expect(find.byType(FilledButton), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
-    client.dispose();
   });
 }
