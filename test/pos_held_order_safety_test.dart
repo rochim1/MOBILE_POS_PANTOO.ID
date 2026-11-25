@@ -92,7 +92,7 @@ class HeldBloc extends PosBloc {
         status: PosStatus.success,
         cart: cart ? {product: 1} : {},
         selectedCustomer: owner,
-      taxPercent: 11,
+        taxPercent: 11,
         stores: const [store],
         heldOrders: drafts,
         runtimeConfig: const {
@@ -109,41 +109,50 @@ class HeldBloc extends PosBloc {
 Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 30));
 
 void main() {
-  test('hold acknowledges only after persistence and preserves agreed tax in the saved payload', () async {
-    final repo = HeldRepo()..pending = Completer<void>();
-    final bloc = HeldBloc(repo);
-    addTearDown(bloc.close);
-    final completion = Completer<bool>();
-    bloc.add(HoldCurrentOrder('QA', completion: completion));
-    await repo.started.future;
-    expect(completion.isCompleted, isFalse);
-    repo.pending!.complete();
-    expect(await completion.future, isTrue);
-    expect(repo.saved?.toJson()['taxPercent'], 11);
-  });
-  test('failed persistence reports failure without clearing customer or cart and permits retry', () async {
-    final repo = HeldRepo()..rejectSave = true;
-    final bloc = HeldBloc(repo);
-    addTearDown(bloc.close);
-    final failed = Completer<bool>();
-    bloc.add(HoldCurrentOrder('QA', completion: failed));
-    expect(await failed.future, isFalse);
-    expect(bloc.state.cart[product], 1);
-    expect(bloc.state.selectedCustomer?.id, customer.id);
-    repo.rejectSave = false;
-    final retry = Completer<bool>();
-    bloc.add(HoldCurrentOrder('QA retry', completion: retry));
-    expect(await retry.future, isTrue);
-  });
-  test('restore preserves the serialized tax rate instead of a different cart rate', () async {
-    final draft = HoldOrder.fromJson({...held().toJson(), 'taxPercent': 7});
-    final bloc = HeldBloc(HeldRepo(), cart: false, drafts: [draft]);
-    addTearDown(bloc.close);
-    bloc.add(RestoreHeldOrder(draft));
-    await settle();
-    expect(bloc.state.taxPercent, 7);
-    expect(draft.toJson()['taxPercent'], 7);
-  });
+  test(
+    'hold acknowledges only after persistence and preserves agreed tax in the saved payload',
+    () async {
+      final repo = HeldRepo()..pending = Completer<void>();
+      final bloc = HeldBloc(repo);
+      addTearDown(bloc.close);
+      final completion = Completer<bool>();
+      bloc.add(HoldCurrentOrder('QA', completion: completion));
+      await repo.started.future;
+      expect(completion.isCompleted, isFalse);
+      repo.pending!.complete();
+      expect(await completion.future, isTrue);
+      expect(repo.saved?.toJson()['taxPercent'], 11);
+    },
+  );
+  test(
+    'failed persistence reports failure without clearing customer or cart and permits retry',
+    () async {
+      final repo = HeldRepo()..rejectSave = true;
+      final bloc = HeldBloc(repo);
+      addTearDown(bloc.close);
+      final failed = Completer<bool>();
+      bloc.add(HoldCurrentOrder('QA', completion: failed));
+      expect(await failed.future, isFalse);
+      expect(bloc.state.cart[product], 1);
+      expect(bloc.state.selectedCustomer?.id, customer.id);
+      repo.rejectSave = false;
+      final retry = Completer<bool>();
+      bloc.add(HoldCurrentOrder('QA retry', completion: retry));
+      expect(await retry.future, isTrue);
+    },
+  );
+  test(
+    'restore preserves the serialized tax rate instead of a different cart rate',
+    () async {
+      final draft = HoldOrder.fromJson({...held().toJson(), 'taxPercent': 7});
+      final bloc = HeldBloc(HeldRepo(), cart: false, drafts: [draft]);
+      addTearDown(bloc.close);
+      bloc.add(RestoreHeldOrder(draft));
+      await settle();
+      expect(bloc.state.taxPercent, 7);
+      expect(draft.toJson()['taxPercent'], 7);
+    },
+  );
   test(
     'holding an order preserves its customer in storage and clears the next cart customer',
     () async {

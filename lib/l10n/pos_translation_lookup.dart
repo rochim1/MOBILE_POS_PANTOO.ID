@@ -8,6 +8,10 @@ class _PosPattern {
   final String Function(AppLocalizations, List<String>) render;
 }
 final Map<String, _PosValue> _exact = {
+  "Simpan atau kosongkan keranjang saat ini sebelum membuka pesanan tersimpan.": (l) => l.heldCartNotEmpty,
+  "Pesanan tersimpan berasal dari toko lain. Buka toko asal untuk melanjutkan.": (l) => l.heldCartOtherStore,
+  "Pesanan tersimpan belum dapat dibuka. Keranjang tetap aman; coba lagi.": (l) => l.heldCartRestoreFailed,
+  "Proses belum berhasil": (l) => l.cashierActionFailed,
   "Foto tidak valid": (l) => l.personalProfileInvalidPhoto,
   "Isi file foto bukan gambar yang valid": (l) => l.personalProfileInvalidPhotoContent,
   "Lokasi foto tidak valid": (l) => l.personalProfileInvalidPhotoPath,

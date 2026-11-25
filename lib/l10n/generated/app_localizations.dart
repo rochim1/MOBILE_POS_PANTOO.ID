@@ -98,6 +98,60 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @pendingCreditRecorded.
+  ///
+  /// In id, this message translates to:
+  /// **'Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.'**
+  String get pendingCreditRecorded;
+
+  /// No description provided for @creditSaleRecorded.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjualan tempo dicatat'**
+  String get creditSaleRecorded;
+
+  /// No description provided for @creditSalePending.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum lunas. Tagihan tersimpan sebagai piutang pelanggan.'**
+  String get creditSalePending;
+
+  /// No description provided for @heldCartRestoreConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan keranjang saat ini sebelum membuka pesanan tersimpan? Barang dan pelanggan saat ini tidak akan hilang.'**
+  String get heldCartRestoreConfirm;
+
+  /// No description provided for @heldCartSaveAndOpen.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan dan buka'**
+  String get heldCartSaveAndOpen;
+
+  /// No description provided for @heldCartNotEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan atau kosongkan keranjang saat ini sebelum membuka pesanan tersimpan.'**
+  String get heldCartNotEmpty;
+
+  /// No description provided for @heldCartOtherStore.
+  ///
+  /// In id, this message translates to:
+  /// **'Pesanan tersimpan berasal dari toko lain. Buka toko asal untuk melanjutkan.'**
+  String get heldCartOtherStore;
+
+  /// No description provided for @heldCartRestoreFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Pesanan tersimpan belum dapat dibuka. Keranjang tetap aman; coba lagi.'**
+  String get heldCartRestoreFailed;
+
+  /// No description provided for @cashierActionFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Proses belum berhasil'**
+  String get cashierActionFailed;
+
   /// No description provided for @personalProfileInvalidPhoto.
   ///
   /// In id, this message translates to:

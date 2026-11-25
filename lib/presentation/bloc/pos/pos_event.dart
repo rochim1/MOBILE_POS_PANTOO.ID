@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import '../../../domain/models/pos_product.dart';
 import '../../../domain/models/pos_customer.dart';
@@ -114,14 +115,16 @@ class SelectCustomer extends PosEvent {
 
 class HoldCurrentOrder extends PosEvent {
   final String notes;
-  const HoldCurrentOrder(this.notes);
+  final Completer<bool>? completion;
+  const HoldCurrentOrder(this.notes, {this.completion});
   @override
   List<Object> get props => [notes];
 }
 
 class RestoreHeldOrder extends PosEvent {
   final HoldOrder order;
-  const RestoreHeldOrder(this.order);
+  final Completer<bool>? completion;
+  const RestoreHeldOrder(this.order, {this.completion});
   @override
   List<Object> get props => [order];
 }

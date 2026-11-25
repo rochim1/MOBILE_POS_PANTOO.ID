@@ -29,6 +29,8 @@ import 'widgets/pos_shift_sync_error.dart';
 import 'widgets/pos_info_panel.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_held_order_name_dialog.dart';
+import 'widgets/pos_held_order_flow.dart';
+import '../../../domain/models/hold_order.dart';
 
 class PosPage extends StatelessWidget {
   final PosCashierTourTargets? tourTargets;
@@ -70,6 +72,7 @@ class _PosPageViewState extends State<PosPageView> {
   bool _recoveringCheckout = false;
   String _recoveryError = '';
   bool _savingTableOrder = false;
+  bool _heldOrderFlowOpen = false;
   bool _cartHasFocus = false;
   TabController? _cashierTabs;
   final FocusNode _cartFocusNode = FocusNode();
@@ -374,7 +377,7 @@ class _PosPageViewState extends State<PosPageView> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const PosText(
-                      'Pembayaran Gagal',
+                      'Proses belum berhasil',
                       style: TextStyle(
                         color: AppColors.danger,
                         fontWeight: FontWeight.bold,
@@ -1044,66 +1047,84 @@ class _PosPageViewState extends State<PosPageView> {
   }
 
   Future<void> _holdOrder(BuildContext context) async {
-    final bloc = context.read<PosBloc>();
-    if (bloc.state.heldOrders.isNotEmpty) {
-      final createNew = await showModalBottomSheet<bool>(
-        context: context,
-        builder: (sheetContext) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(
-                title: PosText(
-                  'Pesanan tersimpan',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              ...bloc.state.heldOrders.map(
-                (order) => ListTile(
-                  leading: const Icon(Icons.restore),
-                  title: Text(
-                    order.notes.isNotEmpty
-                        ? order.notes
-                        : posLocale(sheetContext).pose27a8b678805(
-                            (order.customer?.name ?? 'tersimpan').toString(),
-                          ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    posLocale(sheetContext).posa6e5135e1c96(
-                      (order.id).toString(),
-                      (order.cart.length).toString(),
+    if (_heldOrderFlowOpen) return;
+    _heldOrderFlowOpen = true;
+    try {
+      final bloc = context.read<PosBloc>();
+      if (bloc.state.heldOrders.isNotEmpty) {
+        final createNew = await showModalBottomSheet<Object>(
+          context: context,
+          builder: (sheetContext) => SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const ListTile(
+                    title: PosText(
+                      'Pesanan tersimpan',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  onTap: () {
-                    bloc.add(RestoreHeldOrder(order));
-                    Navigator.pop(sheetContext, false);
-                  },
-                ),
+                  ...bloc.state.heldOrders.map(
+                    (order) => ListTile(
+                      leading: const Icon(Icons.restore),
+                      title: Text(
+                        order.notes.isNotEmpty
+                            ? order.notes
+                            : posLocale(sheetContext).pose27a8b678805(
+                                (order.customer?.name ?? 'tersimpan')
+                                    .toString(),
+                              ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        posLocale(sheetContext).posa6e5135e1c96(
+                          (order.id).toString(),
+                          (order.cart.length).toString(),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () {
+                        Navigator.pop(sheetContext, order);
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.add_circle_outline),
+                    title: const PosText('Simpan pesanan saat ini'),
+                    onTap: () => Navigator.pop(sheetContext, true),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline),
-                title: const PosText('Simpan pesanan saat ini'),
-                onTap: () => Navigator.pop(sheetContext, true),
-              ),
-            ],
+            ),
           ),
-        ),
+        );
+        if (!context.mounted) return;
+        if (createNew is HoldOrder) {
+          await restorePosHeldCart(context, bloc, createNew);
+          return;
+        }
+        if (createNew != true) return;
+        if (!context.mounted) return;
+      }
+      final notes = await showDialog<String>(
+        context: context,
+        builder: (_) => const PosHeldOrderNameDialog(),
       );
-      if (createNew != true) return;
-      if (!context.mounted) return;
-    }
-    final notes = await showDialog<String>(
-      context: context,
-      builder: (_) => const PosHeldOrderNameDialog(),
-    );
-    if (notes != null && context.mounted) {
-      context.read<PosBloc>().add(HoldCurrentOrder(notes));
-      AppToast.success(context, 'Pesanan disimpan sementara');
+      if (notes != null && context.mounted) {
+        final saved = await runPosHeldCartAction(
+          context,
+          bloc,
+          (completion) => HoldCurrentOrder(notes, completion: completion),
+        );
+        if (saved && context.mounted)
+          AppToast.success(context, 'Pesanan disimpan sementara');
+      }
+    } finally {
+      _heldOrderFlowOpen = false;
     }
   }
 

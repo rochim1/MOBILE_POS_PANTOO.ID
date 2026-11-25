@@ -20,6 +20,7 @@ class HoldOrder {
   final String salesChannel;
   final String customerSegment;
   final String priceLevel;
+  final double? taxPercent;
 
   HoldOrder({
     required this.id,
@@ -39,6 +40,7 @@ class HoldOrder {
     this.salesChannel = 'retail',
     this.customerSegment = 'regular',
     this.priceLevel = 'retail',
+    this.taxPercent,
   });
 
   factory HoldOrder.fromJson(Map<String, dynamic> json) {
@@ -81,6 +83,7 @@ class HoldOrder {
       salesChannel: json['salesChannel']?.toString() ?? 'retail',
       customerSegment: json['customerSegment']?.toString() ?? 'regular',
       priceLevel: json['priceLevel']?.toString() ?? 'retail',
+      taxPercent: (json['taxPercent'] as num?)?.toDouble(),
     );
   }
 
@@ -106,5 +109,6 @@ class HoldOrder {
     'salesChannel': salesChannel,
     'customerSegment': customerSegment,
     'priceLevel': priceLevel,
+    if (taxPercent != null) 'taxPercent': taxPercent,
   };
 }

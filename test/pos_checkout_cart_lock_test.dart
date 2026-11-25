@@ -46,11 +46,11 @@ class Repo extends Fake implements PosRepository {
 }
 
 class Checkout extends PosBloc {
-  Checkout(Repo repo) : super(posRepository: repo) {
+  Checkout(Repo repo, {bool emptyCart = false}) : super(posRepository: repo) {
     emit(
       PosState(
         status: PosStatus.success,
-        cart: {product: 1},
+        cart: emptyCart ? {} : {product: 1},
         stores: [
           PosStore(id: 's', name: 'Store', branchId: 'b', status: 'active'),
         ],
@@ -65,7 +65,7 @@ void main() {
       'payment waits for in-flight ${restore ? "restore" : "hold"} instead of racing its cart mutation',
       () async {
         final repo = Repo();
-        final bloc = Checkout(repo);
+        final bloc = Checkout(repo, emptyCart: restore);
         bloc.add(
           restore
               ? RestoreHeldOrder(

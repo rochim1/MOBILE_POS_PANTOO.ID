@@ -142,7 +142,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     UpsertProductLocally event,
     Emitter<PosState> emit,
   ) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final products = [...state.products];
     final index = products.indexWhere((item) => item.id == event.product.id);
     if (index >= 0) {
@@ -178,7 +178,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RemoveProductLocally event,
     Emitter<PosState> emit,
   ) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     emit(
       state.copyWith(
         products: state.products
@@ -268,7 +268,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   Future<void> _onLoadPosData(LoadPosData event, Emitter<PosState> emit) async {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final request = ++_loadVersion;
     final operatorId = posRepository.activeOperatorId;
     final terminalUserId = posRepository.terminalUserId;
@@ -508,7 +508,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RefreshPosRuntimeConfig event,
     Emitter<PosState> emit,
   ) async {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final runtimeConfig = await posRepository.getRuntimeConfig();
     if (event.preserveCheckout) {
       emit(state.copyWith(runtimeConfig: runtimeConfig));
@@ -531,7 +531,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onAddToCart(AddToCart event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final price = event.unitPrice ?? state.manualUnitPrices[event.product.id];
     if (event.product.isFlexibleService &&
         (price == null ||
@@ -578,7 +578,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onRemoveFromCart(RemoveFromCart event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final newCart = Map.of(state.cart);
     final prices = Map<String, double>.of(state.manualUnitPrices);
     final units = Map<String, String>.of(state.selectedUnits);
@@ -603,7 +603,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onRemoveCartItem(RemoveCartItem event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final newCart = Map.of(state.cart)..remove(event.product);
     final prices = Map<String, double>.of(state.manualUnitPrices)
       ..remove(event.product.id);
@@ -625,7 +625,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     UpdateCartUnitPrice event,
     Emitter<PosState> emit,
   ) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     if ((!event.product.isFlexibleService &&
             state.runtimeConfig['allow_cashier_price_edit'] != true) ||
         !event.price.isFinite ||
@@ -648,7 +648,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onUpdateCartUnit(UpdateCartUnit event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     if (!state.cart.containsKey(event.product)) return;
     final unit = event.unit.trim().toLowerCase();
     if (!event.product.saleUnits.contains(unit)) return;
@@ -678,7 +678,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onUpdateQuantity(UpdateQuantity event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final newCart = Map.of(state.cart);
     final prices = Map<String, double>.of(state.manualUnitPrices);
     final units = Map<String, String>.of(state.selectedUnits);
@@ -717,7 +717,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onClearCart(ClearCart event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     emit(
       state.copyWith(
         cart: const {},
@@ -741,7 +741,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onEditActiveOrder(EditActiveOrder event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final order = event.order;
     final savedOrderType = order.orderType?.trim();
     final productsById = {
@@ -811,8 +811,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     HoldCurrentOrder event,
     Emitter<PosState> emit,
   ) async {
-    if (_paymentInFlight || _cartDraftInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) {
+      event.completion?.complete(false);
+      return;
+    }
     _cartDraftInFlight = true;
+    var saved = false;
     try {
       if (state.cart.isEmpty) return;
       final activeStoreId = state.activeShift?['toko_id']?.toString();
@@ -849,6 +853,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         salesChannel: state.salesChannel,
         customerSegment: state.customerSegment,
         priceLevel: state.priceLevel,
+        taxPercent: state.taxPercent,
       );
 
       final newHeldOrders = List.of(state.heldOrders)..add(holdOrder);
@@ -877,17 +882,22 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           discountPolicy: state.defaultDiscountPolicy,
           orderType: _defaultOrderType(state.runtimeConfig),
           clearSelectedTable: true,
+          clearSelectedCustomer: true,
+          clearEditingOrder: true,
           salesChannel: state.defaultSalesChannel,
           customerSegment: state.defaultCustomerSegment,
           priceLevel: state.defaultPriceLevel,
           taxPercent: state.configuredTaxPercent,
           status: PosStatus.success,
+          errorMessage: '',
           clearPricingPreview: true,
         ),
       );
+      saved = true;
       add(RefreshPricingPreview());
     } finally {
       _cartDraftInFlight = false;
+      event.completion?.complete(saved);
     }
   }
 
@@ -964,9 +974,33 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RestoreHeldOrder event,
     Emitter<PosState> emit,
   ) async {
-    if (_paymentInFlight || _cartDraftInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) {
+      event.completion?.complete(false);
+      return;
+    }
     _cartDraftInFlight = true;
+    var restored = false;
     try {
+      if (state.cart.isNotEmpty) {
+        emit(
+          state.copyWith(
+            status: PosStatus.failure,
+            errorMessage:
+                'Simpan atau kosongkan keranjang saat ini sebelum membuka pesanan tersimpan.',
+          ),
+        );
+        return;
+      }
+      if (state.checkoutStore?.id != event.order.store.id) {
+        emit(
+          state.copyWith(
+            status: PosStatus.failure,
+            errorMessage:
+                'Pesanan tersimpan berasal dari toko lain. Buka toko asal untuk melanjutkan.',
+          ),
+        );
+        return;
+      }
       final newHeldOrders = List.of(state.heldOrders)..remove(event.order);
       await posRepository.deleteHeldOrder(event.order.id);
       if (_paymentInFlight) return;
@@ -986,14 +1020,28 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           customerSegment: event.order.customerSegment,
           priceLevel: event.order.priceLevel,
           selectedCustomer: event.order.customer,
+          clearSelectedCustomer: event.order.customer == null,
+          clearEditingOrder: true,
+          taxPercent: event.order.taxPercent ?? state.configuredTaxPercent,
           heldOrders: newHeldOrders,
           status: PosStatus.success,
+          errorMessage: '',
           clearPricingPreview: true,
         ),
       );
+      restored = true;
       add(RefreshPricingPreview());
+    } catch (_) {
+      emit(
+        state.copyWith(
+          status: PosStatus.failure,
+          errorMessage:
+              'Pesanan tersimpan belum dapat dibuka. Keranjang tetap aman; coba lagi.',
+        ),
+      );
     } finally {
       _cartDraftInFlight = false;
+      event.completion?.complete(restored);
     }
   }
 
@@ -1010,7 +1058,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onUpdateDiscount(UpdateDiscount event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     emit(
       state.copyWith(
         manualDiscountPercent: event.manualDiscountPercent,
@@ -1183,7 +1231,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onUpdateOrderType(UpdateOrderType event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     const supported = {
       'take_away',
       'dine_in',
@@ -1207,7 +1255,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onSelectOrderTable(SelectOrderTable event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final hasTable = event.tableId != null && event.tableId!.trim().isNotEmpty;
     emit(
       state.copyWith(
@@ -1222,7 +1270,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onSelectCustomer(SelectCustomer event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     final customerLevel = event.customer?.priceLevel.trim();
     final level = customerLevel != null && customerLevel.isNotEmpty
         ? customerLevel
@@ -1242,7 +1290,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   void _onUpdateSalesContext(UpdateSalesContext event, Emitter<PosState> emit) {
-    if (_paymentInFlight) return;
+    if (_paymentInFlight || _cartDraftInFlight) return;
     emit(
       state.copyWith(
         salesChannel: event.salesChannel,

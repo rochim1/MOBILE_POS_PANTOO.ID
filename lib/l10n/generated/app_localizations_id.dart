@@ -9,6 +9,39 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get pendingCreditRecorded =>
+      'Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.';
+
+  @override
+  String get creditSaleRecorded => 'Penjualan tempo dicatat';
+
+  @override
+  String get creditSalePending =>
+      'Belum lunas. Tagihan tersimpan sebagai piutang pelanggan.';
+
+  @override
+  String get heldCartRestoreConfirm =>
+      'Simpan keranjang saat ini sebelum membuka pesanan tersimpan? Barang dan pelanggan saat ini tidak akan hilang.';
+
+  @override
+  String get heldCartSaveAndOpen => 'Simpan dan buka';
+
+  @override
+  String get heldCartNotEmpty =>
+      'Simpan atau kosongkan keranjang saat ini sebelum membuka pesanan tersimpan.';
+
+  @override
+  String get heldCartOtherStore =>
+      'Pesanan tersimpan berasal dari toko lain. Buka toko asal untuk melanjutkan.';
+
+  @override
+  String get heldCartRestoreFailed =>
+      'Pesanan tersimpan belum dapat dibuka. Keranjang tetap aman; coba lagi.';
+
+  @override
+  String get cashierActionFailed => 'Proses belum berhasil';
+
+  @override
   String get personalProfileInvalidPhoto => 'Foto tidak valid';
 
   @override

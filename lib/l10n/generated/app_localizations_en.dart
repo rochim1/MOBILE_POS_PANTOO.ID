@@ -9,6 +9,39 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get pendingCreditRecorded =>
+      'Order recorded as a receivable. Continue collecting payment from Customer Receivables.';
+
+  @override
+  String get creditSaleRecorded => 'Credit sale recorded';
+
+  @override
+  String get creditSalePending =>
+      'Not paid in full. The balance is saved as a customer receivable.';
+
+  @override
+  String get heldCartRestoreConfirm =>
+      'Save the current cart before opening the saved order? Its items and customer will be kept.';
+
+  @override
+  String get heldCartSaveAndOpen => 'Save and open';
+
+  @override
+  String get heldCartNotEmpty =>
+      'Save or clear the current cart before opening a saved order.';
+
+  @override
+  String get heldCartOtherStore =>
+      'This saved order belongs to another store. Open its original store to continue.';
+
+  @override
+  String get heldCartRestoreFailed =>
+      'Unable to open the saved order. Your cart is safe; try again.';
+
+  @override
+  String get cashierActionFailed => 'Action could not be completed';
+
+  @override
   String get personalProfileInvalidPhoto => 'Invalid photo';
 
   @override
