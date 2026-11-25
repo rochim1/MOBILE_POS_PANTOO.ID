@@ -113,59 +113,69 @@ class _PosPageViewState extends State<PosPageView> {
 
   Future<void> _recoverCheckout(Map<String, dynamic> record) async {
     if (_recoveringCheckout) return;
-    final bloc = context.read<PosBloc>();
-    final originalState = bloc.state;
-    final originalCart = originalState.cart;
-    final input = record['input'] as Map;
-    final snapshot = record['receipt'] as Map;
-    final savedItems = (snapshot['receipt_items'] as List).cast<Map>();
-    final matches =
-        originalCart.length == savedItems.length &&
-        originalCart.entries.every(
-          (entry) => savedItems.any(
-            (item) =>
-                item['inventaris_id'] == entry.key.id &&
-                item['qty'] == entry.value &&
-                item['unit'] == bloc.state.unitFor(entry.key) &&
-                item['harga_jual'] == bloc.state.unitPriceFor(entry.key),
-          ),
-        ) &&
-        snapshot['total'] == originalState.grandTotal &&
-        snapshot['manual_discount'] == originalState.manualDiscount &&
-        snapshot['tax'] == originalState.taxAmount &&
-        input['toko_id'] == originalState.checkoutStore?.id &&
-        (input['pelanggan_id'] ?? '') ==
-            (originalState.selectedCustomer?.id ?? '') &&
-        input['tipe_pesanan'] == originalState.orderType &&
-        (input['meja_id'] ?? '') == (originalState.selectedTableId ?? '') &&
-        input['channel_penjualan'] == originalState.salesChannel &&
-        input['price_level'] == originalState.priceLevel &&
-        input['customer_segment'] == originalState.customerSegment;
     setState(() {
       _recoveringCheckout = true;
       _recoveryError = '';
     });
-    final result = await bloc.posRepository.recoverPendingCheckout();
-    if (!mounted) return;
-    setState(() => _recoveringCheckout = false);
-    result.fold((failure) => setState(() => _recoveryError = failure.message), (
-      transaction,
-    ) {
-      // Recovery is not permission to discard a different draft/cart.
-      if (matches && bloc.state == originalState) {
-        bloc.add(ClearCart());
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PosSuccessPage(
-            transaction: transaction,
-            autoPrint: false,
-            onDone: () => bloc.add(RefreshProducts()),
-          ),
-        ),
+    try {
+      final bloc = context.read<PosBloc>();
+      final originalState = bloc.state;
+      final originalCart = originalState.cart;
+      final input = record['input'] as Map;
+      final snapshot = record['receipt'] as Map;
+      final savedItems = (snapshot['receipt_items'] as List).cast<Map>();
+      final matches =
+          originalCart.length == savedItems.length &&
+          originalCart.entries.every(
+            (entry) => savedItems.any(
+              (item) =>
+                  item['inventaris_id'] == entry.key.id &&
+                  item['qty'] == entry.value &&
+                  item['unit'] == bloc.state.unitFor(entry.key) &&
+                  item['harga_jual'] == bloc.state.unitPriceFor(entry.key),
+            ),
+          ) &&
+          snapshot['total'] == originalState.grandTotal &&
+          snapshot['manual_discount'] == originalState.manualDiscount &&
+          snapshot['tax'] == originalState.taxAmount &&
+          input['toko_id'] == originalState.checkoutStore?.id &&
+          (input['pelanggan_id'] ?? '') ==
+              (originalState.selectedCustomer?.id ?? '') &&
+          input['tipe_pesanan'] == originalState.orderType &&
+          (input['meja_id'] ?? '') == (originalState.selectedTableId ?? '') &&
+          input['channel_penjualan'] == originalState.salesChannel &&
+          input['price_level'] == originalState.priceLevel &&
+          input['customer_segment'] == originalState.customerSegment;
+      final result = await bloc.posRepository.recoverPendingCheckout();
+      if (!mounted) return;
+      result.fold(
+        (failure) => setState(() => _recoveryError = failure.message),
+        (transaction) {
+          // Recovery is not permission to discard a different draft/cart.
+          if (matches && bloc.state == originalState) {
+            bloc.add(ClearCart());
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PosSuccessPage(
+                transaction: transaction,
+                autoPrint: false,
+                onDone: () => bloc.add(RefreshProducts()),
+              ),
+            ),
+          );
+        },
       );
-    });
+    } catch (_) {
+      // A local/transport exception must not strand the recovery fence behind
+      // an unresponsive button. Never clear the proof or submit a new payment.
+      if (mounted) {
+        setState(() => _recoveryError = 'Terjadi kesalahan tidak terduga');
+      }
+    } finally {
+      if (mounted) setState(() => _recoveringCheckout = false);
+    }
   }
 
   void _focusProductSearch() {
@@ -419,9 +429,8 @@ class _PosPageViewState extends State<PosPageView> {
                       return PosCheckoutRecoveryPanel(
                         message:
                             invalidCheckout ??
-                            (_recoveryError.isNotEmpty
-                                ? _recoveryError
-                                : 'Hasil pembayaran sebelumnya belum terkonfirmasi. Jangan terima pembayaran kedua. Sambungkan internet lalu pulihkan transaksi yang sama; stok dan kas tidak dicatat dua kali.'),
+                            'Hasil pembayaran sebelumnya belum terkonfirmasi. Jangan terima pembayaran kedua. Sambungkan internet lalu pulihkan transaksi yang sama; stok dan kas tidak dicatat dua kali.',
+                        errorMessage: _recoveryError,
                         busy: _recoveringCheckout || state.paymentInProgress,
                         onRecover: pendingCheckout == null
                             ? null

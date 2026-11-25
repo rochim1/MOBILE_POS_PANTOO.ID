@@ -6,10 +6,12 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
     super.key,
     required this.message,
     required this.busy,
+    this.errorMessage = '',
     this.onRecover,
   });
   final String message;
   final bool busy;
+  final String errorMessage;
   final VoidCallback? onRecover;
 
   @override
@@ -32,6 +34,41 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               PosText(message, textAlign: TextAlign.center),
+              if (errorMessage.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Semantics(
+                  liveRegion: true,
+                  child: Container(
+                    key: const Key('checkout_recovery_error'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: PosText(
+                            errorMessage,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               FilledButton.icon(
                 key: const Key('recover_checkout'),

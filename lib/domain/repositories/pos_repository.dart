@@ -2845,6 +2845,7 @@ class PosRepository {
     if (supportsOfflineDatabase) {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
+        if (recovery) return const Left(NetworkFailure());
         if (!replay && !_isOfflinePaymentAllowed(method, payments)) {
           await store.acknowledge(requestId);
           return const Left(
@@ -2943,12 +2944,13 @@ class PosRepository {
           'NOT_FOUND',
           'CONFLICT',
         };
-        if (!replay &&
-            errors.isNotEmpty &&
+        if (errors.isNotEmpty &&
             errors.every(
               (e) => rejectedCodes.contains(e.extensions?['code']),
             )) {
-          await store.acknowledge(requestId);
+          // Explain why a replay was denied, but its old commit is still
+          // uncertain: only a definitely rejected first request releases proof.
+          if (!replay) await store.acknowledge(requestId);
           return Left(AppErrorHandler.handle(result.exception!));
         }
       }

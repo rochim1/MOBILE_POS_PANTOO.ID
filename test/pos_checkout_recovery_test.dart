@@ -295,36 +295,64 @@ void main() {
     },
   );
 
-  test('offline recovery explains the connection problem and keeps the same proof', () async {
-    var writes = 0;
-    final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
-      writes++;
-      throw ServerException(originalException: Exception('lost ACK'));
-    }));
-    final repo = PosRepository(Provider(client), prefs);
-    await pay(repo);
-    final original = repo.pendingCheckout!;
-    network = 'none';
-    final result = await repo.recoverPendingCheckout();
-    expect(result.fold((failure) => failure.message, (_) => ''), contains('koneksi internet'));
-    expect(repo.pendingCheckout, original);
-    expect(writes, 1);
-  });
+  test(
+    'offline recovery explains the connection problem and keeps the same proof',
+    () async {
+      var writes = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          writes++;
+          throw ServerException(originalException: Exception('lost ACK'));
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      await pay(repo);
+      final original = repo.pendingCheckout!;
+      network = 'none';
+      final result = await repo.recoverPendingCheckout();
+      expect(
+        result.fold((failure) => failure.message, (_) => ''),
+        contains('koneksi internet'),
+      );
+      expect(repo.pendingCheckout, original);
+      expect(writes, 1);
+    },
+  );
 
-  test('recovery shows server denial without discarding uncertain original payment', () async {
-    var writes = 0;
-    final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
-      if (++writes == 1) throw ServerException(originalException: Exception('lost ACK'));
-      yield Response(data: const {'__typename': 'Mutation'}, errors: [GraphQLError(message: 'QA operator permission revoked', extensions: const {'code': 'FORBIDDEN'})], response: {});
-    }));
-    final repo = PosRepository(Provider(client), prefs);
-    await pay(repo);
-    final original = repo.pendingCheckout!;
-    final result = await repo.recoverPendingCheckout();
-    expect(result.fold((failure) => failure.message, (_) => ''), 'QA operator permission revoked');
-    expect(repo.pendingCheckout, original);
-    expect(writes, 2);
-  });
+  test(
+    'recovery shows server denial without discarding uncertain original payment',
+    () async {
+      var writes = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          if (++writes == 1)
+            throw ServerException(originalException: Exception('lost ACK'));
+          yield Response(
+            data: const {'__typename': 'Mutation'},
+            errors: [
+              GraphQLError(
+                message: 'QA operator permission revoked',
+                extensions: const {'code': 'FORBIDDEN'},
+              ),
+            ],
+            response: {},
+          );
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      await pay(repo);
+      final original = repo.pendingCheckout!;
+      final result = await repo.recoverPendingCheckout();
+      expect(
+        result.fold((failure) => failure.message, (_) => ''),
+        'QA operator permission revoked',
+      );
+      expect(repo.pendingCheckout, original);
+      expect(writes, 2);
+    },
+  );
 
   for (final startsOffline in [true, false]) {
     test(
