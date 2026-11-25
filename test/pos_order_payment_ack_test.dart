@@ -48,8 +48,9 @@ void main() {
         if (scenario == 'empty') data.clear();
         if (scenario == 'wrong-order') data['_id'] = 'other';
         if (scenario == 'no-sale-proof') data['pos_transaction_invoice'] = null;
-        if (scenario == 'unpaid-cash')
+        if (scenario == 'unpaid-cash') {
           data['status_pembayaran'] = 'belum_bayar';
+        }
         if (scenario.startsWith('credit')) {
           data['metode_pembayaran'] = 'tempo';
           data['status_pembayaran'] = scenario == 'credit'
@@ -63,8 +64,9 @@ void main() {
           ),
           link: Link.function((request, [forward]) async* {
             calls++;
-            if (scenario == 'identity-changed')
+            if (scenario == 'identity-changed') {
               await prefs.setString('instansi_id', 'other-tenant');
+            }
             yield Response(data: {'PayPOSOrder': data}, response: {});
           }),
         );

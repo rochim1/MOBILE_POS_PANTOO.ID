@@ -1,5 +1,7 @@
 # Tombol Pulihkan Pembayaran Android — 25 November 2026
 
+Follow-up setelah keluhan berulang: [audit tambahan dan hasil akhir](POS_TRANSACTION_FOLLOWUP_AUDIT_20261125.md) mencatat penolakan HTTP terbungkus, pesan/ref pembayaran, validasi sebelum proof baru ditulis, probe awal yang dibatasi, pemeriksaan operator offline dan bukti pembayaran pesanan. Final seluruh Flutter1227PASS, web403PASS, server34PASS lokal; bukan konfirmasi transaksi lama HP sudah dipulihkan. Riwayat hasil/build di bawah dipertahankan, tidak dianggap status deployment terkini.
+
 ## Laporan dan kriteria
 
 Pengguna melaporkan layar kasir **Periksa pembayaran sebelumnya**, lalu tombol **Pulihkan pembayaran** terasa tidak merespons; platform dikonfirmasi Android. Log error perangkat pada upaya tersebut belum tersedia. Audit menemukan/reproduksi cacat penanganan error yang menjelaskan beberapa bentuk gejala tersebut, bukan mengklaim telah mengetahui error server spesifik pada HP pengguna.
