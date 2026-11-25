@@ -56,6 +56,7 @@ void main() {
         }
         ..recovery = Completer();
       final display = _FakeDisplayService();
+      final recoveryBusy = <bool>[];
       final bloc = PosBloc(posRepository: repository);
       sl.registerSingleton<PosCustomerDisplayService>(display);
       sl.registerSingleton<PosReceiptRepository>(_FakeReceiptRepository());
@@ -67,7 +68,7 @@ void main() {
       await tester.pumpWidget(
         BlocProvider<PosBloc>.value(
           value: bloc,
-          child: const MaterialApp(home: PosPage()),
+          child: MaterialApp(home: PosPage(onCheckoutRecoveryBusyChanged: recoveryBusy.add)),
         ),
       );
       await tester.pumpAndSettle();
@@ -83,11 +84,13 @@ void main() {
         isNull,
       );
       expect(repository.recoveries, 1);
+      expect(recoveryBusy, [true]);
       repository.recovery!.complete(
         const Left(NetworkFailure('QA masih offline')),
       );
       await tester.pumpAndSettle();
       expect(find.text('QA masih offline'), findsOneWidget);
+      expect(recoveryBusy, [true, false]);
       expect(
         tester
             .widget<FilledButton>(find.byKey(const Key('recover_checkout')))
