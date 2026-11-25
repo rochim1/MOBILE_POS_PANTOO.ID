@@ -47,6 +47,8 @@ import 'widgets/pos_shift_opening_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
 import 'utils/pos_order_workspace_policy.dart';
+import 'utils/pos_navigation_history.dart';
+import 'widgets/pos_back_navigation.dart';
 import '../login/login_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
@@ -77,7 +79,9 @@ class PosShellPage extends StatefulWidget {
 
 class _PosShellPageState extends State<PosShellPage>
     with WidgetsBindingObserver {
-  int _selectedIndex = 1;
+  final _navigation = PosNavigationHistory();
+  int get _selectedIndex => _navigation.current;
+  set _selectedIndex(int index) => _navigation.visit(index);
   // Asal halaman sekunder untuk tombol kembali di mobile.
   int _secondaryOriginIndex = 1;
   int _tableOrdersRefresh = 0;
@@ -442,6 +446,7 @@ class _PosShellPageState extends State<PosShellPage>
           _secondaryOriginIndex = _mobilePrimaryIndex;
           _returnToCashierAfterShiftOpen = _selectedIndex == 11;
         }
+          _navigation.reset(_selectedIndex);
       });
     }
   }
@@ -757,13 +762,33 @@ class _PosShellPageState extends State<PosShellPage>
   }
 
   void _backWithinMobileShell() {
-    final destination = mobilePosBackDestination(
-      _selectedIndex,
-      _secondaryOriginIndex,
-      primaryIndex: _mobilePrimaryIndex,
-    );
-    if (destination == null) return;
-    setState(() => _selectedIndex = destination);
+    if (!mounted || _showUnlockLoading || _posBloc.state.paymentInProgress ||
+        context.read<AppLockCubit>().state.status != AppLockStatus.unlocked) {
+      return;
+    }
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      return;
+    }
+    setState(() {
+      if (_showSetupGuide) {
+        _showSetupGuide = false;
+        return;
+      }
+      _navigation.back(
+        fallback: _mobilePrimaryIndex,
+        isAllowed: _canReturnToDestination,
+      );
+    });
+  }
+
+  bool _canReturnToDestination(int index) {
+    if (index == 4) return true;
+    if (canOpenPosKeyboardDestination(_posBloc.state.runtimeConfig, index)) {
+      return true;
+    }
+    return PosMoreMenuPage.visibleSections(_posBloc.state.runtimeConfig)
+        .values.any((items) => items.contains(index));
   }
 
   Future<int?> _unresolvedQueueForLogout() async {
@@ -1212,18 +1237,8 @@ class _PosShellPageState extends State<PosShellPage>
     final isMobile = width < 900;
     final isSmallScreen = width < 600;
 
-    return PopScope(
-      canPop:
-          !isMobile ||
-          mobilePosBackDestination(
-                _selectedIndex,
-                _secondaryOriginIndex,
-                primaryIndex: _mobilePrimaryIndex,
-              ) ==
-              null,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && isMobile) _backWithinMobileShell();
-      },
+    return PosBackNavigation(
+      onBack: _backWithinMobileShell,
       child: BlocProvider.value(
         value: _posBloc,
         child: Builder(
@@ -1250,6 +1265,7 @@ class _PosShellPageState extends State<PosShellPage>
                 } else {
                   _posDataRequested = false;
                   if (_showUnlockLoading) {
+                  _navigation.reset(_selectedIndex);
                     setState(() => _showUnlockLoading = false);
                   }
                 }
@@ -1281,7 +1297,7 @@ class _PosShellPageState extends State<PosShellPage>
                         // Di mobile navigasi sekunder berada di tab Lainnya.
                         // Tombol sidebar hanya dipertahankan pada layar lebar.
                         leadingWidth: isMobile
-                            ? (_selectedIndex >= 5 ? 44 : 0)
+                            ? (_selectedIndex >= 5 || _navigation.canGoBack ? 44 : 0)
                             : 72,
                         automaticallyImplyLeading: false,
                         iconTheme: IconThemeData(
@@ -1294,7 +1310,7 @@ class _PosShellPageState extends State<PosShellPage>
                         ),
                         titleSpacing: 0,
                         leading: isMobile
-                            ? (_selectedIndex >= 5
+                            ? (_selectedIndex >= 5 || _navigation.canGoBack
                                   ? IconButton(
                                       tooltip: ('Kembali').tr(context),
                                       icon: const Icon(Icons.arrow_back),
