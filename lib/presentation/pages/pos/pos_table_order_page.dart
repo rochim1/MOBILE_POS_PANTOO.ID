@@ -1499,14 +1499,14 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
                   style: Theme.of(sheetContext).textTheme.titleLarge,
                 ),
                 Text(
-                  '${order.customerName ?? 'Pelanggan umum'} · ${order.tableName ?? 'Tanpa meja'}',
+                  '${order.customerName ?? 'Pelanggan umum'.tr(sheetContext)} · ${order.tableName ?? 'Tanpa meja'.tr(sheetContext)}',
                 ),
                 const SizedBox(height: 4),
                 Text(
                   posLocale(sheetContext).pos2885c22e700d(
                     (_orderDate(order.createdAt)).toString(),
                     (_orderTime(order.createdAt)).toString(),
-                    (_duration(order.createdAt)).toString(),
+                    _duration(order.createdAt).tr(sheetContext),
                   ),
                   style: const TextStyle(
                     color: AppColors.textSecondary,
@@ -1959,7 +1959,7 @@ class _ActiveOrderListViewState extends State<_ActiveOrderListView> {
           const SizedBox(height: 3),
           Text(
             posLocale(sheetContext).posd3f7af1f6d12(
-              (_serviceLineStatusLabel(status)).toString(),
+              _serviceLineStatusLabel(status).tr(sheetContext),
               (_currency((line['subtotal'] as num?) ?? 0)).toString(),
             ),
             style: const TextStyle(

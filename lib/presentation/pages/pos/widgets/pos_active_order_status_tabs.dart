@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 
 import '../../../../core/_core.dart';
 
@@ -34,7 +35,9 @@ class PosActiveOrderStatusTabs extends StatelessWidget {
           for (final (status, label) in statuses)
             ChoiceChip(
               key: ValueKey('order-status-${status.isEmpty ? 'all' : status}'),
-              label: Text('${labels[status] ?? label} ${counts[status] ?? 0}'),
+              label: Text(
+                '${labels[status] ?? label.tr(context)} ${counts[status] ?? 0}',
+              ),
               selected: selectedStatus == status,
               onSelected: (_) => onSelected(status),
               materialTapTargetSize: MaterialTapTargetSize.padded,
