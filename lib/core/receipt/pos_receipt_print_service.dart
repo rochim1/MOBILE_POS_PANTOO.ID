@@ -97,6 +97,8 @@ class PosReceiptPrintService {
     required PdfPageFormat format,
     bool useConfiguredPrinter = true,
   }) async {
+    final bluetoothAddress = selectedBluetoothAddress;
+    final printerUrl = selectedPrinterUrl;
     // On Android a receipt must not silently open the generic system dialog:
     // that dialog normally exposes Wi-Fi printers and cannot drive a small
     // Bluetooth ESC/POS printer. The user must explicitly select a device in
@@ -108,7 +110,7 @@ class PosReceiptPrintService {
     }
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
-        selectedBluetoothAddress.isNotEmpty) {
+        bluetoothAddress.isNotEmpty) {
       ui.Codec? codec;
       ui.FrameInfo? frame;
       try {
@@ -120,9 +122,12 @@ class PosReceiptPrintService {
         final png = await raster.toPng();
         codec = await ui.instantiateImageCodec(png);
         frame = await codec.getNextFrame();
+        if (selectedBluetoothAddress != bluetoothAddress) {
+          throw StateError('PRINTER_NOT_CONFIGURED');
+        }
         final paperSize = format.width > 190 ? PaperSize.mm80 : PaperSize.mm58;
         final success = await FlutterBluetoothPrinter.printImageSingle(
-          address: selectedBluetoothAddress,
+          address: bluetoothAddress,
           imageBytes: png,
           imageWidth: frame.image.width,
           imageHeight: frame.image.height,
@@ -141,19 +146,23 @@ class PosReceiptPrintService {
       } finally {
         try {
           await FlutterBluetoothPrinter.disconnect(
-            selectedBluetoothAddress,
+            bluetoothAddress,
           ).timeout(const Duration(seconds: 2));
         } catch (_) {}
         frame?.image.dispose();
         codec?.dispose();
       }
     }
-    if (!kIsWeb && useConfiguredPrinter && selectedPrinterUrl.isNotEmpty) {
+    if (!kIsWeb && useConfiguredPrinter && printerUrl.isNotEmpty) {
       try {
         final printer = (await availablePrinters()).cast<Printer?>().firstWhere(
-          (candidate) => candidate?.url == selectedPrinterUrl,
+          (candidate) => candidate?.url == printerUrl,
           orElse: () => null,
         );
+        if (selectedPrinterUrl != printerUrl ||
+            selectedBluetoothAddress != bluetoothAddress) {
+          throw StateError('PRINTER_NOT_CONFIGURED');
+        }
         if (printer != null) {
           return await Printing.directPrintPdf(
             printer: printer,

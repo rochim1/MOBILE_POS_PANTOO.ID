@@ -61,48 +61,95 @@ void main() {
       'instansi': {'nama_instansi': 'Old', 'logo': '/old.png'},
     },
   };
-  test('PNG with valid header but corrupt pixels cannot break paid receipt PDF', () async {
-    final asset = await rootBundle.load('assets/images/brand_logo.png');
-    final corrupt = Uint8List.fromList(asset.buffer.asUint8List());
-    final marker = latin1.decode(corrupt).indexOf('IDAT');
-    expect(marker, greaterThan(0));
-    corrupt[marker + 4] = 0;
-    final pdf = await http.runWithClient(() => PosReceiptDocumentBuilder.build(
-      data: receiptData, template: const PosReceiptTemplate(showLogo: true),
-      company: {'logo': 'https://fixture.invalid/corrupt-pixels.png'},
-    ), () => MockClient((_) async => http.Response.bytes(corrupt, 200, headers: {'content-type': 'image/png'})));
-    expect(latin1.decode(pdf), startsWith('%PDF'));
-    expect(RegExp(r'/Subtype\s*/Image').hasMatch(latin1.decode(pdf)), false);
-  });
-  testWidgets('PDF Bluetooth render cannot follow a changed printer target', (tester) async {
+  test(
+    'PNG with valid header but corrupt pixels cannot break paid receipt PDF',
+    () async {
+      final asset = await rootBundle.load('assets/images/brand_logo.png');
+      final corrupt = Uint8List.fromList(asset.buffer.asUint8List());
+      final marker = latin1.decode(corrupt).indexOf('IDAT');
+      expect(marker, greaterThan(0));
+      corrupt[marker + 4] = 0;
+      final pdf = await http.runWithClient(
+        () => PosReceiptDocumentBuilder.build(
+          data: receiptData,
+          template: const PosReceiptTemplate(showLogo: true),
+          company: {'logo': 'https://fixture.invalid/corrupt-pixels.png'},
+        ),
+        () => MockClient(
+          (_) async => http.Response.bytes(
+            corrupt,
+            200,
+            headers: {'content-type': 'image/png'},
+          ),
+        ),
+      );
+      expect(latin1.decode(pdf), startsWith('%PDF'));
+      expect(RegExp(r'/Subtype\s*/Image').hasMatch(latin1.decode(pdf)), false);
+    },
+  );
+  testWidgets('PDF Bluetooth render cannot follow a changed printer target', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     MethodChannelBluetoothPrinter.registerWith();
     const bluetooth = MethodChannel('maseka.dev/flutter_bluetooth_printer');
     const printing = MethodChannel('net.nfet.printing');
-    final writes = <String>[]; final disconnects = <String>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(bluetooth, (call) async {
-      if (call.method == 'write') writes.add((call.arguments as Map)['address'] as String);
-      if (call.method == 'disconnect') disconnects.add((call.arguments as Map)['address'] as String);
+    final writes = <String>[];
+    final disconnects = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(bluetooth, (
+      call,
+    ) async {
+      if (call.method == 'write')
+        writes.add((call.arguments as Map)['address'] as String);
+      if (call.method == 'disconnect')
+        disconnects.add((call.arguments as Map)['address'] as String);
       return true;
     });
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(printing, (call) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(printing, (
+      call,
+    ) async {
       if (call.method == 'rasterPdf') {
         await prefs.setString('pos.receipt_bluetooth_address', 'other-printer');
         final job = (call.arguments as Map)['job'];
-        for (final message in [MethodCall('onPageRasterized', {'job': job, 'width': 1, 'height': 1, 'image': Uint8List.fromList([0, 0, 0, 255])}), MethodCall('onPageRasterEnd', {'job': job})]) {
-          ServicesBinding.instance.channelBuffers.push('net.nfet.printing', const StandardMethodCodec().encodeMethodCall(message), (_) {});
+        for (final message in [
+          MethodCall('onPageRasterized', {
+            'job': job,
+            'width': 1,
+            'height': 1,
+            'image': Uint8List.fromList([0, 0, 0, 255]),
+          }),
+          MethodCall('onPageRasterEnd', {'job': job}),
+        ]) {
+          ServicesBinding.instance.channelBuffers.push(
+            'net.nfet.printing',
+            const StandardMethodCodec().encodeMethodCall(message),
+            (_) {},
+          );
         }
       }
       return null;
     });
     addTearDown(() {
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(bluetooth, null);
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(printing, null);
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        bluetooth,
+        null,
+      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        printing,
+        null,
+      );
     });
-    await tester.runAsync(() => expectLater(PosReceiptPrintService(prefs).printPdf(
-      bytes: Uint8List.fromList([1]), name: 'fixture', format: PdfPageFormat.roll57,
-    ), throwsA(isA<StateError>())));
+    await tester.runAsync(
+      () => expectLater(
+        PosReceiptPrintService(prefs).printPdf(
+          bytes: Uint8List.fromList([1]),
+          name: 'fixture',
+          format: PdfPageFormat.roll57,
+        ),
+        throwsA(isA<StateError>()),
+      ),
+    );
     expect(writes, isEmpty);
     expect(disconnects, ['fixture-printer']);
     debugDefaultTargetPlatformOverride = null;

@@ -1,5 +1,6 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -489,6 +490,8 @@ class PosReceiptDocumentBuilder {
   }
 
   static Future<Uint8List?> _downloadLogo(String url) async {
+    ui.Codec? codec;
+    ui.Image? decoded;
     try {
       final response = await http
           .get(Uri.parse(url))
@@ -507,10 +510,21 @@ class PosReceiptDocumentBuilder {
       final width = image.width ?? 0;
       final height = image.height ?? 0;
       if (width <= 0 || height <= 0 || width * height > 16000000) return null;
+      // Header dimensions alone do not validate the compressed image pixels.
+      // A tiny decode catches broken uploads before the PDF renderer runs.
+      codec = await ui.instantiateImageCodec(
+        response.bodyBytes,
+        targetWidth: 1,
+        targetHeight: 1,
+      );
+      decoded = (await codec.getNextFrame()).image;
       return response.bodyBytes;
     } catch (_) {
       // Kegagalan logo tidak boleh menggagalkan pencetakan transaksi.
       return null;
+    } finally {
+      decoded?.dispose();
+      codec?.dispose();
     }
   }
 
