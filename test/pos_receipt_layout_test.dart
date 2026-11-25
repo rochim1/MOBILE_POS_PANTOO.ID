@@ -136,6 +136,69 @@ void main() {
     expect(small.marginLeft, greaterThanOrEqualTo(3 * PdfPageFormat.mm));
     expect(large.availableWidth, greaterThan(small.availableWidth));
   });
+  test(
+    'optional receipt fields and fractional quantity retain amounts',
+    () async {
+      const data = PosReceiptDocumentData(
+        invoice: 'INV-OPTIONAL',
+        dateLabel: '26/11/2026',
+        cashierName: 'Rochim',
+        customerName: 'Budi',
+        storeName: 'Toko Bandung',
+        paymentMethod: 'tunai',
+        salesChannel: 'Retail',
+        customerSegment: 'Member',
+        orderType: 'delivery',
+        promoCode: 'PROMO-01',
+        subtotal: 20000,
+        discount: 1000,
+        promoDiscount: 500,
+        tax: 1000,
+        total: 19500,
+        cashReceived: 20000,
+        change: 500,
+        note: 'Titip barang',
+        items: [
+          {
+            'name': 'Barang pecahan',
+            'qty': 1.25,
+            'harga_jual': 16000,
+            'subtotal': 20000,
+          },
+        ],
+      );
+      final template = receiptTemplate.copyWith(
+        showPelanggan: true,
+        showPromo: true,
+        showChannel: true,
+        showSegment: true,
+      );
+      final text = PosReceiptDocumentBuilder.buildThermalText(
+        data: data,
+        template: template,
+        company: receiptCompany,
+      );
+      for (final token in [
+        'Budi',
+        'PROMO-01',
+        'Retail',
+        'Member',
+        '1.25 x Rp 16.000',
+        'Rp 19.500',
+        'Titip barang',
+      ]) {
+        expect(text, contains(token));
+      }
+      expect(
+        (await PosReceiptDocumentBuilder.build(
+          data: data,
+          template: template,
+          company: receiptCompany,
+        )).length,
+        greaterThan(500),
+      );
+    },
+  );
   test('thermal money columns fit a 32-character 58mm printer', () {
     const data = PosReceiptDocumentData(
       invoice: 'INV-1',

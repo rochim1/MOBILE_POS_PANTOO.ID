@@ -317,8 +317,9 @@ class PosReceiptDocumentBuilder {
       add(_resolve(value, company, cashierName: data.cashierName));
     }
     lines.add('------------------------------');
-    if (template.showInvoice != false)
+    if (template.showInvoice != false) {
       add(posCurrentLocale().posded34ba7cec1((data.invoice).toString()));
+    }
     if (template.showTanggal != false && data.dateLabel.isNotEmpty) {
       add(posCurrentLocale().pos54ec6781af4f((data.dateLabel).toString()));
     }
@@ -390,8 +391,9 @@ class PosReceiptDocumentBuilder {
     if (data.change > 0) {
       amountRow('Kembalian'.trCurrent(), currency.format(data.change));
     }
-    if (data.note.trim().isNotEmpty)
+    if (data.note.trim().isNotEmpty) {
       add(posCurrentLocale().posb0bf84cc5839((data.note).toString()));
+    }
     // Internal marker consumed by the ESC/POS writer; it is never sent to
     // the printer and keeps the footer centered like the visual template.
     lines.add('[[PANTOO_CENTER_FOOTER]]');
