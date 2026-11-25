@@ -46,9 +46,9 @@ import 'widgets/pos_first_sale_guide.dart';
 import 'widgets/pos_shift_opening_tour.dart';
 import 'utils/pos_keyboard_navigation_policy.dart';
 import 'utils/pos_mobile_navigation_policy.dart';
-import 'utils/pos_order_workspace_policy.dart';
 import 'utils/pos_navigation_history.dart';
 import 'widgets/pos_back_navigation.dart';
+import 'utils/pos_order_workspace_policy.dart';
 import '../login/login_page.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
@@ -96,6 +96,7 @@ class _PosShellPageState extends State<PosShellPage>
   bool get _useOrderTableGridView => _orderTableGridView ?? true;
   bool _posDataRequested = false;
   bool _showUnlockLoading = false;
+  bool _checkoutRecoveryBusy = false;
   bool _returnToCashierAfterShiftOpen = false;
   late bool _showSetupGuide;
   bool _setupCompleted = false;
@@ -445,8 +446,8 @@ class _PosShellPageState extends State<PosShellPage>
           }
           _secondaryOriginIndex = _mobilePrimaryIndex;
           _returnToCashierAfterShiftOpen = _selectedIndex == 11;
-        }
           _navigation.reset(_selectedIndex);
+        }
       });
     }
   }
@@ -597,8 +598,9 @@ class _PosShellPageState extends State<PosShellPage>
 
   List<Widget> get _pages => [
     // Keep legacy page indices stable for setup links and secondary destinations.
-    const PosPage(),
+    PosPage(onCheckoutRecoveryBusyChanged: _setCheckoutRecoveryBusy),
     PosPage(
+      onCheckoutRecoveryBusyChanged: _setCheckoutRecoveryBusy,
       tourTargets: _cashierTourTargets,
       onManageProducts: () => _navigateSetupTarget(2),
       onOpenTableOrders: () => setState(() {
@@ -762,7 +764,8 @@ class _PosShellPageState extends State<PosShellPage>
   }
 
   void _backWithinMobileShell() {
-    if (!mounted || _showUnlockLoading || _posBloc.state.paymentInProgress ||
+    if (!mounted || _showUnlockLoading || _checkoutRecoveryBusy ||
+        _posBloc.state.paymentInProgress ||
         context.read<AppLockCubit>().state.status != AppLockStatus.unlocked) {
       return;
     }
@@ -781,6 +784,8 @@ class _PosShellPageState extends State<PosShellPage>
       );
     });
   }
+
+  void _setCheckoutRecoveryBusy(bool busy) => _checkoutRecoveryBusy = busy;
 
   bool _canReturnToDestination(int index) {
     if (index == 4) return true;
@@ -1264,8 +1269,8 @@ class _PosShellPageState extends State<PosShellPage>
                   _loadNavbarNotifications();
                 } else {
                   _posDataRequested = false;
-                  if (_showUnlockLoading) {
                   _navigation.reset(_selectedIndex);
+                  if (_showUnlockLoading) {
                     setState(() => _showUnlockLoading = false);
                   }
                 }

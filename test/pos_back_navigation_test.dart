@@ -35,6 +35,17 @@ void main() {
       expect(history.back(fallback: 4), 4);
     },
   );
+  test('history stays bounded after a long session', () {
+    final history = PosNavigationHistory();
+    for (var i = 2; i <= 120; i++) {
+      history.visit(i);
+    }
+    for (var i = 119; i >= 20; i--) {
+      expect(history.back(fallback: 1), i);
+    }
+    expect(history.canGoBack, false);
+    expect(history.back(fallback: 1), 1);
+  });
   test('back skips revoked permissions and uses safe primary destination', () {
     final history = PosNavigationHistory();
     for (final page in [4, 19, 7, 1]) {

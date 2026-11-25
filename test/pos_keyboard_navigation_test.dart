@@ -68,7 +68,9 @@ void main() {
       await tester.pumpWidget(
         BlocProvider<PosBloc>.value(
           value: bloc,
-          child: MaterialApp(home: PosPage(onCheckoutRecoveryBusyChanged: recoveryBusy.add)),
+          child: MaterialApp(
+            home: PosPage(onCheckoutRecoveryBusyChanged: recoveryBusy.add),
+          ),
         ),
       );
       await tester.pumpAndSettle();

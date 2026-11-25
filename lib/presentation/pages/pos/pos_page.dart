@@ -36,11 +36,13 @@ class PosPage extends StatelessWidget {
   final PosCashierTourTargets? tourTargets;
   final VoidCallback? onOpenTableOrders;
   final VoidCallback? onManageProducts;
+  final ValueChanged<bool>? onCheckoutRecoveryBusyChanged;
   const PosPage({
     super.key,
     this.tourTargets,
     this.onOpenTableOrders,
     this.onManageProducts,
+    this.onCheckoutRecoveryBusyChanged,
   });
 
   @override
@@ -49,6 +51,7 @@ class PosPage extends StatelessWidget {
       tourTargets: tourTargets,
       onOpenTableOrders: onOpenTableOrders,
       onManageProducts: onManageProducts,
+      onCheckoutRecoveryBusyChanged: onCheckoutRecoveryBusyChanged,
     );
   }
 }
@@ -57,11 +60,13 @@ class PosPageView extends StatefulWidget {
   final PosCashierTourTargets? tourTargets;
   final VoidCallback? onOpenTableOrders;
   final VoidCallback? onManageProducts;
+  final ValueChanged<bool>? onCheckoutRecoveryBusyChanged;
   const PosPageView({
     super.key,
     this.tourTargets,
     this.onOpenTableOrders,
     this.onManageProducts,
+    this.onCheckoutRecoveryBusyChanged,
   });
 
   @override
@@ -113,6 +118,7 @@ class _PosPageViewState extends State<PosPageView> {
 
   Future<void> _recoverCheckout(Map<String, dynamic> record) async {
     if (_recoveringCheckout) return;
+    widget.onCheckoutRecoveryBusyChanged?.call(true);
     setState(() {
       _recoveringCheckout = true;
       _recoveryError = '';
@@ -174,6 +180,7 @@ class _PosPageViewState extends State<PosPageView> {
         setState(() => _recoveryError = 'Terjadi kesalahan tidak terduga');
       }
     } finally {
+      widget.onCheckoutRecoveryBusyChanged?.call(false);
       if (mounted) setState(() => _recoveringCheckout = false);
     }
   }
