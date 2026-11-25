@@ -74,6 +74,7 @@ class _AuthRepo extends Fake implements AuthRepository {}
 
 class _Lock extends AppLockCubit {
   void locked() => emit(state.copyWith(status: AppLockStatus.locked));
+  void anotherOperator() => emit(state.copyWith(status: AppLockStatus.unlocked, activeEmployeeId: 'another-operator'));
 }
 
 class _Pos extends PosBloc {
@@ -94,6 +95,7 @@ class _Pos extends PosBloc {
   @override
   void add(PosEvent event) {
     if (event is LoadPosData) {
+      emit(ready.copyWith(status: PosStatus.loading));
       scheduleMicrotask(() {
         if (!isClosed) emit(ready);
       });
@@ -229,6 +231,13 @@ void main() {
       await tester.tap(find.text('Batal'));
       await tester.pumpAndSettle();
       expect(platformCalls, isNot(contains('SystemNavigator.pop')));
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      lock.anotherOperator();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Keluar aplikasi'));
+      await tester.pumpAndSettle();
+      expect(platformCalls, isNot(contains('SystemNavigator.pop')), reason: 'Old operator confirmation must not close the new operator session');
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.tap(find.text('Keluar aplikasi'));

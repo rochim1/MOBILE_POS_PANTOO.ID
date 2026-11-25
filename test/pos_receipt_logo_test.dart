@@ -60,6 +60,70 @@ void main() {
       'instansi': {'nama_instansi': 'Old', 'logo': '/old.png'},
     },
   };
+  test('slow template read cannot undo a confirmed show-logo save', () async {
+    respond(receipt);
+    final receipts = PosReceiptRepository(provider);
+    await receipts.getReceiptPrintData();
+    final release = Completer<void>();
+    provider.client = GraphQLClient(cache: GraphQLCache(partialDataPolicy: PartialDataCachePolicy.accept),
+      link: Link.function((request, [forward]) async* {
+        if (request.variables.containsKey('input')) {
+          yield const Response(data: {'UpdatePOSReceiptTemplate': {'pos_receipt_template': {'show_logo': false, 'font_size': 8}}}, response: {});
+        } else {
+          await release.future;
+          yield const Response(data: receipt, response: {});
+        }
+      }));
+    final pending = receipts.getReceiptPrintData(forceRefresh: true);
+    await Future<void>.delayed(Duration.zero);
+    expect((await receipts.updateReceiptTemplate({'show_logo': false})).isRight(), true);
+    release.complete();
+    await pending;
+    final data = (await receipts.getReceiptPrintData()).getOrElse(() => throw StateError('failed'));
+    expect(data.template.showLogo, false);
+  });
+  test('late response from an old scope visit cannot overwrite a fresh revisit', () async {
+    final release = Completer<void>();
+    provider.client = GraphQLClient(cache: GraphQLCache(partialDataPolicy: PartialDataCachePolicy.accept),
+      link: Link.function((request, [forward]) async* { await release.future; yield const Response(data: receipt, response: {}); }));
+    final receipts = PosReceiptRepository(provider);
+    final pending = receipts.getReceiptPrintData();
+    await Future<void>.delayed(Duration.zero);
+    final originalScope = provider.subscriptionScope;
+    provider.subscriptionScope = 'another-scope'; respond(receipt);
+    await receipts.getReceiptPrintData();
+    provider.subscriptionScope = originalScope;
+    respond({'GetPOSReceiptData': {'template': {'show_logo': false}, 'instansi': {'logo': '/new-scope-visit.png'}}});
+    await receipts.getReceiptPrintData();
+    release.complete(); await pending;
+    final data = (await receipts.getReceiptPrintData()).getOrElse(() => throw StateError('failed'));
+    expect(data.company['logo'], 'https://fixture.invalid/new-scope-visit.png');
+    expect(data.template.showLogo, false);
+  });
+  testWidgets('queued receipt cannot move to another printer and disconnects original target', (tester) async {
+    MethodChannelBluetoothPrinter.registerWith();
+    const channel = MethodChannel('maseka.dev/flutter_bluetooth_printer');
+    final release = Completer<bool>();
+    final writes = <String>[]; final disconnects = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'write') { writes.add((call.arguments as Map)['address'] as String); return release.future; }
+      if (call.method == 'disconnect') { disconnects.add((call.arguments as Map)['address'] as String); }
+      return true;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    await tester.runAsync(() async {
+      final service = PosReceiptPrintService(prefs);
+      final first = service.printText(text: 'first');
+      await Future<void>.delayed(Duration.zero);
+      expect(writes, ['fixture-printer']);
+      final second = service.printText(text: 'second');
+      final rejected = expectLater(second, throwsA(isA<StateError>()));
+      await prefs.setString('pos.receipt_bluetooth_address', 'other-printer');
+      release.complete(true); await first; await rejected;
+    });
+    expect(writes, ['fixture-printer']);
+    expect(disconnects, ['fixture-printer']);
+  });
   test(
     'saved business logo and removal immediately update cached receipt',
     () async {
