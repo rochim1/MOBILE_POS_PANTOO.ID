@@ -102,8 +102,9 @@ class PosReceiptRepository {
 
       if (result.hasException) {
         final cached = _cachedPrintData;
-        if (cached != null && isOfflineReadFailure(result.exception!))
+        if (cached != null && isOfflineReadFailure(result.exception!)) {
           return Right(cached);
+        }
         return Left(AppErrorHandler.handle(result.exception!));
       }
 

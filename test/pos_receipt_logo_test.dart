@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bluetooth_printer/flutter_bluetooth_printer.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,10 @@ import 'package:mobile_pos_pantoo/core/receipt/pos_receipt_print_service.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_receipt_template.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_business_profile_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_receipt_repository.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_transaction_result.dart';
+import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
+import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_success_page.dart';
 import 'pos_receipt_layout_test.dart' show receiptData;
 
 class _Provider extends Fake implements GraphQLClientProvider {
@@ -124,7 +130,7 @@ void main() {
       await receipts.getReceiptPrintData();
       final completer = Completer<void>();
       provider.client = GraphQLClient(
-      cache: GraphQLCache(partialDataPolicy: PartialDataCachePolicy.accept),
+        cache: GraphQLCache(partialDataPolicy: PartialDataCachePolicy.accept),
         link: Link.function((request, [forward]) async* {
           await completer.future;
           yield const Response(data: receipt, response: {});
@@ -139,6 +145,68 @@ void main() {
         () => throw StateError('failed'),
       );
       expect(data.company['logo'], 'https://fixture.invalid/new.png');
+    },
+  );
+  test(
+    'offline refresh uses only same-session receipt, forbidden never does',
+    () async {
+      respond(receipt);
+      final receipts = PosReceiptRepository(provider);
+      await receipts.getReceiptPrintData();
+      provider.client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          throw OperationException(
+            linkException: ServerException(originalException: 'offline'),
+          );
+        }),
+      );
+      expect(
+        (await receipts.getReceiptPrintData(forceRefresh: true)).isRight(),
+        true,
+      );
+      provider.client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          yield const Response(
+            errors: [
+              GraphQLError(
+                message: 'denied',
+                extensions: {'code': 'FORBIDDEN'},
+              ),
+            ],
+            response: {},
+          );
+        }),
+      );
+      expect(
+        (await receipts.getReceiptPrintData(forceRefresh: true)).isLeft(),
+        true,
+      );
+      provider.subscriptionScope = 'another-session';
+      expect((await receipts.getReceiptPrintData()).isLeft(), true);
+    },
+  );
+  test(
+    'receipt template save keeps logo and applies show-logo choice',
+    () async {
+      respond(receipt);
+      final receipts = PosReceiptRepository(provider);
+      await receipts.getReceiptPrintData();
+      respond({
+        'UpdatePOSReceiptTemplate': {
+          'pos_receipt_template': {'show_logo': false},
+        },
+      });
+      expect(
+        (await receipts.updateReceiptTemplate({'show_logo': false})).isRight(),
+        true,
+      );
+      final data = (await receipts.getReceiptPrintData()).getOrElse(
+        () => throw StateError('failed'),
+      );
+      expect(data.company['logo'], 'https://fixture.invalid/old.png');
+      expect(data.template.showLogo, false);
     },
   );
   test(
@@ -165,7 +233,10 @@ void main() {
           ),
           () => client,
         );
-        expect(RegExp(r'/Subtype\s*/Image').hasMatch(latin1.decode(pdf)), enabled);
+        expect(
+          RegExp(r'/Subtype\s*/Image').hasMatch(latin1.decode(pdf)),
+          enabled,
+        );
       }
       expect(requests, 1);
       final pdf = await http.runWithClient(
@@ -186,7 +257,7 @@ void main() {
         'assets/images/brand_logo.png',
       )).buffer.asUint8List();
       final calls = <MethodCall>[];
-    MethodChannelBluetoothPrinter.registerWith();
+      MethodChannelBluetoothPrinter.registerWith();
       const channel = MethodChannel('maseka.dev/flutter_bluetooth_printer');
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
         call,
@@ -221,4 +292,158 @@ void main() {
       expect(latin1.decode(bytes), contains('TOTAL Rp 5.000'));
     },
   );
+  for (final input in [
+    <int>[],
+    [1, 2, 3],
+    List<int>.filled(5 * 1024 * 1024 + 1, 0),
+  ]) {
+    testWidgets(
+      'invalid logo (${input.length} bytes) never blocks thermal text',
+      (tester) async {
+        MethodChannelBluetoothPrinter.registerWith();
+        final writes = <Uint8List>[];
+        const channel = MethodChannel('maseka.dev/flutter_bluetooth_printer');
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          (call) async {
+            if (call.method == 'write') {
+              writes.add((call.arguments as Map)['data'] as Uint8List);
+            }
+            return true;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            null,
+          ),
+        );
+        await tester.runAsync(
+          () => PosReceiptPrintService(
+            prefs,
+          ).printText(text: 'TOTAL 1000', logoBytes: Uint8List.fromList(input)),
+        );
+        expect(writes, hasLength(1));
+        expect(latin1.decode(writes.single), contains('TOTAL 1000'));
+        expect(
+          latin1.decode(writes.single),
+          isNot(contains(latin1.decode([0x1d, 0x76, 0x30, 0]))),
+        );
+      },
+    );
+  }
+  testWidgets('transparent logo prints white rather than a solid black box', (
+    tester,
+  ) async {
+    MethodChannelBluetoothPrinter.registerWith();
+    Uint8List? written;
+    const channel = MethodChannel('maseka.dev/flutter_bluetooth_printer');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      if (call.method == 'write') {
+        written = (call.arguments as Map)['data'] as Uint8List;
+      }
+      return true;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    await tester.runAsync(() async {
+      final recorder = ui.PictureRecorder();
+      ui.Canvas(recorder);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(8, 1);
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      await PosReceiptPrintService(
+        prefs,
+      ).printText(text: 'TOTAL', logoBytes: png!.buffer.asUint8List());
+      image.dispose();
+      picture.dispose();
+    });
+    final marker = latin1
+        .decode(written!)
+        .indexOf(latin1.decode([0x1d, 0x76, 0x30, 0]));
+    expect(marker, greaterThan(0));
+    expect(written![marker + 8], 0);
+  });
+  testWidgets('payment success print button sends configured business logo', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    sl.pushNewScope();
+    addTearDown(sl.popScope);
+    sl.registerSingleton<SharedPreferences>(prefs);
+    respond(receipt);
+    sl.registerSingleton<PosReceiptRepository>(PosReceiptRepository(provider));
+    MethodChannelBluetoothPrinter.registerWith();
+    final writes = <Uint8List>[];
+    const channel = MethodChannel('maseka.dev/flutter_bluetooth_printer');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      if (call.method == 'write') {
+        writes.add((call.arguments as Map)['data'] as Uint8List);
+      }
+      return true;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    final png = (await rootBundle.load(
+      'assets/images/brand_logo.png',
+    )).buffer.asUint8List();
+    final client = MockClient(
+      (_) async =>
+          http.Response.bytes(png, 200, headers: {'content-type': 'image/png'}),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('id'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const PosSuccessPage(
+          transaction: PosTransactionResult(
+            id: 'fixture',
+            invoice: 'INV-LOGO',
+            subtotal: 1000,
+            discount: 0,
+            promoDiscount: 0,
+            tax: 0,
+            total: 1000,
+            cashReceived: 1000,
+            change: 0,
+            paymentMethod: 'cash',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final print = find.text('Cetak Struk');
+    await tester.ensureVisible(print);
+    await tester.runAsync(
+      () => http.runWithClient(() async {
+        await tester.tap(print);
+        for (var i = 0; i < 50 && writes.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      }, () => client),
+    );
+    await tester.pumpAndSettle();
+    expect(writes, hasLength(1));
+    expect(
+      latin1.decode(writes.single),
+      contains(latin1.decode([0x1d, 0x76, 0x30, 0])),
+    );
+    expect(latin1.decode(writes.single), contains('INV-LOGO'));
+    expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
+  });
 }
