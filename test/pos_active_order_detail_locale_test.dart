@@ -26,12 +26,19 @@ class _Storage extends Fake implements FlutterSecureStorage {
   }
 }
 class _Orders extends Fake implements PosOrderRepository {
-  _Orders(this.order);
+  _Orders(this.order, {this.total = 1});
   final PosOrderDetail order;
+  final int total;
+  final pages = <int>[];
+  Completer<Either<Failure, PosActiveOrderPage>>? delayed;
   @override
   Future<(int, int)?> getSlaThresholds() async => (15, 25);
   @override
-  Future<Either<Failure, PosActiveOrderPage>> getActiveOrders({required String storeId, String search = '', String status = '', String fulfillment = '', String dateFrom = '', String dateTo = '', String sort = 'oldest', int page = 0}) async => Right(PosActiveOrderPage([order], 1, const {'Baru': 1}));
+  Future<Either<Failure, PosActiveOrderPage>> getActiveOrders({required String storeId, String search = '', String status = '', String fulfillment = '', String dateFrom = '', String dateTo = '', String sort = 'oldest', int page = 0}) async {
+    pages.add(page);
+    if (delayed != null) return delayed!.future;
+    return Right(PosActiveOrderPage([order], total, const {'Baru': 1}));
+  }
 }
 class _Bloc extends PosBloc {
   _Bloc() : super(posRepository: _Repo()) {
@@ -46,6 +53,62 @@ class _Bloc extends PosBloc {
 }
 
 void main() {
+  for (final width in [360.0, 390.0]) {
+    for (final locale in [const Locale('id'), const Locale('en')]) {
+      testWidgets('active order pager fits ${width.toInt()}dp ${locale.languageCode} and keeps page bounds', (tester) async {
+        tester.view.physicalSize = Size(width, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final previous = AppLanguageController.instance.value;
+        AppLanguageController.instance.value = locale;
+        final orders = _Orders(const PosOrderDetail(id: 'order', orderNumber: 'QA-PAGER', orderType: 'take_away', status: 'Baru'), total: 61);
+        sl.registerSingleton<PosOrderRepository>(orders);
+        sl.registerSingleton<FlutterSecureStorage>(_Storage());
+        sl.registerFactory<PosOrderManagementBloc>(() => PosOrderManagementBloc(repository: orders));
+        final bloc = _Bloc();
+        try {
+          await tester.pumpWidget(BlocProvider<PosBloc>.value(value: bloc, child: MaterialApp(
+            locale: locale, localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales, home: const Scaffold(body: PosTableOrderPage()),
+          )));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(tester.takeException(), isNull);
+          final previousPage = find.byIcon(Icons.chevron_left);
+          final nextPage = find.byIcon(Icons.chevron_right);
+          expect(tester.widget<IconButton>(find.ancestor(of: previousPage, matching: find.byType(IconButton))).onPressed, isNull);
+          final loading = Completer<Either<Failure, PosActiveOrderPage>>();
+          orders.delayed = loading;
+          await tester.tap(nextPage);
+          await tester.pump();
+          await tester.pump();
+          expect(tester.widget<IconButton>(find.ancestor(of: previousPage, matching: find.byType(IconButton))).onPressed, isNull);
+          expect(tester.widget<IconButton>(find.ancestor(of: nextPage, matching: find.byType(IconButton))).onPressed, isNull);
+          loading.complete(Right(PosActiveOrderPage([orders.order], orders.total, const {'Baru': 1})));
+          orders.delayed = null;
+          await tester.pump();
+          await tester.pump();
+          await tester.tap(nextPage);
+          await tester.pump();
+          await tester.pump();
+          expect(orders.pages, [0, 1, 2]);
+          expect(tester.widget<IconButton>(find.ancestor(of: nextPage, matching: find.byType(IconButton))).onPressed, isNull);
+          await tester.tap(previousPage);
+          await tester.pump();
+          await tester.pump();
+          expect(orders.pages, [0, 1, 2, 1]);
+          expect(tester.takeException(), isNull);
+        } finally {
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump();
+          await tester.runAsync(bloc.close);
+          await sl.reset();
+          AppLanguageController.instance.value = previous;
+        }
+      });
+    }
+  }
   for (final locale in [const Locale('en'), const Locale('id')]) {
     testWidgets('order detail translates fallback, elapsed time and service status ${locale.languageCode}', (tester) async {
       tester.view.physicalSize = const Size(430, 844);
@@ -92,3 +155,5 @@ void main() {
     });
   }
 }
+import 'dart:async';
+
