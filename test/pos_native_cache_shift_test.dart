@@ -60,26 +60,59 @@ void main() {
   });
 
   for (final actor in ['cashier', 'other-cashier']) {
-    test('unconfirmed online payment blocks shared drawer close: $actor', () async {
-      final scope = jsonEncode(['https://qa.invalid/graphql', 'tenant', 'cashier', actor]);
-      final key = 'pos_checkout_pending_v1:$scope';
-      final raw = jsonEncode({
-        'input': {'client_transaction_id': 'qa-1234567890123456', 'toko_id': 'shop', 'shift_id': 'shift', 'metode_pembayaran': 'tunai', 'items': [{}]},
-        'receipt': {'receipt_items': [{}], 'subtotal': 1000, 'manual_discount': 0, 'tax': 0, 'total': 1000, 'cash_received': 1000},
-      });
-      await prefs.setString(key, raw);
-      var writes = 0;
-      final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
-        writes++;
-        yield const Response(data: {'ClosePOSKasirShift': {'_id': 'shift'}}, response: {});
-      }));
-      final repo = PosRepository(NativeProvider(client), prefs)..setOperatorSessionToken('offline_operator:cashier');
-      final result = await repo.closeShift('shift', 1000, 'QA');
-      expect(result.isLeft(), true);
-      expect(result.fold((f) => f.message, (_) => ''), contains('pembayaran'));
-      expect(writes, 0);
-      expect(prefs.getString(key), raw);
-    });
+    test(
+      'unconfirmed online payment blocks shared drawer close: $actor',
+      () async {
+        final scope = jsonEncode([
+          'https://qa.invalid/graphql',
+          'tenant',
+          'cashier',
+          actor,
+        ]);
+        final key = 'pos_checkout_pending_v1:$scope';
+        final raw = jsonEncode({
+          'input': {
+            'client_transaction_id': 'qa-1234567890123456',
+            'toko_id': 'shop',
+            'shift_id': 'shift',
+            'metode_pembayaran': 'tunai',
+            'items': [{}],
+          },
+          'receipt': {
+            'receipt_items': [{}],
+            'subtotal': 1000,
+            'manual_discount': 0,
+            'tax': 0,
+            'total': 1000,
+            'cash_received': 1000,
+          },
+        });
+        await prefs.setString(key, raw);
+        var writes = 0;
+        final client = GraphQLClient(
+          cache: GraphQLCache(),
+          link: Link.function((request, [forward]) async* {
+            writes++;
+            yield const Response(
+              data: {
+                'ClosePOSKasirShift': {'_id': 'shift'},
+              },
+              response: {},
+            );
+          }),
+        );
+        final repo = PosRepository(NativeProvider(client), prefs)
+          ..setOperatorSessionToken('offline_operator:cashier');
+        final result = await repo.closeShift('shift', 1000, 'QA');
+        expect(result.isLeft(), true);
+        expect(
+          result.fold((f) => f.message, (_) => ''),
+          contains('pembayaran'),
+        );
+        expect(writes, 0);
+        expect(prefs.getString(key), raw);
+      },
+    );
   }
 
   for (final status in ['pending', 'syncing', 'needs_review', 'rejected']) {

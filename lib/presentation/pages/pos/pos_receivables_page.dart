@@ -40,6 +40,16 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
   String _error = '', _message = '', _method = 'cash', _destination = '';
   bool _loading = true, _sending = false, _settled = false;
   int _page = 1, _total = 0, _generation = 0;
+  String get _sessionIdentity =>
+      '${identityHashCode(_provider.client)}:${_provider.endpointUrl}:${_provider.sharedPreferences.getString('instansi_id')}:${_provider.sharedPreferences.getString('user_id')}:${widget.operatorId}';
+  void _assertSession(String session) {
+    if (session != _sessionIdentity) {
+      throw StateError(
+        'Sesi kasir berubah. Periksa penerimaan dengan akun asal; jangan menerima uang dua kali.',
+      );
+    }
+  }
+
   String _errorMessage(Object error) => error is StateError
       ? error.message.toString()
       : error is TimeoutException
@@ -73,6 +83,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
     String query,
     Map<String, dynamic> variables,
   ) async {
+    final session = _sessionIdentity;
     final result = await _provider.client
         .query(
           QueryOptions(
@@ -82,6 +93,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
           ),
         )
         .timeout(const Duration(seconds: 20));
+    _assertSession(session);
     if (result.hasException) {
       throw StateError(AppErrorHandler.handle(result.exception!).message);
     }
@@ -173,6 +185,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
   Future<void> _collect() async {
     if (_sending || !widget.canCollect || _invoice == null) return;
     final id = _invoice!['_id'].toString();
+    final session = _sessionIdentity;
     final value = num.tryParse(_amount.text.trim());
     if (_pending == null &&
         (value == null ||
@@ -205,6 +218,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
           'bank_account_id': _destination,
         'reference': _reference.text.trim(),
       });
+      _assertSession(session);
       if (mounted) setState(() => _pending = payload);
       final result = await _provider.client
           .mutate(
@@ -214,6 +228,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
             ),
           )
           .timeout(const Duration(seconds: 25));
+      _assertSession(session);
       final errors = [
         ...?result.exception?.graphqlErrors,
         if (result.exception?.linkException is ServerException)
@@ -227,8 +242,8 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
         await _requests.acknowledge(id);
         if (mounted) setState(() => _pending = null);
       }
-      if (result.hasException ||
-          result.data?['RecordPOSReceivablePayment'] == null) {
+      final canonical = result.data?['RecordPOSReceivablePayment'];
+      if (result.hasException || canonical is! Map || canonical['_id'] != id) {
         throw StateError(
           result.exception?.graphqlErrors
                       .map((e) => e.message)
@@ -242,9 +257,7 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
       await _requests.acknowledge(id);
       if (!mounted) return;
       setState(() {
-        _invoice = Map<String, dynamic>.from(
-          result.data!['RecordPOSReceivablePayment'] as Map,
-        );
+        _invoice = Map<String, dynamic>.from(canonical);
         _pending = null;
         _message = 'Penerimaan tercatat di Finance. Stok tidak berubah.';
         _amount.text = _invoice!['outstanding_amount'].toString();

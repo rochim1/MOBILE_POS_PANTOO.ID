@@ -2483,7 +2483,11 @@ class PosRepository {
       }
       return const Left(ServerFailure('Gagal menutup shift'));
     } catch (e) {
-      return Left(e is StateError ? ServerFailure(e.message.toString()) : AppErrorHandler.handle(e));
+      return Left(
+        e is StateError
+            ? ServerFailure(e.message.toString())
+            : AppErrorHandler.handle(e),
+      );
     }
   }
 
@@ -2502,12 +2506,17 @@ class PosRepository {
           scope[2] != terminalUserId) {
         continue;
       }
-      final record = PosCheckoutRequestStore(_prefs, key.substring(prefix.length)).load();
+      final record = PosCheckoutRequestStore(
+        _prefs,
+        key.substring(prefix.length),
+      ).load();
       final pendingShift = (record?['input'] as Map?)?['shift_id'];
       // Shared drawers also include unresolved proof owned by another PIN on
       // this terminal. Never delete it or replay it as the closing operator.
       if (record != null && (pendingShift == null || pendingShift == shiftId)) {
-        throw StateError('Shift belum dapat ditutup karena masih ada pembayaran belum terkonfirmasi. Pulihkan pembayaran dengan kasir asal terlebih dahulu.');
+        throw StateError(
+          'Shift belum dapat ditutup karena masih ada pembayaran belum terkonfirmasi. Pulihkan pembayaran dengan kasir asal terlebih dahulu.',
+        );
       }
     }
   }
