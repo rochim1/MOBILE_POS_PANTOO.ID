@@ -25,6 +25,7 @@ void main() {
     'foreign',
     'tenant-change',
     'client-change',
+    'operator-change-before-submit',
   ]) {
     testWidgets(
       'receivable replay preserves proof unless matching current-session ACK: $scenario',
@@ -134,6 +135,10 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        if (scenario == 'operator-change-before-submit') {
+          await tester.pumpWidget(MaterialApp(locale:const Locale('id'),localizationsDelegates:AppLocalizations.localizationsDelegates,supportedLocales:AppLocalizations.supportedLocales,home:const Scaffold(body:PosReceivablesPage(canCollect:true,operatorId:'other',initialInvoiceId:'inv-1'))));
+          await tester.pumpAndSettle();
+        }
         final send = find.widgetWithText(
           FilledButton,
           'Kirim ulang bukti yang sama',
@@ -141,7 +146,7 @@ void main() {
         await tester.ensureVisible(send);
         await tester.tap(send);
         await tester.pumpAndSettle();
-        expect(writes, 1);
+        expect(writes, scenario == 'operator-change-before-submit' ? 0 : 1);
         expect(store.load('inv-1') == null, scenario == 'confirmed');
         if (scenario != 'confirmed') {
           expect(store.load('inv-1')?['request_id'], proof['request_id']);
