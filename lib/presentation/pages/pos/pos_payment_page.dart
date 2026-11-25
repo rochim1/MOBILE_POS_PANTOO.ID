@@ -991,7 +991,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           }
           AppToast.error(context, failure.message);
         },
-        (_) {
+        (payment) {
           sl<PosCustomerDisplayService>().publishCart(
             items: const [],
             subtotal: order.subtotal,
@@ -1004,9 +1004,18 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           context.read<PosBloc>().add(
             const RefreshPosRuntimeConfig(preserveCheckout: true),
           );
+          final committedMethod = payment['metode_pembayaran']
+              ?.toString()
+              .trim()
+              .toLowerCase();
           AppToast.success(
             context,
-            'Invoice ${order.invoice} berhasil dibayar',
+            (committedMethod == null || committedMethod.isEmpty
+                        ? method
+                        : committedMethod) ==
+                    'tempo'
+                ? posLocale(context).pendingCreditRecorded
+                : 'Invoice ${order.invoice} berhasil dibayar',
           );
           Navigator.pop(context);
         },

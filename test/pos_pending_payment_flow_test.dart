@@ -314,19 +314,69 @@ void main() {
     },
   );
   for (final locale in [const Locale('id'), const Locale('en')]) {
-    testWidgets('pending credit completion states receivable, not money received ${locale.languageCode}', (tester) async {
-      sl.registerSingleton<PosCustomerDisplayService>(_Display());
-      final (_, repo) = await open(tester, pendingOrder: order(), pushed: true, locale: locale);
-      repo.response = const Right({'_id': 'pending-order', 'metode_pembayaran': 'tempo'});
-      submit(tester)();
-      await tester.pumpAndSettle();
-      expect(repo.calls.single['method'], 'tempo');
-      expect(find.text(locale.languageCode == 'id'
-          ? 'Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.'
-          : 'Order recorded as a receivable. Continue collecting payment from Customer Receivables.'), findsOneWidget);
-      expect(find.textContaining('berhasil dibayar'), findsNothing);
-      expect(find.byType(PosPaymentPage), findsNothing);
-      await finish(tester);
-    });
+    testWidgets(
+      'pending credit completion states receivable, not money received ${locale.languageCode}',
+      (tester) async {
+        sl.registerSingleton<PosCustomerDisplayService>(_Display());
+        final (_, repo) = await open(
+          tester,
+          pendingOrder: order(),
+          pushed: true,
+          locale: locale,
+        );
+        repo.response = const Right({
+          '_id': 'pending-order',
+          'metode_pembayaran': 'tempo',
+        });
+        submit(tester)();
+        await tester.pumpAndSettle();
+        expect(repo.calls.single['method'], 'tempo');
+        expect(
+          find.text(
+            locale.languageCode == 'id'
+                ? 'Pesanan dicatat sebagai piutang. Pelunasan dapat dilanjutkan dari Piutang Pelanggan.'
+                : 'Order recorded as a receivable. Continue collecting payment from Customer Receivables.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('berhasil dibayar'), findsNothing);
+        expect(find.byType(PosPaymentPage), findsNothing);
+        await finish(tester);
+      },
+    );
+  }
+  for (final tender in [
+    (requested: 'transfer', committed: 'tempo'),
+    (requested: 'tempo', committed: 'transfer'),
+  ]) {
+    testWidgets(
+      'recovered payment displays committed ${tender.committed} instead of requested ${tender.requested}',
+      (tester) async {
+        sl.registerSingleton<PosCustomerDisplayService>(_Display());
+        final (_, repo) = await open(
+          tester,
+          method: tender.requested,
+          pendingOrder: order(),
+          pushed: true,
+        );
+        repo.response = Right({
+          '_id': 'pending-order',
+          'metode_pembayaran': tender.committed,
+        });
+        submit(tester)();
+        await tester.pumpAndSettle();
+        expect(repo.calls.single['method'], tender.requested);
+        expect(
+          find.textContaining('piutang.'),
+          tender.committed == 'tempo' ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.textContaining('berhasil dibayar'),
+          tender.committed == 'tempo' ? findsNothing : findsOneWidget,
+        );
+        expect(find.byType(PosPaymentPage), findsNothing);
+        await finish(tester);
+      },
+    );
   }
 }

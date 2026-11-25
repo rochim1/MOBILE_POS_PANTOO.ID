@@ -44,6 +44,7 @@ class PosSuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCreditSale = transaction.paymentMethod.toLowerCase() == 'tempo';
     final printService = PosReceiptPrintService(sl());
     final printerNotConfigured =
         !kIsWeb &&
@@ -56,7 +57,9 @@ class PosSuccessPage extends StatelessWidget {
         elevation: 0,
         automaticallyImplyLeading: false,
         title: PosAppBarTitle(
-          title: ('Pembayaran Berhasil').tr(context),
+          title: isCreditSale
+              ? posLocale(context).creditSaleRecorded
+              : ('Pembayaran Berhasil').tr(context),
           subtitle: ('Transaksi telah selesai diproses').tr(context),
         ),
       ),
@@ -109,6 +112,16 @@ class PosSuccessPage extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        if (isCreditSale)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                            child: Text(
+                              posLocale(context).creditSalePending,
+                              key: const Key('credit_sale_pending_notice'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: AppColors.warning),
+                            ),
+                          ),
                         if (autoPrint && !printerNotConfigured)
                           _AutoPrintTrigger(
                             onPrint: () => _printReceipt(context),
@@ -145,6 +158,7 @@ class PosSuccessPage extends StatelessWidget {
                                   'e_wallet' ||
                                   'kartu_kredit' ||
                                   'credit_card' ||
+                                  'tempo' ||
                                   'split' => transaction.total,
                                   _ => transaction.cashReceived,
                                 }),

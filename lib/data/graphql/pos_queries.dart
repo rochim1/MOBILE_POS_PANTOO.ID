@@ -774,6 +774,7 @@ class PosQueries {
         status
         status_pembayaran
         pos_transaction_invoice
+        metode_pembayaran
       }
     }
   ''';
