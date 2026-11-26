@@ -1,5 +1,6 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
+import '../../../core/utils/stock_quantity_input.dart';
 import 'package:flutter/material.dart';
 import '../../../core/network/graphql_client_provider.dart';
 import '../../../data/graphql/pos_transfer_queries.dart';
@@ -49,6 +50,11 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       (draft['items'] as List).cast<Map<String, dynamic>>();
   List<Map<String, dynamic>> get costs =>
       (draft['biaya_transfer'] as List).cast<Map<String, dynamic>>();
+  Map<String,dynamic>? warehouse(dynamic location) => warehouses.where((w)=>
+      w['_id']?.toString()==(location as Map?)?['cabang_id']?.toString()).firstOrNull;
+  String? get locationError => transferOutletPairError(warehouse(draft['dari']),warehouse(draft['ke']),
+      english:posLocale(context).localeName.startsWith('en'));
+  bool usable(Map w,String flag)=>w[flag]!=false && !['in_transit','quarantine'].contains(w['warehouse_type']);
   @override
   void initState() {
     super.initState();
@@ -174,6 +180,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
 
   Future<void> save() async {
     if (saving || loading || error != null) return;
+    if(locationError != null) { AppToast.error(context,locationError!);return; }
     final invalid = validateTransferDraft(draft);
     if (invalid != null) {
       AppToast.error(context, invalid);
@@ -206,7 +213,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         );
         AppToast.error(
           context,
-          '$e\nJika koneksi terputus, periksa daftar sebelum membuat transfer baru.',
+          '$e'.replaceFirst(RegExp(r'^(Exception|Bad state):\s*'),''),
         );
       }
     } finally {
@@ -246,7 +253,8 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
     padding: const EdgeInsets.only(bottom: 12),
     child: TextFormField(
       onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-      initialValue: value?.toString() ?? '',
+      initialValue: number ? stockQuantityText(value) : value?.toString() ?? '',
+      inputFormatters: number ? const [StockQuantityInputFormatter()] : null,
       maxLines: lines,
       keyboardType: number
           ? const TextInputType.numberWithOptions(decimal: true)
@@ -255,10 +263,11 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
           : TextInputType.text,
       decoration: InputDecoration(
         labelText: (label).tr(context),
+        hintText: number ? '0' : null,
         helperText: (hint)?.tr(context),
         border: const OutlineInputBorder(),
       ),
-      onChanged: change,
+      onChanged: (v)=>change(number && v.trim().isEmpty ? '0' : v),
     ),
   );
   Widget select(
@@ -565,10 +574,13 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                         ),
                       ]),
                       section('Lokasi perpindahan', [
+                        if(locationError != null) Padding(
+                          padding:const EdgeInsets.only(bottom:12),
+                          child:Text(locationError!,style:TextStyle(color:Theme.of(context).colorScheme.error))),
                         PosTransferLocationFields(
                           title: ('asal').tr(context),
                           warehouses: warehouses
-                              .where((w) => w['is_transfer_source'] != false)
+                              .where((w) => usable(w,'is_transfer_source'))
                               .toList(),
                           value: Map<String, dynamic>.from(draft['dari']),
                           onChanged: (v) async {
@@ -605,7 +617,8 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                           title: ('tujuan').tr(context),
                           warehouses: warehouses
                               .where(
-                                (w) => w['is_transfer_destination'] != false,
+                                (w) => usable(w,'is_transfer_destination') &&
+                                    transferOutletPairError(warehouse(draft['dari']),w)==null,
                               )
                               .toList(),
                           value: Map<String, dynamic>.from(draft['ke']),
@@ -911,7 +924,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                       ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
-                        onPressed: saving ? null : save,
+                        onPressed: saving || locationError != null ? null : save,
                         icon: saving
                             ? const SizedBox(
                                 width: 18,

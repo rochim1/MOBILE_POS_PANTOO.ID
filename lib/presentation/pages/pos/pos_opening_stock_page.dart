@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/stock_quantity_input.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/network/graphql_client_provider.dart';
@@ -321,7 +322,7 @@ class _PosOpeningStockPageState extends State<PosOpeningStockPage> {
       maxLines: lines,
       inputFormatters: controller == _cost
           ? const [RupiahInputFormatter()]
-          : null,
+          : numeric ? const [StockQuantityInputFormatter()] : null,
       keyboardType: numeric
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,

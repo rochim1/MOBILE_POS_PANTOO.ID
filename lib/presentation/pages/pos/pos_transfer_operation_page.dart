@@ -1,5 +1,6 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/utils/stock_quantity_input.dart';
 import '../../../../injections.dart';
 import '../../../core/network/graphql_client_provider.dart';
 import '../../../data/graphql/pos_transfer_queries.dart';
@@ -313,14 +314,16 @@ class _PosTransferOperationPageState extends State<PosTransferOperationPage> {
     child: TextFormField(
       onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       key: ValueKey('$version:$key:$label'),
-      initialValue: '$value',
+      initialValue: stockQuantityText(value),
+      inputFormatters: const [StockQuantityInputFormatter()],
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: (label).tr(context),
+        hintText: '0',
         border: const OutlineInputBorder(),
       ),
       onChanged: (v) =>
-          setState(() => change(transferNumber(v.replaceAll(',', '.')))),
+          setState(() => change(v.trim().isEmpty ? 0 : transferNumber(v.replaceAll(',', '.')))),
     ),
   );
   Widget dateField(String label, String value, ValueChanged<String> change) =>

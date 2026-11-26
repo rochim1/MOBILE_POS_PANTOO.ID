@@ -34,14 +34,17 @@ class PosTransferLocationFields extends StatelessWidget {
       String label,
       String current,
       List<(String, String)> options,
-      void Function(String) update,
-    ) {
+      void Function(String) update, {
+      bool requireListed = false,
+    }) {
       final unique = <String, String>{
         '': 'Tanpa detail',
         for (final option in options) option.$1: option.$2,
       };
       if (current.isNotEmpty && !unique.containsKey(current)) {
-        unique[current] = current;
+        unique[current] = requireListed
+            ? '${value['cabang_nama'] ?? current} · ${('Tidak tersedia').tr(context)}'
+            : current;
       }
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -58,6 +61,10 @@ class PosTransferLocationFields extends StatelessWidget {
               .map(
                 (r) => DropdownMenuItem(
                   value: r.key,
+                  enabled:
+                      !requireListed ||
+                      r.key.isEmpty ||
+                      options.any((o) => o.$1 == r.key),
                   child: Text(r.value, overflow: TextOverflow.ellipsis),
                 ),
               )
@@ -75,9 +82,18 @@ class PosTransferLocationFields extends StatelessWidget {
         select(
           'Lokasi stok $title',
           id,
-          warehouses
-              .map((w) => (w['_id'].toString(), w['nama_cabang'].toString()))
-              .toList(),
+          warehouses.map((w) {
+            final type = switch (w['warehouse_type']) {
+              'store' => ('Gudang toko').tr(context),
+              'display' => ('Display').tr(context),
+              'central' => ('Gudang pusat').tr(context),
+              _ => '',
+            };
+            return (
+              w['_id'].toString(),
+              '${w['nama_cabang']}${type.isEmpty ? '' : ' · $type'}',
+            );
+          }).toList(),
           (id) {
             final warehouse = warehouses
                 .where((w) => w['_id'].toString() == id)
@@ -92,6 +108,7 @@ class PosTransferLocationFields extends StatelessWidget {
               'rak_nama': '',
             });
           },
+          requireListed: true,
         ),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,

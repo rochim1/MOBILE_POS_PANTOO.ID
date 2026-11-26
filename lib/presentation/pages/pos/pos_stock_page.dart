@@ -4,6 +4,7 @@ import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/utils/stock_quantity_input.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
@@ -1749,6 +1750,7 @@ class _PosStockViewState extends State<_PosStockView> {
                   TextFormField(
                     errorBuilder: posValidationError,
                     controller: stockController,
+                    inputFormatters: const [StockQuantityInputFormatter()],
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),

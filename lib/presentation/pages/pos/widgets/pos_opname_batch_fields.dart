@@ -1,5 +1,6 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/utils/stock_quantity_input.dart';
 import '../../../../domain/models/pos_opname.dart';
 
 class PosOpnameBatchFields extends StatelessWidget {
@@ -54,6 +55,7 @@ class PosOpnameBatchFields extends StatelessWidget {
 errorBuilder: posValidationError,
         key: ValueKey(key),
         initialValue: number(qty),
+        inputFormatters: const [StockQuantityInputFormatter()],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: (label).tr(context),

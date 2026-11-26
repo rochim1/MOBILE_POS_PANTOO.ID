@@ -1,6 +1,30 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
+/// Mirrors internal store/display pairing, not warehouse authorization.
+String? transferOutletPairError(
+  Map? source,
+  Map? destination, {
+  bool english = false,
+}) {
+  if (source == null || destination == null) return null;
+  final types = [source['warehouse_type'], destination['warehouse_type']];
+  if (!types.contains('store') || !types.contains('display')) return null;
+  final from = '${source['linked_toko_id'] ?? ''}',
+      to = '${destination['linked_toko_id'] ?? ''}';
+  if (from.isEmpty || to.isEmpty) {
+    return english
+        ? 'Link the store warehouse and display to their POS outlet before moving stock.'
+        : 'Gudang toko dan display belum ditautkan ke outlet POS. Atur hubungan lokasinya terlebih dahulu.';
+  }
+  if (from != to) {
+    return english
+        ? 'The store warehouse and display must belong to the same POS outlet. For another outlet, use its receiving warehouse according to the inventory flow, then replenish its display.'
+        : 'Display harus milik outlet POS yang sama dengan gudang toko. Untuk antar outlet, pilih gudang tujuan sesuai alur inventori, lalu isi rak display dari gudang outlet tersebut.';
+  }
+  return null;
+}
+
 double transferNumber(dynamic value) =>
     value is num ? value.toDouble() : double.tryParse('$value') ?? double.nan;
 List<Map<String, dynamic>> transferMaps(dynamic value) => (value as List? ?? [])
