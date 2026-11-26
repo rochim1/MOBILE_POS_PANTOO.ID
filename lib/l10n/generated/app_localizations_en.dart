@@ -2207,7 +2207,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get posa0be338d3aa0 => 'POS store list unavailable';
 
   @override
-  String get pos490ed470f481 => 'In transit';
+  String get pos490ed470f481 => 'Goods in transit';
 
   @override
   String get pos1a3a18c173e2 => 'Kitchen';
@@ -5387,7 +5387,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pos34c87188d721 => 'Sign out of account';
 
   @override
-  String get pos273a69e49c76 => 'Transit Location';
+  String get pos273a69e49c76 => 'Goods-in-transit location';
 
   @override
   String get pos13f745d88bdc =>
@@ -10781,7 +10781,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pos1a266eba7d88(String arg1) {
-    return 'Transit: $arg1';
+    return 'Goods in transit: $arg1';
   }
 
   @override

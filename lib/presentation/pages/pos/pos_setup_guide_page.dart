@@ -174,7 +174,11 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
             (issue) => issue.toString().contains('Isi Rak Display'),
           );
           final needsTransitLocation = (health['issues'] as List? ?? const [])
-              .any((issue) => issue.toString().contains('Lokasi Transit'));
+              .any(
+                (issue) =>
+                    issue.toString().contains('Lokasi Transit') ||
+                    issue.toString().contains('Lokasi barang dalam perjalanan'),
+              );
           final readiness = PosSetupReadiness(
             hasStore: hasStore,
             hasStockLocation: hasStockLocation,
@@ -353,8 +357,7 @@ class _PosSetupGuidePageState extends State<PosSetupGuidePage> {
                     ),
               complete: hasInitialStock,
               icon: Icons.inventory_outlined,
-              actionLabel:
-                  permissions['initialize_stock'] == true
+              actionLabel: permissions['initialize_stock'] == true
                   ? 'Isi stok awal'
                   : null,
               destination: 7,

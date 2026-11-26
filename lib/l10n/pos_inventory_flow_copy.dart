@@ -12,7 +12,7 @@ const inventoryFlowCopy = <String, (String, String)>{
   'flow': ('Alur stok', 'Stock flow'),
   'transitSetupTitle': ('Siapkan perpindahan stok', 'Prepare stock transfers'),
   'transitSetupHelp': (
-    'Lokasi perjalanan menampung stok selama dikirim hingga diterima. Anda tidak perlu mengisi form gudang terpisah.',
+    'Lokasi barang dalam perjalanan menampung stok selama dikirim hingga diterima. Anda tidak perlu mengisi form gudang terpisah.',
     'The in-transit location holds dispatched stock until it is received. No separate warehouse form is needed.',
   ),
   'transitPrepareOnSave': (
@@ -29,15 +29,15 @@ const inventoryFlowCopy = <String, (String, String)>{
     'An internal in-transit location will be prepared with these settings. A failed save will not leave a new location behind.',
   ),
   'transitUseExisting': (
-    'Gunakan lokasi perjalanan yang tersedia',
+    'Gunakan lokasi barang dalam perjalanan yang tersedia',
     'Use the existing in-transit location',
   ),
   'transitSelectExisting': (
-    'Ada beberapa lokasi perjalanan. Pilih salah satu pada kolom lokasi perjalanan; lokasi baru tidak perlu dibuat.',
+    'Ada beberapa lokasi barang dalam perjalanan. Pilih salah satu pada kolom lokasi barang dalam perjalanan; lokasi baru tidak perlu dibuat.',
     'There are several in-transit locations. Select one in the location field; no new location is needed.',
   ),
   'transitSetupPermission': (
-    'Minta admin menyiapkan lokasi perjalanan. Akun ini belum memiliki izin membuat lokasi gudang.',
+    'Minta admin menyiapkan lokasi barang dalam perjalanan. Akun ini belum memiliki izin membuat lokasi gudang.',
     'Ask an administrator to prepare an in-transit location. This account cannot create warehouse locations.',
   ),
   'transitChooseMovement': (
@@ -51,7 +51,7 @@ const inventoryFlowCopy = <String, (String, String)>{
     'Detailed inventory configuration',
   ),
   'movementHelp': (
-    'Pindahkan stok antar toko/gudang atau antar lokasi sesuai kebutuhan. Aturan gudang, display, persetujuan, dan transit dapat diatur melalui Pengaturan lanjutan. Transfer antar cabang dengan aturan sistem memerlukan lokasi transit.',
+    'Pindahkan stok antar toko/gudang atau antar lokasi sesuai kebutuhan. Aturan gudang, display, persetujuan, dan barang dalam perjalanan dapat diatur melalui Pengaturan lanjutan. Transfer antar cabang dengan aturan sistem memerlukan lokasi barang dalam perjalanan.',
     'Move stock between stores/warehouses or locations as needed. Warehouse, display, approval and transit rules are available in Advanced options. Inter-branch transfers using system defaults require a transit location.',
   ),
   'simple': ('Sederhana', 'Simple'),
@@ -63,7 +63,7 @@ const inventoryFlowCopy = <String, (String, String)>{
     'Receive stock directly at the main location. No transfer workflow.',
   ),
   'centralizedHelp': (
-    'Gudang pusat → transfer dengan persetujuan → penerimaan gudang toko. Siapkan gudang pusat dan lokasi transit terlebih dahulu.',
+    'Gudang pusat → transfer dengan persetujuan → penerimaan gudang toko. Siapkan gudang pusat dan lokasi barang dalam perjalanan terlebih dahulu.',
     'Central warehouse → approved transfer → store receiving. Set up a central warehouse and a transit location first.',
   ),
   'advancedHelp': (
@@ -75,21 +75,21 @@ const inventoryFlowCopy = <String, (String, String)>{
     'Choose the options below. Inter-store/warehouse transfers and internal moves use the same location rules as the web.',
   ),
   'receiving': ('Lokasi penerimaan utama', 'Default receiving location'),
-  'transit': ('Lokasi transit', 'Transit location'),
+  'transit': ('Lokasi barang dalam perjalanan', 'Goods-in-transit location'),
   'none': ('Belum dipilih', 'Not selected'),
   'unavailable': (
     'Lokasi tersimpan tidak tersedia',
     'Saved location is unavailable',
   ),
   'locationsHelp': (
-    'Kelola jenis gudang dan tautan toko melalui Warehouse & Lokasi. Lokasi transit tidak boleh menjadi lokasi penjualan.',
+    'Kelola jenis gudang dan tautan toko melalui Warehouse & Lokasi. Lokasi barang dalam perjalanan tidak boleh menjadi lokasi penjualan.',
     'Manage warehouse types and store links in Warehouse & Locations. Transit locations cannot be selling locations.',
   ),
   'advancedOptions': ('Pengaturan lanjutan', 'Advanced options'),
   'use_central_warehouse': ('Gudang pusat', 'Central warehouse'),
   'use_transfer_request': ('Permintaan transfer', 'Transfer requests'),
   'use_transfer_approval': ('Persetujuan transfer', 'Transfer approval'),
-  'use_in_transit': ('Stok dalam perjalanan', 'In-transit stock'),
+  'use_in_transit': ('Barang dalam perjalanan', 'Goods in transit'),
   'use_store_warehouse': ('Gudang toko', 'Store warehouse'),
   'use_display_stock': ('Stok display', 'Display stock'),
   'allow_direct_purchase_to_store': (
@@ -117,7 +117,7 @@ const inventoryFlowCopy = <String, (String, String)>{
   'direct': ('Langsung', 'Direct'),
   'transitRule': ('Kirim lalu terima', 'Dispatch then receive'),
   'routingHelp': (
-    'Langsung: stok masuk tujuan saat dikirim, tanpa konfirmasi terima. Aturan sistem: antar cabang menggunakan transit; gudang toko ↔ display menggunakan langsung. Dokumen yang sudah dikirim tetap memakai aturan saat pengiriman.',
+    'Langsung: stok masuk tujuan saat dikirim, tanpa konfirmasi terima. Aturan sistem: antar cabang mencatat barang dalam perjalanan; gudang toko ↔ display menggunakan langsung. Dokumen yang sudah dikirim tetap memakai aturan saat pengiriman.',
     'Direct: stock reaches its destination on dispatch without receiving confirmation. System default: inter-branch transfers use transit; store warehouse ↔ display uses direct transfer. Dispatched documents keep their original routing.',
   ),
   'readOnly': (
@@ -179,7 +179,7 @@ const inventoryFlowCopy = <String, (String, String)>{
     'Transfer approval requires transfer requests.',
   ),
   'transitRequiresRequest': (
-    'Stok dalam perjalanan memerlukan permintaan transfer.',
+    'Barang dalam perjalanan memerlukan permintaan transfer.',
     'In-transit stock requires transfer requests.',
   ),
   'requestRequiresWarehouse': (
@@ -199,7 +199,7 @@ const inventoryFlowCopy = <String, (String, String)>{
     'Choose a supported transfer rule.',
   ),
   'transitRequired': (
-    'Pilih lokasi transit aktif. Buat lokasi berjenis transit di Warehouse & Lokasi jika belum ada.',
+    'Pilih lokasi barang dalam perjalanan aktif. Buat lokasi berjenis barang dalam perjalanan di Warehouse & Lokasi jika belum ada.',
     'Select an active transit location. Create a transit-type location in Warehouse & Locations if needed.',
   ),
   'centralRequired': (

@@ -1,4 +1,5 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
+import 'package:mobile_pos_pantoo/l10n/inventory_terminology.dart';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/pos_transfer.dart';
 import '../utils/pos_inventory_detail_format.dart';
@@ -40,15 +41,26 @@ class PosTransferDetails extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           routing == null
-              ? ('Alur historis belum tercatat; periksa status dan penerimaan.').tr(context)
+              ? ('Alur historis belum tercatat; periksa status dan penerimaan.')
+                    .tr(context)
               : '${document['routing_snapshot'] != null ? ('Aturan saat dikirim').tr(context) : ('Rencana saat ini').tr(context)}: ${routing['mode'] == 'direct' ? ('Langsung selesai saat dikirim').tr(context) : ('Kirim → Transit → Terima di tujuan').tr(context)}',
         ),
-        if (routing?['reason'] != null) Text('${routing!['reason']}'),
+        if (routing?['reason'] != null)
+          Text(
+            inventoryTransferReasonText('${routing!['reason']}').tr(context),
+          ),
         Text(
-          posLocale(context).pos57cdcf19a10a((place(document['dari'])).toString(), (place(document['ke'])).toString()),
+          posLocale(context).pos57cdcf19a10a(
+            (place(document['dari'])).toString(),
+            (place(document['ke'])).toString(),
+          ),
         ),
         if (document['transit']?['cabang_id'] != null)
-          Text(posLocale(context).pos1a266eba7d88((place(document['transit'])).toString())),
+          Text(
+            posLocale(
+              context,
+            ).pos1a266eba7d88((place(document['transit'])).toString()),
+          ),
         for (final row in transferMaps(document['items']))
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -60,14 +72,27 @@ class PosTransferDetails extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  posLocale(context).pos2edf59b130d4((row['qty']).toString(), (row['unit']).toString(), (row['received_qty'] ?? 0).toString(), (row['resolved_qty'] ?? 0).toString()),
+                  posLocale(context).pos2edf59b130d4(
+                    (row['qty']).toString(),
+                    (row['unit']).toString(),
+                    (row['received_qty'] ?? 0).toString(),
+                    (row['resolved_qty'] ?? 0).toString(),
+                  ),
                 ),
                 for (final batch in transferMaps(row['batch_allocations']))
                   Text(
-                    posLocale(context).posa2f8e389c7e3((batch['no_batch']).toString(), (batch['tanggal_kadaluarsa'] ?? '').toString(), (batch['qty']).toString()),
+                    posLocale(context).posa2f8e389c7e3(
+                      (batch['no_batch']).toString(),
+                      (batch['tanggal_kadaluarsa'] ?? '').toString(),
+                      (batch['qty']).toString(),
+                    ),
                   ),
                 if ((row['serial_numbers'] as List? ?? []).isNotEmpty)
-                  Text(posLocale(context).pos78308eaba248(((row['serial_numbers'] as List).join(', ')).toString())),
+                  Text(
+                    posLocale(context).pos78308eaba248(
+                      ((row['serial_numbers'] as List).join(', ')).toString(),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -104,7 +129,12 @@ class PosTransferDetails extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    posLocale(context).posb181ba4478da((receipt['received_date'] ?? inventoryDocumentDate(receipt['received_at'])).toString(), (receipt['posting_date'] ?? '-').toString()),
+                    posLocale(context).posb181ba4478da(
+                      (receipt['received_date'] ??
+                              inventoryDocumentDate(receipt['received_at']))
+                          .toString(),
+                      (receipt['posting_date'] ?? '-').toString(),
+                    ),
                   ),
                   for (final line in transferMaps(receipt['items'])) ...[
                     Text(
@@ -112,11 +142,19 @@ class PosTransferDetails extends StatelessWidget {
                     ),
                     if ((line['serial_numbers'] as List? ?? []).isNotEmpty)
                       Text(
-                        posLocale(context).pos2520218913bd(((line['serial_numbers'] as List).join(', ')).toString()),
+                        posLocale(context).pos2520218913bd(
+                          ((line['serial_numbers'] as List).join(
+                            ', ',
+                          )).toString(),
+                        ),
                       ),
                     for (final batch in transferMaps(line['batch_allocations']))
                       Text(
-                        posLocale(context).posa2f8e389c7e3((batch['no_batch']).toString(), (batch['tanggal_kadaluarsa'] ?? '').toString(), (batch['qty']).toString()),
+                        posLocale(context).posa2f8e389c7e3(
+                          (batch['no_batch']).toString(),
+                          (batch['tanggal_kadaluarsa'] ?? '').toString(),
+                          (batch['qty']).toString(),
+                        ),
                       ),
                   ],
                 ],
@@ -144,14 +182,29 @@ class PosTransferDetails extends StatelessWidget {
                       SelectableText('${report['evidence_url']}'),
                     for (final row in transferMaps(report['items']))
                       Text(
-                        posLocale(context).pos256020cc43aa((row['qty']).toString(), (row['serial_numbers'] ?? '').toString()),
+                        posLocale(context).pos256020cc43aa(
+                          (row['qty']).toString(),
+                          (row['serial_numbers'] ?? '').toString(),
+                        ),
                       ),
                     if (report['decision_note'] != null)
-                      Text(posLocale(context).pos735eff437800((report['decision_note']).toString())),
+                      Text(
+                        posLocale(
+                          context,
+                        ).pos735eff437800((report['decision_note']).toString()),
+                      ),
                     if (report['quarantine']?['cabang_id'] != null)
-                      Text(posLocale(context).pos9b789015b765((place(report['quarantine'])).toString())),
+                      Text(
+                        posLocale(context).pos9b789015b765(
+                          (place(report['quarantine'])).toString(),
+                        ),
+                      ),
                     if (report['scrap_number'] != null)
-                      Text(posLocale(context).pos685b57405ff1((report['scrap_number']).toString())),
+                      Text(
+                        posLocale(
+                          context,
+                        ).pos685b57405ff1((report['scrap_number']).toString()),
+                      ),
                     if (report['status'] == 'pending' &&
                         canDecide &&
                         report['reported_by']?.toString() != actorId)
@@ -168,23 +221,46 @@ class PosTransferDetails extends StatelessWidget {
         if ((document['total_biaya'] as num? ?? 0) > 0) ...[
           const Divider(height: 24),
           Text(
-            posLocale(context).pos4ba07f7ac271((document['total_biaya']).toString(), (document['biaya_mode']).toString(), (document['biaya_alokasi']).toString()),
+            posLocale(context).pos4ba07f7ac271(
+              (document['total_biaya']).toString(),
+              (document['biaya_mode']).toString(),
+              (document['biaya_alokasi']).toString(),
+            ),
           ),
           Text(
-            posLocale(context).posd88b4d30bc43((document['payment_account_name'] ?? document['payment_bank_account_id'] ?? '-').toString()),
+            posLocale(context).posd88b4d30bc43(
+              (document['payment_account_name'] ??
+                      document['payment_bank_account_id'] ??
+                      '-')
+                  .toString(),
+            ),
           ),
           Text(
-            posLocale(context).pos424b98aa8546((document['payment_branch_name'] ?? document['payment_branch_id'] ?? '-').toString()),
+            posLocale(context).pos424b98aa8546(
+              (document['payment_branch_name'] ??
+                      document['payment_branch_id'] ??
+                      '-')
+                  .toString(),
+            ),
           ),
           Text(
-            posLocale(context).posa21c3b378169((document['branch_name'] ?? '-').toString(), (document['project_name'] ?? '-').toString()),
+            posLocale(context).posa21c3b378169(
+              (document['branch_name'] ?? '-').toString(),
+              (document['project_name'] ?? '-').toString(),
+            ),
           ),
           for (final cost in transferMaps(document['biaya_transfer']))
             Text(
               '${cost['jenis_biaya']} · ${cost['deskripsi'] ?? ''} · Rp${cost['nominal']}',
             ),
           Text(
-            posLocale(context).pose627ba45da07((document['journal_status'] ?? '-').toString(), (document['journal_error'] == null ? '' : (' · ${document['journal_error']}').tr(context)).toString()),
+            posLocale(context).pose627ba45da07(
+              (document['journal_status'] ?? '-').toString(),
+              (document['journal_error'] == null
+                      ? ''
+                      : (' · ${document['journal_error']}').tr(context))
+                  .toString(),
+            ),
           ),
         ],
       ],

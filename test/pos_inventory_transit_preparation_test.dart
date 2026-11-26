@@ -72,6 +72,8 @@ void main() {
         150,
         scrollable: find.byType(Scrollable).first,
       );
+      await t.ensureVisible(find.byKey(const Key('flow-use-transit')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const Key('flow-use-transit')));
       await t.pumpAndSettle();
       expect(repo.writes, 0);

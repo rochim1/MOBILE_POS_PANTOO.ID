@@ -2212,7 +2212,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get posa0be338d3aa0 => 'Daftar toko POS tidak tersedia';
 
   @override
-  String get pos490ed470f481 => 'Dalam perjalanan';
+  String get pos490ed470f481 => 'Barang dalam perjalanan';
 
   @override
   String get pos1a3a18c173e2 => 'Dapur';
@@ -4711,7 +4711,8 @@ class AppLocalizationsId extends AppLocalizations {
   String get pos14453ee0a3de => 'Kirim untuk persetujuan?';
 
   @override
-  String get posf9fff542e06f => 'Kirim → Transit → Terima di tujuan';
+  String get posf9fff542e06f =>
+      'Kirim → Barang dalam perjalanan → Terima di tujuan';
 
   @override
   String posc3ea0cd9a924(String arg1) {
@@ -5394,7 +5395,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get pos34c87188d721 => 'Logout akun';
 
   @override
-  String get pos273a69e49c76 => 'Lokasi Transit';
+  String get pos273a69e49c76 => 'Lokasi barang dalam perjalanan';
 
   @override
   String get pos13f745d88bdc => 'Lokasi asal dan tujuan harus berbeda.';
@@ -6840,7 +6841,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get pos73b0a9bc9815 =>
-      'Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau transit masih mencukupi.';
+      'Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau barang dalam perjalanan masih mencukupi.';
 
   @override
   String get pos3ac3498cb0dc => 'Pembatalan pembayaran gagal';
@@ -7089,7 +7090,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get pos20dd92d09621 =>
-      'Pengiriman menuju transit: stok tujuan baru bertambah setelah penerimaan.';
+      'Barang dalam perjalanan: stok tujuan baru bertambah setelah penerimaan.';
 
   @override
   String get posf577b29c51a3 => 'Penjualan';
@@ -10797,7 +10798,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String pos1a266eba7d88(String arg1) {
-    return 'Transit: $arg1';
+    return 'Barang dalam perjalanan: $arg1';
   }
 
   @override

@@ -2739,7 +2739,7 @@
   "@posa0be338d3aa0": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos490ed470f481": "Dalam perjalanan",
+  "pos490ed470f481": "Barang dalam perjalanan",
   "@pos490ed470f481": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -6251,7 +6251,7 @@
   "@pos14453ee0a3de": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "posf9fff542e06f": "Kirim → Transit → Terima di tujuan",
+  "posf9fff542e06f": "Kirim → Barang dalam perjalanan → Terima di tujuan",
   "@posf9fff542e06f": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -7164,7 +7164,7 @@
   "@pos34c87188d721": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos273a69e49c76": "Lokasi Transit",
+  "pos273a69e49c76": "Lokasi barang dalam perjalanan",
   "@pos273a69e49c76": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -9132,7 +9132,7 @@
       }
     }
   },
-  "pos73b0a9bc9815": "Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau transit masih mencukupi.",
+  "pos73b0a9bc9815": "Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau barang dalam perjalanan masih mencukupi.",
   "@pos73b0a9bc9815": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -9461,7 +9461,7 @@
   "@posd330ba42196d": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos20dd92d09621": "Pengiriman menuju transit: stok tujuan baru bertambah setelah penerimaan.",
+  "pos20dd92d09621": "Barang dalam perjalanan: stok tujuan baru bertambah setelah penerimaan.",
   "@pos20dd92d09621": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -14563,7 +14563,7 @@
   "@posa055a39bd588": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos1a266eba7d88": "Transit: {arg1}",
+  "pos1a266eba7d88": "Barang dalam perjalanan: {arg1}",
   "@pos1a266eba7d88": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data",
     "placeholders": {

@@ -4013,7 +4013,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Dalam perjalanan'**
+  /// **'Barang dalam perjalanan'**
   String get pos490ed470f481;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -8423,7 +8423,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Kirim → Transit → Terima di tujuan'**
+  /// **'Kirim → Barang dalam perjalanan → Terima di tujuan'**
   String get posf9fff542e06f;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -9647,7 +9647,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Lokasi Transit'**
+  /// **'Lokasi barang dalam perjalanan'**
   String get pos273a69e49c76;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -12245,7 +12245,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau transit masih mencukupi.'**
+  /// **'Pembatalan akan membalik perpindahan stok ke lokasi asal. Pastikan stok tujuan atau barang dalam perjalanan masih mencukupi.'**
   String get pos73b0a9bc9815;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -12689,7 +12689,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Pengiriman menuju transit: stok tujuan baru bertambah setelah penerimaan.'**
+  /// **'Barang dalam perjalanan: stok tujuan baru bertambah setelah penerimaan.'**
   String get pos20dd92d09621;
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
@@ -19197,7 +19197,7 @@ abstract class AppLocalizations {
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data
   ///
   /// In id, this message translates to:
-  /// **'Transit: {arg1}'**
+  /// **'Barang dalam perjalanan: {arg1}'**
   String pos1a266eba7d88(String arg1);
 
   /// Reviewed Pantoo POS UI copy; do not use for user-generated data

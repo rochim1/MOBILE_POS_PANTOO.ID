@@ -2736,7 +2736,7 @@
   "@posa0be338d3aa0": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos490ed470f481": "In transit",
+  "pos490ed470f481": "Goods in transit",
   "@pos490ed470f481": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -7161,7 +7161,7 @@
   "@pos34c87188d721": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos273a69e49c76": "Transit Location",
+  "pos273a69e49c76": "Goods-in-transit location",
   "@pos273a69e49c76": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
@@ -14560,7 +14560,7 @@
   "@posa055a39bd588": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data"
   },
-  "pos1a266eba7d88": "Transit: {arg1}",
+  "pos1a266eba7d88": "Goods in transit: {arg1}",
   "@pos1a266eba7d88": {
     "description": "Reviewed Pantoo POS UI copy; do not use for user-generated data",
     "placeholders": {
