@@ -46,7 +46,11 @@ void main() {
           yield Response(
             data: {
               '__typename': 'Query',
-              'GetOneUser': {'__typename': 'User', '_id': 'old-user', 'instansi_id': null},
+              'GetOneUser': {
+                '__typename': 'User',
+                '_id': 'old-user',
+                'instansi_id': null,
+              },
             },
             response: {},
           );
