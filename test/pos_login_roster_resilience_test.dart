@@ -414,9 +414,11 @@ void main() {
             if (name == 'GetCurrentPOSUser') {
               yield Response(
                 data: {
+                  '__typename': 'Query',
                   'GetOneUser': {
+                    '__typename': 'User',
                     '_id': 'cashier',
-                    'instansi_id': {'_id': 'tenant'},
+                    'instansi_id': {'__typename': 'Instansi', '_id': 'tenant'},
                   },
                 },
                 response: {},

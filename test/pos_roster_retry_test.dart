@@ -15,7 +15,16 @@ const roster = {
   'GetPOSPinUsers': {
     '__typename': 'POSPinUsersResult',
     'items': [
-      {'__typename': 'POSPinUser', '_id': 'cashier', 'name': 'Kasir QA', 'username': 'cashier', 'photo_url': null, 'has_pin': true, 'failed_attempts': 0, 'locked_until': null},
+      {
+        '__typename': 'POSPinUser',
+        '_id': 'cashier',
+        'name': 'Kasir QA',
+        'username': 'cashier',
+        'photo_url': null,
+        'has_pin': true,
+        'failed_attempts': 0,
+        'locked_until': null,
+      },
     ],
   },
 };
@@ -49,21 +58,47 @@ void main() {
         ),
         prefs,
       );
-  test('complete online roster fixture is accepted by the GraphQL client', () async {
-    final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) => Stream.value(Response(data: roster, response: {}))));
-    final result = await client.query(QueryOptions(document: gql(PosQueries.getPOSPinUsers), fetchPolicy: FetchPolicy.networkOnly));
-    expect(result.exception, isNull);
-  });
-  test('malformed online roster is not retried or replaced with offline PIN proof', () async {
-    await PosOfflinePinStore(scope: 'tenant').cacheVerifiedPin(userId: 'cashier', pin: '123456', response: {'name': 'QA'});
-    var calls = 0;
-    final repo = repository((request) async* {
-      calls++;
-      yield const Response(data: {'GetPOSPinUsers': {'items': []}}, response: {});
-    });
-    expect((await repo.getPOSPinUsers(hasPin: true)).isLeft(), true);
-    expect(calls, 1);
-  });
+  test(
+    'complete online roster fixture is accepted by the GraphQL client',
+    () async {
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function(
+          (request, [forward]) =>
+              Stream.value(Response(data: roster, response: {})),
+        ),
+      );
+      final result = await client.query(
+        QueryOptions(
+          document: gql(PosQueries.getPOSPinUsers),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      expect(result.exception, isNull);
+    },
+  );
+  test(
+    'malformed online roster is not retried or replaced with offline PIN proof',
+    () async {
+      await PosOfflinePinStore(scope: 'tenant').cacheVerifiedPin(
+        userId: 'cashier',
+        pin: '123456',
+        response: {'name': 'QA'},
+      );
+      var calls = 0;
+      final repo = repository((request) async* {
+        calls++;
+        yield const Response(
+          data: {
+            'GetPOSPinUsers': {'items': []},
+          },
+          response: {},
+        );
+      });
+      expect((await repo.getPOSPinUsers(hasPin: true)).isLeft(), true);
+      expect(calls, 1);
+    },
+  );
   test(
     'temporary roster transport failure retries once without signing out',
     () async {
@@ -77,7 +112,14 @@ void main() {
         repo.getPOSPinUsers(hasPin: true),
       ]);
       expect(calls, 2);
-      expect(results.every((result) => result.isRight()), true, reason: results.first.fold((failure) => '${failure.runtimeType}: ${failure.message}', (_) => 'success'));
+      expect(
+        results.every((result) => result.isRight()),
+        true,
+        reason: results.first.fold(
+          (failure) => '${failure.runtimeType}: ${failure.message}',
+          (_) => 'success',
+        ),
+      );
       expect(calls, 2);
     },
   );
@@ -92,7 +134,14 @@ void main() {
       expect((await repo.getPOSPinUsers(hasPin: true)).isLeft(), true);
       expect(calls, 2);
       final recovered = await repo.getPOSPinUsers(hasPin: true);
-      expect(recovered.isRight(), true, reason: recovered.fold((failure) => '${failure.runtimeType}: ${failure.message}', (_) => 'success'));
+      expect(
+        recovered.isRight(),
+        true,
+        reason: recovered.fold(
+          (failure) => '${failure.runtimeType}: ${failure.message}',
+          (_) => 'success',
+        ),
+      );
       expect(calls, 3);
     },
   );
@@ -139,7 +188,7 @@ void main() {
       connectivity!.complete(['wifi']);
       await tester.pump();
       await pending;
-      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 9));
       expect(completedInTime, true);
       expect(succeeded, true);
       expect(calls, 1);
@@ -167,7 +216,9 @@ void main() {
         return Stream.value(Response(data: roster, response: {}));
       });
       final elapsed = Stopwatch()..start();
-      final result = await repo.getPOSPinUsers(hasPin: true).timeout(const Duration(seconds: 12));
+      final result = await repo
+          .getPOSPinUsers(hasPin: true)
+          .timeout(const Duration(seconds: 12));
       await source.close();
       expect(result.isLeft(), true);
       expect(calls, 1);

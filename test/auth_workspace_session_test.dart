@@ -45,7 +45,8 @@ void main() {
           operations.add(request.operation.operationName ?? '');
           yield Response(
             data: {
-              'GetOneUser': {'_id': 'old-user', 'instansi_id': null},
+              '__typename': 'Query',
+              'GetOneUser': {'__typename': 'User', '_id': 'old-user', 'instansi_id': null},
             },
             response: {},
           );
