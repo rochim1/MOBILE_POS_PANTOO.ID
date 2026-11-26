@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/data/graphql/pos_transfer_queries.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_transfer_editor_page.dart';
@@ -32,7 +34,33 @@ class ModeFake extends TransferFake {
   ];
 }
 
+class _DelayedInitialItem extends ModeFake {
+  final response = Completer<Map<String, dynamic>>();
+  @override
+  Future<Map<String, dynamic>> query(String document, [Map<String, dynamic> variables = const {}]) =>
+      document == PosTransferQueries.items ? response.future : super.query(document, variables);
+}
+
 void main() {
+  testWidgets('late initial product cannot repopulate items after switching mode', (tester) async {
+    final repo = _DelayedInitialItem();
+    await tester.pumpWidget(MaterialApp(home: PosTransferEditorPage(
+      initialSourceId: 'from', initialDestinationId: 'to', initialInventoryId: 'product', repository: repo,
+    )));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mutasi internal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ganti jenis'));
+    await tester.pumpAndSettle();
+    repo.response.complete({'GetInventarisAvailableInLocation': [
+      {'inventaris_id': 'product', 'nama_inventaris': 'Barang dari alur lama', 'unit': 'unit'},
+    ]});
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Tambah barang'), 300, scrollable: find.byType(Scrollable).first, maxScrolls: 30);
+    expect(find.text('Barang dari alur lama'), findsNothing);
+    final quantities = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText?.startsWith('Jumlah ') == true);
+    expect(quantities, findsNothing);
+  });
   testWidgets(
     'two modes filter destination and confirm before clearing existing items',
     (tester) async {
