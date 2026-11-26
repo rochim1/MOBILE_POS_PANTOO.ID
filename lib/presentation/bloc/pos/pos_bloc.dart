@@ -1145,7 +1145,13 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     }
 
     _paymentInFlight = true;
-    emit(state.copyWith(status: PosStatus.loading, paymentInProgress: true));
+    // A background quote must not survive checkout or overwrite its result.
+    ++_pricingPreviewVersion;
+    emit(state.copyWith(
+      status: PosStatus.loading,
+      paymentInProgress: true,
+      pricingPreviewLoading: false,
+    ));
     try {
       final tokoId = state.checkoutStore?.id ?? '';
       if (tokoId.isEmpty) {
