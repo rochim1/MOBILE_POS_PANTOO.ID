@@ -237,7 +237,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         'id': draft['dari']['cabang_id'],
         'search': null,
       });
-      if (!current()) return;
+      if (!mounted || !current()) return;
       final selected =
           transferMaps(available['GetInventarisAvailableInLocation'])
               .where(
@@ -258,8 +258,9 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       }
       if (items.any(
         (r) => '${r['inventaris_id']}' == widget.initialInventoryId,
-      ))
+      )) {
         return;
+      }
       setState(
         () => items.add({
           ...selected,
@@ -269,7 +270,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         }),
       );
     } catch (_) {
-      if (current())
+      if (mounted && current()) {
         AppToast.warning(
           context,
           copy(
@@ -277,6 +278,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
             'The initial item could not be loaded. Your form is preserved; use Add item to try again.',
           ),
         );
+      }
     }
   }
 
@@ -526,8 +528,9 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
     if (saving ||
         recovery != null ||
         !items.contains(item) ||
-        unitRequests.contains(item))
+        unitRequests.contains(item)) {
       return;
+    }
     final requestedVersion = version;
     bool current() =>
         mounted &&
@@ -638,14 +641,16 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         });
       }
     } catch (e) {
-      if (current())
+      if (mounted && current()) {
         AppToast.error(context, 'Gagal memuat konversi satuan: $e');
+      }
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           unitRequests.remove(item);
           unitLoading.remove(item);
         });
+      }
     }
   }
 
