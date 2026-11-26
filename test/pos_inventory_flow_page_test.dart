@@ -10,29 +10,25 @@ import 'package:mobile_pos_pantoo/l10n/pos_inventory_flow_copy.dart';
 class FlowRepo extends Fake implements PosInventoryFlowRepository {
   int reads = 0, writes = 0;
   bool canUpdate = true;
+  bool canCreateLocations = false;
+  int preparations = 0;
   PosInventoryFlowFailure? failure;
   Completer<PosInventoryFlowSnapshot>? pending;
   Map<String, dynamic> policy = {
     'inventory_profile': 'custom',
     'use_store_warehouse': true,
   };
+  List<PosInventoryFlowLocation> locations = const [
+    PosInventoryFlowLocation(id: 'store', name: 'Gudang Toko', type: 'store'),
+    PosInventoryFlowLocation(id: 'central', name: 'Gudang Pusat', type: 'central'),
+    PosInventoryFlowLocation(id: 'transit', name: 'Transit', type: 'in_transit'),
+  ];
   PosInventoryFlowSnapshot snapshot() => PosInventoryFlowSnapshot.fromJson(
     {'revision': 'v$reads', 'inventory_operation_defaults': policy},
     scope: 'tenant',
     canUpdate: canUpdate,
-    locations: const [
-      PosInventoryFlowLocation(id: 'store', name: 'Gudang Toko', type: 'store'),
-      PosInventoryFlowLocation(
-        id: 'central',
-        name: 'Gudang Pusat',
-        type: 'central',
-      ),
-      PosInventoryFlowLocation(
-        id: 'transit',
-        name: 'Transit',
-        type: 'in_transit',
-      ),
-    ],
+    canCreateLocations: canCreateLocations,
+    locations: locations,
   );
   @override
   Future<PosInventoryFlowSnapshot> load() async {
@@ -43,11 +39,17 @@ class FlowRepo extends Fake implements PosInventoryFlowRepository {
   @override
   Future<PosInventoryFlowSnapshot> save(
     PosInventoryFlowSnapshot baseline,
-    PosInventoryFlowPolicy draft,
-  ) async {
+    PosInventoryFlowPolicy draft, {
+    bool prepareTransit = false,
+  }) async {
     writes++;
     if (failure != null) throw failure!;
     policy = draft.values;
+    if (prepareTransit) {
+      preparations++;
+      policy = {...policy, 'default_transfer_transit_location_id': 'auto-transit'};
+      locations = [...locations, const PosInventoryFlowLocation(id: 'auto-transit', name: 'Barang dalam perjalanan', type: 'in_transit')];
+    }
     return pending?.future ?? snapshot();
   }
 }
