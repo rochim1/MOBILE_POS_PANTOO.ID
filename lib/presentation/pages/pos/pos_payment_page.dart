@@ -237,7 +237,9 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           } else if (state.status == PosStatus.failure &&
               state.errorMessage.isNotEmpty) {
             final message = state.errorMessage;
-            if (message.toLowerCase().contains('pelanggan')) {
+            final unresolved =
+                context.read<PosBloc>().posRepository.pendingCheckout != null;
+            if (!unresolved && message.toLowerCase().contains('pelanggan')) {
               _showRequiredCustomerFlow(
                 state,
                 message: message,
@@ -248,6 +250,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               return;
             }
             final canRequestOverride =
+                !unresolved &&
                 state.runtimeConfig['expired_sale_policy'] ==
                     'allow_with_permission' &&
                 (message.toLowerCase().contains('sudah kadaluarsa') ||
@@ -260,11 +263,15 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
               context: context,
               builder: (dialogContext) => AlertDialog(
                 icon: Icon(
-                  _failureIcon(message),
+                  unresolved ? Icons.history : _failureIcon(message),
                   color: AppColors.warning,
                   size: 42,
                 ),
-                title: PosText(_failureTitle(message)),
+                title: PosText(
+                  unresolved
+                      ? 'Periksa pembayaran sebelumnya'
+                      : _failureTitle(message),
+                ),
                 content: PosText(message),
                 actions: [
                   TextButton(
