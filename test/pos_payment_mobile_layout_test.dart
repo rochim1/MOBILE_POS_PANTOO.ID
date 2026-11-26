@@ -20,7 +20,12 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_payment_page.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 
-class _Repository extends Fake implements PosRepository {}
+class _Repository extends Fake implements PosRepository {
+  _Repository({this.unresolved = false});
+  final bool unresolved;
+  @override
+  Map<String, dynamic>? get pendingCheckout => unresolved ? {'input': {'client_transaction_id': 'original'}} : null;
+}
 
 class _PreparingAccess extends ChangeNotifier
     implements PosSubscriptionService {
@@ -41,10 +46,11 @@ class _PreparingAccess extends ChangeNotifier
 }
 
 class _PaymentBloc extends PosBloc {
-  _PaymentBloc(PosState initial) : super(posRepository: _Repository()) {
+  _PaymentBloc(PosState initial, {bool unresolved = false}) : super(posRepository: _Repository(unresolved: unresolved)) {
     emit(initial);
   }
   final submitted = <PosEvent>[];
+  void fail(String message) => emit(state.copyWith(status: PosStatus.failure, errorMessage: message));
   @override
   void add(PosEvent event) {
     submitted.add(event);
@@ -149,6 +155,19 @@ Future<void> cash(
 }
 
 void main() {
+  for (final unresolved in [true, false]) {
+    testWidgets('payment error title distinguishes unresolved=$unresolved from rejection', (tester) async {
+      final bloc = _PaymentBloc(initial(), unresolved: unresolved);
+      addTearDown(bloc.close);
+      await tester.pumpWidget(_app(bloc));
+      await tester.pumpAndSettle();
+      bloc.fail('Server belum memberikan hasil transaksi');
+      await tester.pumpAndSettle();
+      expect(find.text(unresolved ? 'Periksa pembayaran sebelumnya' : 'Transaksi Ditolak'), findsOneWidget);
+      expect(find.text(unresolved ? 'Transaksi Ditolak' : 'Periksa pembayaran sebelumnya'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
   setUpAll(() async {
     final font = FontLoader('Roboto')
       ..addFont(rootBundle.load('assets/fonts/roboto-regular.ttf'));
