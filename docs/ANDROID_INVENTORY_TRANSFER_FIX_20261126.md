@@ -2,6 +2,8 @@
 
 Tanggal: 26 November 2026, Asia/Jakarta.
 
+Pembaruan terakhir untuk screenshot penolakan gudang/display dan nol di depan input jumlah ada pada bagian **Lanjutan: pasangan outlet dan input angka** di akhir dokumen. Hasil regresi luas di bagian sebelumnya merupakan snapshot perbaikan pemulihan; sesudah lanjutan ini, 73 tes terkait dan 53 tes server dijalankan ulang.
+
 Sumber pekerjaan: [audit inventori dan transfer Android](ANDROID_INVENTORY_TRANSFER_AUDIT_20261126.md). User journey berasal dari temuan audit dan permintaan pengguna: permintaan tetap aman ketika respons hilang, form ditutup/dibuka ulang, operator berubah, atau data lokasi/pencarian melebihi batas awal.
 
 ## Perubahan
@@ -119,3 +121,52 @@ Daftar server 132 skenario sama dengan dua kelompok regresi pada audit awal: tra
 - Permintaan dari APK lama yang tidak pernah menyimpan bukti transfer tidak dapat direkonstruksi otomatis. Periksa daftar dan fisik barang; jangan menebak ID lama dari kemiripan data.
 - Jika izin dicabut atau dokumen/gudang tidak dapat diakses, pemulihan tetap mengikuti pemeriksaan server. Jangan hapus bukti hanya agar aksi baru bisa berjalan; perlukan petugas berwenang untuk memeriksa keadaan tersebut.
 - Tes karakterisasi audit lama sengaja membuktikan perilaku sebelum perbaikan dan memakai fake yang dapat melewati wrapper baru. Gunakan tes recovery pada folder `test/` untuk regresi saat ini.
+
+## Lanjutan: pasangan outlet dan input angka
+
+Permintaan: screenshot Android menampilkan “Gudang toko dan display harus terhubung ke outlet POS yang sama”, serta input jumlah perlu menghapus nol bawaan terlebih dahulu.
+
+### Penyebab dan keputusan
+
+- `inventory_operation_policy.service.js` memang menolak pasangan warehouse bertipe `store` dan `display` apabila `linked_toko_id` berbeda atau belum diatur. Aturan ini **tidak dihapus atau dilonggarkan**.
+- Form Android sebelumnya menampilkan semua tujuan yang diizinkan secara umum, tanpa memeriksa pasangan outlet. Pengguna bisa mengisi barang dahulu lalu baru ditolak server.
+- Field jumlah dan konversi menampilkan nilai awal `0`/`0.0` sebagai teks editable. Mengetik pada ujung teks dapat meninggalkan nol di depan.
+- Screenshot tidak memperlihatkan identitas kedua lokasi. Tidak dilakukan pembetulan hubungan warehouse/outlet nyata, tidak menebak outlet yang benar, dan tidak mengubah data produksi.
+
+### Implementasi
+
+1. Filter pasangan gudang toko/display sejak memilih tujuan. Display milik outlet lain tidak ditawarkan sebagai tujuan pengisian rak dari gudang toko tersebut.
+2. Pasangan tidak cocok yang sudah tersimpan/prefill tetap mempertahankan data form, tetapi menampilkan penjelasan dan menonaktifkan Simpan sampai lokasi diperbaiki. Pilihan lama yang tidak tersedia ditandai nonaktif, bukan diganti diam-diam.
+3. Nama lokasi diberi penanda tipe gudang/display. Transit dan karantina tidak ditawarkan sebagai asal/tujuan transfer biasa.
+4. Kesalahan validasi pasti tidak lagi selalu diberi tambahan pesan seolah-olah koneksi terputus. Pengaman intent/pemulihan yang sebelumnya diterapkan tetap dipertahankan.
+5. Jumlah transfer, penerimaan, batch penerimaan dan konversi kemasan yang awalnya nol ditampilkan kosong dengan petunjuk `0`. Angka bulat tampil `25`, bukan `25.0`.
+6. Formatter jumlah mengubah `025` menjadi `25`, `000.5` menjadi `0.5`, dan `00,5` menjadi `0,5`. Tidak membuang nol yang penting pada pecahan seperti `0.05`; composing keyboard dan input tidak valid tidak diinterpretasi ulang diam-diam.
+7. Formatter juga dipakai pada jumlah stok awal, koreksi darurat dan hitung batch opname. **Nol fisik opname tetap nilai eksplisit yang sah**; validator dan aturan posting tidak diganti dengan asumsi kosong berarti sudah dihitung.
+8. Formatter Rupiah pada HPP stok awal tidak diganti. Format jumlah tidak diterapkan ke SKU, barcode, nomor seri atau nomor telepon.
+
+### Validasi lanjutan
+
+- RED: `pos_transfer_location_number_test.dart` dijalankan dan gagal karena validator pasangan outlet serta formatter belum tersedia; checkpoint `642ba6c`.
+- GREEN: **73/73 PASS**, log `output/transfer-location-number-20261126/mobile-final-verified.log`, durasi 1 menit 7 detik. Meliputi dua file tes baru, recovery repository/UI, editor/operasi/parity transfer, opname parity/handoff, serta stok awal.
+- Checkpoint GREEN: `d6b5dc3` pada branch `main`.
+- Tes widget baru membuktikan tujuan salah tidak dapat dikirim, display outlet sendiri dapat dipilih, nilai form dipertahankan, `025` menjadi `25`, konversi 25 box × 12 menjadi 300 unit, dan nol penerimaan tidak perlu dihapus terlebih dahulu.
+- Server: **53/53 PASS**, log `presensi_zera_BE/output/transfer-location-number-20261126/server.log`, mencakup three-flows, optional-approval dan dynamic-rules. Database lokal sementara; tidak ada perubahan kode aturan server pada lanjutan ini.
+- Pemeriksaan statis semua 10 target perubahan: **No issues found**, log `output/transfer-location-number-20261126/analyze-final.log`.
+- Cakupan formatter angka baru: **22/22 baris (100%)** pada `coverage-final.info`.
+
+Perintah Flutter yang dijalankan memakai `--no-pub --concurrency=2 --coverage --coverage-path output/transfer-location-number-20261126/coverage-final.info` pada file berikut:
+
+```text
+test/pos_transfer_location_number_test.dart
+test/pos_transfer_location_number_ui_test.dart
+test/pos_transfer_recovery_test.dart
+test/pos_transfer_recovery_ui_test.dart
+test/pos_transfer_editor_test.dart
+test/pos_transfer_operation_test.dart
+test/pos_transfer_parity_test.dart
+test/pos_opname_parity_test.dart
+test/pos_opening_stock_page_test.dart
+test/pos_opname_stock_handoff_test.dart
+```
+
+Belum ada pengujian GUI pada Android terpasang atau build APK/AAB baru. Perbaikan akan terlihat di perangkat setelah aplikasi menggunakan kode terbaru. Untuk transfer antar outlet, ikuti rute gudang tujuan sesuai profil inventori; pengisian display dilakukan pada pasangan gudang/display outlet yang sesuai.
