@@ -21,6 +21,7 @@ Map<String, dynamic> settings([String revision = 'v1']) => {
   'pos_defaults': {'enabled_features': {'track_stock': true}},
 };
 Response response(Map<String, dynamic> data) => Response(response: const {}, data: data);
+const locations = [PosInventoryFlowLocation(id: 'warehouse', name: 'Warehouse', type: 'store')];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -101,7 +102,7 @@ void main() {
         yield Response(response: const {}, data: {'UpdateInventorySettings': settings('v2')}, errors: [GraphQLError(message: 'Blocked', extensions: {'code': code})]);
       });
       final repo = PosInventoryFlowRepository(p);
-      final snapshot = PosInventoryFlowSnapshot.fromJson(settings(), scope: p.scope, canUpdate: true, locations: const []);
+      final snapshot = PosInventoryFlowSnapshot.fromJson(settings(), scope: p.scope, canUpdate: true, locations: locations);
       await expectLater(repo.save(snapshot, snapshot.policy.withValue('transfer_same_branch_rule', 'direct')), throwsA(isA<PosInventoryFlowFailure>().having((e) => e.requiresReload, 'requires reload', true)));
       expect(writes, 1);
     });
@@ -110,7 +111,7 @@ void main() {
     var writes = 0;
     final p = TransferProvider(await SharedPreferences.getInstance(), (r) => Stream<Response>.error(TimeoutException('lost')));
     final repo = PosInventoryFlowRepository(p);
-    final snapshot = PosInventoryFlowSnapshot.fromJson(settings(), scope: p.scope, canUpdate: true, locations: const []);
+    final snapshot = PosInventoryFlowSnapshot.fromJson(settings(), scope: p.scope, canUpdate: true, locations: locations);
     await expectLater(repo.save(snapshot, snapshot.policy.withValue('transfer_same_branch_rule', 'direct')), throwsA(isA<PosInventoryFlowFailure>().having((e) => e.requiresReload, 'reload', true)));
     final other = TransferProvider(await SharedPreferences.getInstance(), (r) async* { writes++; yield response({}); });
     other.scope = 'different-account';
