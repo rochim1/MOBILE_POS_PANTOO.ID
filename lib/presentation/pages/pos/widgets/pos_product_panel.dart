@@ -56,6 +56,9 @@ class _PosProductPanelState extends State<PosProductPanel> {
   int _catalogPage = 1;
   int _catalogTotal = 0;
   String _catalogScope = '';
+  List<PosProduct>? _observedProducts;
+  int _observedCatalogRevision = -1;
+  bool _catalogRefreshScheduled = false;
   String _catalogError = '';
   final FocusNode _ownedSearchFocusNode = FocusNode();
   FocusNode get _searchFocusNode =>
@@ -74,7 +77,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
       builder: (context, state) {
         final branch = _catalogBranch(state);
         final scope =
-            '$branch|${widget.selectedCategory}|${state.favoriteProductIds.hashCode}|${state.products.hashCode}';
+            '${state.checkoutStore?.id}|$branch|${widget.selectedCategory}|${state.favoriteProductIds.hashCode}';
+        final contentChanged = !identical(_observedProducts, state.products) ||
+            _observedCatalogRevision != state.catalogRevision;
+        _observedProducts = state.products;
+        _observedCatalogRevision = state.catalogRevision;
         if (branch == null && _catalogScope.isNotEmpty) {
           ++_searchVersion;
           _catalogScope = '';
@@ -97,9 +104,11 @@ class _PosProductPanelState extends State<PosProductPanel> {
           _catalogLoaded = true;
           _remoteSearching = true;
           _catalogError = '';
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _loadCatalog(page: 1);
-          });
+          _scheduleCatalogRefresh();
+        } else if (branch != null && contentChanged) {
+          // Stock/master updates in the same scope must not erase the visible
+          // list, scroll position or selected page while revalidation runs.
+          _scheduleCatalogRefresh();
         }
         final merged = <String, PosProduct>{
           if (!_catalogLoaded)
@@ -357,6 +366,15 @@ class _PosProductPanelState extends State<PosProductPanel> {
   }
 
   String? _catalogBranch(PosState state) => state.checkoutStore?.branchId;
+
+  void _scheduleCatalogRefresh() {
+    if (_catalogRefreshScheduled) return;
+    _catalogRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _catalogRefreshScheduled = false;
+      if (mounted) _loadCatalog(page: _catalogPage);
+    });
+  }
 
   Future<void> _loadCatalog({required int page}) async {
     final bloc = context.read<PosBloc>(),

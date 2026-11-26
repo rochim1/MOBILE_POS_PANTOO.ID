@@ -67,6 +67,14 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<RefreshPosAccess>(_onRefreshPosAccess);
     on<RefreshPosRuntimeConfig>(_onRefreshPosRuntimeConfig);
     on<RefreshProducts>(_onRefreshProducts);
+    on<RefreshCashierCatalog>((event, emit) {
+      emit(state.copyWith(catalogRevision: state.catalogRevision + 1));
+    });
+    on<AcknowledgePaymentSuccess>((event, emit) {
+      if (state.status == PosStatus.paymentSuccess) {
+        emit(state.copyWith(status: PosStatus.success));
+      }
+    });
     on<UpsertProductLocally>(_onUpsertProductLocally);
     on<RemoveProductLocally>(_onRemoveProductLocally);
     on<RefreshOrders>(_onRefreshOrders);
@@ -1224,6 +1232,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         (transaction) => emit(
           state.copyWith(
             status: PosStatus.paymentSuccess,
+            catalogRevision: state.catalogRevision + 1,
             paymentInProgress: false,
             cart: const {},
             manualUnitPrices: const {},

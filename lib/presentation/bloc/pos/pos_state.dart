@@ -12,6 +12,7 @@ enum PosStatus { initial, loading, success, failure, paymentSuccess }
 class PosState extends Equatable {
   final PosStatus status;
   final List<PosProduct> products;
+  final int catalogRevision;
   final bool? _productsRefreshing;
   bool get productsRefreshing => _productsRefreshing ?? false;
   final List<PosCustomer> customers;
@@ -59,6 +60,7 @@ class PosState extends Equatable {
   const PosState({
     this.status = PosStatus.initial,
     this.products = const [],
+    this.catalogRevision = 0,
     bool? productsRefreshing = false,
     this.customers = const [],
     this.stores = const [],
@@ -100,6 +102,7 @@ class PosState extends Equatable {
   PosState copyWith({
     PosStatus? status,
     List<PosProduct>? products,
+    int? catalogRevision,
     bool? productsRefreshing,
     List<PosCustomer>? customers,
     List<PosStore>? stores,
@@ -145,6 +148,7 @@ class PosState extends Equatable {
     return PosState(
       status: status ?? this.status,
       products: products ?? this.products,
+      catalogRevision: catalogRevision ?? this.catalogRevision,
       productsRefreshing: productsRefreshing ?? this.productsRefreshing,
       customers: customers ?? this.customers,
       stores: stores ?? this.stores,
@@ -329,6 +333,7 @@ class PosState extends Equatable {
   List<Object?> get props => [
     status,
     products,
+    catalogRevision,
     productsRefreshing,
     customers,
     stores,

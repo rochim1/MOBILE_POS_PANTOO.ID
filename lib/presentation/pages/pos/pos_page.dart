@@ -162,13 +162,14 @@ class _PosPageViewState extends State<PosPageView> {
           if (matches && bloc.state == originalState) {
             bloc.add(ClearCart());
           }
+          bloc.add(RefreshCashierCatalog());
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => PosSuccessPage(
                 transaction: transaction,
                 autoPrint: false,
-                onDone: () => bloc.add(RefreshProducts()),
+                onDone: () => bloc.add(AcknowledgePaymentSuccess()),
               ),
             ),
           );

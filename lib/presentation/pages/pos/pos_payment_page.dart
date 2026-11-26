@@ -230,7 +230,7 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
                 builder: (_) => PosSuccessPage(
                   transaction: transaction,
                   autoPrint: state.runtimeConfig['auto_print_receipt'] == true,
-                  onDone: () => posBloc.add(RefreshProducts()),
+                  onDone: () => posBloc.add(AcknowledgePaymentSuccess()),
                 ),
               ),
             );
