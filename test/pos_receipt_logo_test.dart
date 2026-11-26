@@ -100,10 +100,12 @@ void main() {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(bluetooth, (
       call,
     ) async {
-      if (call.method == 'write')
+      if (call.method == 'write') {
         writes.add((call.arguments as Map)['address'] as String);
-      if (call.method == 'disconnect')
+      }
+      if (call.method == 'disconnect') {
         disconnects.add((call.arguments as Map)['address'] as String);
+      }
       return true;
     });
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(printing, (

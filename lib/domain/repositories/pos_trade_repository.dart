@@ -136,6 +136,17 @@ class GraphQLPosTradeRepository implements PosTradeRepository {
               : const Left(PosTradeAccessFailure());
         }
       }
+      if (mutation &&
+          (field == 'PayPOSTradeDocument' || field == 'CreatePOSManualTrade')) {
+        final input = vars['input'] as Map;
+        final id = data['id'];
+        if (id is! String ||
+            id.trim().isEmpty ||
+            data['kind'] != input['kind'] ||
+            (field == 'PayPOSTradeDocument' && id != input['document_id'])) {
+          return const Left(PosTradeUnconfirmedFailure());
+        }
+      }
       return Right(parse(data));
     } on TimeoutException {
       return mutation

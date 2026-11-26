@@ -108,7 +108,9 @@ class TradeRepository implements PosTradeRepository {
         ? const Left(PosTradeUnconfirmedFailure())
         : Right(
             document(
-              kind: wrongKind ? PosTradeKind.receivable : PosTradeKind.values.byName(input['kind'] as String),
+              kind: wrongKind
+                  ? PosTradeKind.receivable
+                  : PosTradeKind.values.byName(input['kind'] as String),
               id: wrongDocument ? 'other-document' : 'doc',
               outstanding: 0,
             ),
@@ -145,16 +147,26 @@ Widget app(
 );
 void main() {
   for (final wrong in ['document', 'kind']) {
-    testWidgets('mismatched payment ACK keeps durable proof: $wrong', (tester) async {
+    testWidgets('mismatched payment ACK keeps durable proof: $wrong', (
+      tester,
+    ) async {
       final prefs = await SharedPreferences.getInstance();
       final store = PosFinancialRequestStore(prefs, 'qa');
-      final repo = TradeRepository()..wrongDocument = wrong == 'document'..wrongKind = wrong == 'kind';
+      final repo = TradeRepository()
+        ..wrongDocument = wrong == 'document'
+        ..wrongKind = wrong == 'kind';
       final frozen = await store.begin('pay:payable:doc', {
-        'kind': 'payable', 'document_id': 'doc', 'amount': 40000,
-        'date': '2026-11-26', 'method': 'cash', 'reference': 'ACK',
+        'kind': 'payable',
+        'document_id': 'doc',
+        'amount': 40000,
+        'date': '2026-11-26',
+        'method': 'cash',
+        'reference': 'ACK',
       });
-      await tester.pumpWidget(app(repo, store)); await tester.pumpAndSettle();
-      await tester.tap(find.text('Konfirmasi ulang').first); await tester.pumpAndSettle();
+      await tester.pumpWidget(app(repo, store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Konfirmasi ulang').first);
+      await tester.pumpAndSettle();
       expect(repo.writes.single['request_id'], frozen['request_id']);
       expect(store.load('pay:payable:doc'), isNotNull);
       expect(tester.takeException(), isNull);

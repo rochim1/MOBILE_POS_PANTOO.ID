@@ -266,6 +266,12 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
       final doc = result.getOrElse(
         () => throw StateError('Missing trade response'),
       );
+      if (doc.id.trim().isEmpty ||
+          doc.kind.name != payload['kind'] ||
+          (!creating && doc.id != payload['document_id'])) {
+        setState(() => _error = posLocale(context).tradeUnknown);
+        return; // Never discard durable evidence for a different document.
+      }
       await _requests.acknowledge(key);
       if (!mounted || ticket != _generation) return;
       setState(() {
