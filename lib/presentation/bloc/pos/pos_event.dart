@@ -33,7 +33,7 @@ class RefreshPosAccess extends PosEvent {
 
 class RefreshProducts extends PosEvent {}
 
-/// Revalidate the currently visible cashier page, not the full master list.
+/// Revalidate the visible cashier page without the general product-loader pass.
 class RefreshCashierCatalog extends PosEvent {}
 
 class AcknowledgePaymentSuccess extends PosEvent {}

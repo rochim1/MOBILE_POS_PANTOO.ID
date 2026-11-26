@@ -78,7 +78,8 @@ class _PosProductPanelState extends State<PosProductPanel> {
         final branch = _catalogBranch(state);
         final scope =
             '${state.checkoutStore?.id}|$branch|${widget.selectedCategory}|${state.favoriteProductIds.hashCode}';
-        final contentChanged = !identical(_observedProducts, state.products) ||
+        final contentChanged =
+            !identical(_observedProducts, state.products) ||
             _observedCatalogRevision != state.catalogRevision;
         _observedProducts = state.products;
         _observedCatalogRevision = state.catalogRevision;
