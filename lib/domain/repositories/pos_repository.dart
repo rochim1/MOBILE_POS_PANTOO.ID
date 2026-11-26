@@ -773,9 +773,18 @@ class PosRepository {
     final denialKey = _pinRosterDenialKey;
     try {
       _assertBootstrapSession(session);
-      final connectivity = await Connectivity().checkConnectivity();
+      // Connectivity is only a hint. A stalled platform channel must not
+      // prevent a reachable API from loading the cashier roster.
+      List<ConnectivityResult>? connectivity;
+      try {
+        connectivity = await Connectivity().checkConnectivity().timeout(
+          const Duration(seconds: 2),
+        );
+      } on Exception {
+        connectivity = null;
+      }
       _assertBootstrapSession(session);
-      if (connectivity.contains(ConnectivityResult.none)) {
+      if (connectivity?.contains(ConnectivityResult.none) == true) {
         if (_prefs.getBool(denialKey) == true) {
           return const Left(
             AuthFailure(
@@ -792,20 +801,20 @@ class PosRepository {
           ),
         );
       }
-      final result = await _clientProvider.client
-          .query(
-            QueryOptions(
-              document: gql(PosQueries.getPOSPinUsers),
-              variables: {
-                'search': search.trim().isEmpty ? null : search.trim(),
-                'hasPin': hasPin,
-                'pagination': {'page': 0, 'limit': 100},
-              },
-              fetchPolicy: FetchPolicy.networkOnly,
-              queryRequestTimeout: posBootstrapReadTimeout,
-            ),
-          )
-          .timeout(posBootstrapReadTimeout);
+      final result = await queryPOSPinRoster(
+        _clientProvider.client,
+        QueryOptions(
+          document: gql(PosQueries.getPOSPinUsers),
+          variables: {
+            'search': search.trim().isEmpty ? null : search.trim(),
+            'hasPin': hasPin,
+            'pagination': {'page': 0, 'limit': 100},
+          },
+          fetchPolicy: FetchPolicy.networkOnly,
+          queryRequestTimeout: posBootstrapReadTimeout,
+        ),
+        validateSession: () => _assertBootstrapSession(session),
+      );
       _assertBootstrapSession(session);
       if (result.hasException) throw result.exception!;
       final rows = result.data?['GetPOSPinUsers']?['items'];

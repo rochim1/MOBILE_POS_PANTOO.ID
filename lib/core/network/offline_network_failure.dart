@@ -21,12 +21,16 @@ bool isOfflineReadFailure(Object error) {
     return false;
   }
   final link = error.linkException;
+  if (link is ResponseFormatException ||
+      link is UnexpectedResponseStructureException) {
+    return false;
+  }
   if (link is ServerException) {
     return link.statusCode == null &&
         (link.parsedResponse?.errors?.isEmpty ?? true);
   }
   if (link is HttpLinkServerException) return false;
-  return link != null && link is! ResponseFormatException;
+  return link != null;
 }
 
 /// Only transport failures may be queued. GraphQL validation and authorization

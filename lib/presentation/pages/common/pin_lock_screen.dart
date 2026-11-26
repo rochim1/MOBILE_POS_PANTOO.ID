@@ -15,6 +15,7 @@ import '../../widgets/pos_keyboard_stable_sheet.dart';
 import '../../widgets/pos_customer_display_pairing.dart';
 import '../pos/widgets/pos_setup_tour.dart';
 import 'pos_pin_access_viewport.dart';
+import '../../widgets/pos_pin_roster_feedback.dart';
 
 class PinLockScreen extends StatefulWidget {
   const PinLockScreen({super.key});
@@ -429,8 +430,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   Future<void> _showEmployeePicker() async {
     final cubit = context.read<AppLockCubit>();
-    if (cubit.state.employees.isEmpty) {
-      await cubit.loadEmployees();
+    var search = '';
+    if (cubit.state.employees.isEmpty && !cubit.state.loadingEmployees) {
+      unawaited(cubit.loadEmployees());
     }
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -502,6 +504,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       ),
                     ),
                     onChanged: (value) {
+                      search = value;
                       _employeeListFiltered = value.trim().isNotEmpty;
                       _searchDebounce?.cancel();
                       _searchDebounce = Timer(
@@ -519,8 +522,13 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (state.employees.isEmpty) {
-                      return const Center(
-                        child: PosText('Karyawan tidak ditemukan'),
+                      return PosPinRosterFeedback(
+                        error: state.errorMessage,
+                        retryKey: const Key('pin-picker-roster-retry'),
+                        onRetry: () {
+                          _searchDebounce?.cancel();
+                          unawaited(cubit.loadEmployees(search: search));
+                        },
                       );
                     }
                     return ListView.separated(
@@ -786,6 +794,30 @@ class _PinLockScreenState extends State<PinLockScreen> {
                                             textAlign: TextAlign.center,
                                             maxLines: 2,
                                           ),
+                                          if (!state.loadingEmployees &&
+                                              state.employees.isEmpty &&
+                                              state.errorMessage.isNotEmpty)
+                                            TextButton.icon(
+                                              key: const Key(
+                                                'pin-roster-retry',
+                                              ),
+                                              onPressed: _isVerifying
+                                                  ? null
+                                                  : () {
+                                                      setState(() => _pin = '');
+                                                      unawaited(
+                                                        context
+                                                            .read<
+                                                              AppLockCubit
+                                                            >()
+                                                            .loadEmployees(),
+                                                      );
+                                                    },
+                                              icon: const Icon(Icons.refresh),
+                                              label: Text(
+                                                'Coba lagi'.tr(context),
+                                              ),
+                                            ),
                                           if (pinLocked) ...[
                                             const SizedBox(height: 8),
                                             Container(

@@ -139,15 +139,16 @@ void main() {
       connectivity!.complete(['wifi']);
       await tester.pump();
       await pending;
+      await tester.pump(const Duration(seconds: 5));
       expect(completedInTime, true);
       expect(succeeded, true);
       expect(calls, 1);
     },
   );
-  testWidgets(
+  test(
     'a stalled first request is cancelled and retried within the existing startup budget',
-    (tester) async {
-      var calls = 0, cancelled = false, done = false;
+    () async {
+      var calls = 0, cancelled = false;
       final source = StreamController<Response>(
         onCancel: () => cancelled = true,
       );
@@ -155,16 +156,13 @@ void main() {
         if (++calls == 1) return source.stream;
         return Stream.value(Response(data: roster, response: {}));
       });
-      final pending = repo.getPOSPinUsers(hasPin: true).then((result) {
-        done = result.isRight();
-      });
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 5));
-      final retriedInTime = done && calls == 2 && cancelled;
-      await tester.pump(const Duration(seconds: 4));
-      await pending;
+      final elapsed = Stopwatch()..start();
+      final result = await repo.getPOSPinUsers(hasPin: true).timeout(const Duration(seconds: 12));
       await source.close();
-      expect(retriedInTime, true);
+      expect(result.isRight(), true);
+      expect(calls, 2);
+      expect(cancelled, true);
+      expect(elapsed.elapsed, lessThan(const Duration(seconds: 8)));
     },
   );
 }

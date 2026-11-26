@@ -1,8 +1,42 @@
 import 'dart:async';
 import 'package:gql/ast.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
+import 'offline_network_failure.dart';
 
 const posBootstrapReadTimeout = Duration(seconds: 8);
+
+class PosBootstrapReadDeadline extends ContextEntry {
+  const PosBootstrapReadDeadline(this.timeout);
+  final Duration timeout;
+  @override
+  List<Object?> get fieldsForEquality => [timeout];
+}
+
+/// Two bounded read attempts share the existing eight-second network budget.
+/// Never retry a PIN verification, write, or authoritative server rejection.
+Future<QueryResult<T>> queryPOSPinRoster<T>(
+  GraphQLClient client,
+  QueryOptions<T> options, {
+  required void Function() validateSession,
+}) async {
+  const attemptTimeout = Duration(seconds: 4);
+  final bounded = options.copyWithOptions(
+    queryRequestTimeout: attemptTimeout,
+    context: options.context.withEntry(
+      const PosBootstrapReadDeadline(attemptTimeout),
+    ),
+  );
+  for (var attempt = 0; ; attempt++) {
+    validateSession();
+    try {
+      final result = await client.query<T>(bounded).timeout(attemptTimeout);
+      if (result.hasException) throw result.exception!;
+      return result;
+    } catch (error) {
+      if (attempt == 1 || !isOfflineReadFailure(error)) rethrow;
+    }
+  }
+}
 
 /// In-flight sharing only. Never cache a settled permission result or share
 /// between endpoint/tenant/terminal/operator/client-session identities.
@@ -49,7 +83,7 @@ Link posBootstrapReadDeadlineLink({
   final response = forward!(request);
   if (!bounded) return response;
   return response.timeout(
-    timeout,
+    request.context.entry<PosBootstrapReadDeadline>()?.timeout ?? timeout,
     onTimeout: (sink) {
       sink.addError(TimeoutException('POS startup read timed out', timeout));
       sink.close();
