@@ -60,6 +60,7 @@ class _Repo extends Fake implements PosRepository {
     },
   };
   int recoveries = 0;
+  int cancellations = 0;
   Completer<Either<Failure, PosTransactionResult>> response = Completer();
   @override
   Map<String, dynamic>? get pendingCheckout => record;
@@ -70,6 +71,12 @@ class _Repo extends Fake implements PosRepository {
       if (result.isRight()) record = null;
       return result;
     });
+  }
+  @override
+  Future<Either<Failure, bool>> cancelPendingCheckout({required String resolution, required String note}) async {
+    cancellations++;
+    if (resolution == 'not_received' && note.length >= 5) { record = null; return const Right(true); }
+    return const Left(ServerFailure('Not confirmed'));
   }
 }
 
@@ -149,6 +156,19 @@ void main() {
     await tester.pumpAndSettle();
     return (repo, bloc);
   }
+
+  testWidgets('closed-shift resolution opens the cashier without changing current cart or store', (tester) async {
+    final (repo, bloc) = await open(tester, matching: true);
+    await tester.tap(find.text('Selesaikan pembayaran'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('checkout_resolution_note')), 'No money received; checked invoice');
+    await tester.tap(find.text('Selesaikan percobaan'));
+    await tester.pumpAndSettle();
+    expect(repo.cancellations, 1); expect(repo.record, isNull);
+    expect(find.byKey(const Key('recover_checkout')), findsNothing);
+    expect(bloc.events.whereType<ClearCart>(), isEmpty);
+    expect(bloc.state.checkoutStore?.id, 'store');
+  });
 
   testWidgets(
     'recovery immediately shows progress, prevents duplicate taps and shows failure',
