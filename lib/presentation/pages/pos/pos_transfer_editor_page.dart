@@ -212,6 +212,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         unawaited(loadFinance());
       }
       if (widget.initialInventoryId != null && widget.existing == null) {
+        final requestedVersion = version;
         final available = await repo.query(PosTransferQueries.items, {
           'id': doc['dari']['cabang_id'],
           'search': null,
@@ -224,7 +225,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                       widget.initialInventoryId,
                 )
                 .firstOrNull;
-        if (selected != null && mounted) {
+        if (selected != null && mounted && version == requestedVersion) {
           setState(
             () => items.add({
               ...selected,
@@ -773,6 +774,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                             setState(() {
                               draft['dari'] = v;
                               draft['items'] = <Map<String, dynamic>>[];
+                              version++;
                             });
                           },
                         ),
