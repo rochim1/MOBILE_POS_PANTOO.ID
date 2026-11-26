@@ -21,10 +21,13 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_payment_page.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 
 class _Repository extends Fake implements PosRepository {
-  _Repository({this.unresolved = false});
+  _Repository({this.unresolved = false, this.identityMissing = false});
   final bool unresolved;
+  final bool identityMissing;
   @override
-  Map<String, dynamic>? get pendingCheckout => unresolved
+  Map<String, dynamic>? get pendingCheckout => identityMissing
+      ? throw StateError('Identitas akun pembayaran belum tersedia')
+      : unresolved
       ? {
           'input': {'client_transaction_id': 'original'},
         }
@@ -50,8 +53,8 @@ class _PreparingAccess extends ChangeNotifier
 }
 
 class _PaymentBloc extends PosBloc {
-  _PaymentBloc(PosState initial, {bool unresolved = false})
-    : super(posRepository: _Repository(unresolved: unresolved)) {
+  _PaymentBloc(PosState initial, {bool unresolved = false, bool identityMissing = false})
+    : super(posRepository: _Repository(unresolved: unresolved, identityMissing: identityMissing)) {
     emit(initial);
   }
   final submitted = <PosEvent>[];
@@ -161,6 +164,17 @@ Future<void> cash(
 }
 
 void main() {
+  testWidgets('missing payment identity cannot crash the error dialog or claim a confirmed rejection', (tester) async {
+    final bloc = _PaymentBloc(initial(), identityMissing: true);
+    addTearDown(bloc.close);
+    await tester.pumpWidget(_app(bloc));
+    await tester.pumpAndSettle();
+    bloc.fail('Sesi pembayaran perlu diperiksa');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Periksa pembayaran sebelumnya'), findsOneWidget);
+    expect(find.text('Transaksi Ditolak'), findsNothing);
+  });
   for (final unresolved in [true, false]) {
     testWidgets(
       'payment error title distinguishes unresolved=$unresolved from rejection',
