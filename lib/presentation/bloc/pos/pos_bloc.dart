@@ -853,9 +853,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         customer: state.selectedCustomer,
         store: activeStores.first,
         notes: event.notes,
-        manualDiscountPercent: state.manualDiscountPercent,
-        promoCode: state.promoCode,
-        discountPolicy: state.discountPolicy,
+        manualDiscountPercent: state.effectiveManualDiscountPercent,
+        promoCode: state.effectivePromoCode,
+        discountPolicy: state.effectiveDiscountPolicy,
         orderType: state.orderType,
         tableId: state.selectedTableId,
         tableName: state.selectedTableName,
@@ -945,8 +945,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       tokoId: storeId,
       unitPrices: state.manualUnitPrices,
       selectedUnits: state.selectedUnits,
-      promoCode: state.promoCode,
-      discountPolicy: state.discountPolicy,
+      promoCode: state.effectivePromoCode,
+      discountPolicy: state.effectiveDiscountPolicy,
       manualDiscount: requestedState.manualDiscount,
       salesChannel: state.salesChannel,
       customerSegment: state.customerSegment,
@@ -964,7 +964,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         requestedState.selectedCustomer?.id != state.selectedCustomer?.id ||
         requestedState.manualDiscountPercent != state.manualDiscountPercent ||
         requestedState.promoCode != state.promoCode ||
-        requestedState.discountPolicy != state.discountPolicy ||
+        requestedState.effectiveDiscountPolicy != state.effectiveDiscountPolicy ||
         requestedState.salesChannel != state.salesChannel ||
         requestedState.customerSegment != state.customerSegment ||
         requestedState.priceLevel != state.priceLevel) {
@@ -1042,9 +1042,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           cart: event.order.cart,
           manualUnitPrices: event.order.manualUnitPrices,
           selectedUnits: event.order.selectedUnits,
-          manualDiscountPercent: event.order.manualDiscountPercent,
-          promoCode: event.order.promoCode,
-          discountPolicy: event.order.discountPolicy,
+          manualDiscountPercent: state.manualDiscountAllowed ? event.order.manualDiscountPercent : 0,
+          promoCode: state.promoCodeAllowed ? event.order.promoCode : '',
+          discountPolicy: state.effectiveDiscountPolicy,
           orderType: event.order.orderType,
           selectedTableId: event.order.tableId,
           selectedTableName: event.order.tableName,
@@ -1092,11 +1092,17 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onUpdateDiscount(UpdateDiscount event, Emitter<PosState> emit) {
     if (_paymentInFlight || _cartDraftInFlight) return;
+    final canEdit = (state.runtimeConfig['permissions'] as Map?)?['manage_settings'] == true;
+    final manual = !state.manualDiscountAllowed ? 0.0 : canEdit ? event.manualDiscountPercent : state.effectiveManualDiscountPercent;
+    if (!manual.isFinite || manual < 0 || manual > 100) {
+      emit(state.copyWith(status: PosStatus.failure, errorMessage: 'Diskon harus antara 0–100%'));
+      return;
+    }
     emit(
       state.copyWith(
-        manualDiscountPercent: event.manualDiscountPercent,
-        promoCode: event.promoCode.trim().toUpperCase(),
-        discountPolicy: event.discountPolicy,
+        manualDiscountPercent: manual,
+        promoCode: state.promoCodeAllowed ? event.promoCode.trim().toUpperCase() : '',
+        discountPolicy: state.effectiveDiscountPolicy,
         status: PosStatus.success,
         clearPricingPreview: true,
         pricingPreviewLoading: false,
@@ -1120,7 +1126,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       return;
     }
     if (_paymentInFlight || state.cart.isEmpty) return;
-    if (state.promoCode.trim().isNotEmpty && !state.promoApplied) {
+    if (state.effectivePromoCode.trim().isNotEmpty && !state.promoApplied) {
       emit(
         state.copyWith(
           status: PosStatus.failure,
@@ -1199,8 +1205,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         // floating-point artefacts from discounts/tax calculations.
         cashReceived: event.cashReceived.roundToDouble(),
         payments: event.payments,
-        promoCode: state.promoCode.isNotEmpty ? state.promoCode : null,
-        discountPolicy: state.discountPolicy,
+        promoCode: state.effectivePromoCode.isNotEmpty ? state.effectivePromoCode : null,
+        discountPolicy: state.effectiveDiscountPolicy,
         diskon: state.manualDiscount,
         catatan: event.note.trim().isEmpty
             ? 'Mobile POS Payment'

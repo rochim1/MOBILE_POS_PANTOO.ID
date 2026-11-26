@@ -298,41 +298,42 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
         const SizedBox(height: 12),
         _fieldLabel('Promo & Diskon', 'Terapkan kode setelah selesai diketik'),
         const SizedBox(height: 7),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _promoController,
-                textCapitalization: TextCapitalization.characters,
-                enabled: !state.pricingPreviewLoading,
-                onSubmitted: (_) => _applyPromo(state),
-                decoration: InputDecoration(
-                  hintText: ('Kode promo').tr(context),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+        if (state.promoCodeAllowed)
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _promoController,
+                  textCapitalization: TextCapitalization.characters,
+                  enabled: !state.pricingPreviewLoading,
+                  onSubmitted: (_) => _applyPromo(state),
+                  decoration: InputDecoration(
+                    hintText: ('Kode promo').tr(context),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: state.pricingPreviewLoading
-                  ? null
-                  : () => _applyPromo(state),
-              child: state.pricingPreviewLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const PosText('Terapkan'),
-            ),
-          ],
-        ),
-        if (state.promoCode.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: state.pricingPreviewLoading
+                    ? null
+                    : () => _applyPromo(state),
+                child: state.pricingPreviewLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const PosText('Terapkan'),
+              ),
+            ],
+          ),
+        if (state.promoCodeAllowed && state.promoCode.isNotEmpty) ...[
           const SizedBox(height: 8),
           Row(
             children: [
@@ -355,7 +356,7 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             ],
           ),
         ],
-        if (canOverridePricing) ...[
+        if (canOverridePricing && state.manualDiscountAllowed) ...[
           const SizedBox(height: 8),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
@@ -596,98 +597,106 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            SizedBox(
-              width: widget.isMobile ? double.infinity : 240,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _fieldLabel(
-                    'Kode Promo',
-                    'Masukkan kode voucher atau promo yang digunakan',
-                  ),
-                  const SizedBox(height: 7),
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: ('Contoh: HEMAT10').tr(context),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
+            if (state.promoCodeAllowed)
+              SizedBox(
+                width: widget.isMobile ? double.infinity : 240,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _fieldLabel(
+                      'Kode Promo',
+                      'Masukkan kode voucher atau promo yang digunakan',
                     ),
-                    onChanged: (value) {
-                      context.read<PosBloc>().add(
-                        UpdateDiscount(
-                          manualDiscountPercent: state.manualDiscountPercent,
-                          promoCode: value,
-                          discountPolicy: state.discountPolicy,
+                    const SizedBox(height: 7),
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: ('Contoh: HEMAT10').tr(context),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
                         ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: widget.isMobile ? double.infinity : 180,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _fieldLabel(
-                    'Diskon Manual (%)',
-                    'Potongan tambahan antara 0–100%',
-                  ),
-                  const SizedBox(height: 7),
-                  TextFormField(
-                    initialValue: state.manualDiscountPercent.toStringAsFixed(
-                      state.manualDiscountPercent % 1 == 0 ? 0 : 2,
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: ('Contoh: 10').tr(context),
-                      suffixText: '%',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
                       ),
+                      onChanged: (value) {
+                        context.read<PosBloc>().add(
+                          UpdateDiscount(
+                            manualDiscountPercent: state.manualDiscountPercent,
+                            promoCode: value,
+                            discountPolicy: state.discountPolicy,
+                          ),
+                        );
+                      },
                     ),
-                    onChanged: (value) => context.read<PosBloc>().add(
-                      UpdateDiscount(
-                        manualDiscountPercent: (double.tryParse(value) ?? 0)
-                            .clamp(0, 100),
-                        promoCode: state.promoCode,
-                        discountPolicy: state.discountPolicy,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _pricingDropdown(
-              label: ('Aturan Kombinasi Diskon').tr(context),
-              description: ('Tentukan cara promo dan diskon manual diterapkan')
-                  .tr(context),
-              value: state.discountPolicy,
-              width: widget.isMobile ? double.infinity : 240,
-              items: const {
-                'stack': 'Manual + Promo',
-                'promo_only': 'Promo saja',
-                'manual_only': 'Manual saja',
-                'best_of_manual_or_promo': 'Diskon terbaik',
-              },
-              onChanged: (value) => context.read<PosBloc>().add(
-                UpdateDiscount(
-                  manualDiscountPercent: state.manualDiscountPercent,
-                  promoCode: state.promoCode,
-                  discountPolicy: value,
+                  ],
                 ),
               ),
-            ),
+            if (state.manualDiscountAllowed &&
+                (state.runtimeConfig['permissions']
+                        as Map?)?['manage_settings'] ==
+                    true)
+              SizedBox(
+                width: widget.isMobile ? double.infinity : 180,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _fieldLabel(
+                      'Diskon Manual (%)',
+                      'Potongan tambahan antara 0–100%',
+                    ),
+                    const SizedBox(height: 7),
+                    TextFormField(
+                      initialValue: state.manualDiscountPercent.toStringAsFixed(
+                        state.manualDiscountPercent % 1 == 0 ? 0 : 2,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: ('Contoh: 10').tr(context),
+                        suffixText: '%',
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (value) => context.read<PosBloc>().add(
+                        UpdateDiscount(
+                          manualDiscountPercent: (double.tryParse(value) ?? 0)
+                              .clamp(0, 100),
+                          promoCode: state.promoCode,
+                          discountPolicy: state.discountPolicy,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (!state.runtimeConfig.containsKey('default_discount_policy'))
+              _pricingDropdown(
+                label: ('Aturan Kombinasi Diskon').tr(context),
+                description:
+                    ('Tentukan cara promo dan diskon manual diterapkan').tr(
+                      context,
+                    ),
+                value: state.discountPolicy,
+                width: widget.isMobile ? double.infinity : 240,
+                items: const {
+                  'stack': 'Manual + Promo',
+                  'promo_only': 'Promo saja',
+                  'manual_only': 'Manual saja',
+                  'best_of_manual_or_promo': 'Diskon terbaik',
+                },
+                onChanged: (value) => context.read<PosBloc>().add(
+                  UpdateDiscount(
+                    manualDiscountPercent: state.manualDiscountPercent,
+                    promoCode: state.promoCode,
+                    discountPolicy: value,
+                  ),
+                ),
+              ),
           ],
         ),
       ],

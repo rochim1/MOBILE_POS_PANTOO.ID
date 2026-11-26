@@ -22,9 +22,9 @@ class _PosDiscountDialogState extends State<PosDiscountDialog> {
     super.initState();
     final state = context.read<PosBloc>().state;
     _discount = TextEditingController(
-      text: state.manualDiscountPercent.toStringAsFixed(0),
+      text: state.effectiveManualDiscountPercent.toStringAsFixed(0),
     );
-    _promo = TextEditingController(text: state.promoCode);
+    _promo = TextEditingController(text: state.effectivePromoCode);
   }
 
   @override
@@ -38,10 +38,11 @@ class _PosDiscountDialogState extends State<PosDiscountDialog> {
     if (state.pricingPreviewLoading) return;
     final canOverride =
         (state.runtimeConfig['permissions'] as Map?)?['manage_settings'] ==
-        true;
+            true &&
+        state.manualDiscountAllowed;
     final discount = canOverride
         ? double.tryParse(_discount.text)
-        : state.manualDiscountPercent;
+        : state.effectiveManualDiscountPercent;
     if (discount == null ||
         !discount.isFinite ||
         discount < 0 ||
@@ -53,8 +54,8 @@ class _PosDiscountDialogState extends State<PosDiscountDialog> {
     context.read<PosBloc>().add(
       UpdateDiscount(
         manualDiscountPercent: discount,
-        promoCode: _promo.text,
-        discountPolicy: state.discountPolicy,
+        promoCode: state.promoCodeAllowed ? _promo.text : '',
+        discountPolicy: state.effectiveDiscountPolicy,
       ),
     );
   }
@@ -66,7 +67,8 @@ class _PosDiscountDialogState extends State<PosDiscountDialog> {
     builder: (context, state) {
       final canOverride =
           (state.runtimeConfig['permissions'] as Map?)?['manage_settings'] ==
-          true;
+              true &&
+          state.manualDiscountAllowed;
       return AlertDialog(
         title: const PosText('Diskon & Promo'),
         content: SingleChildScrollView(
@@ -87,16 +89,17 @@ class _PosDiscountDialogState extends State<PosDiscountDialog> {
                 ),
                 const SizedBox(height: 16),
               ],
-              TextField(
-                controller: _promo,
-                textCapitalization: TextCapitalization.characters,
-                enabled: !state.pricingPreviewLoading,
-                onSubmitted: (_) => _apply(state),
-                decoration: InputDecoration(
-                  labelText: 'Kode promo'.tr(context),
+              if (state.promoCodeAllowed)
+                TextField(
+                  controller: _promo,
+                  textCapitalization: TextCapitalization.characters,
+                  enabled: !state.pricingPreviewLoading,
+                  onSubmitted: (_) => _apply(state),
+                  decoration: InputDecoration(
+                    labelText: 'Kode promo'.tr(context),
+                  ),
                 ),
-              ),
-              if (state.promoCode.isNotEmpty) ...[
+              if (state.promoCodeAllowed && state.promoCode.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 PosPromoFeedback(state: state),
               ],
@@ -104,7 +107,7 @@ class _PosDiscountDialogState extends State<PosDiscountDialog> {
           ),
         ),
         actions: [
-          if (state.promoCode.isNotEmpty)
+          if (state.promoCodeAllowed && state.promoCode.isNotEmpty)
             TextButton(
               onPressed: state.pricingPreviewLoading
                   ? null

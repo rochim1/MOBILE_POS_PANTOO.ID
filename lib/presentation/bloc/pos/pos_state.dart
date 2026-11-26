@@ -233,17 +233,44 @@ class PosState extends Equatable {
 
   double get totalItems => cart.values.fold(0.0, (sum, qty) => sum + qty);
 
-  double get manualDiscount => subTotal * (manualDiscountPercent / 100);
+  // Settings are authoritative for a new checkout, including resumed drafts.
+  // Persisted payment proofs are replayed separately and must not be rewritten.
+  String get effectiveDiscountPolicy {
+    final configured = runtimeConfig['default_discount_policy']?.toString();
+    const policies = {
+      'stack',
+      'promo_only',
+      'manual_only',
+      'best_of_manual_or_promo',
+    };
+    if (policies.contains(configured)) return configured!;
+    return policies.contains(discountPolicy) ? discountPolicy : 'stack';
+  }
+
+  bool get manualDiscountAllowed => effectiveDiscountPolicy != 'promo_only';
+  bool get promoCodeAllowed => effectiveDiscountPolicy != 'manual_only';
+  double get effectiveManualDiscountPercent =>
+      manualDiscountAllowed ? manualDiscountPercent : 0;
+  String get effectivePromoCode => promoCodeAllowed ? promoCode : '';
+  bool get pricingMatchesDiscountPolicy =>
+      (pricingPreview?['discount_policy']?.toString() ?? discountPolicy) ==
+      effectiveDiscountPolicy;
+  double get manualDiscount =>
+      subTotal * (effectiveManualDiscountPercent / 100);
 
   bool get promoApplied =>
-      !pricingPreviewLoading && pricingPreview?['promo_applied'] == true;
-  double get promoDiscount =>
-      (pricingPreview?['promo_discount'] as num?)?.toDouble() ?? 0;
+      promoCodeAllowed &&
+      pricingMatchesDiscountPolicy &&
+      !pricingPreviewLoading &&
+      pricingPreview?['promo_applied'] == true;
+  double get promoDiscount => promoCodeAllowed && pricingMatchesDiscountPolicy
+      ? (pricingPreview?['promo_discount'] as num?)?.toDouble() ?? 0
+      : 0;
 
   double get totalDiscount {
-    if (discountPolicy == 'promo_only') return promoDiscount;
-    if (discountPolicy == 'manual_only') return manualDiscount;
-    if (discountPolicy == 'best_of_manual_or_promo') {
+    if (effectiveDiscountPolicy == 'promo_only') return promoDiscount;
+    if (effectiveDiscountPolicy == 'manual_only') return manualDiscount;
+    if (effectiveDiscountPolicy == 'best_of_manual_or_promo') {
       return manualDiscount > promoDiscount ? manualDiscount : promoDiscount;
     }
     // stack
@@ -251,8 +278,9 @@ class PosState extends Equatable {
   }
 
   double get grandTotal {
-    final serverTotal = (pricingPreview?['total_after_discount'] as num?)
-        ?.toDouble();
+    final serverTotal = pricingMatchesDiscountPolicy
+        ? (pricingPreview?['total_after_discount'] as num?)?.toDouble()
+        : null;
     if (serverTotal != null) return _roundPayableTotal(serverTotal + taxAmount);
     final total = subTotal - totalDiscount;
     return total > 0 ? _roundPayableTotal(total + taxAmount) : 0;
@@ -269,8 +297,9 @@ class PosState extends Equatable {
   }
 
   double get taxableAmount {
-    final serverTotal = (pricingPreview?['total_after_discount'] as num?)
-        ?.toDouble();
+    final serverTotal = pricingMatchesDiscountPolicy
+        ? (pricingPreview?['total_after_discount'] as num?)?.toDouble()
+        : null;
     if (serverTotal != null) return serverTotal.clamp(0, double.infinity);
     return (subTotal - totalDiscount).clamp(0, double.infinity);
   }

@@ -1241,8 +1241,8 @@ class _PosPageViewState extends State<PosPageView> {
                 .clamp(0, 100)
                 .toDouble()
           : 0,
-      promoCode: state.promoCode,
-      discountPolicy: state.discountPolicy,
+      promoCode: state.effectivePromoCode,
+      discountPolicy: state.effectiveDiscountPolicy,
       manualDiscount: state.manualDiscount,
       taxPercent: state.taxPercent,
       salesChannel: state.salesChannel,
