@@ -11,10 +11,10 @@ Pengaturan tidak dipaksakan saat onboarding. Membuka halaman tidak mengubah prof
 ## Cara penggunaan
 
 1. Pemilik/admin membuka Pengaturan POS, lalu memilih Inventori.
-2. Pilih profil Sederhana, Terpusat, Lengkap/Advanced, atau Kustom. Nilai profil dan preset persis mengikuti web/server.
+2. Pilih **Stok langsung dijual** atau **Pakai perpindahan stok**. Profil teknis tidak ditanyakan di pilihan utama; nilai profil dan preset di belakangnya tetap mengikuti web/server.
 3. Tentukan lokasi penerimaan utama. Untuk profil sederhana dengan lebih dari satu gudang aktif, lokasi ini wajib dipilih agar penerimaan tidak buntu.
 4. Jika alur membutuhkan transit, pilihan lokasi transit langsung terlihat. Gudang transit harus aktif dan berjenis `in_transit`.
-5. Buka pengaturan lanjutan jika perlu mengatur gudang pusat/toko/display, permintaan/persetujuan transfer, pembelian langsung ke toko, toleransi penerimaan, atau aturan pengiriman.
+5. Buka **Pengaturan lanjutan** jika perlu memilih konfigurasi rinci Sederhana/Terpusat/Lengkap/Kustom atau mengatur gudang pusat/toko/display, permintaan/persetujuan transfer, pembelian langsung ke toko, toleransi penerimaan, dan aturan pengiriman. Bagian ini dapat dibuka/tutup, bukan profil ketiga.
 6. Tekan Simpan alur stok, periksa konfirmasi, lalu simpan. Tombol menampilkan proses dan tidak dapat ditekan berulang selama penyimpanan.
 7. Setelah simpan terkonfirmasi, konfigurasi menu dibaca ulang tanpa mengosongkan keranjang, pilihan satuan, harga edit, jenis pesanan, channel, atau level harga. Jika pembacaan ini gagal, gunakan Sinkronkan menu; tombol tersebut tidak menyimpan ulang pengaturan.
 
@@ -116,3 +116,20 @@ Ringkasan: implementasi memakai sumber konfigurasi bersama, dengan verifikasi ot
 | Keringkasan | 4/5 | Pemisahan model/repository/copy/widget mencegah duplikasi konfigurasi; halaman tetap memiliki sejumlah kontrol lanjutan. |
 
 Rata-rata: 4,2/5. Perbaikan lanjutan paling bernilai adalah uji GUI emulator/HP dan web setelah build/deployment QA diperbarui. Penilaian tidak menyamakan lulus tes otomatis dengan kesiapan produksi tanpa batas. Pengguna semestinya dapat menyetujui batas ini karena tidak ada klaim uji perangkat yang belum dilakukan.
+
+## Pembaruan UX: dua pilihan utama
+
+Screenshot pengguna menunjukkan empat nama profil teknis masih menjadi pilihan utama. Tampilan mobile diperbaiki menjadi **Stok langsung dijual**, **Pakai perpindahan stok**, dan bagian lipat **Pengaturan lanjutan**. Konfigurasi teknis tetap tersedia di bagian lanjutan; tidak ada nilai profil baru di API atau migrasi database.
+
+Membuka profil Terpusat/Advanced/Kustom hanya menampilkannya sebagai Pakai perpindahan stok, tanpa mengganti nilai profilnya. Memilih alur langsung lalu kembali ke perpindahan mengembalikan konfigurasi rinci yang tadi dipilih, termasuk persetujuan, display, transit, dan toleransi.
+
+Jika sebelumnya memakai profil sederhana dan baru memilih perpindahan, draf disiapkan sebagai Kustom dengan gudang toko dan permintaan transfer aktif. Tidak otomatis mengaktifkan gudang pusat, persetujuan, atau mengubah aturan lintas cabang menjadi langsung. Aturan sistem lintas cabang tetap memerlukan lokasi transit. Tidak ada penulisan sampai pengguna mengonfirmasi Simpan.
+
+- RED: `51a4c55`; tes mengharapkan dua opsi `simple/movement`, tetapi menemukan `simple/centralized/advanced/custom`.
+- GREEN implementasi: `f783879`; 10 tes widget/navigasi lulus setelah perubahan.
+- Verifikasi tambahan: **36 PASS** pada empat file `pos_inventory_flow_{settings,page,runtime,navigation}_test.dart`, dijalankan serial dengan `flutter test --no-pub --concurrency=1 --coverage --coverage-path output/inventory-flow-20261126/plain-choices-lcov.info ...`.
+- Cakupan baris widget terbaru: **245/276 (88,8%)**; helper bahasa **4/5 (80%)**; model **98/98 (100%)**.
+- Hasil 122/60/74 pada bagian sebelumnya adalah regresi implementasi awal; pembaruan UI ini mengulang paket 36 tes fitur, bukan mengklaim seluruh paket luas dijalankan ulang.
+- Tidak ada perubahan server/web UI, build APK/AAB, atau uji GUI perangkat nyata pada pembaruan label ini.
+
+Evaluasi pembaruan: akurasi 5 (opsi dan pelestarian diuji), kelengkapan 4 (GUI perangkat nyata belum diulang), kejelasan 5 (dua pilihan + bagian lanjutan), keterpakaian 4 (aplikasi terpasang memerlukan pembaruan build), keringkasan 4 (kontrol rinci tetap tersedia tanpa menjadi pilihan utama); rata-rata 4,4/5. Prioritas berikutnya adalah memeriksa GUI build terbaru. Pengguna dapat menilai hasil berdasarkan opsi yang terlihat, tanpa diasumsikan bahwa aplikasi terpasang sudah diperbarui.

@@ -102,6 +102,52 @@ Future<void> submit(WidgetTester t) async {
 
 void main() {
   testWidgets(
+    'enabling movement from simple only prepares a draft until explicit save',
+    (t) async {
+      final repo = FlowRepo()..policy = {'inventory_profile': 'simple'};
+      await open(t, repo);
+      await t.tap(find.byKey(const Key('flow-profile')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Pakai perpindahan stok').last);
+      await t.pumpAndSettle();
+      expect(repo.writes, 0);
+      expect(repo.policy['inventory_profile'], 'simple');
+      await submit(t);
+      await t.pumpAndSettle();
+      expect(repo.writes, 1);
+      expect(repo.policy['inventory_profile'], 'custom');
+      expect(repo.policy['use_store_warehouse'], true);
+      expect(repo.policy['use_transfer_request'], true);
+      expect(repo.policy['use_central_warehouse'], false);
+      expect(repo.policy['use_transfer_approval'], false);
+      expect(repo.policy['transfer_cross_branch_rule'], 'system_default');
+    },
+  );
+  testWidgets(
+    'technical profiles remain editable inside the advanced section',
+    (t) async {
+      await open(t, FlowRepo());
+      expect(find.byKey(const Key('flow-detail-profile')), findsNothing);
+      await t.scrollUntilVisible(
+        find.byKey(const Key('flow-advanced')),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.tap(find.byKey(const Key('flow-advanced')));
+      await t.pumpAndSettle();
+      final dropdown = t.widget<DropdownButton<String>>(
+        find.descendant(
+          of: find.byKey(const Key('flow-detail-profile')),
+          matching: find.byType(DropdownButton<String>),
+        ),
+      );
+      expect(
+        dropdown.items!.map((item) => item.value),
+        PosInventoryFlowPolicy.profiles,
+      );
+    },
+  );
+  testWidgets(
     'primary flow has two plain choices and technical profiles stay in advanced',
     (t) async {
       await open(t, FlowRepo());

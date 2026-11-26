@@ -404,8 +404,9 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
                       onChanged: !_editable
                           ? null
                           : (value) {
-                              if (value != null)
+                              if (value != null) {
                                 _change(draft.withProfile(value));
+                              }
                             },
                     ),
                     const SizedBox(height: 10),
