@@ -11,7 +11,10 @@ void main() {
       'lib/domain/repositories/pos_notification_repository.dart',
     ).readAsStringSync();
 
-    expect(shell, contains('_notificationButton(compact: isSmallScreen)'));
+    expect(
+      shell.replaceAll(RegExp(r'\s+'), ''),
+      contains('_notificationButton(compact:isSmallScreen,)'),
+    );
     expect(shell, contains("value: 'all'"));
     expect(shell, contains('PosNotificationPage'));
     expect(repository, contains('GetAllNotifikasi'));

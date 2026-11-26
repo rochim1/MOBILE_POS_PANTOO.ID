@@ -63,7 +63,7 @@ void main() {
     final query = File('lib/data/graphql/pos_queries.dart').readAsStringSync();
 
     expect(query, contains('mutation IssuePOSCreditInvoice'));
-    expect(repository, contains("paymentMethod == 'tempo'"));
+    expect(repository, contains("method == 'tempo'"));
     expect(repository, contains('PosQueries.issuePOSCreditInvoice'));
     expect(repository, contains("'IssuePOSCreditInvoice'"));
   });

@@ -29,7 +29,9 @@ void main() {
     expect(onboarding, contains('const BusinessSetupPage()'));
     expect(app, contains('finishPosLoginNavigation('));
     expect(app, contains('needsWorkspace: needsWorkspace'));
-    final navigation = File('lib/core/auth/pos_login_navigation.dart').readAsStringSync();
+    final navigation = File(
+      'lib/core/auth/pos_login_navigation.dart',
+    ).readAsStringSync();
     expect(navigation, contains('if (!needsWorkspace && enabled)'));
     expect(navigation, contains('resetLock();'));
     expect(app, contains('context.read<AppLockCubit>().reset()'));
@@ -41,6 +43,10 @@ void main() {
     ).readAsStringSync();
     expect(setup, contains('createWorkspace'));
     expect(setup, contains('context.read<AppLockCubit>().lock()'));
-    expect(setup, contains('const PosOnboardingGate()'));
+    expect(setup, contains('const PosShellPage()'));
+    expect(
+      setup.indexOf('context.read<AppLockCubit>().lock()'),
+      lessThan(setup.indexOf('const PosShellPage()')),
+    );
   });
 }

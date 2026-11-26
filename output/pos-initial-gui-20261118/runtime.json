@@ -1,0 +1,24 @@
+{
+  "uri": "mongodb://127.0.0.1:60731/pos_initial_gui_20261118?replicaSet=testset",
+  "pid": 15604,
+  "accounts": [
+    {
+      "client": "android",
+      "username": "qa_setup_android_1811",
+      "user_id": "6afd48e6c4f73be4b05a0543"
+    },
+    {
+      "client": "web",
+      "username": "qa_setup_web_1811",
+      "user_id": "6afd48e7c4f73be4b05a0548"
+    },
+    {
+      "client": "android-retest",
+      "username": "qa_setup_android_retest_1811",
+      "user_id": "6afd58b20fb88b2330bd5516"
+    }
+  ],
+  "api": "http://127.0.0.1:18118/graphql",
+  "web": "http://localhost:5189",
+  "scope": "Synthetic, isolated localhost-only GUI setup QA"
+}

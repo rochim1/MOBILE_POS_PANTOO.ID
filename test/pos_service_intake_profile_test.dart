@@ -23,7 +23,9 @@ void main() {
         'lib/presentation/pages/pos/pos_payment_page.dart',
       ).readAsStringSync();
       expect(payment, contains('buildPosServiceIntake('));
-      final intake = File('lib/presentation/pages/pos/utils/pos_service_intake.dart').readAsStringSync();
+      final intake = File(
+        'lib/presentation/pages/pos/utils/pos_service_intake.dart',
+      ).readAsStringSync();
       expect(intake, contains('posServiceIntakeMode(product, profile)'));
       final queries = File(
         'lib/data/graphql/pos_table_order_queries.dart',
@@ -37,7 +39,10 @@ void main() {
       final page = File(
         'lib/presentation/pages/pos/pos_table_order_page.dart',
       ).readAsStringSync();
-      expect(page, contains("pos4d67ce5fd380((service['technician_name']).toString())"));
+      expect(
+        page.replaceAll(RegExp(r'\s+'), ''),
+        contains("pos4d67ce5fd380((service['technician_name']).toString(),)"),
+      );
     },
   );
 }

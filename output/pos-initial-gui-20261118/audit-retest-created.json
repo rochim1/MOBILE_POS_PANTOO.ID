@@ -1,0 +1,193 @@
+{
+  "phase": "retest-created",
+  "at": "2026-11-18T08:27:56.394Z",
+  "database": "Disposable loopback replica set",
+  "rows": [
+    {
+      "client": "android",
+      "user_id": "6afd48e6c4f73be4b05a0543",
+      "tenant_count": 1,
+      "tenant_id": "6afd5598c4f73be4b05a146b",
+      "name": "QA Jasa Android 1811",
+      "status": "ready",
+      "marker": {
+        "version": 1,
+        "eligible": true,
+        "status": "ready",
+        "profile": "jasa",
+        "revision": 1,
+        "client_request_id": "",
+        "completed_at": "2026-11-18T07:36:57.390Z",
+        "completed_by": "6afd48e6c4f73be4b05a0543",
+        "stock_location_id": "6afd5599c4f73be4b05a1642",
+        "toko_id": "6afd5599c4f73be4b05a1641"
+      },
+      "stores": [
+        {
+          "_id": "6afd5599c4f73be4b05a1641",
+          "nama_toko": "QA Jasa Android 1811",
+          "operating_branch_id": "6afd5598c4f73be4b05a1478",
+          "lokasi_cabang_id": "6afd5599c4f73be4b05a1642"
+        }
+      ],
+      "warehouses": [
+        {
+          "_id": "6afd5599c4f73be4b05a1642",
+          "nama_cabang": "Stok QA Jasa Android 1811",
+          "managing_branch_id": "6afd5598c4f73be4b05a1478",
+          "linked_toko_id": "6afd5599c4f73be4b05a1641"
+        }
+      ],
+      "organization_count": 1,
+      "settings": {
+        "_id": "6afd5599c4f73be4b05a1647",
+        "inventory_operation_defaults": {
+          "inventory_profile": "simple",
+          "use_central_warehouse": false,
+          "use_transfer_request": false,
+          "use_transfer_approval": false,
+          "use_in_transit": false,
+          "transfer_cross_branch_rule": "system_default",
+          "transfer_same_branch_rule": "system_default",
+          "transfer_store_display_rule": "system_default",
+          "use_store_warehouse": false,
+          "use_display_stock": false,
+          "allow_direct_purchase_to_store": true,
+          "allow_over_receipt": false,
+          "over_receipt_tolerance_percent": 0,
+          "default_receiving_location_id": "6afd5599c4f73be4b05a1642",
+          "default_transfer_transit_location_id": null
+        },
+        "pos_defaults": {
+          "onboarding_completed": true,
+          "business_profile": "jasa"
+        }
+      },
+      "open_shift_count": 0
+    },
+    {
+      "client": "web",
+      "user_id": "6afd48e7c4f73be4b05a0548",
+      "tenant_count": 1,
+      "tenant_id": "6afd4f8ac4f73be4b05a08b7",
+      "name": "QA Toko Web 1811",
+      "status": "ready",
+      "marker": {
+        "version": 1,
+        "eligible": true,
+        "status": "ready",
+        "profile": "retail",
+        "revision": 1,
+        "client_request_id": "",
+        "completed_at": "2026-11-18T07:11:32.520Z",
+        "completed_by": "6afd48e7c4f73be4b05a0548",
+        "stock_location_id": "6afd4fa4c4f73be4b05a0a8c",
+        "toko_id": "6afd4fa4c4f73be4b05a0a8b"
+      },
+      "stores": [
+        {
+          "_id": "6afd4fa4c4f73be4b05a0a8b",
+          "nama_toko": "QA Toko Web 1811",
+          "operating_branch_id": "6afd4f8cc4f73be4b05a08c3",
+          "lokasi_cabang_id": "6afd4fa4c4f73be4b05a0a8c"
+        }
+      ],
+      "warehouses": [
+        {
+          "_id": "6afd4fa4c4f73be4b05a0a8c",
+          "nama_cabang": "Stok QA Toko Web 1811",
+          "managing_branch_id": "6afd4f8cc4f73be4b05a08c3",
+          "linked_toko_id": "6afd4fa4c4f73be4b05a0a8b"
+        }
+      ],
+      "organization_count": 1,
+      "settings": {
+        "_id": "6afd4fa4c4f73be4b05a0a91",
+        "inventory_operation_defaults": {
+          "inventory_profile": "simple",
+          "use_central_warehouse": false,
+          "use_transfer_request": false,
+          "use_transfer_approval": false,
+          "use_in_transit": false,
+          "transfer_cross_branch_rule": "system_default",
+          "transfer_same_branch_rule": "system_default",
+          "transfer_store_display_rule": "system_default",
+          "use_store_warehouse": false,
+          "use_display_stock": false,
+          "allow_direct_purchase_to_store": true,
+          "allow_over_receipt": false,
+          "over_receipt_tolerance_percent": 0,
+          "default_receiving_location_id": "6afd4fa4c4f73be4b05a0a8c",
+          "default_transfer_transit_location_id": null
+        },
+        "pos_defaults": {
+          "onboarding_completed": true,
+          "business_profile": "retail"
+        }
+      },
+      "open_shift_count": 1
+    },
+    {
+      "client": "android-retest",
+      "user_id": "6afd58b20fb88b2330bd5516",
+      "tenant_count": 1,
+      "tenant_id": "6afd6160c4f73be4b05a1a0a",
+      "name": "QA Jasa Android Retest 1811",
+      "status": "ready",
+      "marker": {
+        "version": 1,
+        "eligible": true,
+        "status": "ready",
+        "profile": "jasa",
+        "revision": 1,
+        "client_request_id": "",
+        "completed_at": "2026-11-18T08:27:13.321Z",
+        "completed_by": "6afd58b20fb88b2330bd5516",
+        "stock_location_id": "6afd6161c4f73be4b05a1be1",
+        "toko_id": "6afd6161c4f73be4b05a1be0"
+      },
+      "stores": [
+        {
+          "_id": "6afd6161c4f73be4b05a1be0",
+          "nama_toko": "QA Jasa Android Retest 1811",
+          "operating_branch_id": "6afd6160c4f73be4b05a1a17",
+          "lokasi_cabang_id": "6afd6161c4f73be4b05a1be1"
+        }
+      ],
+      "warehouses": [
+        {
+          "_id": "6afd6161c4f73be4b05a1be1",
+          "nama_cabang": "Stok QA Jasa Android Retest 1811",
+          "managing_branch_id": "6afd6160c4f73be4b05a1a17",
+          "linked_toko_id": "6afd6161c4f73be4b05a1be0"
+        }
+      ],
+      "organization_count": 1,
+      "settings": {
+        "_id": "6afd6161c4f73be4b05a1be6",
+        "inventory_operation_defaults": {
+          "inventory_profile": "simple",
+          "use_central_warehouse": false,
+          "use_transfer_request": false,
+          "use_transfer_approval": false,
+          "use_in_transit": false,
+          "transfer_cross_branch_rule": "system_default",
+          "transfer_same_branch_rule": "system_default",
+          "transfer_store_display_rule": "system_default",
+          "use_store_warehouse": false,
+          "use_display_stock": false,
+          "allow_direct_purchase_to_store": true,
+          "allow_over_receipt": false,
+          "over_receipt_tolerance_percent": 0,
+          "default_receiving_location_id": "6afd6161c4f73be4b05a1be1",
+          "default_transfer_transit_location_id": null
+        },
+        "pos_defaults": {
+          "onboarding_completed": true,
+          "business_profile": "jasa"
+        }
+      },
+      "open_shift_count": 0
+    }
+  ]
+}

@@ -63,7 +63,7 @@ class _PosCategorySidebarState extends State<PosCategorySidebar> {
               });
             },
             child: Container(
-              height: 88, // Square aspect ratio
+              height: 82, // Match the desktop sidebar's green header.
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),

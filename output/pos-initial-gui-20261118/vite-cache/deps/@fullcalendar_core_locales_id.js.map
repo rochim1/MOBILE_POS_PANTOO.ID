@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../front_end_template/node_modules/@fullcalendar/core/locales/id.js"],
+  "sourcesContent": ["var l38 = {\n    code: 'id',\n    week: {\n        dow: 1,\n        doy: 7, // The week that contains Jan 1st is the first week of the year.\n    },\n    buttonText: {\n        prev: 'mundur',\n        next: 'maju',\n        today: 'hari ini',\n        year: 'Tahun',\n        month: 'Bulan',\n        week: 'Minggu',\n        day: 'Hari',\n        list: 'Agenda',\n    },\n    weekText: 'Mg',\n    allDayText: 'Sehari penuh',\n    moreLinkText: 'lebih',\n    noEventsText: 'Tidak ada acara untuk ditampilkan',\n};\n\nexport { l38 as default };\n"],
+  "mappings": ";;;AAAA,IAAI,MAAM;AAAA,EACN,MAAM;AAAA,EACN,MAAM;AAAA,IACF,KAAK;AAAA,IACL,KAAK;AAAA;AAAA,EACT;AAAA,EACA,YAAY;AAAA,IACR,MAAM;AAAA,IACN,MAAM;AAAA,IACN,OAAO;AAAA,IACP,MAAM;AAAA,IACN,OAAO;AAAA,IACP,MAAM;AAAA,IACN,KAAK;AAAA,IACL,MAAM;AAAA,EACV;AAAA,EACA,UAAU;AAAA,EACV,YAAY;AAAA,EACZ,cAAc;AAAA,EACd,cAAc;AAClB;",
+  "names": []
+}

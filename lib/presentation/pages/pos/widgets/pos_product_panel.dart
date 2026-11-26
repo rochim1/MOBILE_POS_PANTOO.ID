@@ -472,7 +472,6 @@ class _PosProductPanelState extends State<PosProductPanel> {
                 child: TextField(
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
-                    labelText: ('Produk').tr(context),
                     hintText: ('Cari nama, kode, SKU, atau barcode...').tr(
                       context,
                     ),

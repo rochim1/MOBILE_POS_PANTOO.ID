@@ -1,3 +1,4 @@
+import 'pos_startup_loading.dart';
 import '../../injections.dart';
 import '../bloc/pos/pos_bloc.dart';
 import '../bloc/pos/pos_event.dart';
@@ -328,81 +329,83 @@ class _SubscriptionVerification extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: service,
-    builder: (context, _) => Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  'assets/images/pantoo_pos_icon.png',
-                  width: 96,
-                  height: 96,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  subscriptionText(
-                    context,
-                    'Menyiapkan akses POS',
-                    'Preparing POS access',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (service.checking || !service.initialized)
-                  CircularProgressIndicator(
-                    semanticsLabel: subscriptionText(
-                      context,
-                      'Menyiapkan akses POS',
-                      'Preparing POS access',
-                    ),
-                  )
-                else ...[
-                  Text(
-                    subscriptionText(
-                      context,
-                      'Status akses belum dapat dipastikan. Periksa koneksi lalu coba lagi.',
-                      'Access has not been confirmed. Check your connection and try again.',
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () => service.refresh(),
-                    child: Text(
-                      subscriptionText(context, 'Coba lagi', 'Retry'),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: onCloseShift,
-                    child: Text(
-                      subscriptionText(context, 'Tutup shift', 'Close shift'),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: onViewQueue,
-                    child: Text(
-                      subscriptionText(
-                        context,
-                        'Lihat antrean offline',
-                        'View offline queue',
+    builder: (context, _) => service.checking || !service.initialized
+        ? const Scaffold(body: PosStartupLoading())
+        : Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/pantoo_pos_icon.png',
+                        width: 96,
+                        height: 96,
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      Text(
+                        subscriptionText(
+                          context,
+                          'Akses kasir belum tersedia',
+                          'Cashier access is unavailable',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...[
+                        Text(
+                          subscriptionText(
+                            context,
+                            'Status akses belum dapat dipastikan. Periksa koneksi lalu coba lagi.',
+                            'Access has not been confirmed. Check your connection and try again.',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () => service.refresh(),
+                          child: Text(
+                            subscriptionText(context, 'Coba lagi', 'Retry'),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: onCloseShift,
+                          child: Text(
+                            subscriptionText(
+                              context,
+                              'Tutup shift',
+                              'Close shift',
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: onViewQueue,
+                          child: Text(
+                            subscriptionText(
+                              context,
+                              'Lihat antrean offline',
+                              'View offline queue',
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: onLogout,
+                          child: Text(
+                            subscriptionText(
+                              context,
+                              'Keluar akun',
+                              'Sign out',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  TextButton(
-                    onPressed: onLogout,
-                    child: Text(
-                      subscriptionText(context, 'Keluar akun', 'Sign out'),
-                    ),
-                  ),
-                ],
-              ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
-    ),
   );
 }
 

@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,9 +13,10 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_p
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_product_page.dart';
 
 class _Pos extends Cubit<PosState> implements PosBloc {
-  _Pos()
+  _Pos({List<PosProduct> products = const []})
     : super(
-        const PosState(
+        PosState(
+          products: products,
           runtimeConfig: {
             'permissions': {'manage_products': true},
           },
@@ -42,6 +44,51 @@ class _Catalog extends Fake implements PosProductManagementRepository {
 }
 
 void main() {
+  for (final mode in [(411.0, true), (1200.0, true), (1200.0, false)]) {
+    testWidgets('nonstock service shows unlimited in catalog $mode', (
+      tester,
+    ) async {
+      await sl.reset();
+      const service = PosProduct(
+        id: 'service-qa',
+        code: 'BMC-J001',
+        name: 'Pijat Bayi',
+        category: 'Perawatan Bayi',
+        productType: 'service',
+        tracksStock: false,
+        price: 50000,
+        stock: 0,
+      );
+      final pos = _Pos(products: const [service]);
+      sl.registerFactory<PosProductManagementBloc>(
+        () => PosProductManagementBloc(_Catalog()),
+      );
+      addTearDown(() async {
+        await pos.close();
+        await sl.reset();
+      });
+      await tester.binding.setSurfaceSize(Size(mode.$1, 850));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        BlocProvider<PosBloc>.value(
+          value: pos,
+          child: MaterialApp(
+            locale: const Locale('id'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: PosProductPage(isGridView: mode.$2)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Tanpa batas'), findsOneWidget);
+      expect(service.isUnavailableForSale(trackStock: true), isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    });
+  }
+
   for (final language in ['id', 'en']) {
     testWidgets(
       'new catalog form opens safely in $language with canonical unit',

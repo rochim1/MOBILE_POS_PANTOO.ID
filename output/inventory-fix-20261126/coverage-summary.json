@@ -1,0 +1,73 @@
+{
+  "sources": [
+    "output/inventory-fix-20261126/targeted.info",
+    "output/inventory-fix-20261126/ui-expanded.info"
+  ],
+  "baseline": "aa66980^",
+  "covered": 538,
+  "lines": 682,
+  "percent": 78.89,
+  "tokenAware": {
+    "covered": 248,
+    "lines": 281,
+    "percent": 88.26
+  },
+  "files": [
+    {
+      "file": "lib/domain/repositories/pos_transfer_repository.dart",
+      "covered": 52,
+      "lines": 59,
+      "percent": 88.14,
+      "logicalCovered": 53,
+      "logicalLines": 60
+    },
+    {
+      "file": "lib/domain/repositories/pos_stock_repository.dart",
+      "covered": 29,
+      "lines": 31,
+      "percent": 93.55,
+      "logicalCovered": 14,
+      "logicalLines": 14
+    },
+    {
+      "file": "lib/core/network/pos_transfer_intent_store.dart",
+      "covered": 61,
+      "lines": 63,
+      "percent": 96.83,
+      "logicalCovered": 61,
+      "logicalLines": 63
+    },
+    {
+      "file": "lib/presentation/pages/pos/pos_transfer_editor_page.dart",
+      "covered": 194,
+      "lines": 279,
+      "percent": 69.53,
+      "logicalCovered": 35,
+      "logicalLines": 43
+    },
+    {
+      "file": "lib/presentation/pages/pos/pos_transfer_operation_page.dart",
+      "covered": 155,
+      "lines": 192,
+      "percent": 80.73,
+      "logicalCovered": 37,
+      "logicalLines": 40
+    },
+    {
+      "file": "lib/presentation/pages/pos/widgets/pos_transfer_recovery_view.dart",
+      "covered": 42,
+      "lines": 45,
+      "percent": 93.33,
+      "logicalCovered": 42,
+      "logicalLines": 45
+    },
+    {
+      "file": "lib/presentation/pages/pos/pos_inventory_page.dart",
+      "covered": 5,
+      "lines": 13,
+      "percent": 38.46,
+      "logicalCovered": 6,
+      "logicalLines": 16
+    }
+  ]
+}

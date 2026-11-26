@@ -216,11 +216,11 @@ void main() {
         'lib/domain/repositories/pos_repository.dart',
       ).readAsStringSync();
       expect(source, contains('hasUnresolvedTransactionsForBranch'));
+      expect(source, contains('previousKey != targetCatalogKey'));
+      expect(source, contains('previousParts[3] == branchId'));
       expect(
         source,
-        contains(
-          "activePayload?['catalog_key'] != _productSnapshotKey(branchId)",
-        ),
+        contains("previousParts[1] == (_prefs.getString('instansi_id') ?? '')"),
       );
       expect(source, contains("'complete': false"));
       final catalog = source.substring(

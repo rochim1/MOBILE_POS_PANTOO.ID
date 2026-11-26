@@ -1,3 +1,4 @@
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_startup_loading.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -173,7 +174,7 @@ void main() {
         onPrivateTap: () => privateTaps++,
       );
       expect(access.service.checking, true);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(PosStartupLoading), findsOneWidget);
       expect(
         find.textContaining('Access has not been confirmed'),
         findsNothing,
@@ -187,7 +188,7 @@ void main() {
       access.pending = null;
       pending.complete(await access.service.fetch());
       await tester.pumpAndSettle();
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(PosStartupLoading), findsNothing);
       await tester.tap(find.text('Private workspace'));
       expect(privateTaps, 1);
       expect(access.service.canSell, true);
@@ -251,7 +252,7 @@ void main() {
         findsNothing,
       );
       expect(find.text('Close shift'), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(PosStartupLoading), findsOneWidget);
       access.level = 'billing_only';
       final pending = access.pending!;
       access.pending = null;

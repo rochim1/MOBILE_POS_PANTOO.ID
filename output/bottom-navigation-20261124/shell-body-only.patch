@@ -1,0 +1,13 @@
+diff --git a/lib/presentation/pages/pos/pos_shell_page.dart b/lib/presentation/pages/pos/pos_shell_page.dart
+index 332d202..5ed7043 100644
+--- a/lib/presentation/pages/pos/pos_shell_page.dart
++++ b/lib/presentation/pages/pos/pos_shell_page.dart
+@@ -1771,7 +1811,5 @@ class _PosShellPageState extends State<PosShellPage>
+                       ),
+                       body: SafeArea(
+-                        child: PosCashierDockBody(
+-                          enabled: isMobile && _mobilePrimaryIndex == 1 && MediaQuery.of(context).viewInsets.bottom == 0,
+-                          child: isMobile
++                        child: isMobile
+                             ? Theme(
+                                 data: Theme.of(context).copyWith(

@@ -441,6 +441,7 @@ void main() {
         'nama_inventaris': id,
         'pos_product_type': 'product',
         'service_price_mode': 'fixed',
+        'service_intake_mode': 'auto',
         'price_floor': null,
         'tracks_stock': true,
         'promo_eligible': false,

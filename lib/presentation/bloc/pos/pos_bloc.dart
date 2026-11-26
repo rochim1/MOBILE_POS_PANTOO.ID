@@ -333,23 +333,23 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       }
       final canOperateWithoutShift =
           runtimeConfig['allow_out_of_shift'] == true;
-      final customers =
-          (activeShift == null && !canOperateWithoutShift) ||
-              permissions['view_customers'] != true
-          ? <PosCustomer>[]
-          : await posRepository.getCustomers();
-      final ordersPage =
-          activeShift == null || permissions['view_transactions'] != true
-          ? (items: <PosOrder>[], hasMore: false)
-          : await posRepository.getOrdersPage();
-      if (!isCurrent()) return;
-      final orders = ordersPage.items;
       final activeStore = PosState(
         stores: stores,
         activeShift: activeShift,
         runtimeConfig: runtimeConfig,
       ).checkoutStore;
       if (activeStore == null || activeStore.branchId.isEmpty) {
+        final customers =
+            (activeShift == null && !canOperateWithoutShift) ||
+                permissions['view_customers'] != true
+            ? <PosCustomer>[]
+            : await posRepository.getCustomers();
+        final ordersPage =
+            activeShift == null || permissions['view_transactions'] != true
+            ? (items: <PosOrder>[], hasMore: false)
+            : await posRepository.getOrdersPage();
+        if (!isCurrent()) return;
+        final orders = ordersPage.items;
         emit(
           state.copyWith(
             status: PosStatus.success,
@@ -370,38 +370,69 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       // fails. Otherwise a restricted operator appears to have no store at all.
       emit(
         state.copyWith(
-          customers: customers,
           stores: stores,
           runtimeConfig: runtimeConfig,
           activeShift: activeShift,
           clearActiveShift: activeShift == null,
         ),
       );
-      final products =
-          // POS stock is scoped to a verified active shift. Do not turn a
-          // correctly denied pre-shift catalog read into a shift-sync failure.
-          (activeShift != null ||
-                  canOperateWithoutShift ||
-                  ((runtimeConfig['initial_setup']
-                              as Map?)?['first_sale_pending'] ==
-                          true &&
-                      (runtimeConfig['initial_setup'] as Map?)?['can_manage'] ==
-                          true &&
-                      permissions['manage_products'] == true)) &&
-              (permissions['view_products'] == true ||
-                  permissions['use_cashier'] == true)
-          ? await posRepository.getProducts(branchId: activeStore.branchId)
-          : <PosProduct>[];
-      final favoriteProductIds = products.isNotEmpty
-          ? await posRepository.getFavoriteProductIds()
-          : <String>{};
-      final heldOrders =
-          activeShift != null && permissions['use_cashier'] == true
-          ? await posRepository.getHeldOrders(
-              storeId: activeStore.id,
-              shiftId: activeShift['_id']?.toString() ?? '',
-            )
-          : <HoldOrder>[];
+      final results = await Future.wait<Object>([
+        () async {
+          final products =
+              // POS stock is scoped to a verified active shift. Do not turn a
+              // correctly denied pre-shift catalog read into a shift-sync failure.
+              (activeShift != null ||
+                      canOperateWithoutShift ||
+                      ((runtimeConfig['initial_setup']
+                                  as Map?)?['first_sale_pending'] ==
+                              true &&
+                          (runtimeConfig['initial_setup']
+                                  as Map?)?['can_manage'] ==
+                              true &&
+                          permissions['manage_products'] == true)) &&
+                  (permissions['view_products'] == true ||
+                      permissions['use_cashier'] == true)
+              ? await posRepository.getProducts(branchId: activeStore.branchId)
+              : <PosProduct>[];
+          final favoriteProductIds = products.isNotEmpty
+              ? await posRepository.getFavoriteProductIds()
+              : <String>{};
+          return (products: products, favorites: favoriteProductIds);
+        }(),
+        () async {
+          final customers =
+              (activeShift == null && !canOperateWithoutShift) ||
+                  permissions['view_customers'] != true
+              ? <PosCustomer>[]
+              : await posRepository.getCustomers();
+          return customers;
+        }(),
+        () async {
+          final ordersPage =
+              activeShift == null || permissions['view_transactions'] != true
+              ? (items: <PosOrder>[], hasMore: false)
+              : await posRepository.getOrdersPage();
+          return ordersPage;
+        }(),
+        () async {
+          final heldOrders =
+              activeShift != null && permissions['use_cashier'] == true
+              ? await posRepository.getHeldOrders(
+                  storeId: activeStore.id,
+                  shiftId: activeShift['_id']?.toString() ?? '',
+                )
+              : <HoldOrder>[];
+          return heldOrders;
+        }(),
+      ], eagerError: true);
+      final catalog =
+          results[0] as ({List<PosProduct> products, Set<String> favorites});
+      final products = catalog.products;
+      final favoriteProductIds = catalog.favorites;
+      final customers = results[1] as List<PosCustomer>;
+      final ordersPage = results[2] as ({List<PosOrder> items, bool hasMore});
+      final orders = ordersPage.items;
+      final heldOrders = results[3] as List<HoldOrder>;
       if (!isCurrent()) return;
 
       emit(

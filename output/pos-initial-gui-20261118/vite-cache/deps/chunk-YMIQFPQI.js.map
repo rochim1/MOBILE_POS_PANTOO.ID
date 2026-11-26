@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../front_end_template/node_modules/@apollo/src/link/core/empty.ts", "../../../../../front_end_template/node_modules/@apollo/src/link/core/from.ts", "../../../../../front_end_template/node_modules/@apollo/src/link/core/split.ts", "../../../../../front_end_template/node_modules/@apollo/src/link/core/concat.ts", "../../../../../front_end_template/node_modules/@apollo/src/link/core/execute.ts"],
+  "sourcesContent": ["import { ApolloLink } from \"./ApolloLink.js\";\n\nexport const empty = ApolloLink.empty;\n", "import { ApolloLink } from \"./ApolloLink.js\";\n\nexport const from = ApolloLink.from;\n", "import { ApolloLink } from \"./ApolloLink.js\";\n\nexport const split = ApolloLink.split;\n", "import { ApolloLink } from \"./ApolloLink.js\";\n\nexport const concat = ApolloLink.concat;\n", "import { ApolloLink } from \"./ApolloLink.js\";\n\nexport const execute = ApolloLink.execute;\n"],
+  "mappings": ";;;;;AAEO,IAAM,QAAQ,WAAW;;;ACAzB,IAAM,OAAO,WAAW;;;ACAxB,IAAM,QAAQ,WAAW;;;ACAzB,IAAM,SAAS,WAAW;;;ACA1B,IAAM,UAAU,WAAW;",
+  "names": []
+}

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:mobile_pos_pantoo/domain/models/hold_order.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_customer.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_order.dart';
@@ -128,7 +130,76 @@ class _StoreFailureRepository extends _NoShiftRepository {
       throw StateError('Store fetch failed');
 }
 
+class _ParallelLoadRepository extends _CatalogFailureRepository {
+  final allStarted = Completer<void>();
+  final release = Completer<void>();
+  int started = 0;
+
+  Future<void> waitForOtherRequests() async {
+    if (++started == 4) allStarted.complete();
+    await release.future;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getRuntimeConfig() async => {
+    'permissions': {
+      'view_shifts': true,
+      'use_cashier': true,
+      'view_customers': true,
+      'view_transactions': true,
+    },
+  };
+
+  @override
+  Future<List<PosProduct>> getProducts({String? branchId}) async {
+    expect(branchId, 'branch-qa');
+    await waitForOtherRequests();
+    return [];
+  }
+
+  @override
+  Future<List<PosCustomer>> getCustomers() async {
+    await waitForOtherRequests();
+    return [];
+  }
+
+  @override
+  Future<({List<PosOrder> items, bool hasMore})> getOrdersPage({
+    int page = 0,
+    int limit = 20,
+  }) async {
+    await waitForOtherRequests();
+    return (items: <PosOrder>[], hasMore: false);
+  }
+
+  @override
+  Future<List<HoldOrder>> getHeldOrders({
+    required String storeId,
+    required String shiftId,
+  }) async {
+    expect(storeId, 'store-qa');
+    expect(shiftId, 'shift-qa');
+    await waitForOtherRequests();
+    return [];
+  }
+}
+
 void main() {
+  test('verified checkout loads independent data concurrently', () async {
+    final repository = _ParallelLoadRepository();
+    final bloc = PosBloc(posRepository: repository);
+    addTearDown(bloc.close);
+    final loaded = bloc.stream.firstWhere((s) => s.status == PosStatus.success);
+    bloc.add(LoadPosData());
+    try {
+      await repository.allStarted.future.timeout(const Duration(seconds: 2));
+      expect(bloc.state.status, PosStatus.loading);
+      expect(bloc.state.activeShift?['_id'], 'shift-qa');
+    } finally {
+      repository.release.complete();
+    }
+    expect((await loaded).checkoutSyncFailed, isFalse);
+  });
   test(
     'restricted cashier can open shift before reading protected catalog',
     () async {

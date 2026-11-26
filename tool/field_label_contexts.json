@@ -11,5 +11,6 @@
   "lib/presentation/pages/pos/widgets/pos_info_panel.dart|_PosInfoPanelState|_buildCustomerField|1": "Pelanggan Transaksi heading labels the customer selector",
   "lib/presentation/pages/pos/widgets/pos_info_panel.dart|_PosInfoPanelState|_buildPromoTab|1": "Kode Promo: persistent _fieldLabel above input",
   "lib/presentation/pages/pos/widgets/pos_info_panel.dart|_PosInfoPanelState|_buildPromoTab|2": "Diskon Manual: persistent _fieldLabel above percentage input",
-  "lib/presentation/pages/pos/widgets/pos_info_panel.dart|_PosInfoPanelState|_pricingDropdown|1": "Reusable dropdown always renders _fieldLabel(label, description) above selector"
+  "lib/presentation/pages/pos/widgets/pos_info_panel.dart|_PosInfoPanelState|_pricingDropdown|1": "Reusable dropdown always renders _fieldLabel(label, description) above selector",
+  "lib/presentation/pages/pos/widgets/pos_product_panel.dart|_PosProductPanelState|_buildSearchAndFilter|1": "Cashier search intentionally uses its search icon and descriptive hint without a floating Produk label, as requested by the user."
 }

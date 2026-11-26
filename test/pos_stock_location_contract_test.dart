@@ -26,11 +26,17 @@ void main() {
     expect(source, contains("pos58c6df885eda(branch.isEmpty ? '-' : branch)"));
     expect(
       source,
-      contains("pos786a448f1a32(building.isEmpty ? 'belum tercatat'.tr(context) : building)"),
+      matches(
+        RegExp(
+          r"pos786a448f1a32\(\s*building.isEmpty \? 'belum tercatat'.tr\(context\) : building,?\s*\)",
+        ),
+      ),
     );
     expect(
       source,
-      contains("pos085e03d813e0(room.isEmpty ? 'belum tercatat'.tr(context) : room)"),
+      contains(
+        "pos085e03d813e0(room.isEmpty ? 'belum tercatat'.tr(context) : room)",
+      ),
     );
     expect(source, contains('pos1af981c59b08(rack)'));
   });
@@ -50,7 +56,10 @@ void main() {
     );
     expect(stockSource, contains('getAdjustmentReasons'));
     expect(stockSource, isNot(contains("value: 'selisih_hitung'")));
-    expect(stockSource, contains("labelText: ('Referensi / tiket (opsional)').tr(context)"));
+    expect(
+      stockSource,
+      contains("labelText: ('Referensi / tiket (opsional)').tr(context)"),
+    );
     expect(stockSource, contains('Sistem tetap membuat referensi internal.'));
     expect(stockSource, contains("labelText: ('Keterangan *').tr(context)"));
     expect(stockSource, contains('Buka Stock Opname'));

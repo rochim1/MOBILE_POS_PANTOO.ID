@@ -105,9 +105,9 @@ class _PosProductPageState extends State<PosProductPage> {
       final matchesStock = !trackStock
           ? true
           : switch (_stockFilter) {
-              'available' => product.stock > 0,
-              'low' => product.stock > 0 && product.stock <= 10,
-              'empty' => product.stock <= 0,
+              'available' => !product.tracksStock || product.stock > 0,
+              'low' => product.tracksStock && product.stock > 0 && product.stock <= 10,
+              'empty' => product.tracksStock && product.stock <= 0,
               _ => true,
             };
       return matchesSearch && matchesCategory && matchesStock;
@@ -117,6 +117,13 @@ class _PosProductPageState extends State<PosProductPage> {
   int _activeFilterCount(bool trackStock) =>
       (_categoryFilter == null ? 0 : 1) +
       (!trackStock || _stockFilter == 'all' ? 0 : 1);
+
+  String _stockLabel(BuildContext context, PosProduct product) {
+    if (product.tracksStock) return product.stock.toString();
+    return posLocale(context).localeName.startsWith('en')
+        ? 'Unlimited'
+        : 'Tanpa batas';
+  }
 
   bool _tracksStock(BuildContext context) {
     final features =
@@ -606,7 +613,7 @@ class _PosProductPageState extends State<PosProductPage> {
                             ),
                           ),
                           if (trackStock)
-                            DataCell(Text('${entry.value.stock}')),
+                            DataCell(Text(_stockLabel(context, entry.value))),
                         ],
                       ),
                     )
@@ -685,7 +692,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           trackStock
                               ? posLocale(context).posa8bae00d81f1(
                                   (product.code).toString(),
-                                  (product.stock).toString(),
+                                  _stockLabel(context, product),
                                 )
                               : posLocale(
                                   context,
@@ -788,7 +795,7 @@ class _PosProductPageState extends State<PosProductPage> {
                           trackStock
                               ? posLocale(context).pos41d9f9c2727c(
                                   (product.category).toString(),
-                                  (product.stock).toString(),
+                                  _stockLabel(context, product),
                                 )
                               : product.category,
                           maxLines: 1,
@@ -1028,7 +1035,7 @@ class _PosProductPageState extends State<PosProductPage> {
               ).pos70272f418def((formatRupiahAmount(product.price)).toString()),
             ),
             if (_tracksStock(context))
-              _DetailRow(('Stok Tersedia').tr(context), '${product.stock}'),
+              _DetailRow(('Stok Tersedia').tr(context), _stockLabel(context, product)),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -1182,7 +1189,7 @@ class _PosProductPageState extends State<PosProductPage> {
                     ('Ubah melalui menu Stok Toko agar tercatat dalam riwayat.')
                         .tr(context),
               ),
-              child: Text(product.stock.toString()),
+              child: Text(_stockLabel(context, product)),
             ),
           ],
           const SizedBox(height: 24),

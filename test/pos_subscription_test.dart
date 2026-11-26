@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_startup_loading.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -176,7 +177,7 @@ void main() {
       await tester.tap(retry);
       await tester.pump();
       expect(retry, findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(PosStartupLoading), findsOneWidget);
       expect(find.textContaining('Access has not been confirmed'), findsNothing);
       expect(s.canSell, false);
       expect(privateTaps, 0);

@@ -1,0 +1,19 @@
+{
+  "at": "2026-11-18T11:46:04.372Z",
+  "phase": "baseline",
+  "tenant_id": "6afd6160c4f73be4b05a1a0a",
+  "sales": [],
+  "orders": [],
+  "shifts": [
+    {
+      "_id": "6afd67c3c4f73be4b05a2507",
+      "opening_cash": 0,
+      "closing_cash_expected": 0,
+      "total_transaksi": 0,
+      "total_penjualan": 0,
+      "total_tunai": 0,
+      "total_non_tunai": 0,
+      "status": "open"
+    }
+  ]
+}
