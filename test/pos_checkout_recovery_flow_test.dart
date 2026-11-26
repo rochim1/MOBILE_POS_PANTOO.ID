@@ -123,6 +123,19 @@ class _Bloc extends PosBloc {
   }
   final events = <PosEvent>[];
   void changeCart() => emit(state.copyWith(cart: {_product: 2}));
+  void changeStore() => emit(
+    state.copyWith(
+      stores: const [
+        PosStore(
+          id: 'store-b',
+          name: 'Other outlet',
+          status: 'active',
+          branchId: 'other-branch',
+        ),
+      ],
+      activeShift: const {'_id': 'new-shift', 'toko_id': 'store-b'},
+    ),
+  );
   @override
   void add(PosEvent event) => events.add(event);
 }
@@ -171,6 +184,8 @@ void main() {
     'closed-shift resolution opens the cashier without changing current cart or store',
     (tester) async {
       final (repo, bloc) = await open(tester, matching: true);
+      bloc.changeStore();
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Selesaikan pembayaran'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -183,7 +198,7 @@ void main() {
       expect(repo.record, isNull);
       expect(find.byKey(const Key('recover_checkout')), findsNothing);
       expect(bloc.events.whereType<ClearCart>(), isEmpty);
-      expect(bloc.state.checkoutStore?.id, 'store');
+      expect(bloc.state.checkoutStore?.id, 'store-b');
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     },

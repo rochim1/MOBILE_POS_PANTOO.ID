@@ -56,12 +56,23 @@ void main() {
       throwsStateError,
     );
   });
-  test('lost archive write cannot erase the pending proof after server cancellation', () async {
-    final prefs=FlakyPreferences();final store=PosCheckoutRequestStore(prefs,'archive-scope');
-    final original=await store.begin(input,receipt);prefs.loseWrite=true;
-    await expectLater(store.resolveCancelled(original['input']['client_transaction_id'],'not_received'),throwsStateError);
-    expect(store.load(),original);
-  });
+  test(
+    'lost archive write cannot erase the pending proof after server cancellation',
+    () async {
+      final prefs = FlakyPreferences();
+      final store = PosCheckoutRequestStore(prefs, 'archive-scope');
+      final original = await store.begin(input, receipt);
+      prefs.loseWrite = true;
+      await expectLater(
+        store.resolveCancelled(
+          original['input']['client_transaction_id'],
+          'not_received',
+        ),
+        throwsStateError,
+      );
+      expect(store.load(), original);
+    },
+  );
   for (final invalid in [
     'empty-items',
     'missing-store',

@@ -766,6 +766,148 @@ void main() {
     },
   );
 
+  for (final status in [
+    'blocked',
+    'cancelled',
+    'committed',
+    'wrong-reference',
+    'unknown',
+  ]) {
+    test(
+      'server status $status never blindly replays a closed-shift payment',
+      () async {
+        var payments = 0;
+        String? requestId;
+        final client = GraphQLClient(
+          cache: GraphQLCache(),
+          link: Link.function((request, [forward]) async* {
+            final definition =
+                request.operation.document.definitions.first as dynamic;
+            if (definition.name?.value != 'GetPOSCheckoutRecovery') {
+              payments++;
+              requestId =
+                  (request.variables['input'] as Map)['client_transaction_id']
+                      as String;
+              throw ServerException(
+                originalException: Exception('lost original response'),
+              );
+            }
+            yield Response(
+              data: {
+                '__typename': 'Query',
+                'GetPOSCheckoutRecovery': {
+                  '__typename': 'POSCheckoutRecovery',
+                  'request_id': status == 'wrong-reference'
+                      ? 'foreign'
+                      : requestId,
+                  'status': status,
+                  'reason_code': 'ORIGIN_SHIFT_UNAVAILABLE',
+                  'transaction': status != 'committed'
+                      ? null
+                      : {
+                          '__typename': 'POSPenjualan',
+                          '_id': 'tx',
+                          'client_transaction_id': requestId,
+                          'invoice': 'INV-RECOVERED',
+                          'tanggal': '2026-11-26',
+                          'toko_nama': 'Original store',
+                          'kasir_shift_id': 'shift',
+                          'kasir_name': 'Cashier',
+                          'total': 100.0,
+                          'subtotal': 100.0,
+                          'diskon': 0.0,
+                          'promo_discount': 0.0,
+                          'pajak': 0.0,
+                          'metode_pembayaran': 'transfer',
+                          'due_date': null,
+                          'sales_invoice_id': null,
+                          'tipe_pesanan': 'take_away',
+                          'uang_diterima': 100.0,
+                          'kembalian': 0.0,
+                          'sync_status': 'synced',
+                          'sync_conflict_reason': '',
+                          'payments': [],
+                          'items': [],
+                        },
+                },
+              },
+              response: {},
+            );
+          }),
+        );
+        final repo = PosRepository(
+          Provider(client, actualRecovery: true),
+          prefs,
+        );
+        await pay(repo);
+        final original = repo.pendingCheckout;
+        final result = await repo.recoverPendingCheckout();
+        expect(
+          payments,
+          1,
+          reason: 'status lookup must not submit another payment',
+        );
+        expect(result.isRight(), status == 'committed');
+        expect(
+          repo.pendingCheckout,
+          ['committed', 'cancelled'].contains(status) ? isNull : original,
+        );
+      },
+    );
+  }
+
+  for (final status in [
+    'committed',
+    'retryable',
+    'wrong-reference',
+    'network-failure',
+  ]) {
+    test('failed cancellation $status retains original proof', () async {
+      var first = true;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          if (first) {
+            first = false;
+            throw ServerException(
+              originalException: Exception('lost original response'),
+            );
+          }
+          if (status == 'network-failure')
+            throw ServerException(
+              originalException: Exception('lost cancellation response'),
+            );
+          yield Response(
+            data: {
+              '__typename': 'Mutation',
+              'CancelPOSCheckout': {
+                '__typename': 'POSCheckoutRecovery',
+                'request_id': status == 'wrong-reference'
+                    ? 'other'
+                    : (request.variables['input']
+                          as Map)['client_transaction_id'],
+                'status': status,
+                'reason_code': 'QA',
+              },
+            },
+            response: {},
+          );
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      await pay(repo);
+      final original = repo.pendingCheckout;
+      expect(
+        (await repo.cancelPendingCheckout(
+          resolution: 'not_received',
+          note: 'No money received',
+        )).isLeft(),
+        true,
+      );
+      expect(repo.pendingCheckout, original);
+    });
+  }
+
   for (final startsOffline in [true, false]) {
     test(
       'offline receipt preserves subtotal (startsOffline=$startsOffline)',

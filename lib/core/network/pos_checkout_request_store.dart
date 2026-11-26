@@ -135,15 +135,14 @@ class PosCheckoutRequestStore {
       throw StateError('Referensi penyelesaian pembayaran tidak cocok');
     }
     final archiveKey = 'pos_checkout_resolved_v1:$scope:$id';
-    if (!await preferences.setString(
-      archiveKey,
-      jsonEncode({
-        ...record!,
-        'resolution': reason,
-        'status': 'server_cancelled',
-        'resolved_at': DateTime.now().toUtc().toIso8601String(),
-      }),
-    )) {
+    final archived = jsonEncode({
+      ...record!,
+      'resolution': reason,
+      'status': 'server_cancelled',
+      'resolved_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    if (!await preferences.setString(archiveKey, archived) ||
+        preferences.getString(archiveKey) != archived) {
       throw StateError(
         'Jejak penyelesaian belum tersimpan. Periksa status pembayaran kembali.',
       );
