@@ -14,9 +14,10 @@ import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_trade_workspace_pag
 PosTradeDocument document({
   PosTradeKind kind = PosTradeKind.payable,
   double outstanding = 60000,
+  String id = 'doc',
 }) => PosTradeDocument(
   instansiId: 'tenant',
-  id: 'doc',
+  id: id,
   kind: kind,
   number: 'MAN-001',
   reference: 'INV-001',
@@ -40,6 +41,7 @@ PosTradeDocument document({
 class TradeRepository implements PosTradeRepository {
   bool createAllowed = true, uncertain = false;
   Failure? paymentFailure;
+  bool wrongDocument = false, wrongKind = false;
   final List<Map<String, dynamic>> writes = [];
   @override
   Future<Either<Failure, PosTradeOptions>> options() async => Right(
@@ -106,7 +108,8 @@ class TradeRepository implements PosTradeRepository {
         ? const Left(PosTradeUnconfirmedFailure())
         : Right(
             document(
-              kind: PosTradeKind.values.byName(input['kind'] as String),
+              kind: wrongKind ? PosTradeKind.receivable : PosTradeKind.values.byName(input['kind'] as String),
+              id: wrongDocument ? 'other-document' : 'doc',
               outstanding: 0,
             ),
           );
@@ -141,6 +144,22 @@ Widget app(
   ),
 );
 void main() {
+  for (final wrong in ['document', 'kind']) {
+    testWidgets('mismatched payment ACK keeps durable proof: $wrong', (tester) async {
+      final prefs = await SharedPreferences.getInstance();
+      final store = PosFinancialRequestStore(prefs, 'qa');
+      final repo = TradeRepository()..wrongDocument = wrong == 'document'..wrongKind = wrong == 'kind';
+      final frozen = await store.begin('pay:payable:doc', {
+        'kind': 'payable', 'document_id': 'doc', 'amount': 40000,
+        'date': '2026-11-26', 'method': 'cash', 'reference': 'ACK',
+      });
+      await tester.pumpWidget(app(repo, store)); await tester.pumpAndSettle();
+      await tester.tap(find.text('Konfirmasi ulang').first); await tester.pumpAndSettle();
+      expect(repo.writes.single['request_id'], frozen['request_id']);
+      expect(store.load('pay:payable:doc'), isNotNull);
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
     'phone ledger filters preserve edits while payment list stays visible',
     (tester) async {

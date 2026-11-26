@@ -6,6 +6,23 @@ import 'package:mobile_pos_pantoo/core/error/failures.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_trade.dart';
 
 void main() {
+  for (final wrong in ['id', 'kind', 'empty-id']) {
+    test('payment ACK must match requested document and kind: $wrong', () async {
+      final response = <String, dynamic>{
+        'instansi_id': 'a', 'id': wrong == 'id' ? 'other' : wrong == 'empty-id' ? '' : 'doc',
+        'kind': wrong == 'kind' ? 'payable' : 'receivable',
+        'number': 'INV', 'reference': '', 'party': 'Customer', 'date': '2026-11-26',
+        'amount': 100, 'paid': 100, 'credited': 0, 'withheld': 0, 'outstanding': 0,
+        'status': 'paid', 'source': 'pos', 'basis': 'transaction', 'notes': '',
+        'can_pay': false, 'payment_count': 1, 'payments': <dynamic>[],
+      };
+      final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
+        yield Response(data: {'PayPOSTradeDocument': response}, response: {});
+      }));
+      final result = await GraphQLPosTradeRepository.withClient(() => client, tenant: () => 'a').pay({'kind': 'receivable', 'document_id': 'doc'});
+      expect(result.fold((failure) => failure, (_) => null), isA<PosTradeUnconfirmedFailure>());
+    });
+  }
   test(
     'current tenant can read options/list/detail and parse confirmed create/payment results',
     () async {
