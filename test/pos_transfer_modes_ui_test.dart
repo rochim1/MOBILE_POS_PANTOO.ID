@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_transfer_editor_page.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_transfer_location_fields.dart';
 import 'pos_transfer_editor_test.dart' show TransferFake;
@@ -12,6 +13,7 @@ class ModeFake extends TransferFake {
       'nama_cabang': 'Gudang A',
       'warehouse_type': 'store',
       'linked_toko_id': 'A',
+      'gedung': [{'kode_gedung': 'G1', 'nama_gedung': 'Gudang utama'}],
     },
     {
       '_id': 'to',
@@ -118,4 +120,34 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('profile mismatch is retained for review but cannot be saved', (tester) async {
+    final repo = ModeFake();
+    await tester.pumpWidget(MaterialApp(home: PosTransferEditorPage(
+      existing: const {'_id': 'doc'}, repository: repo,
+      inventoryPolicy: const {'inventory_profile': 'advanced'},
+    )));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.textContaining('Pasangan lokasi tidak tersedia'), 250,
+      scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('Pasangan lokasi tidak tersedia'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Simpan mutasi'), 300,
+      scrollable: find.byType(Scrollable).first, maxScrolls: 40);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Simpan mutasi')).onPressed, isNull);
+    expect(repo.requests, isEmpty);
+  });
+  testWidgets('English phone labels and empty profile guidance remain readable', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: PosTransferEditorPage(repository: ModeFake(), inventoryPolicy: const {'inventory_profile': 'simple'})));
+    await tester.pumpAndSettle();
+    expect(find.text('Between stores / warehouses'), findsOneWidget);
+    expect(find.text('Internal movement'), findsOneWidget);
+    expect(find.textContaining('No compatible locations'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
