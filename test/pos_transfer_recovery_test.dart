@@ -6,6 +6,12 @@ import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
 import 'package:mobile_pos_pantoo/data/graphql/pos_transfer_queries.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_transfer_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_stock_repository.dart';
+import 'package:mobile_pos_pantoo/core/network/pos_transfer_intent_store.dart';
+import 'pos_checkout_request_store_test.dart' show FlakyPreferences;
+
+class TransferPreferences extends FlakyPreferences {
+  @override bool containsKey(String key)=>values.containsKey(key);
+}
 
 class TransferProvider extends Fake implements GraphQLClientProvider {
   String scope = 'endpoint|tenant|owner|operator';
@@ -26,6 +32,59 @@ void main() {
     'dari': {'cabang_id':'from'}, 'ke': {'cabang_id':'to'},
     'items': [{'inventaris_id':'product','qty':1}],
   }};
+  for(final lose in [false,true]) {
+    test('failed or unreadable durable write ($lose) never transmits', () async {
+      final prefs=TransferPreferences()..rejectWrite=!lose..loseWrite=lose;
+      var calls=0;final p=TransferProvider(prefs,(r) async* {calls++;yield const Response(response:{},data:{});});
+      await expectLater(PosTransferRepository(p).execute(PosTransferQueries.create,variables,root),throwsA(anything));
+      expect(calls,0);
+    });
+  }
+  test('failed acknowledgement retains proof and recovery reuses same ID', () async {
+    final prefs=TransferPreferences()..rejectRemove=true;
+    final sent=<String>[];
+    final p=TransferProvider(prefs,(r) async* {sent.add(r.variables['request_id'] as String);
+      yield const Response(response:{},data:{root:{'_id':'doc'}});});
+    final repo=PosTransferRepository(p);
+    await expectLater(repo.execute(PosTransferQueries.create,variables,root),throwsA(anything));
+    expect(repo.pendingIntent(),isNotNull);prefs.rejectRemove=false;
+    await repo.recoverPending();expect(sent[1],sent[0]);expect(repo.pendingIntent(),isNull);
+  });
+  test('corrupt proof cannot be silently overwritten', () async {
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setString(PosTransferIntentStore(prefs,'endpoint|tenant|owner|operator').key(null),'broken');
+    var calls=0;final p=TransferProvider(prefs,(r) async* {calls++;yield const Response(response:{},data:{});});
+    await expectLater(PosTransferRepository(p).execute(PosTransferQueries.create,variables,root),throwsStateError);
+    expect(calls,0);
+  });
+  test('operator changes while storage awaits cannot transmit', () async {
+    final prefs=await SharedPreferences.getInstance();var calls=0;
+    final p=TransferProvider(prefs,(r) async* {calls++;yield const Response(response:{},data:{});});
+    final repo=PosTransferRepository(p);final request=repo.execute(PosTransferQueries.create,variables,root);
+    p.scope='other';await expectLater(request,throwsStateError);expect(calls,0);
+  });
+  test('cancel cannot silently execute another pending operation', () async {
+    var calls=0;
+    final p=TransferProvider(await SharedPreferences.getInstance(),(r) async* {calls++;throw StateError('lost');});
+    final repo=PosTransferRepository(p);
+    await expectLater(repo.execute(PosTransferQueries.receive,{'id':'doc','request_id':'receipt','items':[]},'ReceiveInventoryTransfer'),throwsA(anything));
+    await expectLater(repo.action('cancel',{'_id':'doc'},reason:'wrong action'),throwsStateError);
+    expect(calls,1);
+  });
+  for(final report in [true,false]) {
+    test('${report?'report':'decision'} retains identity after uncertain response', () async {
+      final sent=<Map<String,dynamic>>[];var fail=true;
+      final r=report?'ReportInventoryTransferDiscrepancy':'DecideInventoryTransferDiscrepancy';
+      final p=TransferProvider(await SharedPreferences.getInstance(),(req) async* {
+        sent.add(req.variables);if(fail)throw StateError('lost');yield Response(response:const {},data:{r:{'_id':'doc'}});
+      });
+      final repo=PosTransferRepository(p);
+      final v=report?{'id':'doc','input':{'request_id':'report','kind':'lost','reason':'QA','items':[]}}
+        : {'id':'doc','discrepancy_id':'report','approve':false,'note':'QA'};
+      await expectLater(repo.execute(report?PosTransferQueries.report:PosTransferQueries.decide,v,r),throwsA(anything));
+      fail=false;await PosTransferRepository(p).recoverPending(documentId:'doc');expect(sent[1],sent[0]);
+    });
+  }
   test('lost create response survives repository recreation and exact recovery clears proof', () async {
     var fail = true;
     final sent = <Map<String,dynamic>>[];
