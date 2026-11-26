@@ -101,6 +101,37 @@ Future<void> submit(WidgetTester t) async {
 }
 
 void main() {
+  testWidgets('primary flow has two plain choices and technical profiles stay in advanced', (t) async {
+    await open(t, FlowRepo());
+    final field = t.widget<DropdownButton<String>>(find.descendant(of: find.byKey(const Key('flow-profile')), matching: find.byType(DropdownButton<String>)));
+    expect(field.items!.map((item) => item.value), ['simple', 'movement']);
+    await t.tap(find.byKey(const Key('flow-profile')));
+    await t.pumpAndSettle();
+    expect(find.text('Stok langsung dijual'), findsOneWidget);
+    expect(find.text('Pakai perpindahan stok'), findsWidgets);
+    expect(find.text('Terpusat'), findsNothing);
+    expect(find.text('Kustom'), findsNothing);
+  });
+  testWidgets('switching display choice back preserves the full existing advanced configuration', (t) async {
+    final repo = FlowRepo()..policy = {
+      'inventory_profile': 'advanced',
+      'default_transfer_transit_location_id': 'transit',
+      'transfer_same_branch_rule': 'transit',
+      'over_receipt_tolerance_percent': 8,
+    };
+    final original = repo.snapshot().policy.values;
+    await open(t, repo);
+    for (final label in ['Stok langsung dijual', 'Pakai perpindahan stok']) {
+      await t.tap(find.byKey(const Key('flow-profile')));
+      await t.pumpAndSettle();
+      await t.tap(find.text(label).last);
+      await t.pumpAndSettle();
+    }
+    await t.scrollUntilVisible(find.byKey(const Key('flow-save')), 180, scrollable: find.byType(Scrollable).first);
+    expect(t.widget<FilledButton>(find.byKey(const Key('flow-save'))).onPressed, isNull);
+    expect(repo.snapshot().policy.values, original);
+    expect(repo.writes, 0);
+  });
   testWidgets('read-only inventory permission never exposes an editable save', (
     t,
   ) async {
