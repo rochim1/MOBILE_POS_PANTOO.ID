@@ -19,8 +19,9 @@ class PolicyRepo extends PromoRepo {
   Future<void> deleteHeldOrder(String id) async {}
   @override
   dynamic noSuchMethod(Invocation invocation) {
-    if (invocation.memberName == #previewPricing)
+    if (invocation.memberName == #previewPricing) {
       previewInputs.add(invocation.namedArguments);
+    }
     return super.noSuchMethod(invocation);
   }
 }
