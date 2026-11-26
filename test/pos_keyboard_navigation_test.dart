@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/core/customer_display/pos_customer_display_service.dart';
 import 'package:mobile_pos_pantoo/core/error/failures.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_transaction_result.dart';
+import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
+import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_event.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_receipt_repository.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
@@ -163,6 +165,33 @@ void main() {
       find.widgetWithText(TextField, 'Cari nama, kode, SKU, atau barcode...'),
     );
     expect(search.focusNode?.hasFocus, isTrue);
+    bloc.add(
+      const AddToCart(
+        PosProduct(
+          id: 'p',
+          code: 'P',
+          name: 'QA product',
+          category: 'QA',
+          price: 10000,
+          stock: 10,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f7);
+    await tester.pumpAndSettle();
+    expect(find.text('Diskon & Promo'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Kode promo'),
+      'HEMAT',
+    );
+    await tester.tap(find.text('Terapkan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pilih toko kasir'), findsOneWidget);
+    expect(bloc.state.promoCode, 'HEMAT');
+    await tester.tap(find.text('Tutup'));
+    await tester.pumpAndSettle();
+    expect(find.text('Diskon & Promo'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
