@@ -32,6 +32,9 @@ void main() {
         scrollable: find.byType(Scrollable).first,
         maxScrolls: 30,
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Pilih batch'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Pilih batch'));
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('BATCH-A ·'));
@@ -42,6 +45,9 @@ void main() {
         scrollable: find.byType(Scrollable).first,
         maxScrolls: 30,
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Input satuan / kemasan'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Input satuan / kemasan'));
       await tester.pumpAndSettle();
       await tester.enterText(

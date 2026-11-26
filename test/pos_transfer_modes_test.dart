@@ -5,7 +5,9 @@ Map<String, dynamic> location(String id, String type, [String? outlet]) => {
   '_id': id,
   'warehouse_type': type,
   'linked_toko_id': outlet,
-  'gedung': [{'kode_gedung': 'G1'}],
+  'gedung': [
+    {'kode_gedung': 'G1'},
+  ],
 };
 
 void main() {
@@ -96,12 +98,15 @@ void main() {
     expect(choices.allows(null, other, inter), isFalse);
     expect(choices.allows(store, null, inter), isFalse);
   });
-  test('warehouse without detail locations cannot offer a same-location dead end', () {
-    const choices = TransferLocationChoices();
-    final plain = {...store, 'gedung': <Map<String, dynamic>>[]};
-    expect(choices.allows(plain, plain, internal), isFalse);
-    expect(choices.sources([plain], internal), isEmpty);
-    expect(choices.destinations([plain, other], plain, inter), [other]);
-    expect(choices.usable({'_id': ''}, source: true), isFalse);
-  });
+  test(
+    'warehouse without detail locations cannot offer a same-location dead end',
+    () {
+      const choices = TransferLocationChoices();
+      final plain = {...store, 'gedung': <Map<String, dynamic>>[]};
+      expect(choices.allows(plain, plain, internal), isFalse);
+      expect(choices.sources([plain], internal), isEmpty);
+      expect(choices.destinations([plain, other], plain, inter), [other]);
+      expect(choices.usable({'_id': ''}, source: true), isFalse);
+    },
+  );
 }

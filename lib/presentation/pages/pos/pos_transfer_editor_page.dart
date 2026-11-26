@@ -74,16 +74,28 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       english: english,
     );
     if (pairError != null) return pairError;
-    if (source == null || destination == null)
+    if (source == null || destination == null) {
       return copy(
         'Pilih lokasi asal dan tujuan yang tersedia.',
         'Select an available source and destination.',
       );
-    if (!choices.allows(source, destination, mode))
+    }
+    if (!choices.allows(source, destination, mode)) {
       return copy(
         'Pasangan lokasi tidak tersedia untuk jenis perpindahan atau profil inventori ini. Pilih lokasi lain atau periksa pengaturan inventori.',
         'These locations are not available for this movement type or inventory profile. Choose another location or check inventory settings.',
       );
+    }
+    if (source['_id'] == destination['_id'] &&
+        ['gedung_kode', 'ruangan_kode', 'rak_nama'].every(
+          (key) =>
+              '${draft['dari']?[key] ?? ''}' == '${draft['ke']?[key] ?? ''}',
+        )) {
+      return copy(
+        'Untuk mutasi dalam lokasi yang sama, pilih gedung, ruangan, atau rak tujuan yang berbeda.',
+        'Within the same location, choose a different destination building, room or rack.',
+      );
+    }
     return null;
   }
 
@@ -105,7 +117,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: PosText('Batal'),
+              child: const PosText('Batal'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(c, true),
@@ -122,8 +134,9 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       draft['items'] = <Map<String, dynamic>>[];
       if (!choices
           .sources(warehouses, mode)
-          .any((w) => w['_id'] == draft['dari']?['cabang_id']))
+          .any((w) => w['_id'] == draft['dari']?['cabang_id'])) {
         draft['dari'] = <String, dynamic>{};
+      }
       version++;
     });
   }

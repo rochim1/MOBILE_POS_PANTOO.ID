@@ -20,11 +20,13 @@ class TransferLocationChoices {
 
   bool usable(Map w, {required bool source}) {
     if (policy != null &&
-        !['centralized', 'advanced', 'custom'].contains(_profile))
+        !['centralized', 'advanced', 'custom'].contains(_profile)) {
       return false;
+    }
     if (w['is_active'] == false ||
-        w[source ? 'is_transfer_source' : 'is_transfer_destination'] == false)
+        w[source ? 'is_transfer_source' : 'is_transfer_destination'] == false) {
       return false;
+    }
     final type = w['warehouse_type'];
     if (['in_transit', 'quarantine'].contains(type)) return false;
     if (type == 'store' && !_uses('use_store_warehouse')) return false;
@@ -46,10 +48,17 @@ class TransferLocationChoices {
     if (source == null ||
         destination == null ||
         !usable(source, source: true) ||
-        !usable(destination, source: false))
+        !usable(destination, source: false)) {
       return false;
+    }
     if (transferOutletPairError(source, destination) != null) return false;
     if (infer(source, destination) != mode) return false;
+    if (source['_id'] == destination['_id'] &&
+        !transferMaps(
+          source['gedung'],
+        ).any((g) => '${g['kode_gedung'] ?? ''}'.isNotEmpty)) {
+      return false;
+    }
     final types = [source['warehouse_type'], destination['warehouse_type']];
     final ownDisplay = types.contains('store') && types.contains('display');
     // Match the central warehouse exception exactly; same warehouse rack moves
@@ -57,8 +66,9 @@ class TransferLocationChoices {
     if (policy != null &&
         _uses('use_central_warehouse') &&
         !ownDisplay &&
-        !types.contains('central'))
+        !types.contains('central')) {
       return false;
+    }
     return true;
   }
 
