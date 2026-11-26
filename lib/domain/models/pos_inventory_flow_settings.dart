@@ -87,6 +87,7 @@ class PosInventoryFlowPolicy {
   String? validationError({
     required bool trackStock,
     required List<PosInventoryFlowLocation> locations,
+    bool prepareTransit = false,
   }) {
     bool enabled(String key) => values[key] == true;
     if (enabled('use_display_stock') && !enabled('use_store_warehouse')) {
@@ -116,7 +117,8 @@ class PosInventoryFlowPolicy {
     )) {
       return 'invalidRule';
     }
-    if ((enabled('use_in_transit') ||
+    if (!prepareTransit &&
+        (enabled('use_in_transit') ||
             ruleFields.any((key) => values[key] == 'transit')) &&
         !locations.any(
           (row) =>
@@ -182,13 +184,14 @@ class PosInventoryFlowLocation {
 
 class PosInventoryFlowSnapshot {
   final String revision, scope;
-  final bool canUpdate, trackStock;
+  final bool canUpdate, trackStock, canCreateLocations;
   final PosInventoryFlowPolicy policy;
   final List<PosInventoryFlowLocation> locations;
   PosInventoryFlowSnapshot.fromJson(
     Map<String, dynamic> json, {
     required this.scope,
     required this.canUpdate,
+    this.canCreateLocations = false,
     required List<PosInventoryFlowLocation> locations,
   }) : revision = json['revision']?.toString() ?? '',
        policy = PosInventoryFlowPolicy(

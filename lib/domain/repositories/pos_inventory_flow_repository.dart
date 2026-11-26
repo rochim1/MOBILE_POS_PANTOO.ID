@@ -45,6 +45,16 @@ class PosInventoryFlowRepository {
     if (result.hasException) {
       final errors = result.exception!.graphqlErrors;
       final codes = errors.map((e) => e.extensions?['code']).toSet();
+      if (result.data?[root] == null &&
+          result.exception!.linkException == null &&
+          errors.any(
+            (e) => e.extensions?['reason'] == 'TRANSIT_SETUP_PERMISSION',
+          )) {
+        throw const PosInventoryFlowFailure(
+          InventoryFlowFailureKind.validation,
+          'transitSetupPermission',
+        );
+      }
       if (codes.any(
         (code) =>
             ['FORBIDDEN', 'UNAUTHORIZED', 'UNAUTHENTICATED'].contains(code),
@@ -121,6 +131,14 @@ class PosInventoryFlowRepository {
             )),
       };
       final full = permissions['is_full_access'] == true;
+      final canCreateLocations =
+          full ||
+          (permissions['merged_permissions'] as List? ?? const []).any(
+            (entry) =>
+                entry is Map &&
+                ['warehouse', 'cabang'].contains(entry['module']) &&
+                (entry['actions'] as List? ?? const []).contains('create'),
+          );
       if (!full && !actions.contains('view')) {
         throw const PosInventoryFlowFailure(InventoryFlowFailureKind.forbidden);
       }
@@ -166,6 +184,7 @@ class PosInventoryFlowRepository {
         settings,
         scope: scope,
         canUpdate: full || actions.contains('update'),
+        canCreateLocations: canCreateLocations,
         locations: locations,
       );
     } on PosInventoryFlowFailure {
@@ -177,17 +196,25 @@ class PosInventoryFlowRepository {
 
   Future<PosInventoryFlowSnapshot> save(
     PosInventoryFlowSnapshot baseline,
-    PosInventoryFlowPolicy policy,
-  ) async {
+    PosInventoryFlowPolicy policy, {
+    bool prepareTransit = false,
+  }) async {
     _assertScope(baseline.scope);
     if (!baseline.canUpdate) {
       throw const PosInventoryFlowFailure(InventoryFlowFailureKind.forbidden);
     }
     final patch = policy.patchFrom(baseline.policy);
-    if (patch.isEmpty) return baseline;
+    if (patch.isEmpty && !prepareTransit) return baseline;
+    if (prepareTransit && policy.values['inventory_profile'] == 'simple') {
+      throw const PosInventoryFlowFailure(
+        InventoryFlowFailureKind.validation,
+        'transitChooseMovement',
+      );
+    }
     final invalid = policy.validationError(
       trackStock: baseline.trackStock,
       locations: baseline.locations,
+      prepareTransit: prepareTransit,
     );
     if (invalid != null) {
       throw PosInventoryFlowFailure(
@@ -204,7 +231,8 @@ class PosInventoryFlowRepository {
               variables: {
                 'input': {
                   'expected_revision': baseline.revision,
-                  'inventory_operation_defaults': patch,
+                  if (patch.isNotEmpty) 'inventory_operation_defaults': patch,
+                  if (prepareTransit) 'auto_prepare_transfer_transit': true,
                 },
               },
               fetchPolicy: FetchPolicy.networkOnly,
@@ -214,10 +242,22 @@ class PosInventoryFlowRepository {
           .timeout(timeout);
       _assertScope(baseline.scope);
       final data = _data(result, 'UpdateInventorySettings', saving: true);
+      if (prepareTransit) {
+        // The write is acknowledged, but the new location must also be loaded.
+        // Any failed read requires reconciliation, not another preparation.
+        try {
+          return await load();
+        } catch (_) {
+          throw const PosInventoryFlowFailure(
+            InventoryFlowFailureKind.uncertain,
+          );
+        }
+      }
       return PosInventoryFlowSnapshot.fromJson(
         data,
         scope: baseline.scope,
         canUpdate: baseline.canUpdate,
+        canCreateLocations: baseline.canCreateLocations,
         locations: baseline.locations,
       );
     } on PosInventoryFlowFailure {

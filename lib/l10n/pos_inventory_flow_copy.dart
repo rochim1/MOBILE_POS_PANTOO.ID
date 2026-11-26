@@ -10,6 +10,40 @@ const inventoryFlowCopy = <String, (String, String)>{
   ),
   'profile': ('Profil inventori', 'Inventory profile'),
   'flow': ('Alur stok', 'Stock flow'),
+  'transitSetupTitle': ('Siapkan perpindahan stok', 'Prepare stock transfers'),
+  'transitSetupHelp': (
+    'Lokasi perjalanan menampung stok selama dikirim hingga diterima. Anda tidak perlu mengisi form gudang terpisah.',
+    'The in-transit location holds dispatched stock until it is received. No separate warehouse form is needed.',
+  ),
+  'transitPrepareOnSave': (
+    'Siapkan otomatis saat disimpan',
+    'Prepare automatically when saving',
+  ),
+  'transitPrepareHint': (
+    'Lokasi internal dibuat sekali. Stok dan transfer yang sudah ada tidak dipindahkan.',
+    'The internal location is created once. Existing stock and transfers are not moved.',
+  ),
+  'transitPreparedOnSave': ('Disiapkan saat disimpan', 'Prepared when saving'),
+  'transitConfirmPrepare': (
+    'Lokasi internal Barang dalam perjalanan akan disiapkan bersama pengaturan ini. Jika penyimpanan gagal, lokasi baru tidak ditinggalkan.',
+    'An internal in-transit location will be prepared with these settings. A failed save will not leave a new location behind.',
+  ),
+  'transitUseExisting': (
+    'Gunakan lokasi perjalanan yang tersedia',
+    'Use the existing in-transit location',
+  ),
+  'transitSelectExisting': (
+    'Ada beberapa lokasi perjalanan. Pilih salah satu pada kolom lokasi perjalanan; lokasi baru tidak perlu dibuat.',
+    'There are several in-transit locations. Select one in the location field; no new location is needed.',
+  ),
+  'transitSetupPermission': (
+    'Minta admin menyiapkan lokasi perjalanan. Akun ini belum memiliki izin membuat lokasi gudang.',
+    'Ask an administrator to prepare an in-transit location. This account cannot create warehouse locations.',
+  ),
+  'transitChooseMovement': (
+    'Pilih Pakai perpindahan stok terlebih dahulu.',
+    'Choose Use stock transfers first.',
+  ),
   'directChoice': ('Stok langsung dijual', 'Sell stock directly'),
   'movementChoice': ('Pakai perpindahan stok', 'Use stock transfers'),
   'detailProfile': (

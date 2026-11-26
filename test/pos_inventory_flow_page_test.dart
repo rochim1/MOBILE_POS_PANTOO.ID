@@ -20,8 +20,16 @@ class FlowRepo extends Fake implements PosInventoryFlowRepository {
   };
   List<PosInventoryFlowLocation> locations = const [
     PosInventoryFlowLocation(id: 'store', name: 'Gudang Toko', type: 'store'),
-    PosInventoryFlowLocation(id: 'central', name: 'Gudang Pusat', type: 'central'),
-    PosInventoryFlowLocation(id: 'transit', name: 'Transit', type: 'in_transit'),
+    PosInventoryFlowLocation(
+      id: 'central',
+      name: 'Gudang Pusat',
+      type: 'central',
+    ),
+    PosInventoryFlowLocation(
+      id: 'transit',
+      name: 'Transit',
+      type: 'in_transit',
+    ),
   ];
   PosInventoryFlowSnapshot snapshot() => PosInventoryFlowSnapshot.fromJson(
     {'revision': 'v$reads', 'inventory_operation_defaults': policy},
@@ -47,8 +55,18 @@ class FlowRepo extends Fake implements PosInventoryFlowRepository {
     policy = draft.values;
     if (prepareTransit) {
       preparations++;
-      policy = {...policy, 'default_transfer_transit_location_id': 'auto-transit'};
-      locations = [...locations, const PosInventoryFlowLocation(id: 'auto-transit', name: 'Barang dalam perjalanan', type: 'in_transit')];
+      policy = {
+        ...policy,
+        'default_transfer_transit_location_id': 'auto-transit',
+      };
+      locations = [
+        ...locations,
+        const PosInventoryFlowLocation(
+          id: 'auto-transit',
+          name: 'Barang dalam perjalanan',
+          type: 'in_transit',
+        ),
+      ];
     }
     return pending?.future ?? snapshot();
   }
@@ -95,7 +113,13 @@ Future<void> change(WidgetTester t) async {
 }
 
 Future<void> submit(WidgetTester t) async {
+  await t.scrollUntilVisible(
+    find.byKey(const Key('flow-save')),
+    150,
+    scrollable: find.byType(Scrollable).first,
+  );
   await t.ensureVisible(find.byKey(const Key('flow-save')));
+  await t.pumpAndSettle();
   await t.tap(find.byKey(const Key('flow-save')));
   await t.pump(const Duration(milliseconds: 350));
   await t.tap(find.byKey(const Key('flow-confirm')));

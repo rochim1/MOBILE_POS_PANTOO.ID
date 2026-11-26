@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../domain/models/pos_inventory_flow_settings.dart';
 import '../../../../domain/repositories/pos_inventory_flow_repository.dart';
 import '../../../../l10n/pos_inventory_flow_copy.dart';
+import 'widgets/pos_inventory_transit_setup.dart';
 
 class PosInventoryFlowSettings extends StatefulWidget {
   final PosInventoryFlowRepository repository;
@@ -24,6 +25,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
   String? _validation;
   bool _loading = true, _saving = false, _reloadRequired = false;
   bool _refreshPending = false, _refreshing = false, _saved = false;
+  bool _prepareTransit = false;
   int _generation = 0;
   final _tolerance = TextEditingController();
   bool get _editable =>
@@ -34,6 +36,13 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
         (key) => _draft?.values[key] == 'transit',
       );
   String t(String key) => inventoryFlowText(context, key);
+  List<PosInventoryFlowLocation> get _transitLocations =>
+      _baseline?.locations.where((row) => row.isTransit).toList() ?? const [];
+  bool get _hasTransitLocation => _transitLocations.any(
+    (row) => row.id == _draft?.values['default_transfer_transit_location_id'],
+  );
+  bool get _showTransitField =>
+      _needsTransit || _prepareTransit || _transitLocations.length > 1;
 
   @override
   void initState() {
@@ -72,6 +81,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
         _loading = false;
         _reloadRequired = false;
         _saved = false;
+        _prepareTransit = false;
       });
       if (shouldRefresh) await _refresh();
     } on PosInventoryFlowFailure catch (failure) {
@@ -98,10 +108,23 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
     if (draft.values['inventory_profile'] != 'simple') {
       _movementPolicy = draft;
     }
+    if (draft.values['inventory_profile'] == 'simple' || _hasTransitLocation) {
+      _prepareTransit = false;
+    }
     _validation = null;
     _failure = null;
     _saved = false;
   });
+
+  void _setTransitPreparation(bool value) {
+    if (!_editable ||
+        _baseline?.canCreateLocations != true ||
+        _transitLocations.isNotEmpty) {
+      return;
+    }
+    _change(_draft!.withValue('default_transfer_transit_location_id', null));
+    setState(() => _prepareTransit = value);
+  }
 
   void _selectMode(String mode) {
     final current = _draft;
@@ -138,12 +161,13 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
     if (!_editable ||
         baseline == null ||
         draft == null ||
-        draft.patchFrom(baseline.policy).isEmpty) {
+        (draft.patchFrom(baseline.policy).isEmpty && !_prepareTransit)) {
       return;
     }
     final invalid = draft.validationError(
       trackStock: baseline.trackStock,
       locations: baseline.locations,
+      prepareTransit: _prepareTransit,
     );
     if (invalid != null) {
       setState(() => _validation = invalid);
@@ -157,7 +181,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
         title: Text(t('confirmTitle')),
         content: SingleChildScrollView(
           child: Text(
-            '${t(draft.values['inventory_profile'] == 'simple' ? 'directChoice' : 'movementChoice')}\n\n${t('confirmBody')}',
+            '${t(draft.values['inventory_profile'] == 'simple' ? 'directChoice' : 'movementChoice')}\n\n${t('confirmBody')}${_prepareTransit ? '\n\n${t('transitConfirmPrepare')}' : ''}',
           ),
         ),
         actions: [
@@ -179,7 +203,11 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
       return;
     }
     try {
-      final saved = await widget.repository.save(baseline, draft);
+      final saved = await widget.repository.save(
+        baseline,
+        draft,
+        prepareTransit: _prepareTransit,
+      );
       // Refresh the parent even if this section was switched while saving.
       var refreshed = false;
       try {
@@ -195,6 +223,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
             '${saved.policy.values['over_receipt_tolerance_percent']}';
         _saving = false;
         _saved = true;
+        _prepareTransit = false;
         _failure = null;
         _validation = null;
         _refreshPending = !refreshed;
@@ -256,7 +285,17 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
           border: const OutlineInputBorder(),
         ),
         items: [
-          DropdownMenuItem(value: '', child: Text(t('none'))),
+          DropdownMenuItem(
+            value: '',
+            child: Text(
+              t(
+                field == 'default_transfer_transit_location_id' &&
+                        _prepareTransit
+                    ? 'transitPreparedOnSave'
+                    : 'none',
+              ),
+            ),
+          ),
           for (final row in options)
             DropdownMenuItem(
               value: row.id,
@@ -269,7 +308,10 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
               child: Text(t('unavailable'), overflow: TextOverflow.ellipsis),
             ),
         ],
-        onChanged: !_editable
+        onChanged:
+            !_editable ||
+                (field == 'default_transfer_transit_location_id' &&
+                    _prepareTransit)
             ? null
             : (value) => _change(_draft!.withValue(field, value)),
       ),
@@ -282,7 +324,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
     final dirty =
         baseline != null &&
         draft != null &&
-        draft.patchFrom(baseline.policy).isNotEmpty;
+        (draft.patchFrom(baseline.policy).isNotEmpty || _prepareTransit);
     return PopScope(
       canPop: !_saving,
       child: Material(
@@ -374,7 +416,26 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
                 ),
                 Text(t('locationsHelp')),
                 const SizedBox(height: 12),
-                if (_needsTransit)
+                if (draft.values['inventory_profile'] != 'simple' &&
+                    !_hasTransitLocation)
+                  PosInventoryTransitSetup(
+                    editable: _editable,
+                    canCreate: baseline.canCreateLocations,
+                    prepared: _prepareTransit,
+                    existingCount: _transitLocations.length,
+                    onPrepare: _setTransitPreparation,
+                    onUseExisting: () {
+                      if (_editable && _transitLocations.length == 1) {
+                        _change(
+                          draft.withValue(
+                            'default_transfer_transit_location_id',
+                            _transitLocations.single.id,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                if (_showTransitField)
                   _location(
                     'default_transfer_transit_location_id',
                     'transit',
@@ -446,7 +507,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    if (!_needsTransit)
+                    if (!_showTransitField)
                       _location(
                         'default_transfer_transit_location_id',
                         'transit',
