@@ -910,24 +910,28 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final requestVersion = ++_pricingPreviewVersion;
     final requestedState = state;
     if (state.cart.isEmpty) {
-      emit(state.copyWith(clearPricingPreview: true, pricingPreviewLoading: false));
+      emit(
+        state.copyWith(clearPricingPreview: true, pricingPreviewLoading: false),
+      );
       return;
     }
     final storeId = state.checkoutStore?.id ?? '';
     if (storeId.isEmpty) {
-      emit(state.copyWith(
-        clearPricingPreview: state.promoCode.isEmpty,
-        pricingPreviewLoading: false,
-        pricingPreview: state.promoCode.isEmpty ? null : {
-          'promo_applied': false,
-          'promo_message': 'Pilih toko kasir',
-        },
-      ));
+      emit(
+        state.copyWith(
+          clearPricingPreview: state.promoCode.isEmpty,
+          pricingPreviewLoading: false,
+          pricingPreview: state.promoCode.isEmpty
+              ? null
+              : {'promo_applied': false, 'promo_message': 'Pilih toko kasir'},
+        ),
+      );
       return;
     }
     final requestedSubtotal = state.subTotal;
-    // Revoke the previous quote before an asynchronous validation starts.
-    emit(state.copyWith(clearPricingPreview: true, pricingPreviewLoading: true));
+    // Input edits already invalidate the quote. A refresh of unchanged inputs
+    // must preserve agreed customer prices; promo approval is revoked by loading.
+    emit(state.copyWith(pricingPreviewLoading: true));
     final result = await posRepository.previewPricing(
       cart: state.cart,
       tokoId: storeId,
@@ -967,17 +971,21 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           errorMessage: '',
           pricingPreviewLoading: false,
           clearPricingPreview: state.promoCode.isEmpty,
-          pricingPreview: state.promoCode.isEmpty ? null : {
-            'promo_applied': false,
-            'promo_message': failure is NetworkFailure
-                ? 'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.'
-                : failure.message,
-          },
+          pricingPreview: state.promoCode.isEmpty
+              ? null
+              : {
+                  'promo_applied': false,
+                  'promo_message': failure is NetworkFailure
+                      ? 'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.'
+                      : failure.message,
+                },
         ),
       ),
       (preview) {
         final serverSubtotal = (preview['subtotal'] as num?)?.toDouble();
-        emit(state.copyWith(pricingPreview: preview, pricingPreviewLoading: false));
+        emit(
+          state.copyWith(pricingPreview: preview, pricingPreviewLoading: false),
+        );
         if (state.manualDiscountPercent > 0 &&
             serverSubtotal != null &&
             (serverSubtotal - requestedSubtotal).abs() > 0.5) {
@@ -1147,11 +1155,13 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     _paymentInFlight = true;
     // A background quote must not survive checkout or overwrite its result.
     ++_pricingPreviewVersion;
-    emit(state.copyWith(
-      status: PosStatus.loading,
-      paymentInProgress: true,
-      pricingPreviewLoading: false,
-    ));
+    emit(
+      state.copyWith(
+        status: PosStatus.loading,
+        paymentInProgress: true,
+        pricingPreviewLoading: false,
+      ),
+    );
     try {
       final tokoId = state.checkoutStore?.id ?? '';
       if (tokoId.isEmpty) {

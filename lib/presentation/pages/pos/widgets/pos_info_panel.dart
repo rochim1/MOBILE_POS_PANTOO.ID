@@ -185,7 +185,9 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                   if (_items.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(32),
-                      child: Center(child: PosText('Pelanggan tidak ditemukan')),
+                      child: Center(
+                        child: PosText('Pelanggan tidak ditemukan'),
+                      ),
                     );
                   }
                   return const SizedBox(height: 24);
@@ -317,9 +319,15 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: state.pricingPreviewLoading ? null : () => _applyPromo(state),
+              onPressed: state.pricingPreviewLoading
+                  ? null
+                  : () => _applyPromo(state),
               child: state.pricingPreviewLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const PosText('Terapkan'),
             ),
           ],
@@ -328,20 +336,20 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: PosPromoFeedback(state: state),
-              ),
+              Expanded(child: PosPromoFeedback(state: state)),
               TextButton(
-                onPressed: state.pricingPreviewLoading ? null : () {
-                  _promoController.clear();
-                  context.read<PosBloc>().add(
-                    UpdateDiscount(
-                      manualDiscountPercent: state.manualDiscountPercent,
-                      promoCode: '',
-                      discountPolicy: state.discountPolicy,
-                    ),
-                  );
-                },
+                onPressed: state.pricingPreviewLoading
+                    ? null
+                    : () {
+                        _promoController.clear();
+                        context.read<PosBloc>().add(
+                          UpdateDiscount(
+                            manualDiscountPercent: state.manualDiscountPercent,
+                            promoCode: '',
+                            discountPolicy: state.discountPolicy,
+                          ),
+                        );
+                      },
                 child: const PosText('Hapus'),
               ),
             ],
@@ -359,10 +367,11 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               TextFormField(
                 initialValue: state.manualDiscountPercent.toStringAsFixed(0),
                 keyboardType: TextInputType.number,
-                decoration:  InputDecoration(
+                decoration: InputDecoration(
                   labelText: ('Diskon manual').tr(context),
                   suffixText: '%',
-                  helperText: ('Perubahan tercatat sebagai override transaksi').tr(context),
+                  helperText: ('Perubahan tercatat sebagai override transaksi')
+                      .tr(context),
                 ),
                 onChanged: (value) => context.read<PosBloc>().add(
                   UpdateDiscount(
@@ -384,11 +393,13 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
 
   void _applyPromo(PosState state) {
     if (state.pricingPreviewLoading) return;
-    context.read<PosBloc>().add(UpdateDiscount(
-      manualDiscountPercent: state.manualDiscountPercent,
-      promoCode: _promoController.text,
-      discountPolicy: state.discountPolicy,
-    ));
+    context.read<PosBloc>().add(
+      UpdateDiscount(
+        manualDiscountPercent: state.manualDiscountPercent,
+        promoCode: _promoController.text,
+        discountPolicy: state.discountPolicy,
+      ),
+    );
   }
 
   // Legacy tab builders are kept temporarily for backward-compatible layout
@@ -402,7 +413,11 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
         Expanded(child: _buildInfoTab('promo', 'Promo', Icons.local_offer)),
         const SizedBox(width: 8),
         Expanded(
-          child: _buildInfoTab('harga', ('Harga').tr(context), Icons.price_change_outlined),
+          child: _buildInfoTab(
+            'harga',
+            ('Harga').tr(context),
+            Icons.price_change_outlined,
+          ),
         ),
       ],
     );
@@ -655,7 +670,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             ),
             _pricingDropdown(
               label: ('Aturan Kombinasi Diskon').tr(context),
-              description: ('Tentukan cara promo dan diskon manual diterapkan').tr(context),
+              description: ('Tentukan cara promo dan diskon manual diterapkan')
+                  .tr(context),
               value: state.discountPolicy,
               width: widget.isMobile ? double.infinity : 240,
               items: const {
@@ -685,7 +701,10 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
       children: [
         _pricingDropdown(
           label: ('Channel Penjualan').tr(context),
-          description: ('Asal transaksi; tidak menentukan cara pesanan dipenuhi').tr(context),
+          description:
+              ('Asal transaksi; tidak menentukan cara pesanan dipenuhi').tr(
+                context,
+              ),
           value: state.salesChannel,
           width: widget.isMobile ? double.infinity : 220,
           items: {

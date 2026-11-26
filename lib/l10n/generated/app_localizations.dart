@@ -104,6 +104,84 @@ abstract class AppLocalizations {
   /// **'Memverifikasi kode promo…'**
   String get promoValidating;
 
+  /// No description provided for @promoCodeValid.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo valid'**
+  String get promoCodeValid;
+
+  /// No description provided for @promoChooseCustomer.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih pelanggan untuk menggunakan kode promo ini'**
+  String get promoChooseCustomer;
+
+  /// No description provided for @promoCodeInactive.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo tidak ditemukan atau tidak aktif'**
+  String get promoCodeInactive;
+
+  /// No description provided for @promoCodeExpired.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo sudah kadaluarsa'**
+  String get promoCodeExpired;
+
+  /// No description provided for @promoCodeNotStarted.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo belum berlaku'**
+  String get promoCodeNotStarted;
+
+  /// No description provided for @promoCodeExhausted.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo sudah mencapai batas penggunaan'**
+  String get promoCodeExhausted;
+
+  /// No description provided for @promoCodeChannel.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo tidak berlaku untuk channel ini'**
+  String get promoCodeChannel;
+
+  /// No description provided for @promoCodeMembership.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo tidak berlaku untuk status/tier member ini'**
+  String get promoCodeMembership;
+
+  /// No description provided for @promoCodeNoDiscount.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo tidak memberikan diskon pada subtotal ini'**
+  String get promoCodeNoDiscount;
+
+  /// No description provided for @promoCodePolicyExcluded.
+  ///
+  /// In id, this message translates to:
+  /// **'Kebijakan diskon POS saat ini tidak menerapkan kode promo'**
+  String get promoCodePolicyExcluded;
+
+  /// No description provided for @promoMinimumPurchase.
+  ///
+  /// In id, this message translates to:
+  /// **'Minimal pembelian {amount}'**
+  String promoMinimumPurchase(String amount);
+
+  /// No description provided for @promoCustomerUsageLimit.
+  ///
+  /// In id, this message translates to:
+  /// **'Batas penggunaan per pelanggan: {limit}'**
+  String promoCustomerUsageLimit(String limit);
+
+  /// No description provided for @promoCooldown.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode promo masih cooldown, coba lagi {minutes} menit lagi'**
+  String promoCooldown(String minutes);
+
   /// No description provided for @exitAppTitle.
   ///
   /// In id, this message translates to:

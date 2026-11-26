@@ -194,7 +194,8 @@ class PosState extends Equatable {
           ? null
           : (pricingPreview ?? this.pricingPreview),
       pricingPreviewLoading:
-          pricingPreviewLoading ?? (clearPricingPreview ? false : this.pricingPreviewLoading),
+          pricingPreviewLoading ??
+          (clearPricingPreview ? false : this.pricingPreviewLoading),
     );
   }
 

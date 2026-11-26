@@ -12,6 +12,55 @@ class AppLocalizationsId extends AppLocalizations {
   String get promoValidating => 'Memverifikasi kode promo…';
 
   @override
+  String get promoCodeValid => 'Kode promo valid';
+
+  @override
+  String get promoChooseCustomer =>
+      'Pilih pelanggan untuk menggunakan kode promo ini';
+
+  @override
+  String get promoCodeInactive => 'Kode promo tidak ditemukan atau tidak aktif';
+
+  @override
+  String get promoCodeExpired => 'Kode promo sudah kadaluarsa';
+
+  @override
+  String get promoCodeNotStarted => 'Kode promo belum berlaku';
+
+  @override
+  String get promoCodeExhausted => 'Kode promo sudah mencapai batas penggunaan';
+
+  @override
+  String get promoCodeChannel => 'Kode promo tidak berlaku untuk channel ini';
+
+  @override
+  String get promoCodeMembership =>
+      'Kode promo tidak berlaku untuk status/tier member ini';
+
+  @override
+  String get promoCodeNoDiscount =>
+      'Kode promo tidak memberikan diskon pada subtotal ini';
+
+  @override
+  String get promoCodePolicyExcluded =>
+      'Kebijakan diskon POS saat ini tidak menerapkan kode promo';
+
+  @override
+  String promoMinimumPurchase(String amount) {
+    return 'Minimal pembelian $amount';
+  }
+
+  @override
+  String promoCustomerUsageLimit(String limit) {
+    return 'Batas penggunaan per pelanggan: $limit';
+  }
+
+  @override
+  String promoCooldown(String minutes) {
+    return 'Kode promo masih cooldown, coba lagi $minutes menit lagi';
+  }
+
+  @override
   String get exitAppTitle => 'Keluar dari aplikasi?';
 
   @override

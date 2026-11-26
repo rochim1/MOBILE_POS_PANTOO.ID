@@ -12,6 +12,55 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promoValidating => 'Verifying promo code…';
 
   @override
+  String get promoCodeValid => 'Promo code is valid';
+
+  @override
+  String get promoChooseCustomer => 'Select a customer to use this promo code';
+
+  @override
+  String get promoCodeInactive => 'Promo code was not found or is inactive';
+
+  @override
+  String get promoCodeExpired => 'Promo code has expired';
+
+  @override
+  String get promoCodeNotStarted => 'Promo code is not active yet';
+
+  @override
+  String get promoCodeExhausted => 'Promo code usage limit has been reached';
+
+  @override
+  String get promoCodeChannel =>
+      'Promo code is not valid for this sales channel';
+
+  @override
+  String get promoCodeMembership =>
+      'Promo code is not valid for this membership tier';
+
+  @override
+  String get promoCodeNoDiscount =>
+      'Promo code does not provide a discount for this subtotal';
+
+  @override
+  String get promoCodePolicyExcluded =>
+      'The current POS discount policy does not apply promo codes';
+
+  @override
+  String promoMinimumPurchase(String amount) {
+    return 'Minimum purchase: $amount';
+  }
+
+  @override
+  String promoCustomerUsageLimit(String limit) {
+    return 'Usage limit per customer: $limit';
+  }
+
+  @override
+  String promoCooldown(String minutes) {
+    return 'Promo code is on cooldown. Try again in $minutes minutes';
+  }
+
+  @override
   String get exitAppTitle => 'Exit the app?';
 
   @override
