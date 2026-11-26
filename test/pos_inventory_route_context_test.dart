@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -103,6 +104,22 @@ class _Inventory extends Fake implements PosInventoryRepository {
 }
 
 void main() {
+  testWidgets('late document search cannot overwrite newer search results', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+    final repo=_RaceInventory();sl.registerSingleton<PosInventoryRepository>(repo);
+    final bloc=_Bloc();addTearDown(bloc.close);
+    await tester.pumpWidget(MaterialApp(home:BlocProvider<PosBloc>.value(value:bloc,
+      child:const Scaffold(body:PosInventoryPage(initialSection:'purchase')))));
+    await tester.pumpAndSettle();
+    final toggle=find.byKey(const Key('inventory_filter_toggle'));
+    if(find.byType(TextField).evaluate().isEmpty) { await tester.tap(toggle);await tester.pumpAndSettle(); }
+    await tester.enterText(find.byType(TextField),'slow');await tester.pump(const Duration(milliseconds:500));
+    await tester.enterText(find.byType(TextField),'fast');await tester.pump(const Duration(milliseconds:500));await tester.pump();
+    repo.old.complete(const Right(PosInventoryDocumentPage([{'_id':'old','no_po':'PO-SLOW','status':'draft'}],1)));
+    await tester.pumpAndSettle();
+    expect(find.text('PO-FAST'),findsOneWidget);expect(find.text('PO-SLOW'),findsNothing);
+  });
   testWidgets('phone procurement filters collapse but Add stays available', (
     tester,
   ) async {
@@ -302,4 +319,17 @@ void main() {
       expect(bloc.isClosed, isFalse);
     },
   );
+}
+
+class _RaceInventory extends _Inventory {
+  final old=Completer<Either<Failure,PosInventoryDocumentPage>>();
+  @override
+  Future<Either<Failure,PosInventoryDocumentPage>> getDocuments({required PosInventoryDocumentType type,
+    String search='',String status='',List<String> statuses=const [],String inventoryId='',
+    bool receivableOnly=false,bool openQuantityOnly=false,String workflowView='',String locationId='',
+    String dateFrom='',String dateTo='',String reason='',int page=1,int limit=20}) async {
+    if(search=='slow')return old.future;
+    return Right(PosInventoryDocumentPage(search=='fast'
+      ? [{'_id':'fast','no_po':'PO-FAST','status':'draft'}] : [], search=='fast'?1:0));
+  }
 }
