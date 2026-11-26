@@ -145,8 +145,18 @@ void main() {
       expect(calls, 1);
     },
   );
+  test('a slow healthy roster retains its original response window', () async {
+    var calls = 0;
+    final repo = repository((request) async* {
+      calls++;
+      await Future<void>.delayed(const Duration(seconds: 5));
+      yield Response(data: roster, response: {});
+    });
+    expect((await repo.getPOSPinUsers(hasPin: true)).isRight(), true);
+    expect(calls, 1);
+  });
   test(
-    'a stalled first request is cancelled and retried within the existing startup budget',
+    'a stalled request ends within the startup window and manual retry recovers',
     () async {
       var calls = 0, cancelled = false;
       final source = StreamController<Response>(
@@ -159,10 +169,12 @@ void main() {
       final elapsed = Stopwatch()..start();
       final result = await repo.getPOSPinUsers(hasPin: true).timeout(const Duration(seconds: 12));
       await source.close();
-      expect(result.isRight(), true);
-      expect(calls, 2);
+      expect(result.isLeft(), true);
+      expect(calls, 1);
       expect(cancelled, true);
-      expect(elapsed.elapsed, lessThan(const Duration(seconds: 8)));
+      expect(elapsed.elapsed, lessThan(const Duration(seconds: 10)));
+      expect((await repo.getPOSPinUsers(hasPin: true)).isRight(), true);
+      expect(calls, 2);
     },
   );
 }
