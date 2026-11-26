@@ -54,6 +54,7 @@ class PosState extends Equatable {
   final bool paymentInProgress;
   final PosTransactionResult? lastTransaction;
   final Map<String, dynamic>? pricingPreview;
+  final bool pricingPreviewLoading;
 
   const PosState({
     this.status = PosStatus.initial,
@@ -93,6 +94,7 @@ class PosState extends Equatable {
     this.paymentInProgress = false,
     this.lastTransaction,
     this.pricingPreview,
+    this.pricingPreviewLoading = false,
   }) : _productsRefreshing = productsRefreshing;
 
   PosState copyWith({
@@ -138,6 +140,7 @@ class PosState extends Equatable {
     PosTransactionResult? lastTransaction,
     Map<String, dynamic>? pricingPreview,
     bool clearPricingPreview = false,
+    bool? pricingPreviewLoading,
   }) {
     return PosState(
       status: status ?? this.status,
@@ -190,6 +193,8 @@ class PosState extends Equatable {
       pricingPreview: clearPricingPreview
           ? null
           : (pricingPreview ?? this.pricingPreview),
+      pricingPreviewLoading:
+          pricingPreviewLoading ?? this.pricingPreviewLoading,
     );
   }
 
@@ -225,7 +230,8 @@ class PosState extends Equatable {
 
   double get manualDiscount => subTotal * (manualDiscountPercent / 100);
 
-  bool get promoApplied => pricingPreview?['promo_applied'] == true;
+  bool get promoApplied =>
+      !pricingPreviewLoading && pricingPreview?['promo_applied'] == true;
   double get promoDiscount =>
       (pricingPreview?['promo_discount'] as num?)?.toDouble() ?? 0;
 
@@ -357,5 +363,6 @@ class PosState extends Equatable {
     paymentInProgress,
     lastTransaction,
     pricingPreview,
+    pricingPreviewLoading,
   ];
 }

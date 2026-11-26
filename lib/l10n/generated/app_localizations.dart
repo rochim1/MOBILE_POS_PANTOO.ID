@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @promoValidating.
+  ///
+  /// In id, this message translates to:
+  /// **'Memverifikasi kode promo…'**
+  String get promoValidating;
+
   /// No description provided for @exitAppTitle.
   ///
   /// In id, this message translates to:

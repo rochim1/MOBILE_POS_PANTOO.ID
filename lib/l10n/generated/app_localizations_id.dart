@@ -9,6 +9,9 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get promoValidating => 'Memverifikasi kode promo…';
+
+  @override
   String get exitAppTitle => 'Keluar dari aplikasi?';
 
   @override

@@ -1,5 +1,6 @@
 {
   "@@locale": "id",
+  "promoValidating": "Memverifikasi kode promo…",
   "exitAppTitle": "Keluar dari aplikasi?",
   "exitAppMessage": "Perubahan yang belum disimpan bisa hilang. Menutup aplikasi tidak menutup shift kasir atau mengeluarkan akun Anda.",
   "exitAppConfirm": "Keluar aplikasi",

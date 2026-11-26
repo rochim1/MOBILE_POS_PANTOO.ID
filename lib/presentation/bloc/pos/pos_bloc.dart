@@ -10,6 +10,7 @@ import '../../../domain/models/pos_customer.dart';
 import '../../../domain/models/pos_product.dart';
 import '../../../domain/services/pos_shift_sync.dart';
 import '../../../core/network/offline_network_failure.dart';
+import '../../../core/error/failures.dart';
 import '../../../core/utils/logger.dart';
 
 String _dashboardLoadError(Object error) {
@@ -909,15 +910,24 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     final requestVersion = ++_pricingPreviewVersion;
     final requestedState = state;
     if (state.cart.isEmpty) {
-      emit(state.copyWith(clearPricingPreview: true));
+      emit(state.copyWith(clearPricingPreview: true, pricingPreviewLoading: false));
       return;
     }
     final storeId = state.checkoutStore?.id ?? '';
     if (storeId.isEmpty) {
-      emit(state.copyWith(clearPricingPreview: true));
+      emit(state.copyWith(
+        clearPricingPreview: state.promoCode.isEmpty,
+        pricingPreviewLoading: false,
+        pricingPreview: state.promoCode.isEmpty ? null : {
+          'promo_applied': false,
+          'promo_message': 'Pilih toko kasir',
+        },
+      ));
       return;
     }
     final requestedSubtotal = state.subTotal;
+    // Revoke the previous quote before an asynchronous validation starts.
+    emit(state.copyWith(clearPricingPreview: true, pricingPreviewLoading: true));
     final result = await posRepository.previewPricing(
       cart: state.cart,
       tokoId: storeId,
@@ -925,7 +935,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       selectedUnits: state.selectedUnits,
       promoCode: state.promoCode,
       discountPolicy: state.discountPolicy,
-      manualDiscount: state.manualDiscount,
+      manualDiscount: requestedState.manualDiscount,
       salesChannel: state.salesChannel,
       customerSegment: state.customerSegment,
       priceLevel: state.priceLevel,
@@ -955,12 +965,19 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           // memblokir transaksi offline. Harga cache/produk tetap digunakan.
           status: PosStatus.success,
           errorMessage: '',
-          clearPricingPreview: true,
+          pricingPreviewLoading: false,
+          clearPricingPreview: state.promoCode.isEmpty,
+          pricingPreview: state.promoCode.isEmpty ? null : {
+            'promo_applied': false,
+            'promo_message': failure is NetworkFailure
+                ? 'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.'
+                : failure.message,
+          },
         ),
       ),
       (preview) {
         final serverSubtotal = (preview['subtotal'] as num?)?.toDouble();
-        emit(state.copyWith(pricingPreview: preview));
+        emit(state.copyWith(pricingPreview: preview, pricingPreviewLoading: false));
         if (state.manualDiscountPercent > 0 &&
             serverSubtotal != null &&
             (serverSubtotal - requestedSubtotal).abs() > 0.5) {
@@ -1062,9 +1079,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     emit(
       state.copyWith(
         manualDiscountPercent: event.manualDiscountPercent,
-        promoCode: event.promoCode,
+        promoCode: event.promoCode.trim().toUpperCase(),
         discountPolicy: event.discountPolicy,
         status: PosStatus.success,
+        clearPricingPreview: true,
+        pricingPreviewLoading: false,
       ),
     );
     add(RefreshPricingPreview());

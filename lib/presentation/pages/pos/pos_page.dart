@@ -27,6 +27,7 @@ import 'widgets/pos_category_sidebar.dart';
 import 'widgets/shift_management_panel.dart';
 import 'widgets/pos_shift_sync_error.dart';
 import 'widgets/pos_info_panel.dart';
+import 'widgets/pos_discount_dialog.dart';
 import 'widgets/pos_cashier_tour.dart';
 import 'widgets/pos_held_order_name_dialog.dart';
 import 'widgets/pos_held_order_flow.dart';
@@ -1014,62 +1015,11 @@ class _PosPageViewState extends State<PosPageView> {
   }
 
   Future<void> _showDiscountDialog(BuildContext context, PosState state) async {
-    final discountController = TextEditingController(
-      text: state.manualDiscountPercent.toStringAsFixed(0),
-    );
-    final promoController = TextEditingController(text: state.promoCode);
-    final result = await showDialog<Map<String, String>>(
+    await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const PosText('Diskon & Promo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: discountController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: ('Diskon manual (%)').tr(dialogContext),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: promoController,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                labelText: ('Kode promo').tr(dialogContext),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const PosText('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, {
-              'discount': discountController.text,
-              'promo': promoController.text.trim(),
-            }),
-            child: const PosText('Terapkan'),
-          ),
-        ],
-      ),
-    );
-    discountController.dispose();
-    promoController.dispose();
-    if (result == null || !context.mounted) return;
-    final discount = double.tryParse(result['discount'] ?? '') ?? 0;
-    if (discount < 0 || discount > 100) {
-      AppToast.warning(context, 'Diskon harus antara 0–100%');
-      return;
-    }
-    context.read<PosBloc>().add(
-      UpdateDiscount(
-        manualDiscountPercent: discount,
-        promoCode: result['promo'] ?? '',
-        discountPolicy: state.discountPolicy,
+      builder: (_) => BlocProvider.value(
+        value: context.read<PosBloc>(),
+        child: const PosDiscountDialog(),
       ),
     );
   }

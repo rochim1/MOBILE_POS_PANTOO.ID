@@ -11,6 +11,7 @@ import '../../../../domain/models/pos_customer.dart';
 import '../../../../domain/repositories/pos_repository.dart';
 import '../../../../injections.dart';
 import 'pos_quick_customer_dialog.dart';
+import 'pos_promo_feedback.dart';
 import '../../../widgets/pos_keyboard_stable_sheet.dart';
 
 class PosInfoPanel extends StatefulWidget {
@@ -246,7 +247,6 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
   Widget _buildTransactionContext(PosState state) {
     final permissions = state.runtimeConfig['permissions'] as Map?;
     final canOverridePricing = permissions?['manage_settings'] == true;
-    final promoMessage = state.pricingPreview?['promo_message']?.toString();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,6 +302,8 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
               child: TextField(
                 controller: _promoController,
                 textCapitalization: TextCapitalization.characters,
+                enabled: !state.pricingPreviewLoading,
+                onSubmitted: (_) => _applyPromo(state),
                 decoration: InputDecoration(
                   hintText: ('Kode promo').tr(context),
                   filled: true,
@@ -315,14 +317,10 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: () => context.read<PosBloc>().add(
-                UpdateDiscount(
-                  manualDiscountPercent: state.manualDiscountPercent,
-                  promoCode: _promoController.text.trim().toUpperCase(),
-                  discountPolicy: state.discountPolicy,
-                ),
-              ),
-              child: const PosText('Terapkan'),
+              onPressed: state.pricingPreviewLoading ? null : () => _applyPromo(state),
+              child: state.pricingPreviewLoading
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const PosText('Terapkan'),
             ),
           ],
         ),
@@ -330,25 +328,11 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(
-                state.promoApplied ? Icons.check_circle : Icons.info_outline,
-                size: 18,
-                color: state.promoApplied
-                    ? AppColors.success
-                    : AppColors.warning,
-              ),
-              const SizedBox(width: 7),
               Expanded(
-                child: PosText(
-                  promoMessage ??
-                      (state.promoApplied
-                          ? ('Promo berhasil diterapkan').tr(context)
-                          : ('Promo belum memenuhi ketentuan').tr(context)),
-                  style: const TextStyle(fontSize: 12),
-                ),
+                child: PosPromoFeedback(state: state),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: state.pricingPreviewLoading ? null : () {
                   _promoController.clear();
                   context.read<PosBloc>().add(
                     UpdateDiscount(
@@ -396,6 +380,15 @@ class _PosInfoPanelState extends State<PosInfoPanel> {
         ],
       ],
     );
+  }
+
+  void _applyPromo(PosState state) {
+    if (state.pricingPreviewLoading) return;
+    context.read<PosBloc>().add(UpdateDiscount(
+      manualDiscountPercent: state.manualDiscountPercent,
+      promoCode: _promoController.text,
+      discountPolicy: state.discountPolicy,
+    ));
   }
 
   // Legacy tab builders are kept temporarily for backward-compatible layout
