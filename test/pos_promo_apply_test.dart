@@ -90,6 +90,22 @@ void main() {
     },
   );
 
+  test('clear cart ends verification even if old request never finishes', () async {
+    final repo = PromoRepo();
+    final bloc = PromoBloc(repo);
+    addTearDown(bloc.close);
+    apply(bloc, 'HEMAT');
+    await tick();
+    expect(bloc.state.pricingPreviewLoading, isTrue);
+    bloc.add(ClearCart());
+    await tick();
+    expect(bloc.state.cart, isEmpty);
+    expect(bloc.state.pricingPreviewLoading, isFalse);
+    repo.requests.single.complete(const Right(quote));
+    await tick();
+    expect(bloc.state.promoApplied, isFalse);
+  });
+
   test('removing code clears old discount before server responds', () async {
     final repo = PromoRepo();
     final bloc = PromoBloc(repo, previous: true);
