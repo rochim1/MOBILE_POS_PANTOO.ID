@@ -19,6 +19,7 @@ class PosInventoryFlowSettings extends StatefulWidget {
 class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
   PosInventoryFlowSnapshot? _baseline;
   PosInventoryFlowPolicy? _draft;
+  PosInventoryFlowPolicy? _movementPolicy;
   PosInventoryFlowFailure? _failure;
   String? _validation;
   bool _loading = true, _saving = false, _reloadRequired = false;
@@ -62,6 +63,10 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
       setState(() {
         _baseline = snapshot;
         _draft = snapshot.policy;
+        _movementPolicy =
+            snapshot.policy.values['inventory_profile'] == 'simple'
+            ? null
+            : snapshot.policy;
         _tolerance.text =
             '${snapshot.policy.values['over_receipt_tolerance_percent']}';
         _loading = false;
@@ -90,10 +95,27 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
 
   void _change(PosInventoryFlowPolicy draft) => setState(() {
     _draft = draft;
+    if (draft.values['inventory_profile'] != 'simple') {
+      _movementPolicy = draft;
+    }
     _validation = null;
     _failure = null;
     _saved = false;
   });
+
+  void _selectMode(String mode) {
+    final current = _draft;
+    if (current == null) return;
+    final next = mode == 'simple'
+        ? current.withProfile('simple')
+        : _movementPolicy ??
+              current
+                  .withProfile('custom')
+                  .withValue('use_store_warehouse', true)
+                  .withValue('use_transfer_request', true);
+    _change(next);
+    _tolerance.text = '${next.values['over_receipt_tolerance_percent']}';
+  }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
@@ -135,7 +157,7 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
         title: Text(t('confirmTitle')),
         content: SingleChildScrollView(
           child: Text(
-            '${t(draft.values['inventory_profile'])}\n\n${t('confirmBody')}',
+            '${t(draft.values['inventory_profile'] == 'simple' ? 'directChoice' : 'movementChoice')}\n\n${t('confirmBody')}',
           ),
         ),
         actions: [
@@ -295,24 +317,42 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
                 if (!baseline.canUpdate) _message(t('readOnly')),
                 DropdownButtonFormField<String>(
                   key: const Key('flow-profile'),
-                  initialValue: draft.values['inventory_profile'],
+                  initialValue: draft.values['inventory_profile'] == 'simple'
+                      ? 'simple'
+                      : 'movement',
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: t('profile'),
+                    labelText: t('flow'),
                     border: const OutlineInputBorder(),
                   ),
                   items: [
-                    for (final profile in PosInventoryFlowPolicy.profiles)
-                      DropdownMenuItem(value: profile, child: Text(t(profile))),
+                    for (final mode in ['simple', 'movement'])
+                      DropdownMenuItem(
+                        value: mode,
+                        child: Text(
+                          t(
+                            mode == 'simple'
+                                ? 'directChoice'
+                                : 'movementChoice',
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                   ],
                   onChanged: !_editable
                       ? null
                       : (value) {
-                          if (value != null) _change(draft.withProfile(value));
+                          if (value != null) _selectMode(value);
                         },
                 ),
                 const SizedBox(height: 10),
-                Text(t('${draft.values['inventory_profile']}Help')),
+                Text(
+                  t(
+                    draft.values['inventory_profile'] == 'simple'
+                        ? 'simpleHelp'
+                        : 'movementHelp',
+                  ),
+                ),
                 const SizedBox(height: 18),
                 KeyedSubtree(
                   key: const Key('flow-receiving'),
@@ -346,6 +386,31 @@ class _PosInventoryFlowSettingsState extends State<PosInventoryFlowSettings> {
                   title: Text(t('advancedOptions')),
                   tilePadding: EdgeInsets.zero,
                   children: [
+                    DropdownButtonFormField<String>(
+                      key: const Key('flow-detail-profile'),
+                      initialValue: draft.values['inventory_profile'],
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: t('detailProfile'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final profile in PosInventoryFlowPolicy.profiles)
+                          DropdownMenuItem(
+                            value: profile,
+                            child: Text(t(profile)),
+                          ),
+                      ],
+                      onChanged: !_editable
+                          ? null
+                          : (value) {
+                              if (value != null)
+                                _change(draft.withProfile(value));
+                            },
+                    ),
+                    const SizedBox(height: 10),
+                    Text(t('${draft.values['inventory_profile']}Help')),
+                    const SizedBox(height: 14),
                     for (final field in [
                       ...PosInventoryFlowPolicy.flowFlags,
                       'allow_direct_purchase_to_store',

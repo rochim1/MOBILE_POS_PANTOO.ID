@@ -9,6 +9,17 @@ const inventoryFlowCopy = <String, (String, String)>{
     'Applies across this business and syncs with the web. It does not move stock or change store locations.',
   ),
   'profile': ('Profil inventori', 'Inventory profile'),
+  'flow': ('Alur stok', 'Stock flow'),
+  'directChoice': ('Stok langsung dijual', 'Sell stock directly'),
+  'movementChoice': ('Pakai perpindahan stok', 'Use stock transfers'),
+  'detailProfile': (
+    'Konfigurasi rinci inventori',
+    'Detailed inventory configuration',
+  ),
+  'movementHelp': (
+    'Pindahkan stok antar toko/gudang atau antar lokasi sesuai kebutuhan. Aturan gudang, display, persetujuan, dan transit dapat diatur melalui Pengaturan lanjutan. Transfer antar cabang dengan aturan sistem memerlukan lokasi transit.',
+    'Move stock between stores/warehouses or locations as needed. Warehouse, display, approval and transit rules are available in Advanced options. Inter-branch transfers using system defaults require a transit location.',
+  ),
   'simple': ('Sederhana', 'Simple'),
   'centralized': ('Terpusat', 'Centralized'),
   'advanced': ('Lengkap', 'Advanced'),
