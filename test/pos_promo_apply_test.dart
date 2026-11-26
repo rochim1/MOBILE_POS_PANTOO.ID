@@ -14,6 +14,8 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_event.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_info_panel.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/widgets/pos_discount_dialog.dart';
+import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
+import 'package:mobile_pos_pantoo/l10n/pos_translation_lookup.dart';
 
 const product = PosProduct(
   id: 'p',
@@ -46,15 +48,24 @@ class PromoRepo extends Fake implements PosRepository {
     }
     if (invocation.memberName == #submitTransaction) {
       submissions.add(invocation.namedArguments);
-      return Future.value(const Left<Failure, PosTransactionResult>(ServerFailure('QA stopped before write')));
+      return Future.value(
+        const Left<Failure, PosTransactionResult>(
+          ServerFailure('QA stopped before write'),
+        ),
+      );
     }
     return super.noSuchMethod(invocation);
   }
 }
 
 class PromoBloc extends PosBloc {
-  PromoBloc(PromoRepo repo, {bool previous = false, bool store = true, bool manager = false})
-    : super(posRepository: repo) {
+  PromoBloc(
+    PromoRepo repo, {
+    bool previous = false,
+    bool store = true,
+    bool manager = false,
+    Map<String, dynamic>? preview,
+  }) : super(posRepository: repo) {
     emit(
       PosState(
         status: PosStatus.success,
@@ -65,8 +76,10 @@ class PromoBloc extends PosBloc {
               ]
             : [],
         promoCode: previous ? 'HEMAT' : '',
-        pricingPreview: previous ? quote : null,
-        runtimeConfig: {'permissions': {'manage_settings': manager}},
+        pricingPreview: preview ?? (previous ? quote : null),
+        runtimeConfig: {
+          'permissions': {'manage_settings': manager},
+        },
       ),
     );
   }
@@ -82,6 +95,25 @@ void apply(PosBloc bloc, String code) => bloc.add(
 );
 
 void main() {
+  for (final entry in const {
+    'Kode promo valid': 'Promo code is valid',
+    'Pilih pelanggan untuk menggunakan kode promo ini': 'Select a customer to use this promo code',
+    'Kode promo tidak ditemukan atau tidak aktif': 'Promo code was not found or is inactive',
+    'Kode promo sudah kadaluarsa': 'Promo code has expired',
+    'Kode promo belum berlaku': 'Promo code is not active yet',
+    'Kode promo sudah mencapai batas penggunaan': 'Promo code usage limit has been reached',
+    'Kode promo tidak berlaku untuk channel ini': 'Promo code is not valid for this sales channel',
+    'Kode promo tidak berlaku untuk status/tier member ini': 'Promo code is not valid for this membership tier',
+    'Kode promo tidak memberikan diskon pada subtotal ini': 'Promo code does not provide a discount for this subtotal',
+    'Kebijakan diskon POS saat ini tidak menerapkan kode promo': 'The current POS discount policy does not apply promo codes',
+    'Minimal pembelian 10000': 'Minimum purchase: 10000',
+    'Batas penggunaan per pelanggan: 1': 'Usage limit per customer: 1',
+    'Kode promo masih cooldown, coba lagi 5 menit lagi': 'Promo code is on cooldown. Try again in 5 minutes',
+  }.entries) {
+    test('English promo feedback: ${entry.key}', () {
+      expect(translatePosText(entry.key, lookupAppLocalizations(const Locale('en'))), entry.value);
+    });
+  }
   test(
     'normalizes pasted code and invalidates previous discount immediately',
     () async {
@@ -98,21 +130,24 @@ void main() {
     },
   );
 
-  test('clear cart ends verification even if old request never finishes', () async {
-    final repo = PromoRepo();
-    final bloc = PromoBloc(repo);
-    addTearDown(bloc.close);
-    apply(bloc, 'HEMAT');
-    await tick();
-    expect(bloc.state.pricingPreviewLoading, isTrue);
-    bloc.add(ClearCart());
-    await tick();
-    expect(bloc.state.cart, isEmpty);
-    expect(bloc.state.pricingPreviewLoading, isFalse);
-    repo.requests.single.complete(const Right(quote));
-    await tick();
-    expect(bloc.state.promoApplied, isFalse);
-  });
+  test(
+    'clear cart ends verification even if old request never finishes',
+    () async {
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo);
+      addTearDown(bloc.close);
+      apply(bloc, 'HEMAT');
+      await tick();
+      expect(bloc.state.pricingPreviewLoading, isTrue);
+      bloc.add(ClearCart());
+      await tick();
+      expect(bloc.state.cart, isEmpty);
+      expect(bloc.state.pricingPreviewLoading, isFalse);
+      repo.requests.single.complete(const Right(quote));
+      await tick();
+      expect(bloc.state.promoApplied, isFalse);
+    },
+  );
 
   test('removing code clears old discount before server responds', () async {
     final repo = PromoRepo();
@@ -212,122 +247,181 @@ void main() {
     );
   }
 
-  test('unverified promo blocks payment rather than using previous discount', () async {
-    final repo = PromoRepo();
-    final bloc = PromoBloc(repo, previous: true);
-    addTearDown(bloc.close);
-    apply(bloc, 'NEW');
-    await tick();
-    bloc.add(const SubmitPayment(paymentMethod: 'tunai', cashReceived: 10000));
-    await tick();
-    expect(repo.submissions, isEmpty);
-    expect(bloc.state.errorMessage, contains('belum terverifikasi'));
-    repo.requests.single.complete(const Left(NetworkFailure()));
-    await tick();
-  });
+  test(
+    'unverified promo blocks payment rather than using previous discount',
+    () async {
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo, previous: true);
+      addTearDown(bloc.close);
+      apply(bloc, 'NEW');
+      await tick();
+      bloc.add(
+        const SubmitPayment(paymentMethod: 'tunai', cashReceived: 10000),
+      );
+      await tick();
+      expect(repo.submissions, isEmpty);
+      expect(bloc.state.errorMessage, contains('belum terverifikasi'));
+      repo.requests.single.complete(const Left(NetworkFailure()));
+      await tick();
+    },
+  );
 
-  test('verified promo passes its code and discounted total to payment', () async {
-    final repo = PromoRepo();
-    final bloc = PromoBloc(repo, previous: true);
-    addTearDown(bloc.close);
-    bloc.add(const SubmitPayment(paymentMethod: 'tunai', cashReceived: 9000));
-    await tick();
-    expect(repo.submissions, hasLength(1));
-    expect(repo.submissions.single[#promoCode], 'HEMAT');
-    expect(repo.submissions.single[#total], 9000);
-  });
+  test(
+    'verified promo passes its code and discounted total to payment',
+    () async {
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo, previous: true);
+      addTearDown(bloc.close);
+      bloc.add(const SubmitPayment(paymentMethod: 'tunai', cashReceived: 9000));
+      await tick();
+      expect(repo.submissions, hasLength(1));
+      expect(repo.submissions.single[#promoCode], 'HEMAT');
+      expect(repo.submissions.single[#total], 9000);
+    },
+  );
 
-  test('normal payment ends a pending background quote even when payment is rejected', () async {
+  test(
+    'normal payment ends a pending background quote even when payment is rejected',
+    () async {
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo);
+      addTearDown(bloc.close);
+      bloc.add(RefreshPricingPreview());
+      await tick();
+      expect(bloc.state.pricingPreviewLoading, isTrue);
+      bloc.add(
+        const SubmitPayment(paymentMethod: 'tunai', cashReceived: 10000),
+      );
+      await tick();
+      expect(repo.submissions, hasLength(1));
+      expect(bloc.state.pricingPreviewLoading, isFalse);
+      repo.requests.single.complete(const Right(quote));
+      await tick();
+    },
+  );
+
+  test('background refresh preserves already quoted customer prices without a promo', () async {
     final repo = PromoRepo();
-    final bloc = PromoBloc(repo);
+    final bloc = PromoBloc(repo, preview: {
+      'subtotal': 8000, 'total_after_discount': 8000,
+      'items': [{'inventaris_id': 'p', 'harga_jual': 8000}],
+    });
     addTearDown(bloc.close);
     bloc.add(RefreshPricingPreview());
     await tick();
-    expect(bloc.state.pricingPreviewLoading, isTrue);
-    bloc.add(const SubmitPayment(paymentMethod: 'tunai', cashReceived: 10000));
-    await tick();
-    expect(repo.submissions, hasLength(1));
-    expect(bloc.state.pricingPreviewLoading, isFalse);
-    repo.requests.single.complete(const Right(quote));
+    expect(bloc.state.unitPriceFor(product), 8000);
+    expect(bloc.state.grandTotal, 8000);
+    repo.requests.single.complete(const Right({'subtotal': 8000, 'total_after_discount': 8000}));
     await tick();
   });
 
   Future<void> showPromo(WidgetTester tester, PromoBloc bloc) async {
-    await tester.pumpWidget(BlocProvider<PosBloc>.value(value: bloc,
-      child: const MaterialApp(home: Scaffold(body: PosDiscountDialog()))));
+    await tester.pumpWidget(
+      BlocProvider<PosBloc>.value(
+        value: bloc,
+        child: const MaterialApp(home: Scaffold(body: PosDiscountDialog())),
+      ),
+    );
   }
 
-  testWidgets('compact promo dialog shows progress and eligibility result without closing', (tester) async {
-    final repo = PromoRepo();
-    final bloc = PromoBloc(repo);
-    addTearDown(bloc.close);
-    await showPromo(tester, bloc);
-    expect(find.widgetWithText(TextField, 'Diskon manual (%)'), findsNothing);
-    await tester.enterText(find.widgetWithText(TextField, 'Kode promo'), 'hemat');
-    await tester.tap(find.text('Terapkan'));
-    await tester.pump();
-    expect(find.text('Diskon & Promo'), findsOneWidget);
-    expect(find.text('Memverifikasi kode promo…'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
-    repo.requests.single.complete(const Right(quote));
-    await tester.pumpAndSettle();
-    expect(find.text('Kode promo valid'), findsOneWidget);
-    expect(bloc.state.grandTotal, 9000);
-    await tester.tap(find.text('Hapus'));
-    await tester.pump();
-    expect(bloc.state.promoCode, '');
-    expect(bloc.state.grandTotal, 10000);
-    repo.requests.last.complete(const Right({'subtotal': 10000, 'total_after_discount': 10000}));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'compact promo dialog shows progress and eligibility result without closing',
+    (tester) async {
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo);
+      addTearDown(bloc.close);
+      await showPromo(tester, bloc);
+      expect(find.widgetWithText(TextField, 'Diskon manual (%)'), findsNothing);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Kode promo'),
+        'hemat',
+      );
+      await tester.tap(find.text('Terapkan'));
+      await tester.pump();
+      expect(find.text('Diskon & Promo'), findsOneWidget);
+      expect(find.text('Memverifikasi kode promo…'), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+      repo.requests.single.complete(const Right(quote));
+      await tester.pumpAndSettle();
+      expect(find.text('Kode promo valid'), findsOneWidget);
+      expect(bloc.state.grandTotal, 9000);
+      await tester.tap(find.text('Hapus'));
+      await tester.pump();
+      expect(bloc.state.promoCode, '');
+      expect(bloc.state.grandTotal, 10000);
+      repo.requests.last.complete(
+        const Right({'subtotal': 10000, 'total_after_discount': 10000}),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('manual discount remains manager-only and rejects invalid values', (tester) async {
-    final repo = PromoRepo();
-    final bloc = PromoBloc(repo, manager: true);
-    addTearDown(bloc.close);
-    await showPromo(tester, bloc);
-    final discount = find.widgetWithText(TextField, 'Diskon manual (%)');
-    await tester.enterText(discount, '101');
-    await tester.tap(find.text('Terapkan'));
-    await tester.pumpAndSettle();
-    expect(find.text('Diskon harus antara 0–100%'), findsOneWidget);
-    expect(repo.requests, isEmpty);
-    await tester.enterText(discount, '10');
-    await tester.tap(find.text('Terapkan'));
-    await tester.pump();
-    expect(bloc.state.manualDiscountPercent, 10);
-    repo.requests.single.complete(const Right({'subtotal': 10000, 'total_after_discount': 9000}));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'manual discount remains manager-only and rejects invalid values',
+    (tester) async {
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo, manager: true);
+      addTearDown(bloc.close);
+      await showPromo(tester, bloc);
+      final discount = find.widgetWithText(TextField, 'Diskon manual (%)');
+      await tester.enterText(discount, '101');
+      await tester.tap(find.text('Terapkan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Diskon harus antara 0–100%'), findsOneWidget);
+      expect(repo.requests, isEmpty);
+      await tester.enterText(discount, '10');
+      await tester.tap(find.text('Terapkan'));
+      await tester.pump();
+      expect(bloc.state.manualDiscountPercent, 10);
+      repo.requests.single.complete(
+        const Right({'subtotal': 10000, 'total_after_discount': 9000}),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('small phone dialog stays usable with keyboard and can retry after offline', (tester) async {
-    tester.view.physicalSize = const Size(360, 700);
-    tester.view.devicePixelRatio = 1;
-    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetViewInsets);
-    final repo = PromoRepo();
-    final bloc = PromoBloc(repo);
-    addTearDown(bloc.close);
-    await showPromo(tester, bloc);
-    await tester.enterText(find.widgetWithText(TextField, 'Kode promo'), 'HEMAT');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
-    repo.requests.single.complete(const Left(NetworkFailure()));
-    await tester.pumpAndSettle();
-    expect(find.text('Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.'), findsOneWidget);
-    await tester.tap(find.text('Terapkan'));
-    await tester.pump();
-    expect(repo.requests, hasLength(2));
-    // Leaving while a query runs must not use disposed text controllers.
-    await tester.pumpWidget(const SizedBox());
-    repo.requests.last.complete(const Right(quote));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'small phone dialog stays usable with keyboard and can retry after offline',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 700);
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      final repo = PromoRepo();
+      final bloc = PromoBloc(repo);
+      addTearDown(bloc.close);
+      await showPromo(tester, bloc);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Kode promo'),
+        'HEMAT',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      repo.requests.single.complete(const Left(NetworkFailure()));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Kode promo belum terverifikasi. Sambungkan internet atau hapus promo.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Terapkan'));
+      await tester.pump();
+      expect(repo.requests, hasLength(2));
+      // Leaving while a query runs must not use disposed text controllers.
+      await tester.pumpWidget(const SizedBox());
+      repo.requests.last.complete(const Right(quote));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Enter applies promo and displays server eligibility reason', (
     tester,
