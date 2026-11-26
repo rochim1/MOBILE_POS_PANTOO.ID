@@ -49,6 +49,8 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       financeReady = false;
   String? error, financeError;
   int version = 0;
+  final Set<Map<String, dynamic>> unitRequests = {};
+  final Set<Map<String, dynamic>> unitLoading = {};
   TransferEditorMode mode = TransferEditorMode.between;
   TransferLocationChoices get choices =>
       TransferLocationChoices(policy: widget.inventoryPolicy);
@@ -212,29 +214,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         unawaited(loadFinance());
       }
       if (widget.initialInventoryId != null && widget.existing == null) {
-        final requestedVersion = version;
-        final available = await repo.query(PosTransferQueries.items, {
-          'id': doc['dari']['cabang_id'],
-          'search': null,
-        });
-        final selected =
-            transferMaps(available['GetInventarisAvailableInLocation'])
-                .where(
-                  (r) =>
-                      (r['inventaris_id'] ?? r['_id']).toString() ==
-                      widget.initialInventoryId,
-                )
-                .firstOrNull;
-        if (selected != null && mounted && version == requestedVersion) {
-          setState(
-            () => items.add({
-              ...selected,
-              'inventaris_id': selected['inventaris_id'] ?? selected['_id'],
-              'qty': widget.initialQuantity ?? 1.0,
-              'serial_numbers': <String>[],
-            }),
-          );
-        }
+        unawaited(loadInitialItem());
       }
     } catch (e) {
       if (mounted) {
@@ -243,6 +223,60 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
           loading = false;
         });
       }
+    }
+  }
+
+  // Optional shortcut from the stock page. Its failure must not reload or
+  // discard the editable transfer, and its result belongs to one form revision.
+  Future<void> loadInitialItem() async {
+    final requestedVersion = version;
+    bool current() =>
+        mounted && version == requestedVersion && !saving && recovery == null;
+    try {
+      final available = await repo.query(PosTransferQueries.items, {
+        'id': draft['dari']['cabang_id'],
+        'search': null,
+      });
+      if (!current()) return;
+      final selected =
+          transferMaps(available['GetInventarisAvailableInLocation'])
+              .where(
+                (r) =>
+                    (r['inventaris_id'] ?? r['_id']).toString() ==
+                    widget.initialInventoryId,
+              )
+              .firstOrNull;
+      if (selected == null) {
+        AppToast.warning(
+          context,
+          copy(
+            'Barang awal tidak tersedia di lokasi asal. Pilih barang melalui Tambah barang.',
+            'The initial item is unavailable at the source. Choose an item using Add item.',
+          ),
+        );
+        return;
+      }
+      if (items.any(
+        (r) => '${r['inventaris_id']}' == widget.initialInventoryId,
+      ))
+        return;
+      setState(
+        () => items.add({
+          ...selected,
+          'inventaris_id': selected['inventaris_id'] ?? selected['_id'],
+          'qty': widget.initialQuantity ?? 1.0,
+          'serial_numbers': <String>[],
+        }),
+      );
+    } catch (_) {
+      if (current())
+        AppToast.warning(
+          context,
+          copy(
+            'Barang awal belum dapat dimuat. Isian form tetap ada; pilih Tambah barang untuk mencoba lagi.',
+            'The initial item could not be loaded. Your form is preserved; use Add item to try again.',
+          ),
+        );
     }
   }
 
@@ -489,11 +523,29 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
   }
 
   Future<void> editUnits(Map<String, dynamic> item) async {
+    if (saving ||
+        recovery != null ||
+        !items.contains(item) ||
+        unitRequests.contains(item))
+      return;
+    final requestedVersion = version;
+    bool current() =>
+        mounted &&
+        version == requestedVersion &&
+        !saving &&
+        recovery == null &&
+        items.contains(item);
+    setState(() {
+      unitRequests.add(item);
+      unitLoading.add(item);
+    });
     FocusManager.instance.primaryFocus?.unfocus();
     try {
       final data = await repo.query(PosTransferQueries.units, {
         'id': item['inventaris_id'],
       });
+      if (!current()) return;
+      setState(() => unitLoading.remove(item));
       final master = data['GetOneInventarisUmum'] as Map;
       final saved = transferMaps(item['unit_breakdown']);
       final options = <String, double>{
@@ -571,7 +623,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
           ],
         ),
       );
-      if (result == true && mounted) {
+      if (result == true && current()) {
         setState(() {
           item['unit_breakdown'] = rows
               .where((u) => transferNumber(u['input_qty']) > 0)
@@ -586,7 +638,14 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         });
       }
     } catch (e) {
-      if (mounted) AppToast.error(context, 'Gagal memuat konversi satuan: $e');
+      if (current())
+        AppToast.error(context, 'Gagal memuat konversi satuan: $e');
+    } finally {
+      if (mounted)
+        setState(() {
+          unitRequests.remove(item);
+          unitLoading.remove(item);
+        });
     }
   }
 
@@ -880,8 +939,18 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                                     (v) => item['catatan_item'] = v,
                                   ),
                                   OutlinedButton.icon(
-                                    onPressed: () => editUnits(item),
-                                    icon: const Icon(Icons.swap_horiz),
+                                    onPressed: unitRequests.contains(item)
+                                        ? null
+                                        : () => editUnits(item),
+                                    icon: unitLoading.contains(item)
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.swap_horiz),
                                     label: const PosText(
                                       'Input satuan / kemasan',
                                     ),
