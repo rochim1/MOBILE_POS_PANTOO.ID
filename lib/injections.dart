@@ -21,6 +21,7 @@ import 'domain/repositories/pos_product_management_repository.dart';
 import 'domain/repositories/pos_promo_repository.dart';
 import 'domain/repositories/pos_table_repository.dart';
 import 'domain/repositories/pos_settings_repository.dart';
+import 'domain/repositories/pos_inventory_flow_repository.dart';
 import 'domain/repositories/pos_business_profile_repository.dart';
 import 'domain/repositories/pos_personal_profile_repository.dart';
 import 'domain/repositories/pos_receipt_repository.dart';
@@ -162,6 +163,9 @@ Future<void> initLocator(FlavorConfig flavorConfig) async {
   sl.registerLazySingleton<PosTableRepository>(() => PosTableRepository(sl()));
   sl.registerLazySingleton<PosSettingsRepository>(
     () => PosSettingsRepository(sl()),
+  );
+  sl.registerLazySingleton<PosInventoryFlowRepository>(
+    () => PosInventoryFlowRepository(sl()),
   );
   sl.registerLazySingleton<PosReceiptRepository>(
     () => PosReceiptRepository(sl()),

@@ -517,26 +517,52 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     RefreshPosRuntimeConfig event,
     Emitter<PosState> emit,
   ) async {
-    if (_paymentInFlight || _cartDraftInFlight) return;
-    final runtimeConfig = await posRepository.getRuntimeConfig();
-    if (event.preserveCheckout) {
-      emit(state.copyWith(runtimeConfig: runtimeConfig));
-      return;
+    var refreshed = false;
+    try {
+      if (_paymentInFlight || _cartDraftInFlight) return;
+      final version = _loadVersion;
+      final actor = posRepository.activeOperatorId;
+      final terminal = posRepository.terminalUserId;
+      final runtimeConfig = await posRepository.getRuntimeConfig();
+      if (version != _loadVersion ||
+          actor != posRepository.activeOperatorId ||
+          terminal != posRepository.terminalUserId ||
+          emit.isDone ||
+          _paymentInFlight ||
+          _cartDraftInFlight) {
+        return;
+      }
+      // A cached configuration cannot confirm that a settings change is visible.
+      if (event.completion != null &&
+          runtimeConfig['_offline_snapshot'] == true) {
+        return;
+      }
+      if (event.preserveCheckout) {
+        emit(state.copyWith(runtimeConfig: runtimeConfig));
+      } else {
+        emit(
+          state.copyWith(
+            runtimeConfig: runtimeConfig,
+            orderType: _defaultOrderType(runtimeConfig),
+            salesChannel:
+                runtimeConfig['default_sales_channel']?.toString() ?? 'retail',
+            priceLevel:
+                runtimeConfig['default_price_level']?.toString() ?? 'retail',
+            taxPercent: (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
+            discountPolicy:
+                runtimeConfig['default_discount_policy']?.toString() ?? 'stack',
+            errorMessage: '',
+          ),
+        );
+      }
+      refreshed = true;
+    } catch (_) {
+      // Keep the existing checkout and let settings offer a read-only retry.
+    } finally {
+      if (event.completion?.isCompleted == false) {
+        event.completion!.complete(refreshed);
+      }
     }
-    emit(
-      state.copyWith(
-        runtimeConfig: runtimeConfig,
-        orderType: _defaultOrderType(runtimeConfig),
-        salesChannel:
-            runtimeConfig['default_sales_channel']?.toString() ?? 'retail',
-        priceLevel:
-            runtimeConfig['default_price_level']?.toString() ?? 'retail',
-        taxPercent: (runtimeConfig['tax_percent'] as num?)?.toDouble() ?? 0,
-        discountPolicy:
-            runtimeConfig['default_discount_policy']?.toString() ?? 'stack',
-        errorMessage: '',
-      ),
-    );
   }
 
   void _onAddToCart(AddToCart event, Emitter<PosState> emit) {

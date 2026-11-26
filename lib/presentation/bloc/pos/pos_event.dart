@@ -18,10 +18,14 @@ class LoadPosData extends PosEvent {}
 /// feature gates. This keeps the current workspace/cart intact after settings
 /// are saved while still rebuilding menus immediately.
 class RefreshPosRuntimeConfig extends PosEvent {
-  const RefreshPosRuntimeConfig({this.preserveCheckout = false});
+  const RefreshPosRuntimeConfig({
+    this.preserveCheckout = false,
+    this.completion,
+  });
   final bool preserveCheckout;
+  final Completer<bool>? completion;
   @override
-  List<Object> get props => [preserveCheckout];
+  List<Object?> get props => [preserveCheckout, completion];
 }
 
 class RefreshPosAccess extends PosEvent {

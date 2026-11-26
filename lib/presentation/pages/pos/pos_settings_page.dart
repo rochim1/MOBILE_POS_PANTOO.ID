@@ -1,4 +1,7 @@
+import 'dart:async';
 import '../../widgets/pos_content_skeletons.dart';
+import '../../../../domain/repositories/pos_inventory_flow_repository.dart';
+import 'pos_inventory_flow_settings.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:mobile_pos_pantoo/l10n/language_picker.dart';
 import '../../../../domain/models/pos_remote_profile_catalog.dart';
@@ -21,7 +24,7 @@ import '../../widgets/pos_category_navigation.dart';
 import 'widgets/pos_setup_tour.dart';
 import 'widgets/pos_forced_profile_change_dialog.dart';
 
-enum _SettingsSection { business, transaction, finance, cashier }
+enum _SettingsSection { business, transaction, inventory, finance, cashier }
 
 class PosSettingsPage extends StatelessWidget {
   final GlobalKey? setupTourKey;
@@ -131,6 +134,12 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
       value: _SettingsSection.transaction,
       icon: Icons.tune_outlined,
       label: 'Transaksi & Penjualan',
+      group: 'Operasional',
+    ),
+    PosCategoryItem(
+      value: _SettingsSection.inventory,
+      icon: Icons.warehouse_outlined,
+      label: 'Inventori',
       group: 'Operasional',
     ),
     PosCategoryItem(
@@ -589,6 +598,9 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   AppToast.success(context, state.successMessage);
                   context.read<PosBloc>().add(RefreshPosRuntimeConfig());
                 } else if (state.status == PosSettingsStatus.failure) {
+                  // Inventory flow owns its read/permission/recovery state.
+                  // A late legacy POS-default read must not overlay its result.
+                  if (_selectedSection == _SettingsSection.inventory) return;
                   if (state.errorMessage.contains(
                     'Profil bisnis atau Tracking Stok tidak dapat diubah',
                   )) {
@@ -605,9 +617,26 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
                   );
                   return permissions['manage_settings'] == true;
                 });
-                final content =
-                    state.status == PosSettingsStatus.loading ||
-                        state.status == PosSettingsStatus.initial
+                final content = _selectedSection == _SettingsSection.inventory
+                    ? PosInventoryFlowSettings(
+                        repository: sl<PosInventoryFlowRepository>(),
+                        onSaved: () async {
+                          if (!mounted) return false;
+                          final done = Completer<bool>();
+                          context.read<PosBloc>().add(
+                            RefreshPosRuntimeConfig(
+                              preserveCheckout: true,
+                              completion: done,
+                            ),
+                          );
+                          return done.future.timeout(
+                            const Duration(seconds: 15),
+                            onTimeout: () => false,
+                          );
+                        },
+                      )
+                    : state.status == PosSettingsStatus.loading ||
+                          state.status == PosSettingsStatus.initial
                     ? const PosDocumentFormSkeleton(
                         fieldGroups: [3],
                         showItems: false,
@@ -693,6 +722,7 @@ class _PosSettingsViewState extends State<_PosSettingsView> {
         ],
       ),
       _SettingsSection.business ||
+      _SettingsSection.inventory ||
       _SettingsSection.transaction => _buildSection(
         title: ('Transaksi & Penjualan').tr(context),
         icon: Icons.tune_outlined,
