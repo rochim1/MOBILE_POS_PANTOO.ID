@@ -9,6 +9,61 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get checkoutResolveTitle => 'Selesaikan pembayaran';
+
+  @override
+  String get checkoutResolveExplanation =>
+      'Periksa invoice dan uang terlebih dahulu. Server tidak akan membatalkan transaksi yang sudah tercatat.';
+
+  @override
+  String get checkoutResolveMoney => 'Hasil pemeriksaan uang';
+
+  @override
+  String get checkoutMoneyNotReceived => 'Uang belum diterima';
+
+  @override
+  String get checkoutMoneyReconciled =>
+      'Dana sudah dikembalikan / direkonsiliasi';
+
+  @override
+  String get checkoutResolveNote => 'Catatan pemeriksaan';
+
+  @override
+  String get checkoutResolveNoteShort => 'Catatan minimal 5 karakter';
+
+  @override
+  String get checkoutResolveReceivedWarning =>
+      'Dana yang sudah diterima memerlukan persetujuan supervisor. Jangan lanjut jika dana belum dikembalikan atau direkonsiliasi.';
+
+  @override
+  String get checkoutResolveSubmit => 'Selesaikan percobaan';
+
+  @override
+  String get checkoutResolveDone =>
+      'Percobaan pembayaran sudah diselesaikan. Kasir dapat digunakan kembali.';
+
+  @override
+  String get checkoutResolveBlocked =>
+      'Shift atau toko asal tidak tersedia. Selesaikan percobaan ini setelah memeriksa invoice dan uang yang diterima.';
+
+  @override
+  String get checkoutResolveNotCancelled =>
+      'Pembayaran belum dibatalkan. Periksa status pembayaran untuk mengambil nota atau meminta rekonsiliasi supervisor.';
+
+  @override
+  String get checkoutResolveUnknown =>
+      'Status pembayaran belum dapat dipastikan. Periksa kembali.';
+
+  @override
+  String get checkoutOriginStore => 'Toko asal';
+
+  @override
+  String get checkoutOriginShift => 'Shift asal';
+
+  @override
+  String get checkoutOriginTime => 'Waktu transaksi';
+
+  @override
   String get promoValidating => 'Memverifikasi kode promo…';
 
   @override

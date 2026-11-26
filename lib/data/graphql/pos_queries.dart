@@ -616,6 +616,28 @@ class PosQueries {
     }
   ''';
 
+  static const String checkoutRecovery = r'''
+    query GetPOSCheckoutRecovery($input: POSCheckoutRecoveryInput!) {
+      GetPOSCheckoutRecovery(input: $input) {
+        request_id status reason_code
+        transaction {
+          _id client_transaction_id invoice tanggal toko_nama kasir_shift_id kasir_name
+          total subtotal diskon promo_discount pajak metode_pembayaran due_date sales_invoice_id
+          tipe_pesanan uang_diterima kembalian sync_status sync_conflict_reason
+          payments { metode jumlah }
+          items { inventaris_id nama_inventaris qty unit harga_jual subtotal }
+        }
+      }
+    }
+  ''';
+  static const String cancelCheckout = r'''
+    mutation CancelPOSCheckout($input: POSCheckoutRecoveryInput!, $resolution: String!, $note: String!, $supervisor_username: String, $supervisor_pin: String) {
+      CancelPOSCheckout(input: $input, resolution: $resolution, note: $note, supervisor_username: $supervisor_username, supervisor_pin: $supervisor_pin) {
+        request_id status reason_code
+      }
+    }
+  ''';
+
   static const String issuePOSCreditInvoice = r'''
     mutation IssuePOSCreditInvoice($input: ProcessPOSPenjualanInput!) {
       IssuePOSCreditInvoice(input: $input) {

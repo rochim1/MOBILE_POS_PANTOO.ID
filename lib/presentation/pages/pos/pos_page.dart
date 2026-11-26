@@ -20,6 +20,7 @@ import '../../../../domain/repositories/pos_receipt_repository.dart';
 import '../../../../injections.dart';
 import 'widgets/pos_product_panel.dart';
 import 'widgets/pos_cart_panel.dart';
+import 'widgets/pos_checkout_resolution_dialog.dart';
 import 'pos_payment_page.dart';
 import 'pos_success_page.dart';
 import 'widgets/pos_checkout_recovery_panel.dart';
@@ -181,6 +182,47 @@ class _PosPageViewState extends State<PosPageView> {
       if (mounted) {
         setState(() => _recoveryError = 'Terjadi kesalahan tidak terduga');
       }
+    } finally {
+      widget.onCheckoutRecoveryBusyChanged?.call(false);
+      if (mounted) setState(() => _recoveringCheckout = false);
+    }
+  }
+
+  Future<void> _resolveCheckout(Map<String, dynamic> record) async {
+    if (_recoveringCheckout) return;
+    final repo = context.read<PosBloc>().posRepository;
+    final answer = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => const PosCheckoutResolutionDialog(),
+    );
+    if (!mounted || answer == null || _recoveringCheckout) return;
+    widget.onCheckoutRecoveryBusyChanged?.call(true);
+    setState(() {
+      _recoveringCheckout = true;
+      _recoveryError = '';
+    });
+    try {
+      final result = await repo.cancelPendingCheckout(
+        resolution: answer['resolution']!,
+        note: answer['note']!,
+        requestId: record['input']?['client_transaction_id']?.toString(),
+        supervisorUsername: answer['username'],
+        supervisorPin: answer['pin'],
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) => setState(() => _recoveryError = failure.message),
+        (_) => AppToast.success(
+          context,
+          'Percobaan pembayaran sudah diselesaikan. Kasir dapat digunakan kembali.',
+        ),
+      );
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => _recoveryError =
+              'Status pembayaran belum dapat dipastikan. Periksa kembali.',
+        );
     } finally {
       widget.onCheckoutRecoveryBusyChanged?.call(false);
       if (mounted) setState(() => _recoveringCheckout = false);
@@ -436,6 +478,34 @@ class _PosPageViewState extends State<PosPageView> {
                     }
                     if (pendingCheckout != null || invalidCheckout != null) {
                       return PosCheckoutRecoveryPanel(
+                        details: pendingCheckout == null
+                            ? const {}
+                            : {
+                                'Toko asal':
+                                    pendingCheckout['receipt']?['store_name']
+                                            ?.toString()
+                                            .isNotEmpty ==
+                                        true
+                                    ? pendingCheckout['receipt']['store_name']
+                                          .toString()
+                                    : pendingCheckout['input']?['toko_id']
+                                              ?.toString() ??
+                                          '-',
+                                'Shift asal':
+                                    pendingCheckout['input']?['shift_id']
+                                        ?.toString() ??
+                                    '-',
+                                'Waktu transaksi':
+                                    pendingCheckout['input']?['tanggal']
+                                        ?.toString() ??
+                                    '-',
+                                'Nominal':
+                                    'Rp ${pendingCheckout['receipt']?['total'] ?? '-'}',
+                                'Metode':
+                                    pendingCheckout['input']?['metode_pembayaran']
+                                        ?.toString() ??
+                                    '-',
+                              },
                         requestReference:
                             pendingCheckout?['input']?['client_transaction_id']
                                 ?.toString() ??
@@ -448,6 +518,9 @@ class _PosPageViewState extends State<PosPageView> {
                         onRecover: pendingCheckout == null
                             ? null
                             : () => _recoverCheckout(pendingCheckout!),
+                        onResolve: pendingCheckout == null
+                            ? null
+                            : () => _resolveCheckout(pendingCheckout!),
                       );
                     }
                     final availableCategories = <String>{

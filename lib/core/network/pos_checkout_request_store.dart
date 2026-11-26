@@ -128,4 +128,26 @@ class PosCheckoutRequestStore {
       );
     }
   }
+
+  Future<void> resolveCancelled(String id, String reason) async {
+    final record = load();
+    if ((record?['input'] as Map?)?['client_transaction_id'] != id) {
+      throw StateError('Referensi penyelesaian pembayaran tidak cocok');
+    }
+    final archiveKey = 'pos_checkout_resolved_v1:$scope:$id';
+    if (!await preferences.setString(
+      archiveKey,
+      jsonEncode({
+        ...record!,
+        'resolution': reason,
+        'status': 'server_cancelled',
+        'resolved_at': DateTime.now().toUtc().toIso8601String(),
+      }),
+    )) {
+      throw StateError(
+        'Jejak penyelesaian belum tersimpan. Periksa status pembayaran kembali.',
+      );
+    }
+    await acknowledge(id);
+  }
 }

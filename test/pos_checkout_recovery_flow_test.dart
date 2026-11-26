@@ -72,10 +72,20 @@ class _Repo extends Fake implements PosRepository {
       return result;
     });
   }
+
   @override
-  Future<Either<Failure, bool>> cancelPendingCheckout({required String resolution, required String note}) async {
+  Future<Either<Failure, bool>> cancelPendingCheckout({
+    required String resolution,
+    required String note,
+    String? requestId,
+    String? supervisorUsername,
+    String? supervisorPin,
+  }) async {
     cancellations++;
-    if (resolution == 'not_received' && note.length >= 5) { record = null; return const Right(true); }
+    if (resolution == 'not_received' && note.length >= 5) {
+      record = null;
+      return const Right(true);
+    }
     return const Left(ServerFailure('Not confirmed'));
   }
 }
@@ -157,18 +167,27 @@ void main() {
     return (repo, bloc);
   }
 
-  testWidgets('closed-shift resolution opens the cashier without changing current cart or store', (tester) async {
-    final (repo, bloc) = await open(tester, matching: true);
-    await tester.tap(find.text('Selesaikan pembayaran'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('checkout_resolution_note')), 'No money received; checked invoice');
-    await tester.tap(find.text('Selesaikan percobaan'));
-    await tester.pumpAndSettle();
-    expect(repo.cancellations, 1); expect(repo.record, isNull);
-    expect(find.byKey(const Key('recover_checkout')), findsNothing);
-    expect(bloc.events.whereType<ClearCart>(), isEmpty);
-    expect(bloc.state.checkoutStore?.id, 'store');
-  });
+  testWidgets(
+    'closed-shift resolution opens the cashier without changing current cart or store',
+    (tester) async {
+      final (repo, bloc) = await open(tester, matching: true);
+      await tester.tap(find.text('Selesaikan pembayaran'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('checkout_resolution_note')),
+        'No money received; checked invoice',
+      );
+      await tester.tap(find.text('Selesaikan percobaan'));
+      await tester.pumpAndSettle();
+      expect(repo.cancellations, 1);
+      expect(repo.record, isNull);
+      expect(find.byKey(const Key('recover_checkout')), findsNothing);
+      expect(bloc.events.whereType<ClearCart>(), isEmpty);
+      expect(bloc.state.checkoutStore?.id, 'store');
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'recovery immediately shows progress, prevents duplicate taps and shows failure',

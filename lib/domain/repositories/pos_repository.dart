@@ -2798,6 +2798,84 @@ class PosRepository {
 
   Map<String, dynamic>? get pendingCheckout => _checkoutStore().load();
 
+  Map<String, dynamic> _checkoutRecoveryInput(Map input) => {
+    'client_transaction_id': input['client_transaction_id'],
+    'toko_id': input['toko_id'],
+    'shift_id': input['shift_id'],
+    'operator_session_token': _operatorSessionToken.isEmpty
+        ? null
+        : _operatorSessionToken,
+  };
+
+  Future<Either<Failure, bool>> cancelPendingCheckout({
+    required String resolution,
+    required String note,
+    String? requestId,
+    String? supervisorUsername,
+    String? supervisorPin,
+  }) async {
+    if (_checkoutInFlight)
+      return const Left(ServerFailure('Pembayaran masih diproses.'));
+    _checkoutInFlight = true;
+    try {
+      final store = _checkoutStore();
+      final record = store.load();
+      if (record == null)
+        return const Left(
+          ServerFailure('Tidak ada pembayaran untuk dipulihkan.'),
+        );
+      final input = record['input'] as Map;
+      final id = input['client_transaction_id'];
+      if (requestId != null && requestId != id)
+        return const Left(
+          AuthFailure(
+            'Referensi pembayaran berubah. Verifikasi PIN kasir asal.',
+          ),
+        );
+      final response = await _clientProvider.client.mutate(
+        MutationOptions(
+          document: gql(PosQueries.cancelCheckout),
+          variables: {
+            'input': _checkoutRecoveryInput(input),
+            'resolution': resolution,
+            'note': note,
+            'supervisor_username': supervisorUsername,
+            'supervisor_pin': supervisorPin,
+          },
+        ),
+      );
+      if (_checkoutStore().scope != store.scope)
+        return const Left(
+          AuthFailure('Identitas kasir berubah. Verifikasi PIN kasir asal.'),
+        );
+      if (response.hasException)
+        return Left(AppErrorHandler.handle(response.exception!));
+      final data = response.data?['CancelPOSCheckout'];
+      if (data is! Map ||
+          data['request_id'] != id ||
+          data['status'] != 'cancelled') {
+        return const Left(
+          ServerFailure(
+            'Pembayaran belum dibatalkan. Periksa status pembayaran untuk mengambil nota atau meminta rekonsiliasi supervisor.',
+          ),
+        );
+      }
+      await store.resolveCancelled(
+        id as String,
+        data['reason_code']?.toString() ?? resolution,
+      );
+      return const Right(true);
+    } catch (error) {
+      return Left(
+        error is StateError
+            ? ServerFailure(error.message.toString())
+            : AppErrorHandler.handle(error),
+      );
+    } finally {
+      _checkoutInFlight = false;
+    }
+  }
+
   /// Explicit online replay after an app restart, with no replacement cart.
   Future<Either<Failure, PosTransactionResult>> recoverPendingCheckout() async {
     if (_checkoutInFlight) {
@@ -2968,16 +3046,57 @@ class PosRepository {
           ),
         );
       }
-      final result = await _clientProvider.client.mutate(
-        MutationOptions(
-          document: gql(
-            method == 'tempo'
-                ? PosQueries.issuePOSCreditInvoice
-                : PosQueries.processPOSPenjualan,
+      Map<String, dynamic>? recovered;
+      if (recovery) {
+        final check = await _clientProvider.client.query(
+          QueryOptions(
+            document: gql(PosQueries.checkoutRecovery),
+            fetchPolicy: FetchPolicy.networkOnly,
+            variables: {'input': _checkoutRecoveryInput(payload)},
           ),
-          variables: {'input': payload},
-        ),
-      );
+        );
+        if (!currentScope())
+          return const Left(
+            AuthFailure('Identitas kasir berubah. Verifikasi PIN kasir asal.'),
+          );
+        if (check.hasException)
+          return Left(AppErrorHandler.handle(check.exception!));
+        final status = check.data?['GetPOSCheckoutRecovery'];
+        if (status is! Map || status['request_id'] != requestId)
+          return const Left(uncertain);
+        if (status['status'] == 'cancelled') {
+          await store.resolveCancelled(
+            requestId,
+            status['reason_code']?.toString() ?? 'server_cancelled',
+          );
+          return const Left(
+            ServerFailure(
+              'Percobaan pembayaran sudah diselesaikan. Kasir dapat digunakan kembali.',
+            ),
+          );
+        }
+        if (status['status'] == 'committed' && status['transaction'] is Map) {
+          recovered = Map<String, dynamic>.from(status['transaction'] as Map);
+        } else if (status['status'] != 'retryable') {
+          return const Left(
+            ServerFailure(
+              'Shift atau toko asal tidak tersedia. Selesaikan percobaan ini setelah memeriksa invoice dan uang yang diterima.',
+            ),
+          );
+        }
+      }
+      final result = recovered != null
+          ? null
+          : await _clientProvider.client.mutate(
+              MutationOptions(
+                document: gql(
+                  method == 'tempo'
+                      ? PosQueries.issuePOSCreditInvoice
+                      : PosQueries.processPOSPenjualan,
+                ),
+                variables: {'input': payload},
+              ),
+            );
       if (!currentScope()) {
         return const Left(
           ServerFailure(
@@ -2985,7 +3104,7 @@ class PosRepository {
           ),
         );
       }
-      final data = result.data?[resultKey];
+      final data = recovered ?? result?.data?[resultKey];
       if (data is Map &&
           data['_id']?.toString().isNotEmpty == true &&
           data['invoice']?.toString().isNotEmpty == true &&
@@ -3021,15 +3140,16 @@ class PosRepository {
               )
             : const Left(uncertain);
       }
-      if (result.hasException && _isRetryableNetworkFailure(result.exception)) {
+      if (result?.hasException == true &&
+          _isRetryableNetworkFailure(result!.exception)) {
         return supportsOfflineDatabase
             ? await queueCash()
             : const Left(uncertain);
       }
-      if (result.hasException) {
+      if (result?.hasException == true) {
         // Only a first, definitely rejected request may release its fence.
         // An authorization error on replay says nothing about the old commit.
-        final exception = result.exception!;
+        final exception = result!.exception!;
         final errors = [
           ...exception.graphqlErrors,
           if (exception.linkException is ServerException)

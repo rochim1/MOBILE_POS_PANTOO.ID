@@ -98,6 +98,102 @@ abstract class AppLocalizations {
     Locale('id'),
   ];
 
+  /// No description provided for @checkoutResolveTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Selesaikan pembayaran'**
+  String get checkoutResolveTitle;
+
+  /// No description provided for @checkoutResolveExplanation.
+  ///
+  /// In id, this message translates to:
+  /// **'Periksa invoice dan uang terlebih dahulu. Server tidak akan membatalkan transaksi yang sudah tercatat.'**
+  String get checkoutResolveExplanation;
+
+  /// No description provided for @checkoutResolveMoney.
+  ///
+  /// In id, this message translates to:
+  /// **'Hasil pemeriksaan uang'**
+  String get checkoutResolveMoney;
+
+  /// No description provided for @checkoutMoneyNotReceived.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang belum diterima'**
+  String get checkoutMoneyNotReceived;
+
+  /// No description provided for @checkoutMoneyReconciled.
+  ///
+  /// In id, this message translates to:
+  /// **'Dana sudah dikembalikan / direkonsiliasi'**
+  String get checkoutMoneyReconciled;
+
+  /// No description provided for @checkoutResolveNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan pemeriksaan'**
+  String get checkoutResolveNote;
+
+  /// No description provided for @checkoutResolveNoteShort.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan minimal 5 karakter'**
+  String get checkoutResolveNoteShort;
+
+  /// No description provided for @checkoutResolveReceivedWarning.
+  ///
+  /// In id, this message translates to:
+  /// **'Dana yang sudah diterima memerlukan persetujuan supervisor. Jangan lanjut jika dana belum dikembalikan atau direkonsiliasi.'**
+  String get checkoutResolveReceivedWarning;
+
+  /// No description provided for @checkoutResolveSubmit.
+  ///
+  /// In id, this message translates to:
+  /// **'Selesaikan percobaan'**
+  String get checkoutResolveSubmit;
+
+  /// No description provided for @checkoutResolveDone.
+  ///
+  /// In id, this message translates to:
+  /// **'Percobaan pembayaran sudah diselesaikan. Kasir dapat digunakan kembali.'**
+  String get checkoutResolveDone;
+
+  /// No description provided for @checkoutResolveBlocked.
+  ///
+  /// In id, this message translates to:
+  /// **'Shift atau toko asal tidak tersedia. Selesaikan percobaan ini setelah memeriksa invoice dan uang yang diterima.'**
+  String get checkoutResolveBlocked;
+
+  /// No description provided for @checkoutResolveNotCancelled.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran belum dibatalkan. Periksa status pembayaran untuk mengambil nota atau meminta rekonsiliasi supervisor.'**
+  String get checkoutResolveNotCancelled;
+
+  /// No description provided for @checkoutResolveUnknown.
+  ///
+  /// In id, this message translates to:
+  /// **'Status pembayaran belum dapat dipastikan. Periksa kembali.'**
+  String get checkoutResolveUnknown;
+
+  /// No description provided for @checkoutOriginStore.
+  ///
+  /// In id, this message translates to:
+  /// **'Toko asal'**
+  String get checkoutOriginStore;
+
+  /// No description provided for @checkoutOriginShift.
+  ///
+  /// In id, this message translates to:
+  /// **'Shift asal'**
+  String get checkoutOriginShift;
+
+  /// No description provided for @checkoutOriginTime.
+  ///
+  /// In id, this message translates to:
+  /// **'Waktu transaksi'**
+  String get checkoutOriginTime;
+
   /// No description provided for @promoValidating.
   ///
   /// In id, this message translates to:

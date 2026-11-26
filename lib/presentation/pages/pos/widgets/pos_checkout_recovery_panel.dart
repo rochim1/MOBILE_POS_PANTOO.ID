@@ -9,12 +9,16 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
     this.errorMessage = '',
     this.requestReference = '',
     this.onRecover,
+    this.onResolve,
+    this.details = const {},
   });
   final String message;
   final bool busy;
   final String errorMessage;
   final String requestReference;
   final VoidCallback? onRecover;
+  final VoidCallback? onResolve;
+  final Map<String, String> details;
 
   @override
   Widget build(BuildContext context) => PopScope(
@@ -36,6 +40,23 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               PosText(message, textAlign: TextAlign.center),
+              if (details.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                for (final entry in details.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: PosText(entry.key)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(entry.value, textAlign: TextAlign.end),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
               if (requestReference.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 PosText(
@@ -99,6 +120,11 @@ class PosCheckoutRecoveryPanel extends StatelessWidget {
                   busy ? 'Memulihkan pembayaran...' : 'Pulihkan pembayaran',
                 ),
               ),
+              if (onResolve != null)
+                TextButton(
+                  onPressed: busy ? null : onResolve,
+                  child: const PosText('Selesaikan pembayaran'),
+                ),
             ],
           ),
         ),

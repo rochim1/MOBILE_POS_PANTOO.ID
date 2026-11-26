@@ -9,6 +9,60 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get checkoutResolveTitle => 'Resolve payment';
+
+  @override
+  String get checkoutResolveExplanation =>
+      'Check the invoice and funds first. The server will not cancel a transaction that has already been recorded.';
+
+  @override
+  String get checkoutResolveMoney => 'Funds verification result';
+
+  @override
+  String get checkoutMoneyNotReceived => 'Funds not received';
+
+  @override
+  String get checkoutMoneyReconciled => 'Funds returned / reconciled';
+
+  @override
+  String get checkoutResolveNote => 'Verification notes';
+
+  @override
+  String get checkoutResolveNoteShort => 'Enter at least 5 characters';
+
+  @override
+  String get checkoutResolveReceivedWarning =>
+      'Received funds require supervisor approval. Do not continue until the funds have been returned or reconciled.';
+
+  @override
+  String get checkoutResolveSubmit => 'Resolve attempt';
+
+  @override
+  String get checkoutResolveDone =>
+      'The payment attempt has been resolved. The register is ready to use again.';
+
+  @override
+  String get checkoutResolveBlocked =>
+      'The original shift or store is unavailable. Resolve this attempt after checking the invoice and funds received.';
+
+  @override
+  String get checkoutResolveNotCancelled =>
+      'The payment has not been cancelled. Check its status to retrieve the receipt or request supervisor reconciliation.';
+
+  @override
+  String get checkoutResolveUnknown =>
+      'The payment status could not be confirmed. Check again.';
+
+  @override
+  String get checkoutOriginStore => 'Original store';
+
+  @override
+  String get checkoutOriginShift => 'Original shift';
+
+  @override
+  String get checkoutOriginTime => 'Transaction time';
+
+  @override
   String get promoValidating => 'Verifying promo code…';
 
   @override

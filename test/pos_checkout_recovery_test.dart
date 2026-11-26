@@ -12,7 +12,36 @@ import 'package:mobile_pos_pantoo/domain/models/pos_product.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_repository.dart';
 
 class Provider extends Fake implements GraphQLClientProvider {
-  Provider(this.client);
+  Provider(GraphQLClient original, {bool actualRecovery = false})
+    : client = actualRecovery
+          ? original
+          : GraphQLClient(
+              cache: original.cache,
+              link: Link.function((request, [forward]) {
+                final definition =
+                    request.operation.document.definitions.first as dynamic;
+                if (definition.name?.value == 'GetPOSCheckoutRecovery') {
+                  return Stream.value(
+                    Response(
+                      data: {
+                        '__typename': 'Query',
+                        'GetPOSCheckoutRecovery': {
+                          '__typename': 'POSCheckoutRecovery',
+                          'transaction': null,
+                          'request_id':
+                              (request.variables['input']
+                                  as Map)['client_transaction_id'],
+                          'status': 'retryable',
+                          'reason_code': 'NOT_RECORDED',
+                        },
+                      },
+                      response: {},
+                    ),
+                  );
+                }
+                return original.link.request(request);
+              }),
+            );
   @override
   final GraphQLClient client;
   @override
@@ -77,22 +106,71 @@ void main() {
     cashReceived: cash,
   );
 
-  test('closed-shift proof is cancelled only by server acknowledgement before changing store', () async {
-    var writes = 0;
-    final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
-      writes++;
-      if (request.operation.operationName == 'CancelPOSCheckout') {
-        yield Response(data: {'CancelPOSCheckout': {'request_id': (request.variables['input'] as Map)['client_transaction_id'], 'status': 'cancelled', 'reason_code': 'not_received'}}, response: {});
-      } else {
-        throw ServerException(originalException: Exception('lost first response'));
-      }
-    }));
-    final repo = PosRepository(Provider(client), prefs); await pay(repo);
-    final original = repo.pendingCheckout; expect(original, isNotNull);
-    final result = await repo.cancelPendingCheckout(resolution: 'not_received', note: 'Invoice checked and no funds received');
-    expect(result.isRight(), true); expect(repo.pendingCheckout, isNull); expect(writes, 2);
-    expect(prefs.getKeys().any((key) => key.startsWith('pos_checkout_resolved_v1:')), true);
-  });
+  test(
+    'closed-shift proof is cancelled only by server acknowledgement before changing store',
+    () async {
+      var writes = 0;
+      final client = GraphQLClient(
+        cache: GraphQLCache(),
+        link: Link.function((request, [forward]) async* {
+          writes++;
+          final definition =
+              request.operation.document.definitions.first as dynamic;
+          if (definition.name?.value == 'CancelPOSCheckout') {
+            yield Response(
+              data: {
+                '__typename': 'Mutation',
+                'CancelPOSCheckout': {
+                  '__typename': 'POSCheckoutRecovery',
+                  'request_id':
+                      (request.variables['input']
+                          as Map)['client_transaction_id'],
+                  'status': 'cancelled',
+                  'reason_code': 'not_received',
+                },
+              },
+              response: {},
+            );
+          } else {
+            throw ServerException(
+              originalException: Exception('lost first response'),
+            );
+          }
+        }),
+      );
+      final repo = PosRepository(Provider(client), prefs);
+      await pay(repo);
+      final original = repo.pendingCheckout;
+      expect(original, isNotNull);
+      final result = await repo.cancelPendingCheckout(
+        resolution: 'not_received',
+        note: 'Invoice checked and no funds received',
+      );
+      expect(result.isRight(), true);
+      expect(repo.pendingCheckout, isNull);
+      expect(writes, 2);
+      expect(
+        prefs.getKeys().any(
+          (key) => key.startsWith('pos_checkout_resolved_v1:'),
+        ),
+        true,
+      );
+      await repo.submitTransaction(
+        cart: {product: 1},
+        total: 100,
+        paymentMethod: 'transfer',
+        tokoId: 'other-store',
+        shiftId: 'new-shift',
+        cashReceived: 100,
+      );
+      expect(writes, 3);
+      expect(repo.pendingCheckout?['input']?['toko_id'], 'other-store');
+      expect(
+        repo.pendingCheckout?['input']?['client_transaction_id'],
+        isNot(original?['input']?['client_transaction_id']),
+      );
+    },
+  );
 
   test(
     'lost ACK survives repository restart and retries the original transaction ID',
