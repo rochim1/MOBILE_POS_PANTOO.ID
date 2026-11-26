@@ -3584,6 +3584,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   Widget build(BuildContext context) {
     if (widget.type == PosInventoryDocumentType.transfer) {
       return PosTransferEditorPage(
+        inventoryPolicy: _inventoryPolicy,
         existing: widget.existing,
         initialSourceId: widget.initialSourceId,
         initialDestinationId: widget.initialDestinationId,

@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_transfer_choices.dart';
 
 Map<String, dynamic> location(String id, String type, [String? outlet]) => {
-  '_id': id, 'warehouse_type': type, 'linked_toko_id': outlet,
+  '_id': id,
+  'warehouse_type': type,
+  'linked_toko_id': outlet,
 };
 
 void main() {
@@ -22,18 +24,23 @@ void main() {
     expect(choices.allows(store, wrong, inter), isFalse);
     expect(choices.infer(store, wrong), internal);
   });
-  test('rack movement stays in same warehouse, inter transfer changes warehouse', () {
-    const choices = TransferLocationChoices();
-    expect(choices.allows(store, store, internal), isTrue);
-    expect(choices.allows(store, store, inter), isFalse);
-    expect(choices.allows(store, other, inter), isTrue);
-    expect(choices.allows(store, other, internal), isFalse);
-    expect(choices.infer(store, store), internal);
-    expect(choices.infer(store, other), inter);
-  });
+  test(
+    'rack movement stays in same warehouse, inter transfer changes warehouse',
+    () {
+      const choices = TransferLocationChoices();
+      expect(choices.allows(store, store, internal), isTrue);
+      expect(choices.allows(store, store, inter), isFalse);
+      expect(choices.allows(store, other, inter), isTrue);
+      expect(choices.allows(store, other, internal), isFalse);
+      expect(choices.infer(store, store), internal);
+      expect(choices.infer(store, other), inter);
+    },
+  );
   for (final profile in ['centralized', 'advanced']) {
     test('$profile requires central endpoint except permitted own display', () {
-      final choices = TransferLocationChoices(policy: {'inventory_profile': profile});
+      final choices = TransferLocationChoices(
+        policy: {'inventory_profile': profile},
+      );
       expect(choices.allows(store, other, inter), isFalse);
       expect(choices.allows(central, store, inter), isTrue);
       expect(choices.allows(store, central, inter), isTrue);
@@ -43,21 +50,32 @@ void main() {
     });
   }
   test('simple profile offers no transfers or internal stock moves', () {
-    const choices = TransferLocationChoices(policy: {'inventory_profile': 'simple'});
+    const choices = TransferLocationChoices(
+      policy: {'inventory_profile': 'simple'},
+    );
     expect(choices.allows(central, store, inter), isFalse);
     expect(choices.allows(central, central, internal), isFalse);
   });
-  test('custom explicit flags restrict warehouse types without forcing transit', () {
-    const choices = TransferLocationChoices(policy: {
-      'inventory_profile': 'custom', 'use_store_warehouse': true, 'use_display_stock': false,
-    });
-    expect(choices.allows(store, other, inter), isTrue);
-    expect(choices.allows(store, display, internal), isFalse);
-    expect(choices.allows(store, store, internal), isTrue);
-  });
+  test(
+    'custom explicit flags restrict warehouse types without forcing transit',
+    () {
+      const choices = TransferLocationChoices(
+        policy: {
+          'inventory_profile': 'custom',
+          'use_store_warehouse': true,
+          'use_display_stock': false,
+        },
+      );
+      expect(choices.allows(store, other, inter), isTrue);
+      expect(choices.allows(store, display, internal), isFalse);
+      expect(choices.allows(store, store, internal), isTrue);
+    },
+  );
   for (final unavailable in [
-    {'is_transfer_source': false}, {'is_active': false},
-    {'warehouse_type': 'in_transit'}, {'warehouse_type': 'quarantine'},
+    {'is_transfer_source': false},
+    {'is_active': false},
+    {'warehouse_type': 'in_transit'},
+    {'warehouse_type': 'quarantine'},
   ]) {
     test('unusable source $unavailable is never offered', () {
       const choices = TransferLocationChoices();
@@ -66,7 +84,13 @@ void main() {
   }
   test('destination permission and unlinked display fail closed', () {
     const choices = TransferLocationChoices();
-    expect(choices.allows(store, {...other, 'is_transfer_destination': false}, inter), isFalse);
+    expect(
+      choices.allows(store, {
+        ...other,
+        'is_transfer_destination': false,
+      }, inter),
+      isFalse,
+    );
     expect(choices.allows(store, location('u', 'display'), internal), isFalse);
     expect(choices.allows(null, other, inter), isFalse);
     expect(choices.allows(store, null, inter), isFalse);

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/network/graphql_client_provider.dart';
 import '../../../data/graphql/pos_transfer_queries.dart';
 import '../../../domain/models/pos_transfer.dart';
+import '../../../domain/models/pos_transfer_choices.dart';
 import '../../../domain/repositories/pos_transfer_repository.dart';
 import '../../../../injections.dart';
 import '../../widgets/app_toast.dart';
@@ -19,6 +20,7 @@ class PosTransferEditorPage extends StatefulWidget {
   final double? initialQuantity;
   final bool displayReplenishment;
   final PosTransferRepository? repository;
+  final Map<String, dynamic>? inventoryPolicy;
   const PosTransferEditorPage({
     super.key,
     this.existing,
@@ -28,6 +30,7 @@ class PosTransferEditorPage extends StatefulWidget {
     this.initialQuantity,
     this.displayReplenishment = false,
     this.repository,
+    this.inventoryPolicy,
   });
   @override
   State<PosTransferEditorPage> createState() => _PosTransferEditorPageState();
@@ -46,15 +49,85 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       financeReady = false;
   String? error, financeError;
   int version = 0;
+  TransferEditorMode mode = TransferEditorMode.between;
+  TransferLocationChoices get choices =>
+      TransferLocationChoices(policy: widget.inventoryPolicy);
+  bool get english => posLocale(context).localeName.startsWith('en');
+  String copy(String id, String en) => english ? en : id;
   List<Map<String, dynamic>> get items =>
       (draft['items'] as List).cast<Map<String, dynamic>>();
   List<Map<String, dynamic>> get costs =>
       (draft['biaya_transfer'] as List).cast<Map<String, dynamic>>();
-  Map<String,dynamic>? warehouse(dynamic location) => warehouses.where((w)=>
-      w['_id']?.toString()==(location as Map?)?['cabang_id']?.toString()).firstOrNull;
-  String? get locationError => transferOutletPairError(warehouse(draft['dari']),warehouse(draft['ke']),
-      english:posLocale(context).localeName.startsWith('en'));
-  bool usable(Map w,String flag)=>w[flag]!=false && !['in_transit','quarantine'].contains(w['warehouse_type']);
+  Map<String, dynamic>? warehouse(dynamic location) => warehouses
+      .where(
+        (w) =>
+            w['_id']?.toString() ==
+            (location as Map?)?['cabang_id']?.toString(),
+      )
+      .firstOrNull;
+  String? get locationError {
+    final source = warehouse(draft['dari']),
+        destination = warehouse(draft['ke']);
+    final pairError = transferOutletPairError(
+      source,
+      destination,
+      english: english,
+    );
+    if (pairError != null) return pairError;
+    if (source == null || destination == null)
+      return copy(
+        'Pilih lokasi asal dan tujuan yang tersedia.',
+        'Select an available source and destination.',
+      );
+    if (!choices.allows(source, destination, mode))
+      return copy(
+        'Pasangan lokasi tidak tersedia untuk jenis perpindahan atau profil inventori ini. Pilih lokasi lain atau periksa pengaturan inventori.',
+        'These locations are not available for this movement type or inventory profile. Choose another location or check inventory settings.',
+      );
+    return null;
+  }
+
+  Future<void> changeMode(TransferEditorMode next) async {
+    if (mode == next || saving || recovery != null) return;
+    if (items.isNotEmpty || '${draft['ke']?['cabang_id'] ?? ''}'.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(
+            copy('Ganti jenis perpindahan?', 'Change movement type?'),
+          ),
+          content: Text(
+            copy(
+              'Lokasi tujuan dan daftar barang akan dikosongkan agar stok, batch, dan nomor seri tidak memakai alur lama. Catatan dan biaya tetap disimpan.',
+              'The destination and items will be cleared to prevent using stock, batches or serials from the previous flow. Notes and costs are preserved.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: PosText('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: Text(copy('Ganti jenis', 'Change type')),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() {
+      mode = next;
+      draft['ke'] = <String, dynamic>{};
+      draft['items'] = <Map<String, dynamic>>[];
+      if (!choices
+          .sources(warehouses, mode)
+          .any((w) => w['_id'] == draft['dari']?['cabang_id']))
+        draft['dari'] = <String, dynamic>{};
+      version++;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +187,9 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       setState(() {
         warehouses = list;
         draft = doc;
+        mode = widget.displayReplenishment
+            ? TransferEditorMode.internal
+            : choices.infer(warehouse(doc['dari']), warehouse(doc['ke']));
         version++;
         loading = false;
       });
@@ -180,7 +256,10 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
 
   Future<void> save() async {
     if (saving || loading || error != null) return;
-    if(locationError != null) { AppToast.error(context,locationError!);return; }
+    if (locationError != null) {
+      AppToast.error(context, locationError!);
+      return;
+    }
     final invalid = validateTransferDraft(draft);
     if (invalid != null) {
       AppToast.error(context, invalid);
@@ -213,7 +292,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         );
         AppToast.error(
           context,
-          '$e'.replaceFirst(RegExp(r'^(Exception|Bad state):\s*'),''),
+          '$e'.replaceFirst(RegExp(r'^(Exception|Bad state):\s*'), ''),
         );
       }
     } finally {
@@ -267,7 +346,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         helperText: (hint)?.tr(context),
         border: const OutlineInputBorder(),
       ),
-      onChanged: (v)=>change(number && v.trim().isEmpty ? '0' : v),
+      onChanged: (v) => change(number && v.trim().isEmpty ? '0' : v),
     ),
   );
   Widget select(
@@ -284,7 +363,11 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
     };
     if (current.isNotEmpty && !values.containsKey(current)) {
       values[current] = current == 'landed_cost'
-          ? transferRecoveryText(context,'Belum tersedia · pilih beban langsung','Unavailable · select direct expense')
+          ? transferRecoveryText(
+              context,
+              'Belum tersedia · pilih beban langsung',
+              'Unavailable · select direct expense',
+            )
           : current;
     }
     return Padding(
@@ -534,6 +617,69 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) => ToggleButtons(
+                          isSelected: [
+                            mode == TransferEditorMode.between,
+                            mode == TransferEditorMode.internal,
+                          ],
+                          onPressed: (index) =>
+                              changeMode(TransferEditorMode.values[index]),
+                          borderRadius: BorderRadius.circular(12),
+                          constraints: BoxConstraints(
+                            minHeight: 52,
+                            maxWidth: (constraints.maxWidth - 3) / 2,
+                            minWidth: (constraints.maxWidth - 3) / 2,
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                copy(
+                                  'Antar toko / gudang',
+                                  'Between stores / warehouses',
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                copy('Mutasi internal', 'Internal movement'),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          mode == TransferEditorMode.internal
+                              ? copy(
+                                  'Pindah rak dalam satu lokasi atau gudang toko ↔ display pada outlet yang sama. Persetujuan dan penerimaan mengikuti kebijakan inventori.',
+                                  'Move between racks in one location, or store warehouse ↔ display within the same outlet. Approval and receipt follow inventory policy.',
+                                )
+                              : copy(
+                                  'Kirim stok ke toko atau gudang lain. Pilihan lokasi mengikuti profil inventori; proses pengiriman dan penerimaan tetap berlaku.',
+                                  'Send stock to another store or warehouse. Locations follow the inventory profile; shipping and receipt rules still apply.',
+                                ),
+                        ),
+                      ),
+                      if (choices.sources(warehouses, mode).isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            copy(
+                              'Belum ada pasangan lokasi yang tersedia. Periksa lokasi aktif dan profil inventori di pengaturan; atau pilih tab lain.',
+                              'No compatible locations are available. Check active locations and the inventory profile in settings, or choose the other tab.',
+                            ),
+                          ),
+                        ),
                       section('Informasi transfer', [
                         text(
                           'Tanggal transfer (YYYY-MM-DD)',
@@ -574,14 +720,19 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                         ),
                       ]),
                       section('Lokasi perpindahan', [
-                        if(locationError != null) Padding(
-                          padding:const EdgeInsets.only(bottom:12),
-                          child:Text(locationError!,style:TextStyle(color:Theme.of(context).colorScheme.error))),
+                        if (locationError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              locationError!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
                         PosTransferLocationFields(
                           title: ('asal').tr(context),
-                          warehouses: warehouses
-                              .where((w) => usable(w,'is_transfer_source'))
-                              .toList(),
+                          warehouses: choices.sources(warehouses, mode),
                           value: Map<String, dynamic>.from(draft['dari']),
                           onChanged: (v) async {
                             if (items.isNotEmpty) {
@@ -615,12 +766,11 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                         const Divider(),
                         PosTransferLocationFields(
                           title: ('tujuan').tr(context),
-                          warehouses: warehouses
-                              .where(
-                                (w) => usable(w,'is_transfer_destination') &&
-                                    transferOutletPairError(warehouse(draft['dari']),w)==null,
-                              )
-                              .toList(),
+                          warehouses: choices.destinations(
+                            warehouses,
+                            warehouse(draft['dari']),
+                            mode,
+                          ),
                           value: Map<String, dynamic>.from(draft['ke']),
                           onChanged: (v) => setState(() => draft['ke'] = v),
                         ),
@@ -924,7 +1074,9 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
                       ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
-                        onPressed: saving || locationError != null ? null : save,
+                        onPressed: saving || locationError != null
+                            ? null
+                            : save,
                         icon: saving
                             ? const SizedBox(
                                 width: 18,
