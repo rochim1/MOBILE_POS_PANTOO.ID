@@ -12,7 +12,7 @@ class TransferProvider extends Fake implements GraphQLClientProvider {
   final SharedPreferences prefs;
   final GraphQLClient graph;
   TransferProvider(this.prefs, Stream<Response> Function(Request) run)
-    : graph = GraphQLClient(link: Link.function((r, [f]) => run(r)), cache: GraphQLCache());
+    : graph = GraphQLClient(link: Link.function((r, [f]) => run(r)), cache: GraphQLCache(partialDataPolicy: PartialDataCachePolicy.accept));
   @override String get subscriptionScope => scope;
   @override SharedPreferences get sharedPreferences => prefs;
   @override GraphQLClient get client => graph;
