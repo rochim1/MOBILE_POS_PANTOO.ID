@@ -53,8 +53,16 @@ class _PreparingAccess extends ChangeNotifier
 }
 
 class _PaymentBloc extends PosBloc {
-  _PaymentBloc(PosState initial, {bool unresolved = false, bool identityMissing = false})
-    : super(posRepository: _Repository(unresolved: unresolved, identityMissing: identityMissing)) {
+  _PaymentBloc(
+    PosState initial, {
+    bool unresolved = false,
+    bool identityMissing = false,
+  }) : super(
+         posRepository: _Repository(
+           unresolved: unresolved,
+           identityMissing: identityMissing,
+         ),
+       ) {
     emit(initial);
   }
   final submitted = <PosEvent>[];
@@ -164,17 +172,20 @@ Future<void> cash(
 }
 
 void main() {
-  testWidgets('missing payment identity cannot crash the error dialog or claim a confirmed rejection', (tester) async {
-    final bloc = _PaymentBloc(initial(), identityMissing: true);
-    addTearDown(bloc.close);
-    await tester.pumpWidget(_app(bloc));
-    await tester.pumpAndSettle();
-    bloc.fail('Sesi pembayaran perlu diperiksa');
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('Periksa pembayaran sebelumnya'), findsOneWidget);
-    expect(find.text('Transaksi Ditolak'), findsNothing);
-  });
+  testWidgets(
+    'missing payment identity cannot crash the error dialog or claim a confirmed rejection',
+    (tester) async {
+      final bloc = _PaymentBloc(initial(), identityMissing: true);
+      addTearDown(bloc.close);
+      await tester.pumpWidget(_app(bloc));
+      await tester.pumpAndSettle();
+      bloc.fail('Sesi pembayaran perlu diperiksa');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Periksa pembayaran sebelumnya'), findsOneWidget);
+      expect(find.text('Transaksi Ditolak'), findsNothing);
+    },
+  );
   for (final unresolved in [true, false]) {
     testWidgets(
       'payment error title distinguishes unresolved=$unresolved from rejection',

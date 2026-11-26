@@ -237,8 +237,14 @@ class _PosPaymentPageState extends State<PosPaymentPage> {
           } else if (state.status == PosStatus.failure &&
               state.errorMessage.isNotEmpty) {
             final message = state.errorMessage;
-            final unresolved =
-                context.read<PosBloc>().posRepository.pendingCheckout != null;
+            var unresolved = true;
+            try {
+              unresolved =
+                  context.read<PosBloc>().posRepository.pendingCheckout != null;
+            } on StateError {
+              // Losing account scope cannot establish that payment failed.
+              // Keep feedback conservative without breaking the error dialog.
+            }
             if (!unresolved && message.toLowerCase().contains('pelanggan')) {
               _showRequiredCustomerFlow(
                 state,
