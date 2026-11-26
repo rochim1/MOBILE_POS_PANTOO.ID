@@ -10,6 +10,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/pos_content_skeletons.dart';
 import '../../widgets/pos_keyboard_stable_dialog.dart';
 import 'widgets/pos_transfer_location_fields.dart';
+import 'widgets/pos_transfer_recovery_view.dart';
 
 class PosTransferEditorPage extends StatefulWidget {
   final Map<String, dynamic>? existing;
@@ -36,6 +37,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       widget.repository ?? PosTransferRepository(sl<GraphQLClientProvider>());
   final nonce = DateTime.now().microsecondsSinceEpoch.toString();
   Map<String, dynamic> draft = {};
+  Map<String, dynamic>? recovery;
   List<Map<String, dynamic>> warehouses = [], banks = [], dimensions = [];
   bool loading = true,
       saving = false,
@@ -59,6 +61,16 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       error = null;
     });
     try {
+      final pending = repo.pendingIntent(
+        documentId: widget.existing?['_id']?.toString(),
+      );
+      if (pending != null) {
+        setState(() {
+          recovery = pending;
+          loading = false;
+        });
+        return;
+      }
       final list = await repo.warehouses();
       final doc = widget.existing == null
           ? <String, dynamic>{
@@ -171,7 +183,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
     try {
       final payload = transferInput(draft);
       if (widget.existing == null) {
-        await repo.mutate(PosTransferQueries.create, {
+        await repo.execute(PosTransferQueries.create, {
           'input': payload,
           'request_id': transferRequestId('create', nonce, null, payload),
         }, 'CreateInventoryTransfer');
@@ -187,11 +199,37 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       }
     } catch (e) {
       if (mounted) {
+        setState(
+          () => recovery = repo.pendingIntent(
+            documentId: widget.existing?['_id']?.toString(),
+          ),
+        );
         AppToast.error(
           context,
           '$e\nJika koneksi terputus, periksa daftar sebelum membuat transfer baru.',
         );
       }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Future<void> recover() async {
+    if (saving) return;
+    setState(() => saving = true);
+    try {
+      await repo.recoverPending(
+        documentId: widget.existing?['_id']?.toString(),
+      );
+      if (!mounted) return;
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      } else {
+        setState(() => recovery = null);
+        await load();
+      }
+    } catch (e) {
+      if (mounted) AppToast.error(context, '$e');
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -236,7 +274,9 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
       for (final r in options) r.$1: r.$2,
     };
     if (current.isNotEmpty && !values.containsKey(current)) {
-      values[current] = current;
+      values[current] = current == 'landed_cost'
+          ? transferRecoveryText(context,'Belum tersedia · pilih beban langsung','Unavailable · select direct expense')
+          : current;
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -252,6 +292,7 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
         items: values.entries
             .map(
               (r) => DropdownMenuItem(
+                enabled: r.key != 'landed_cost',
                 value: r.key,
                 child: Text(r.value, overflow: TextOverflow.ellipsis),
               ),
@@ -444,410 +485,455 @@ class _PosTransferEditorPageState extends State<PosTransferEditorPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(
-        widget.existing == null ? ('Tambah Mutasi Stok').tr(context) : ('Ubah Mutasi Stok').tr(context),
+  Widget build(BuildContext context) => PopScope(
+    canPop: !saving,
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.existing == null
+              ? ('Tambah Mutasi Stok').tr(context)
+              : ('Ubah Mutasi Stok').tr(context),
+        ),
       ),
-    ),
-    body: loading
-        ? const PosDocumentFormSkeleton()
-        : error != null
-        ? Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                PosText(error!),
-                TextButton(onPressed: load, child: const PosText('Coba lagi')),
-              ],
-            ),
-          )
-        : AbsorbPointer(
-            absorbing: saving,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    section('Informasi transfer', [
-                      text(
-                        'Tanggal transfer (YYYY-MM-DD)',
-                        draft['tanggal_transfer'],
-                        (v) => draft['tanggal_transfer'] = v,
-                      ),
-                      if (draft['submitted_at'] == null)
-                        select(
-                          'Persetujuan',
-                          draft['requires_approval']?.toString(),
-                          [
-                            ('', 'Ikuti kebijakan instansi'),
-                            ('true', 'Perlu persetujuan'),
-                            ('false', 'Tanpa persetujuan (sesuai izin)'),
-                          ],
-                          (v) => setState(() {
-                            if (v == null || v.isEmpty) {
-                              draft.remove('requires_approval');
-                            } else {
-                              draft['requires_approval'] = v == 'true';
-                            }
-                          }),
+      body: recovery != null
+          ? PosTransferRecoveryView(
+              intent: recovery!,
+              busy: saving,
+              onRecover: recover,
+            )
+          : loading
+          ? const PosDocumentFormSkeleton()
+          : error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PosText(error!),
+                  TextButton(
+                    onPressed: load,
+                    child: const PosText('Coba lagi'),
+                  ),
+                ],
+              ),
+            )
+          : AbsorbPointer(
+              absorbing: saving,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      section('Informasi transfer', [
+                        text(
+                          'Tanggal transfer (YYYY-MM-DD)',
+                          draft['tanggal_transfer'],
+                          (v) => draft['tanggal_transfer'] = v,
                         ),
-                      if (draft['submitted_at'] != null)
-                        Text(
-                          posLocale(context).posb11d7ad2d4ac((draft['requires_approval'] == false ? ('tidak diperlukan').tr(context) : ('diperlukan').tr(context)).toString()),
+                        if (draft['submitted_at'] == null)
+                          select(
+                            'Persetujuan',
+                            draft['requires_approval']?.toString(),
+                            [
+                              ('', 'Ikuti kebijakan instansi'),
+                              ('true', 'Perlu persetujuan'),
+                              ('false', 'Tanpa persetujuan (sesuai izin)'),
+                            ],
+                            (v) => setState(() {
+                              if (v == null || v.isEmpty) {
+                                draft.remove('requires_approval');
+                              } else {
+                                draft['requires_approval'] = v == 'true';
+                              }
+                            }),
+                          ),
+                        if (draft['submitted_at'] != null)
+                          Text(
+                            posLocale(context).posb11d7ad2d4ac(
+                              (draft['requires_approval'] == false
+                                      ? ('tidak diperlukan').tr(context)
+                                      : ('diperlukan').tr(context))
+                                  .toString(),
+                            ),
+                          ),
+                        text(
+                          'Catatan transfer',
+                          draft['catatan'],
+                          (v) => draft['catatan'] = v,
+                          lines: 2,
                         ),
-                      text(
-                        'Catatan transfer',
-                        draft['catatan'],
-                        (v) => draft['catatan'] = v,
-                        lines: 2,
-                      ),
-                    ]),
-                    section('Lokasi perpindahan', [
-                      PosTransferLocationFields(
-                        title: ('asal').tr(context),
-                        warehouses: warehouses
-                            .where((w) => w['is_transfer_source'] != false)
-                            .toList(),
-                        value: Map<String, dynamic>.from(draft['dari']),
-                        onChanged: (v) async {
-                          if (items.isNotEmpty) {
-                            final yes = await showDialog<bool>(
-                              context: context,
-                              builder: (c) => AlertDialog(
-                                title: const PosText('Ganti lokasi asal?'),
-                                content: const PosText(
-                                  'Daftar barang dikosongkan agar stok dan batch tidak memakai lokasi lama.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(c, false),
-                                    child: const PosText('Batal'),
+                      ]),
+                      section('Lokasi perpindahan', [
+                        PosTransferLocationFields(
+                          title: ('asal').tr(context),
+                          warehouses: warehouses
+                              .where((w) => w['is_transfer_source'] != false)
+                              .toList(),
+                          value: Map<String, dynamic>.from(draft['dari']),
+                          onChanged: (v) async {
+                            if (items.isNotEmpty) {
+                              final yes = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                  title: const PosText('Ganti lokasi asal?'),
+                                  content: const PosText(
+                                    'Daftar barang dikosongkan agar stok dan batch tidak memakai lokasi lama.',
                                   ),
-                                  FilledButton(
-                                    onPressed: () => Navigator.pop(c, true),
-                                    child: const PosText('Ganti lokasi'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(c, false),
+                                      child: const PosText('Batal'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.pop(c, true),
+                                      child: const PosText('Ganti lokasi'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (yes != true || !mounted) return;
+                            }
+                            setState(() {
+                              draft['dari'] = v;
+                              draft['items'] = <Map<String, dynamic>>[];
+                            });
+                          },
+                        ),
+                        const Divider(),
+                        PosTransferLocationFields(
+                          title: ('tujuan').tr(context),
+                          warehouses: warehouses
+                              .where(
+                                (w) => w['is_transfer_destination'] != false,
+                              )
+                              .toList(),
+                          value: Map<String, dynamic>.from(draft['ke']),
+                          onChanged: (v) => setState(() => draft['ke'] = v),
+                        ),
+                      ]),
+                      section('Daftar barang', [
+                        for (final (index, item) in items.indexed)
+                          Card(
+                            key: ValueKey(
+                              '$version:${item['_row_key'] ?? item['_id'] ?? index}',
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${item['nama_inventaris']}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: ('Hapus barang').tr(context),
+                                        onPressed: () => setState(
+                                          () => items.removeAt(index),
+                                        ),
+                                        icon: const Icon(Icons.close),
+                                      ),
+                                    ],
+                                  ),
+                                  text(
+                                    'Jumlah ${item['unit'] ?? 'unit'}',
+                                    item['qty'],
+                                    (v) {
+                                      item['qty'] = transferNumber(
+                                        v.replaceAll(',', '.'),
+                                      );
+                                      item['unit_breakdown'] =
+                                          <Map<String, dynamic>>[];
+                                    },
+                                    number: true,
+                                  ),
+                                  Text(
+                                    posLocale(context).pos19c47f48a246(
+                                      (item['no_batch'] ??
+                                              'Alokasi otomatis saat dikirim')
+                                          .toString(),
+                                      (item['tanggal_kadaluarsa'] ?? '')
+                                          .toString(),
+                                    ),
+                                  ),
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: () => chooseBatch(item),
+                                        icon: const Icon(Icons.layers_outlined),
+                                        label: const PosText('Pilih batch'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => setState(
+                                          () => item.addAll({
+                                            'batch_id': null,
+                                            'no_batch': '',
+                                            'tanggal_kadaluarsa': '',
+                                          }),
+                                        ),
+                                        child: const PosText(
+                                          'Alokasi otomatis',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  text(
+                                    'Nomor seri yang dikirim (satu per baris)',
+                                    (item['serial_numbers'] as List? ?? [])
+                                        .join('\n'),
+                                    (v) => item['serial_numbers'] = v
+                                        .split(RegExp(r'[\n,;]+'))
+                                        .map((s) => s.trim())
+                                        .where((s) => s.isNotEmpty)
+                                        .toList(),
+                                    lines: 3,
+                                  ),
+                                  text(
+                                    'Catatan barang',
+                                    item['catatan_item'],
+                                    (v) => item['catatan_item'] = v,
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () => editUnits(item),
+                                    icon: const Icon(Icons.swap_horiz),
+                                    label: const PosText(
+                                      'Input satuan / kemasan',
+                                    ),
+                                  ),
+                                  if (transferMaps(
+                                    item['unit_breakdown'],
+                                  ).isNotEmpty)
+                                    Text(
+                                      posLocale(context).pos2befc83ee9ee(
+                                        (transferMaps(item['unit_breakdown'])
+                                                .map(
+                                                  (u) =>
+                                                      '${u['input_qty']} ${u['unit']} × ${u['factor']}',
+                                                )
+                                                .join(' + '))
+                                            .toString(),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        OutlinedButton.icon(
+                          onPressed: addItem,
+                          icon: const Icon(Icons.add),
+                          label: const PosText('Tambah barang'),
+                        ),
+                      ]),
+                      Card(
+                        child: ExpansionTile(
+                          title: const PosText(
+                            'Biaya, rekening & dimensi (opsional)',
+                          ),
+                          initiallyExpanded: costs.isNotEmpty,
+                          onExpansionChanged: (v) {
+                            if (v) loadFinance();
+                          },
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (loadingFinance)
+                                    const LinearProgressIndicator(),
+                                  if (financeError != null)
+                                    TextButton(
+                                      onPressed: loadFinance,
+                                      child: Text(
+                                        posLocale(context).posb4fb1c3b1411(
+                                          (financeError).toString(),
+                                        ),
+                                      ),
+                                    ),
+                                  select(
+                                    'Cabang penanggung jawab',
+                                    draft['branch_id'],
+                                    dimensions
+                                        .where((r) => r['kind'] == 'branch')
+                                        .map(
+                                          (r) => (
+                                            r['_id'].toString(),
+                                            '${r['code']} · ${r['name']}',
+                                          ),
+                                        )
+                                        .toList(),
+                                    (v) => setState(() {
+                                      draft['branch_id'] = v?.isEmpty == true
+                                          ? null
+                                          : v;
+                                      draft['payment_branch_id'] =
+                                          draft['branch_id'];
+                                    }),
+                                  ),
+                                  select(
+                                    'Proyek',
+                                    draft['project_id'],
+                                    dimensions
+                                        .where((r) => r['kind'] == 'project')
+                                        .map(
+                                          (r) => (
+                                            r['_id'].toString(),
+                                            '${r['code']} · ${r['name']}',
+                                          ),
+                                        )
+                                        .toList(),
+                                    (v) => setState(
+                                      () => draft['project_id'] =
+                                          v?.isEmpty == true ? null : v,
+                                    ),
+                                  ),
+                                  for (final (index, cost) in costs.indexed)
+                                    Card(
+                                      key: ValueKey(cost['_row_key']),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Column(
+                                          children: [
+                                            text(
+                                              'Jenis biaya',
+                                              cost['jenis_biaya'],
+                                              (v) => cost['jenis_biaya'] = v,
+                                            ),
+                                            text(
+                                              'Deskripsi biaya',
+                                              cost['deskripsi'],
+                                              (v) => cost['deskripsi'] = v,
+                                            ),
+                                            text(
+                                              'Nominal biaya (Rp)',
+                                              cost['nominal'],
+                                              (v) => cost['nominal'] =
+                                                  transferNumber(v),
+                                              number: true,
+                                            ),
+                                            text(
+                                              'Kode akun beban (opsional)',
+                                              cost['akun_beban'],
+                                              (v) => cost['akun_beban'] = v,
+                                            ),
+                                            TextButton(
+                                              onPressed: () => setState(
+                                                () => costs.removeAt(index),
+                                              ),
+                                              child: const PosText(
+                                                'Hapus biaya',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      loadFinance();
+                                      setState(
+                                        () => costs.add({
+                                          '_row_key': Object(),
+                                          'jenis_biaya': 'ongkir',
+                                          'nominal': 0.0,
+                                          'deskripsi': '',
+                                        }),
+                                      );
+                                    },
+                                    child: const PosText('Tambah biaya'),
+                                  ),
+                                  select(
+                                    'Rekening pembayaran biaya',
+                                    draft['payment_bank_account_id'],
+                                    banks
+                                        .map(
+                                          (r) => (
+                                            r['_id'].toString(),
+                                            r['label'].toString(),
+                                          ),
+                                        )
+                                        .toList(),
+                                    (v) => setState(
+                                      () => draft['payment_bank_account_id'] =
+                                          v?.isEmpty == true ? null : v,
+                                    ),
+                                  ),
+                                  select(
+                                    'Cabang pembayar',
+                                    draft['payment_branch_id'],
+                                    dimensions
+                                        .where((r) => r['kind'] == 'branch')
+                                        .map(
+                                          (r) => (
+                                            r['_id'].toString(),
+                                            '${r['code']} · ${r['name']}',
+                                          ),
+                                        )
+                                        .toList(),
+                                    (v) => setState(
+                                      () => draft['payment_branch_id'] =
+                                          v?.isEmpty == true ? null : v,
+                                    ),
+                                  ),
+                                  select(
+                                    'Perlakuan biaya',
+                                    draft['biaya_mode'] ?? 'expense',
+                                    [('expense', 'Beban langsung')],
+                                    (v) =>
+                                        setState(() => draft['biaya_mode'] = v),
+                                    optional: false,
+                                  ),
+                                  select(
+                                    'Alokasi biaya',
+                                    draft['biaya_alokasi'] ?? 'per_nilai',
+                                    [
+                                      ('per_nilai', 'Berdasarkan nilai'),
+                                      ('per_qty', 'Berdasarkan jumlah'),
+                                    ],
+                                    (v) => setState(
+                                      () => draft['biaya_alokasi'] = v,
+                                    ),
+                                    optional: false,
                                   ),
                                 ],
                               ),
-                            );
-                            if (yes != true || !mounted) return;
-                          }
-                          setState(() {
-                            draft['dari'] = v;
-                            draft['items'] = <Map<String, dynamic>>[];
-                          });
-                        },
-                      ),
-                      const Divider(),
-                      PosTransferLocationFields(
-                        title: ('tujuan').tr(context),
-                        warehouses: warehouses
-                            .where((w) => w['is_transfer_destination'] != false)
-                            .toList(),
-                        value: Map<String, dynamic>.from(draft['ke']),
-                        onChanged: (v) => setState(() => draft['ke'] = v),
-                      ),
-                    ]),
-                    section('Daftar barang', [
-                      for (final (index, item) in items.indexed)
-                        Card(
-                          key: ValueKey(
-                            '$version:${item['_row_key'] ?? item['_id'] ?? index}',
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${item['nama_inventaris']}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: ('Hapus barang').tr(context),
-                                      onPressed: () =>
-                                          setState(() => items.removeAt(index)),
-                                      icon: const Icon(Icons.close),
-                                    ),
-                                  ],
-                                ),
-                                text(
-                                  'Jumlah ${item['unit'] ?? 'unit'}',
-                                  item['qty'],
-                                  (v) {
-                                    item['qty'] = transferNumber(
-                                      v.replaceAll(',', '.'),
-                                    );
-                                    item['unit_breakdown'] =
-                                        <Map<String, dynamic>>[];
-                                  },
-                                  number: true,
-                                ),
-                                Text(
-                                  posLocale(context).pos19c47f48a246((item['no_batch'] ?? 'Alokasi otomatis saat dikirim').toString(), (item['tanggal_kadaluarsa'] ?? '').toString()),
-                                ),
-                                Wrap(
-                                  spacing: 8,
-                                  children: [
-                                    OutlinedButton.icon(
-                                      onPressed: () => chooseBatch(item),
-                                      icon: const Icon(Icons.layers_outlined),
-                                      label: const PosText('Pilih batch'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => setState(
-                                        () => item.addAll({
-                                          'batch_id': null,
-                                          'no_batch': '',
-                                          'tanggal_kadaluarsa': '',
-                                        }),
-                                      ),
-                                      child: const PosText('Alokasi otomatis'),
-                                    ),
-                                  ],
-                                ),
-                                text(
-                                  'Nomor seri yang dikirim (satu per baris)',
-                                  (item['serial_numbers'] as List? ?? []).join(
-                                    '\n',
-                                  ),
-                                  (v) => item['serial_numbers'] = v
-                                      .split(RegExp(r'[\n,;]+'))
-                                      .map((s) => s.trim())
-                                      .where((s) => s.isNotEmpty)
-                                      .toList(),
-                                  lines: 3,
-                                ),
-                                text(
-                                  'Catatan barang',
-                                  item['catatan_item'],
-                                  (v) => item['catatan_item'] = v,
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: () => editUnits(item),
-                                  icon: const Icon(Icons.swap_horiz),
-                                  label: const PosText('Input satuan / kemasan'),
-                                ),
-                                if (transferMaps(
-                                  item['unit_breakdown'],
-                                ).isNotEmpty)
-                                  Text(
-                                    posLocale(context).pos2befc83ee9ee((transferMaps(item['unit_breakdown']).map((u) => '${u['input_qty']} ${u['unit']} × ${u['factor']}').join(' + ')).toString()),
-                                  ),
-                              ],
                             ),
-                          ),
+                          ],
                         ),
-                      OutlinedButton.icon(
-                        onPressed: addItem,
-                        icon: const Icon(Icons.add),
-                        label: const PosText('Tambah barang'),
                       ),
-                    ]),
-                    Card(
-                      child: ExpansionTile(
-                        title: const PosText(
-                          'Biaya, rekening & dimensi (opsional)',
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: saving ? null : save,
+                        icon: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(
+                          saving
+                              ? ('Menyimpan...').tr(context)
+                              : ('Simpan mutasi').tr(context),
                         ),
-                        initiallyExpanded: costs.isNotEmpty,
-                        onExpansionChanged: (v) {
-                          if (v) loadFinance();
-                        },
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (loadingFinance)
-                                  const LinearProgressIndicator(),
-                                if (financeError != null)
-                                  TextButton(
-                                    onPressed: loadFinance,
-                                    child: Text(posLocale(context).posb4fb1c3b1411((financeError).toString())),
-                                  ),
-                                select(
-                                  'Cabang penanggung jawab',
-                                  draft['branch_id'],
-                                  dimensions
-                                      .where((r) => r['kind'] == 'branch')
-                                      .map(
-                                        (r) => (
-                                          r['_id'].toString(),
-                                          '${r['code']} · ${r['name']}',
-                                        ),
-                                      )
-                                      .toList(),
-                                  (v) => setState(() {
-                                    draft['branch_id'] = v?.isEmpty == true
-                                        ? null
-                                        : v;
-                                    draft['payment_branch_id'] =
-                                        draft['branch_id'];
-                                  }),
-                                ),
-                                select(
-                                  'Proyek',
-                                  draft['project_id'],
-                                  dimensions
-                                      .where((r) => r['kind'] == 'project')
-                                      .map(
-                                        (r) => (
-                                          r['_id'].toString(),
-                                          '${r['code']} · ${r['name']}',
-                                        ),
-                                      )
-                                      .toList(),
-                                  (v) => setState(
-                                    () => draft['project_id'] =
-                                        v?.isEmpty == true ? null : v,
-                                  ),
-                                ),
-                                for (final (index, cost) in costs.indexed)
-                                  Card(
-                                    key: ValueKey(cost['_row_key']),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: Column(
-                                        children: [
-                                          text(
-                                            'Jenis biaya',
-                                            cost['jenis_biaya'],
-                                            (v) => cost['jenis_biaya'] = v,
-                                          ),
-                                          text(
-                                            'Deskripsi biaya',
-                                            cost['deskripsi'],
-                                            (v) => cost['deskripsi'] = v,
-                                          ),
-                                          text(
-                                            'Nominal biaya (Rp)',
-                                            cost['nominal'],
-                                            (v) => cost['nominal'] =
-                                                transferNumber(v),
-                                            number: true,
-                                          ),
-                                          text(
-                                            'Kode akun beban (opsional)',
-                                            cost['akun_beban'],
-                                            (v) => cost['akun_beban'] = v,
-                                          ),
-                                          TextButton(
-                                            onPressed: () => setState(
-                                              () => costs.removeAt(index),
-                                            ),
-                                            child: const PosText('Hapus biaya'),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                OutlinedButton(
-                                  onPressed: () {
-                                    loadFinance();
-                                    setState(
-                                      () => costs.add({
-                                        '_row_key': Object(),
-                                        'jenis_biaya': 'ongkir',
-                                        'nominal': 0.0,
-                                        'deskripsi': '',
-                                      }),
-                                    );
-                                  },
-                                  child: const PosText('Tambah biaya'),
-                                ),
-                                select(
-                                  'Rekening pembayaran biaya',
-                                  draft['payment_bank_account_id'],
-                                  banks
-                                      .map(
-                                        (r) => (
-                                          r['_id'].toString(),
-                                          r['label'].toString(),
-                                        ),
-                                      )
-                                      .toList(),
-                                  (v) => setState(
-                                    () => draft['payment_bank_account_id'] =
-                                        v?.isEmpty == true ? null : v,
-                                  ),
-                                ),
-                                select(
-                                  'Cabang pembayar',
-                                  draft['payment_branch_id'],
-                                  dimensions
-                                      .where((r) => r['kind'] == 'branch')
-                                      .map(
-                                        (r) => (
-                                          r['_id'].toString(),
-                                          '${r['code']} · ${r['name']}',
-                                        ),
-                                      )
-                                      .toList(),
-                                  (v) => setState(
-                                    () => draft['payment_branch_id'] =
-                                        v?.isEmpty == true ? null : v,
-                                  ),
-                                ),
-                                select(
-                                  'Perlakuan biaya',
-                                  draft['biaya_mode'] ?? 'expense',
-                                  [
-                                    ('expense', 'Beban langsung'),
-                                    (
-                                      'landed_cost',
-                                      'Tambahkan ke nilai persediaan',
-                                    ),
-                                  ],
-                                  (v) =>
-                                      setState(() => draft['biaya_mode'] = v),
-                                  optional: false,
-                                ),
-                                select(
-                                  'Alokasi biaya',
-                                  draft['biaya_alokasi'] ?? 'per_nilai',
-                                  [
-                                    ('per_nilai', 'Berdasarkan nilai'),
-                                    ('per_qty', 'Berdasarkan jumlah'),
-                                  ],
-                                  (v) => setState(
-                                    () => draft['biaya_alokasi'] = v,
-                                  ),
-                                  optional: false,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: saving ? null : save,
-                      icon: saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(saving ? ('Menyimpan...').tr(context) : ('Simpan mutasi').tr(context)),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+    ),
   );
 }
 
@@ -930,7 +1016,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
       children: [
         TextField(
           controller: search,
-          decoration:  InputDecoration(
+          decoration: InputDecoration(
             labelText: ('Cari nama, kode atau barcode').tr(context),
             prefixIcon: Icon(Icons.search),
           ),
@@ -944,7 +1030,10 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
         ),
         if (loading) const LinearProgressIndicator(),
         if (error != null)
-          TextButton(onPressed: load, child: Text(posLocale(context).posb4fb1c3b1411((error).toString()))),
+          TextButton(
+            onPressed: load,
+            child: Text(posLocale(context).posb4fb1c3b1411((error).toString())),
+          ),
         Expanded(
           child: ListView(
             children: [
@@ -965,7 +1054,7 @@ class _TransferReferencePickerState extends State<_TransferReferencePicker> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton(
-              onPressed: page <= 1 || loading
+                onPressed: page <= 1 || loading
                     ? null
                     : () {
                         page--;

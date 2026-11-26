@@ -13,10 +13,10 @@ class PosStockQueries {
     }
   ''';
   static const String getStockLocations = r'''
-    query GetPOSStockLocationOptions {
+    query GetPOSStockLocationOptions($page: Int = 0) {
       getAllCabangs(
         filter: { status: "active", has_warehouse: true }
-        pagination: { page: 0, limit: 200 }
+        pagination: { page: $page, limit: 200 }
       ) {
         cabang {
           _id
@@ -87,12 +87,12 @@ class PosStockQueries {
   ''';
 
   static const String getLocationBalances = r'''
-    query GetPOSStockLocationBalances($inventoryId: ID!, $warehouseId: ID) {
+    query GetPOSStockLocationBalances($inventoryId: ID!, $warehouseId: ID, $page: Int = 0) {
       GetInventoryLocationBalances(
         inventaris_id: $inventoryId
         filter: { lokasi_cabang_id: $warehouseId }
         sorting: { qty: "desc" }
-        pagination: { page: 0, limit: 200 }
+        pagination: { page: $page, limit: 200 }
       ) {
         items {
           _id inventaris_id qty reserved_qty available_qty

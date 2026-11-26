@@ -70,24 +70,29 @@ class PosStockRepository {
   Future<Either<Failure, List<Map<String, dynamic>>>>
   getStockLocations() async {
     try {
-      final result = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosStockQueries.getStockLocations),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-      if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
+      final rows = <Map<String, dynamic>>[];
+      for (var page = 0; ; page++) {
+        final result = await _clientProvider.client.query(
+          QueryOptions(
+            document: gql(PosStockQueries.getStockLocations),
+            variables: {'page': page},
+            fetchPolicy: FetchPolicy.networkOnly,
+          ),
+        );
+        if (result.hasException) {
+          return Left(AppErrorHandler.handle(result.exception!));
+        }
+        final next =
+            result.data?['getAllCabangs']?['cabang'] as List? ?? const [];
+        rows.addAll(
+          next
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .where((row) => row['_id']?.toString().isNotEmpty == true)
+              .toList(),
+        );
+        if (next.length < 200) return Right(rows);
       }
-      final rows =
-          result.data?['getAllCabangs']?['cabang'] as List? ?? const [];
-      return Right(
-        rows
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .where((row) => row['_id']?.toString().isNotEmpty == true)
-            .toList(),
-      );
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
     }
@@ -266,26 +271,32 @@ class PosStockRepository {
     String warehouseId = '',
   }) async {
     try {
-      final result = await _clientProvider.client.query(
-        QueryOptions(
-          document: gql(PosStockQueries.getLocationBalances),
-          variables: {
-            'inventoryId': inventoryId,
-            'warehouseId': warehouseId.isEmpty ? null : warehouseId,
-          },
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-      if (result.hasException) {
-        return Left(AppErrorHandler.handle(result.exception!));
+      final rows = <Map<String, dynamic>>[];
+      for (var page = 0; ; page++) {
+        final result = await _clientProvider.client.query(
+          QueryOptions(
+            document: gql(PosStockQueries.getLocationBalances),
+            variables: {
+              'page': page,
+              'inventoryId': inventoryId,
+              'warehouseId': warehouseId.isEmpty ? null : warehouseId,
+            },
+            fetchPolicy: FetchPolicy.networkOnly,
+          ),
+        );
+        if (result.hasException) {
+          return Left(AppErrorHandler.handle(result.exception!));
+        }
+        final root = result.data?['GetInventoryLocationBalances'] as Map?;
+        final next = root?['items'] as List? ?? const [];
+        rows.addAll(
+          next
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .toList(),
+        );
+        if (next.length < 200) return Right(rows);
       }
-      final root = result.data?['GetInventoryLocationBalances'] as Map?;
-      return Right(
-        (root?['items'] as List? ?? const [])
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .toList(),
-      );
     } catch (error) {
       return Left(AppErrorHandler.handle(error));
     }

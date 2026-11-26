@@ -563,6 +563,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   String? _runningActionId;
   String? _runningActionLabel;
   bool _openingDisplayMove = false;
+  int _loadGeneration = 0;
 
   static const _limit = 20;
 
@@ -581,12 +582,14 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
 
   @override
   void dispose() {
+    _loadGeneration++;
     _debounce?.cancel();
     _search.dispose();
     super.dispose();
   }
 
   Future<void> _load({int? page}) async {
+    final generation = ++_loadGeneration;
     setState(() => _loading = true);
     final targetPage = page ?? _page;
     final result = await _repository.getDocuments(
@@ -603,7 +606,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       page: targetPage,
       limit: _limit,
     );
-    if (!mounted) return;
+    if (!mounted || generation != _loadGeneration) return;
     result.fold((failure) => AppToast.error(context, failure.message), (data) {
       setState(() {
         _items = data.items;
@@ -831,6 +834,7 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
   }
 
   void _onSearch(String _) {
+    _loadGeneration++;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () => _load(page: 1));
   }
@@ -1341,6 +1345,12 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
     });
     TextEditingController? note, date;
     try {
+      if (action == 'recover_transfer' || repo.pendingIntent(documentId:original['_id'].toString()) != null) {
+        final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) =>
+          PosTransferOperationPage(transfer:original,mode:'recover',repository:repo)));
+        if(changed == true && mounted) await _load(page:1);
+        return;
+      }
       final current = await repo.detail(original['_id'].toString());
       if (!mounted) return;
       setState(
@@ -2611,6 +2621,13 @@ class _InventoryDocumentPageState extends State<_InventoryDocumentPage> {
       purchaseHasPayable: item['payable_status'] != null,
     );
     if (widget.type == PosInventoryDocumentType.transfer) {
+      if(sl.isRegistered<GraphQLClientProvider>()) {
+        try {
+          if(PosTransferRepository(sl<GraphQLClientProvider>()).pendingIntent(documentId:item['_id'].toString()) != null) {
+            return ['recover_transfer'];
+          }
+        } on StateError { return ['recover_transfer']; }
+      }
       if (transferMaps(
         item['discrepancies'],
       ).any((r) => ['pending', 'approved'].contains(r['status']))) {
@@ -3463,6 +3480,8 @@ Color _statusColor(String value) => switch (value) {
 };
 
 String _actionLabel(String action) => switch (action) {
+  'recover_transfer' => AppLanguageController.instance.effectiveLocale.languageCode == 'en'
+      ? 'Check previous transfer' : 'Periksa transfer sebelumnya',
   'edit' => 'Ubah',
   'submit' => 'Ajukan',
   'approve' => 'Setujui',

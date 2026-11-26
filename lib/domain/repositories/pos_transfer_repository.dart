@@ -2,10 +2,118 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../../core/error/error_handler.dart';
 import '../../core/network/graphql_client_provider.dart';
 import '../../data/graphql/pos_transfer_queries.dart';
+import '../../core/network/pos_transfer_intent_store.dart';
 
 class PosTransferRepository {
   final GraphQLClientProvider provider;
   PosTransferRepository(this.provider);
+  static final _inFlight = <String, (String, Future<Map<String, dynamic>>)>{};
+  PosTransferIntentStore get _store => PosTransferIntentStore(
+    provider.sharedPreferences,
+    provider.subscriptionScope,
+  );
+  Map<String, dynamic>? pendingIntent({String? documentId}) =>
+      _store.load(documentId);
+
+  Future<Map<String, dynamic>> recoverPending({String? documentId}) {
+    final row = pendingIntent(documentId: documentId);
+    if (row == null) {
+      throw StateError('Tidak ada transfer yang perlu diperiksa.');
+    }
+    return execute(
+      row['document'] as String,
+      Map<String, dynamic>.from(row['variables'] as Map),
+      row['root'] as String,
+    );
+  }
+
+  Future<Map<String, dynamic>> execute(
+    String document,
+    Map<String, dynamic> variables,
+    String root,
+  ) {
+    final scope = provider.subscriptionScope;
+    final store = _store;
+    final id = variables['id']?.toString();
+    final key = store.key(id);
+    final signature = PosTransferIntentStore.signature(root, variables);
+    final running = _inFlight[key];
+    if (running != null) {
+      if (signature != running.$1) {
+        return Future.error(StateError('Transfer sebelumnya masih diproses.'));
+      }
+      return running.$2;
+    }
+    final future = _execute(store, scope, id, document, variables, root);
+    _inFlight[key] = (signature, future);
+    // Remove only our own entry, including after a failed durable write.
+    return future.whenComplete(() {
+      if (identical(_inFlight[key]?.$2, future)) _inFlight.remove(key);
+    });
+  }
+
+  Future<Map<String, dynamic>> _execute(
+    PosTransferIntentStore store,
+    String scope,
+    String? id,
+    String document,
+    Map<String, dynamic> variables,
+    String root,
+  ) async {
+    final replay = store.load(id) != null;
+    final row = await store.prepare(document, variables, root);
+    if (provider.subscriptionScope != scope) {
+      throw StateError('Operator berubah. Buka ulang transfer.');
+    }
+    try {
+      final result = await provider.client.mutate(
+        MutationOptions(
+          document: gql(row['document'] as String),
+          variables: Map<String, dynamic>.from(row['variables'] as Map),
+          fetchPolicy: FetchPolicy.noCache,
+          errorPolicy: ErrorPolicy.all,
+        ),
+      );
+      if (result.hasException) {
+        final error = result.exception!;
+        const definitive = {
+          'BAD_REQUEST',
+          'BAD_USER_INPUT',
+          'GRAPHQL_VALIDATION_FAILED',
+          'FORBIDDEN',
+          'UNAUTHORIZED',
+          'UNAUTHENTICATED',
+          'NOT_FOUND',
+        };
+        if (!replay &&
+            result.data?[root] is! Map &&
+            error.linkException == null &&
+            error.graphqlErrors.isNotEmpty &&
+            error.graphqlErrors.every(
+              (e) => definitive.contains(e.extensions?['code']),
+            )) {
+          await store.acknowledge(id, row['request_id'] as String);
+        }
+        throw Exception(AppErrorHandler.handle(error).message);
+      }
+      final data = result.data?[root];
+      if (data is! Map || data['_id'] is! String || (data['_id'] as String).isEmpty ||
+          (id != null && data['_id'] != id)) {
+        throw StateError(
+          'Hasil transfer belum terkonfirmasi. Periksa permintaan yang sama.',
+        );
+      }
+      await store.acknowledge(id, row['request_id'] as String);
+      if (provider.subscriptionScope != scope) {
+        throw StateError('Operator berubah. Muat ulang daftar transfer.');
+      }
+      return Map<String, dynamic>.from(data);
+    } catch (_) {
+      // Unknown outcomes retain the exact original document, payload and ID.
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> query(
     String document, [
     Map<String, dynamic> variables = const {},
@@ -111,7 +219,18 @@ class PosTransferRepository {
       args.addAll(['posting_date:\$posting_date', 'reason:\$reason']);
       variables.addAll({'posting_date': postingDate, 'reason': reason});
     }
-    return mutate(
+    if (pendingIntent(documentId: doc['_id'].toString()) != null) {
+      return Future.error(
+        StateError(
+          'Periksa transfer sebelumnya sebelum menjalankan aksi lain.',
+        ),
+      );
+    }
+    final perform =
+        ['submit', 'approve', 'reject', 'post', 'cancel'].contains(action)
+        ? execute
+        : mutate;
+    return perform(
       'mutation MobileTransferAction(${params.join(',')}) {$root(${args.join(',')}) {${PosTransferQueries.fields}}}',
       variables,
       root,

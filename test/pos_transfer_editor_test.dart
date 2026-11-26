@@ -9,6 +9,14 @@ class TransferFake extends Fake implements PosTransferRepository {
   final requests = <Map<String, dynamic>>[];
   Completer<Map<String, dynamic>>? pending;
   @override
+  Map<String, dynamic>? pendingIntent({String? documentId}) => null;
+  @override
+  Future<Map<String, dynamic>> execute(
+    String document,
+    Map<String, dynamic> variables,
+    String root,
+  ) => mutate(document, variables, root);
+  @override
   Future<List<Map<String, dynamic>>> warehouses() async => [
     {'_id': 'from', 'nama_cabang': 'Asal'},
     {'_id': 'to', 'nama_cabang': 'Tujuan'},
