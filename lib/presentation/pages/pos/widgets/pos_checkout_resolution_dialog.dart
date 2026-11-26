@@ -109,13 +109,14 @@ class _ResolutionState extends State<PosCheckoutResolutionDialog> {
       ),
       FilledButton(
         onPressed: () {
-          if (_form.currentState!.validate())
+          if (_form.currentState!.validate()) {
             Navigator.pop(context, {
               'resolution': _resolution,
               'note': _note.text.trim(),
               'username': _username.text.trim(),
               'pin': _pin.text,
             });
+          }
         },
         child: const PosText('Selesaikan percobaan'),
       ),

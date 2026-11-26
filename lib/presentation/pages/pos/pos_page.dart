@@ -218,11 +218,12 @@ class _PosPageViewState extends State<PosPageView> {
         ),
       );
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _recoveryError =
               'Status pembayaran belum dapat dipastikan. Periksa kembali.',
         );
+      }
     } finally {
       widget.onCheckoutRecoveryBusyChanged?.call(false);
       if (mounted) setState(() => _recoveringCheckout = false);

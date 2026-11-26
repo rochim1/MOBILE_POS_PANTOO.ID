@@ -44,6 +44,9 @@ class _Repo extends Fake implements PosRepository {
   Map<String, dynamic>? record = {
     'input': {
       'client_transaction_id': 'original-request-1234',
+      'shift_id': 'old-shift',
+      'tanggal': '2026-11-26T09:00:00Z',
+      'metode_pembayaran': 'transfer',
       'toko_id': 'store',
       'tipe_pesanan': 'take_away',
       'channel_penjualan': 'retail',
@@ -51,6 +54,7 @@ class _Repo extends Fake implements PosRepository {
       'customer_segment': 'regular',
     },
     'receipt': {
+      'store_name': 'Original outlet',
       'receipt_items': [
         {'inventaris_id': 'p', 'qty': 1.0, 'unit': 'unit', 'harga_jual': 100.0},
       ],
@@ -61,6 +65,8 @@ class _Repo extends Fake implements PosRepository {
   };
   int recoveries = 0;
   int cancellations = 0;
+  bool cancelFailure = false;
+  bool throwOnCancel = false;
   Completer<Either<Failure, PosTransactionResult>> response = Completer();
   @override
   Map<String, dynamic>? get pendingCheckout => record;
@@ -82,6 +88,10 @@ class _Repo extends Fake implements PosRepository {
     String? supervisorPin,
   }) async {
     cancellations++;
+    if (throwOnCancel) throw StateError('QA lost cancellation response');
+    if (cancelFailure) {
+      return const Left(ServerFailure('Server has not confirmed cancellation'));
+    }
     if (resolution == 'not_received' && note.length >= 5) {
       record = null;
       return const Right(true);
@@ -186,6 +196,7 @@ void main() {
       final (repo, bloc) = await open(tester, matching: true);
       bloc.changeStore();
       await tester.pumpAndSettle();
+      expect(find.text('Original outlet'), findsOneWidget);
       await tester.tap(find.text('Selesaikan pembayaran'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -318,6 +329,35 @@ void main() {
     expect(bloc.events.whereType<ClearCart>(), isEmpty);
     expect(tester.takeException(), isNull);
   });
+
+  for (final unexpected in [false, true]) {
+    testWidgets(
+      'failed resolution preserves proof and releases loading unexpected=$unexpected',
+      (tester) async {
+        final (repo, bloc) = await open(tester, matching: true);
+        repo.cancelFailure = !unexpected;
+        repo.throwOnCancel = unexpected;
+        await tester.tap(find.text('Selesaikan pembayaran'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('checkout_resolution_note')),
+          'No money received; invoice checked',
+        );
+        await tester.tap(find.text('Selesaikan percobaan'));
+        await tester.pumpAndSettle();
+        expect(repo.record, isNotNull);
+        expect(find.byKey(const Key('recover_checkout')), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(find.byKey(const Key('recover_checkout')))
+              .onPressed,
+          isNotNull,
+        );
+        expect(bloc.events.whereType<ClearCart>(), isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets(
     'late failure after leaving the page does not update disposed UI',

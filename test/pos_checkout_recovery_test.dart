@@ -873,10 +873,11 @@ void main() {
               originalException: Exception('lost original response'),
             );
           }
-          if (status == 'network-failure')
+          if (status == 'network-failure') {
             throw ServerException(
               originalException: Exception('lost cancellation response'),
             );
+          }
           yield Response(
             data: {
               '__typename': 'Mutation',

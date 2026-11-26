@@ -2814,24 +2814,27 @@ class PosRepository {
     String? supervisorUsername,
     String? supervisorPin,
   }) async {
-    if (_checkoutInFlight)
+    if (_checkoutInFlight) {
       return const Left(ServerFailure('Pembayaran masih diproses.'));
+    }
     _checkoutInFlight = true;
     try {
       final store = _checkoutStore();
       final record = store.load();
-      if (record == null)
+      if (record == null) {
         return const Left(
           ServerFailure('Tidak ada pembayaran untuk dipulihkan.'),
         );
+      }
       final input = record['input'] as Map;
       final id = input['client_transaction_id'];
-      if (requestId != null && requestId != id)
+      if (requestId != null && requestId != id) {
         return const Left(
           AuthFailure(
             'Referensi pembayaran berubah. Verifikasi PIN kasir asal.',
           ),
         );
+      }
       final response = await _clientProvider.client.mutate(
         MutationOptions(
           document: gql(PosQueries.cancelCheckout),
@@ -2844,12 +2847,14 @@ class PosRepository {
           },
         ),
       );
-      if (_checkoutStore().scope != store.scope)
+      if (_checkoutStore().scope != store.scope) {
         return const Left(
           AuthFailure('Identitas kasir berubah. Verifikasi PIN kasir asal.'),
         );
-      if (response.hasException)
+      }
+      if (response.hasException) {
         return Left(AppErrorHandler.handle(response.exception!));
+      }
       final data = response.data?['CancelPOSCheckout'];
       if (data is! Map ||
           data['request_id'] != id ||
@@ -3055,15 +3060,18 @@ class PosRepository {
             variables: {'input': _checkoutRecoveryInput(payload)},
           ),
         );
-        if (!currentScope())
+        if (!currentScope()) {
           return const Left(
             AuthFailure('Identitas kasir berubah. Verifikasi PIN kasir asal.'),
           );
-        if (check.hasException)
+        }
+        if (check.hasException) {
           return Left(AppErrorHandler.handle(check.exception!));
+        }
         final status = check.data?['GetPOSCheckoutRecovery'];
-        if (status is! Map || status['request_id'] != requestId)
+        if (status is! Map || status['request_id'] != requestId) {
           return const Left(uncertain);
+        }
         if (status['status'] == 'cancelled') {
           await store.resolveCancelled(
             requestId,
