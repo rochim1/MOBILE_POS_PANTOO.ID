@@ -77,6 +77,23 @@ void main() {
     cashReceived: cash,
   );
 
+  test('closed-shift proof is cancelled only by server acknowledgement before changing store', () async {
+    var writes = 0;
+    final client = GraphQLClient(cache: GraphQLCache(), link: Link.function((request, [forward]) async* {
+      writes++;
+      if (request.operation.operationName == 'CancelPOSCheckout') {
+        yield Response(data: {'CancelPOSCheckout': {'request_id': (request.variables['input'] as Map)['client_transaction_id'], 'status': 'cancelled', 'reason_code': 'not_received'}}, response: {});
+      } else {
+        throw ServerException(originalException: Exception('lost first response'));
+      }
+    }));
+    final repo = PosRepository(Provider(client), prefs); await pay(repo);
+    final original = repo.pendingCheckout; expect(original, isNotNull);
+    final result = await repo.cancelPendingCheckout(resolution: 'not_received', note: 'Invoice checked and no funds received');
+    expect(result.isRight(), true); expect(repo.pendingCheckout, isNull); expect(writes, 2);
+    expect(prefs.getKeys().any((key) => key.startsWith('pos_checkout_resolved_v1:')), true);
+  });
+
   test(
     'lost ACK survives repository restart and retries the original transaction ID',
     () async {
