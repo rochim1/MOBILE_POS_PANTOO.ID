@@ -186,7 +186,8 @@ void main() {
       );
       await tester.pumpWidget(app(repo, store));
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsNothing);
       final toggle = find.byKey(const Key('trade_filter_toggle'));
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
@@ -194,7 +195,8 @@ void main() {
       await tester.enterText(find.byType(TextField), 'INV-QA');
       await tester.tap(toggle);
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsNothing);
       expect(repo.writes, isEmpty);
       await tester.tap(toggle);
       await tester.pumpAndSettle();

@@ -1,5 +1,6 @@
 import '../../widgets/pos_record_skeletons.dart';
-import '../../widgets/pos_collapsible_filters.dart';
+import '../../widgets/pos_category_navigation.dart';
+import 'widgets/pos_trade_workspace_widgets.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -163,6 +164,7 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
     if (!mounted || generation != _generation) return;
     setState(() {
       _loading = false;
+      _loadingDetail = false;
       result.fold(
         (failure) {
           _error = failure.message;
@@ -191,6 +193,7 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
     if (!mounted || ticket != _generation) return;
     setState(() {
       _loading = false;
+      _loadingDetail = false;
       result.fold(
         (failure) {
           _error = failure.message;
@@ -308,7 +311,15 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _TradeEntryForm(options: options, kind: _kind),
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      constraints: const BoxConstraints(maxWidth: 720),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => PosTradeTheme(
+        child: _TradeEntryForm(options: options, kind: _kind),
+      ),
     );
     if (!mounted || generation != _generation || input == null) return;
     await _submit(key, input);
@@ -335,25 +346,119 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _TradePaymentForm(options: options, document: doc),
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      constraints: const BoxConstraints(maxWidth: 720),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => PosTradeTheme(
+        child: _TradePaymentForm(options: options, document: doc),
+      ),
     );
     if (!mounted || generation != _generation || input == null) return;
     await _submit(key, input);
   }
 
+  void _selectKind(PosTradeKind kind) {
+    if (_sending || (_kind == kind && _document == null)) return;
+    _kind = kind;
+    _search.clear();
+    _settled = false;
+    _message = '';
+    _loadPage(1);
+  }
+
+  bool _overdue(PosTradeDocument doc) {
+    final due = DateTime.tryParse(doc.dueDate ?? '');
+    final today = DateTime.tryParse(_options?.today ?? '');
+    return doc.outstanding > 0 &&
+        due != null &&
+        today != null &&
+        due.isBefore(today);
+  }
+
+  String _dueLabel(PosTradeDocument doc) => (doc.dueDate ?? '').isEmpty
+      ? tradeUiText(context, 'Belum ditentukan', 'Not specified')
+      : _date(doc.dueDate!);
+
+  bool _filtersExpanded = false;
+
   @override
   Widget build(BuildContext context) {
+    final l = posLocale(context), options = _options;
+    final categories = [
+      if (options?.viewAR == true)
+        PosCategoryItem(
+          value: PosTradeKind.receivable,
+          icon: Icons.call_received_rounded,
+          label: l.businessReceivables,
+        ),
+      if (options?.viewAP == true)
+        PosCategoryItem(
+          value: PosTradeKind.payable,
+          icon: Icons.call_made_rounded,
+          label: l.businessPayables,
+        ),
+    ];
+    return PosTradeTheme(
+      child: Material(
+        color: const Color(0xFFF7F8FA),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 760;
+            final content = _content(context, wide, categories);
+            if (!wide || categories.isEmpty) return content;
+            return Row(
+              children: [
+                AbsorbPointer(
+                  absorbing: _sending,
+                  child: PosCategorySidebar<PosTradeKind>(
+                    title: tradeUiText(
+                      context,
+                      'Kategori tagihan',
+                      'Bill categories',
+                    ),
+                    items: categories,
+                    selected: _kind,
+                    onSelected: _selectKind,
+                    expandedWidth: 230,
+                    footer: tradeUiText(
+                      context,
+                      'Piutang adalah tagihan pelanggan. Utang adalah kewajiban kepada pemasok.',
+                      'Receivables are amounts customers owe. Payables are amounts owed to suppliers.',
+                    ),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: content),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _content(
+    BuildContext context,
+    bool wide,
+    List<PosCategoryItem<PosTradeKind>> categories,
+  ) {
     final l = posLocale(context),
         options = _options,
         doc = _document,
         page = _page;
-    return Material(
-      color: const Color(0xFFF7F8FA),
+    final listView = doc == null && !_loadingDetail;
+    final filtered = _search.text.trim().isNotEmpty || _settled;
+    return SafeArea(
+      top: false,
       child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
+          key: const PageStorageKey('trade-workspace-scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             Row(
               children: [
@@ -361,10 +466,35 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
                   child: Text(
                     l.tradeTitle,
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
+                      color: Color(0xFF182230),
                     ),
                   ),
+                ),
+                IconButton(
+                  tooltip: tradeUiText(
+                    context,
+                    'Alur pencatatan',
+                    'How recording works',
+                  ),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text(l.tradeTitle),
+                      content: Text(
+                        l.tradePaymentNote,
+                        style: const TextStyle(height: 1.5),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(l.tradeCancel),
+                        ),
+                      ],
+                    ),
+                  ),
+                  icon: const Icon(Icons.info_outline),
                 ),
                 IconButton(
                   onPressed: _sending ? null : _load,
@@ -373,131 +503,208 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              l.tradePaymentNote,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF667085),
-                height: 1.5,
+            const SizedBox(height: 6),
+            if (_sending)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: LinearProgressIndicator(),
               ),
-            ),
-            if (_pendingError.isNotEmpty) _notice(_pendingError),
+            if (_pendingError.isNotEmpty)
+              PosTradeNotice(text: _pendingError, tone: TradeNoticeTone.error),
             if (_pending.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _notice(l.tradePendingNote),
+              PosTradeNotice(
+                text: l.tradePendingNote,
+                tone: TradeNoticeTone.warning,
+              ),
               for (final entry in _pending.entries)
-                Card(
-                  elevation: 0,
-                  child: ListTile(
-                    title: Text(l.tradePending),
-                    subtitle: Text(entry.value['reference']?.toString() ?? ''),
-                    trailing: TextButton(
+                PosTradeNotice(
+                  text:
+                      l.tradePending +
+                      (entry.value['reference']?.toString().isNotEmpty == true
+                          ? ' · ${entry.value['reference']}'
+                          : ''),
+                  tone: TradeNoticeTone.warning,
+                  action: Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
                       onPressed: _sending
                           ? null
                           : () => _submit(entry.key, entry.value),
-                      child: Text(l.tradeRetrySame),
+                      icon: const Icon(Icons.sync),
+                      label: Text(l.tradeRetrySame),
                     ),
                   ),
                 ),
             ],
-            if (_message.isNotEmpty) _notice(_message),
-            if (_error.isNotEmpty) ...[
-              _notice(_error),
-              TextButton(
-                onPressed: _sending ? null : _load,
-                child: Text(l.financialRetry),
+            if (_message.isNotEmpty)
+              PosTradeNotice(text: _message, tone: TradeNoticeTone.success),
+            if (_error.isNotEmpty)
+              PosTradeNotice(
+                text: _error,
+                tone: TradeNoticeTone.error,
+                action: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: _sending ? null : _load,
+                    child: Text(l.financialRetry),
+                  ),
+                ),
               ),
-            ],
-            if (options != null) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+            if (options != null && listView) ...[
+              PosMetricGrid(
+                compact: true,
                 children: [
-                  if (options.viewAR)
-                    ChoiceChip(
-                      label: Text(l.businessReceivables),
-                      selected: _kind == PosTradeKind.receivable,
-                      onSelected: _sending
-                          ? null
-                          : (_) {
-                              _kind = PosTradeKind.receivable;
-                              _search.clear();
-                              _settled = false;
-                              _message = '';
-                              _loadPage(1);
-                            },
-                    ),
-                  if (options.viewAP)
-                    ChoiceChip(
-                      label: Text(l.businessPayables),
-                      selected: _kind == PosTradeKind.payable,
-                      onSelected: _sending
-                          ? null
-                          : (_) {
-                              _kind = PosTradeKind.payable;
-                              _search.clear();
-                              _settled = false;
-                              _message = '';
-                              _loadPage(1);
-                            },
-                    ),
+                  PosMetricCard(
+                    compact: true,
+                    title: l.businessOutstanding,
+                    value: _money(page?.outstanding ?? 0),
+                    icon: Icons.account_balance_wallet_outlined,
+                    isLoading: _loading,
+                  ),
+                  PosMetricCard(
+                    compact: true,
+                    title: tradeUiText(context, 'Jumlah tagihan', 'Bill count'),
+                    value: '${page?.totalCount ?? 0}',
+                    icon: Icons.description_outlined,
+                    isLoading: _loading,
+                  ),
                 ],
               ),
-              if (_kind == PosTradeKind.receivable && options.arScope == 'pos')
-                _notice(l.tradePOSScope),
-              if (doc == null && options.canCreate(_kind))
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: FilledButton.icon(
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  if (!wide && categories.isNotEmpty)
+                    Expanded(
+                      child: AbsorbPointer(
+                        absorbing: _sending,
+                        child: PosCategoryDropdown<PosTradeKind>(
+                          key: ValueKey('trade-kind-${_kind.name}'),
+                          label: tradeUiText(
+                            context,
+                            'Jenis tagihan',
+                            'Bill type',
+                          ),
+                          items: categories,
+                          selected: _kind,
+                          onSelected: _selectKind,
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Text(
+                        _kind == PosTradeKind.receivable
+                            ? l.businessReceivables
+                            : l.businessPayables,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  Semantics(
+                    expanded: _filtersExpanded,
+                    child: IconButton.outlined(
+                      key: const Key('trade_filter_toggle'),
+                      tooltip: tradeUiText(
+                        context,
+                        'Filter tagihan',
+                        'Bill filters',
+                      ),
+                      onPressed: _sending
+                          ? null
+                          : () => setState(
+                              () => _filtersExpanded = !_filtersExpanded,
+                            ),
+                      icon: Badge(
+                        isLabelVisible: _settled,
+                        label: const Text('1'),
+                        child: Icon(
+                          _filtersExpanded
+                              ? Icons.filter_list_off
+                              : Icons.filter_list_rounded,
+                        ),
+                      ),
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final search = TextField(
+                    key: const Key('trade_search'),
+                    controller: _search,
+                    enabled: !_sending,
+                    onChanged: (_) => setState(() {}),
+                    maxLength: 120,
+                    decoration: InputDecoration(
+                      labelText: l.tradeSearch,
+                      counterText: '',
+                      suffixIcon: IconButton(
+                        tooltip: tradeUiText(
+                          context,
+                          'Cari tagihan',
+                          'Search bills',
+                        ),
+                        onPressed: _sending ? null : () => _loadPage(1),
+                        icon: const Icon(Icons.search),
+                      ),
+                    ),
+                    onSubmitted: (_) => _loadPage(1),
+                  );
+                  final create = FilledButton.icon(
+                    key: const Key('trade_create'),
                     onPressed: _loading || _sending || _pendingError.isNotEmpty
                         ? null
                         : _create,
-                    icon: const Icon(Icons.add),
-                    label: Text(l.tradeCreate),
+                    icon: const Icon(Icons.add, size: 20),
+                    label: Text(l.tradeCreate, textAlign: TextAlign.center),
+                  );
+                  if (!options.canCreate(_kind)) return search;
+                  if (constraints.maxWidth < 520) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [search, const SizedBox(height: 10), create],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: search),
+                      const SizedBox(width: 12),
+                      create,
+                    ],
+                  );
+                },
+              ),
+              if (_filtersExpanded)
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
                   ),
-                ),
-            ],
-            if (_loading)
-              PosTradeContentSkeleton(
-                detail:
-                    _loadingDetail ||
-                    (!_initialOpened && widget.initialDocumentId != null),
-              ),
-            if (_sending)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            if (!_loading && options != null && doc == null) ...[
-              const SizedBox(height: 16),
-              PosCollapsibleFilters(
-                toggleKey: const Key('trade_filter_toggle'),
-                activeCount: [
-                  _search.text.trim().isNotEmpty,
-                  _settled,
-                ].where((active) => active).length,
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _search,
-                      enabled: !_sending,
-                      onChanged: (_) => setState(() {}),
-                      maxLength: 120,
-                      decoration: InputDecoration(
-                        labelText: l.tradeSearch,
-                        counterText: '',
-                        suffixIcon: IconButton(
-                          onPressed: _sending ? null : () => _loadPage(1),
-                          icon: const Icon(Icons.search),
-                        ),
-                      ),
-                      onSubmitted: (_) => _loadPage(1),
-                    ),
-                    SwitchListTile(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE1E5E9)),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(l.tradeSettled),
+                      title: Text(
+                        l.tradeSettled,
+                        style: const TextStyle(fontSize: 14),
+                      ),
                       value: _settled,
                       onChanged: _sending
                           ? null
@@ -506,111 +713,176 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
                               _loadPage(1);
                             },
                     ),
-                  ],
+                  ),
                 ),
+              if (_kind == PosTradeKind.receivable && options.arScope == 'pos')
+                PosTradeNotice(text: l.tradePOSScope),
+              const SizedBox(height: 16),
+            ],
+            if (_loading)
+              PosTradeContentSkeleton(
+                detail:
+                    _loadingDetail ||
+                    (!_initialOpened && widget.initialDocumentId != null),
               ),
-              if (page != null) ...[
-                PosMetricGrid(
-                  children: [
-                    PosMetricCard(
-                      title: l.businessOutstanding,
-                      value: _money(page.outstanding),
-                      icon: Icons.account_balance_wallet_outlined,
-                      description: l.businessAllSources,
-                    ),
-                    PosMetricCard(
-                      title: l.businessOpenDocuments,
-                      value: '${page.totalCount}',
-                      icon: Icons.description_outlined,
-                      description: l.businessAllSources,
-                    ),
-                  ],
+            if (!_loading &&
+                options != null &&
+                doc == null &&
+                page != null) ...[
+              if (page.items.isEmpty)
+                PosTradeEmptyState(
+                  filtered: filtered,
+                  onReset: _sending
+                      ? null
+                      : () {
+                          _search.clear();
+                          _settled = false;
+                          _loadPage(1);
+                        },
                 ),
-                const SizedBox(height: 16),
-                if (page.items.isEmpty) Text(l.businessEmpty),
-                for (final item in page.items)
-                  Card(
-                    elevation: 0,
-                    child: ListTile(
-                      onTap: _sending ? null : () => _open(item.kind, item.id),
-                      title: Text(item.party),
-                      subtitle: Text(
-                        '${item.reference.isEmpty ? item.number : item.reference}\n${l.businessOutstanding}: ${_money(item.outstanding)}',
-                      ),
-                      isThreeLine: true,
-                      trailing: const Icon(Icons.chevron_right),
+              for (final item in page.items)
+                PosTradeDocumentTile(
+                  key: ValueKey('trade-document-${item.kind.name}-${item.id}'),
+                  document: item,
+                  amount: _money(item.outstanding),
+                  total: _money(item.amount),
+                  dueDate: _dueLabel(item),
+                  overdue: _overdue(item),
+                  onTap: _sending ? null : () => _open(item.kind, item.id),
+                ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    '${l.businessPage} ${page.page}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF667085),
                     ),
                   ),
-                Row(
-                  children: [
-                    Expanded(child: Text('${l.businessPage} ${page.page}')),
-                    TextButton(
-                      onPressed: _sending || page.page <= 1
-                          ? null
-                          : () => _loadPage(page.page - 1),
-                      child: Text(l.financialPrevious),
-                    ),
-                    TextButton(
-                      onPressed:
-                          _sending || page.page * page.limit >= page.totalCount
-                          ? null
-                          : () => _loadPage(page.page + 1),
-                      child: Text(l.financialNext),
-                    ),
-                  ],
-                ),
-              ],
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      TextButton(
+                        onPressed: _sending || page.page <= 1
+                            ? null
+                            : () => _loadPage(page.page - 1),
+                        child: Text(l.financialPrevious),
+                      ),
+                      TextButton(
+                        onPressed:
+                            _sending ||
+                                page.page * page.limit >= page.totalCount
+                            ? null
+                            : () => _loadPage(page.page + 1),
+                        child: Text(l.financialNext),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
             if (!_loading && doc != null) ...[
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
+                  key: const Key('trade_back_to_list'),
                   onPressed: _sending
                       ? null
                       : () => _loadPage(_page?.page ?? 1),
                   icon: const Icon(Icons.arrow_back),
-                  label: Text(l.businessDetails),
+                  label: Text(
+                    tradeUiText(context, 'Kembali ke daftar', 'Back to list'),
+                  ),
                 ),
               ),
-              Text(
-                doc.party,
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE1E5E9)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      doc.party,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF182230),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      doc.reference.isEmpty ? doc.number : doc.reference,
+                      style: const TextStyle(
+                        color: Color(0xFF667085),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    PosTradeStatusBadge(document: doc, overdue: _overdue(doc)),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: [
+                        Text(
+                          '${l.businessDate}: ${_date(doc.date)}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        Text(
+                          '${l.businessDueDate}: ${_dueLabel(doc)}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              Text(doc.reference.isEmpty ? doc.number : doc.reference),
-              Text(
-                '${l.businessDate}: ${_date(doc.date)} · ${l.businessDueDate}: ${doc.dueDate == null ? '—' : _date(doc.dueDate!)}',
-                style: const TextStyle(fontSize: 12, height: 1.6),
-              ),
-              if (doc.basis == 'opening') _notice(l.tradeOpeningNote),
-              const SizedBox(height: 14),
+              if (doc.basis == 'opening')
+                PosTradeNotice(text: l.tradeOpeningNote),
+              const SizedBox(height: 12),
               PosMetricGrid(
+                compact: true,
                 children: [
                   PosMetricCard(
-                    title: l.businessAmount,
-                    value: _money(doc.amount),
-                    icon: Icons.description_outlined,
-                  ),
-                  PosMetricCard(
+                    compact: true,
                     title: l.businessOutstanding,
                     value: _money(doc.outstanding),
                     icon: Icons.account_balance_wallet_outlined,
                   ),
                   PosMetricCard(
-                    title: l.businessPaid,
+                    compact: true,
+                    title: l.businessAmount,
+                    value: _money(doc.amount),
+                    icon: Icons.description_outlined,
+                  ),
+                  PosMetricCard(
+                    compact: true,
+                    title: doc.kind == PosTradeKind.receivable
+                        ? tradeUiText(context, 'Sudah diterima', 'Received')
+                        : tradeUiText(context, 'Sudah dibayar', 'Paid'),
                     value: _money(doc.paid),
                     icon: Icons.payments_outlined,
                   ),
                   if (doc.credited > 0)
                     PosMetricCard(
+                      compact: true,
                       title: l.businessCredited,
                       value: _money(doc.credited),
                       icon: Icons.undo_outlined,
                     ),
                   if (doc.withheld > 0)
                     PosMetricCard(
+                      compact: true,
                       title: l.businessWithheld,
                       value: _money(doc.withheld),
                       icon: Icons.receipt_outlined,
@@ -635,20 +907,31 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
               if (doc.notes.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text(doc.notes),
+                  child: Text(
+                    doc.notes,
+                    style: const TextStyle(fontSize: 14, height: 1.5),
+                  ),
                 ),
               const SizedBox(height: 24),
               Text(
                 l.tradeHistory,
                 style: const TextStyle(
                   fontSize: 17,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               if (doc.payments.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(l.tradeNoHistory),
+                  child: PosTradeNotice(
+                    text: doc.paid > 0 || doc.paymentCount > 0
+                        ? tradeUiText(
+                            context,
+                            'Rincian bukti pembayaran belum tersedia pada riwayat ini.',
+                            'Payment evidence details are not available in this history.',
+                          )
+                        : l.tradeNoHistory,
+                  ),
                 ),
               if (doc.paymentCount > doc.payments.length)
                 Text(
@@ -657,13 +940,27 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
                 ),
               for (final payment in doc.payments)
                 Card(
+                  color: Colors.white,
                   elevation: 0,
+                  margin: const EdgeInsets.only(top: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFFE1E5E9)),
+                  ),
                   child: ListTile(
-                    title: Text(_money(payment.amount)),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    title: Text(
+                      _money(payment.amount),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     subtitle: Text(
                       '${_date(payment.date)} · ${payment.reference}\n${posStatusLabel(payment.status, context)}',
                     ),
                     isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
                     onTap: () => showDialog<void>(
                       context: context,
                       builder: (ctx) => AlertDialog(
@@ -689,20 +986,6 @@ class _TradeWorkspaceState extends State<PosTradeWorkspacePage> {
       ),
     );
   }
-
-  Widget _notice(String text) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
-      ),
-      child: Text(text, style: const TextStyle(fontSize: 12, height: 1.5)),
-    ),
-  );
 }
 
 class _TradeEntryForm extends StatefulWidget {
@@ -834,21 +1117,18 @@ class _TradeEntryFormState extends State<_TradeEntryForm> {
             mainAxisSize: MainAxisSize.min,
             spacing: 16,
             children: [
-              Text(
-                l.tradeCreate,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                l.tradeManualNote,
-                style: const TextStyle(fontSize: 12, height: 1.5),
-              ),
+              PosTradeFormHeader(title: l.tradeCreate),
+              PosTradeNotice(text: l.tradeManualNote),
               DropdownButtonFormField<String>(
                 initialValue: _basis,
                 isExpanded: true,
-                decoration: InputDecoration(labelText: l.tradeDetails),
+                decoration: InputDecoration(
+                  labelText: tradeUiText(
+                    context,
+                    'Jenis pencatatan',
+                    'Record type',
+                  ),
+                ),
                 items: [
                   DropdownMenuItem(
                     value: 'transaction',
@@ -1109,18 +1389,26 @@ class _TradePaymentFormState extends State<_TradePaymentForm> {
             mainAxisSize: MainAxisSize.min,
             spacing: 16,
             children: [
-              Text(
-                ar ? l.tradeReceive : l.tradePay,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              PosTradeFormHeader(title: ar ? l.tradeReceive : l.tradePay),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 4,
                 children: [
-                  Text(doc.party),
+                  Text(
+                    doc.party,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Text(doc.reference.isEmpty ? doc.number : doc.reference),
+                  Text(
+                    '${l.businessOutstanding}: Rp ${formatRupiahAmount(doc.outstanding)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
                   Text(
                     l.tradePaymentNote,
                     style: const TextStyle(fontSize: 12, height: 1.5),
@@ -1151,14 +1439,24 @@ class _TradePaymentFormState extends State<_TradePaymentForm> {
                 ),
               if (_method == 'cash' && !ar)
                 Text(
-                  '${l.tradeCashAccount}: ${widget.options.data['ap_cash_name'] ?? '—'}',
+                  '${tradeUiText(context, 'Kas pembayaran', 'Payment cash account')}: ${widget.options.data['ap_cash_name'] ?? '—'}',
                 ),
               TextFormField(
                 controller: _amount,
                 keyboardType: TextInputType.number,
                 inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
-                  labelText: l.businessAmount,
+                  labelText: ar
+                      ? tradeUiText(
+                          context,
+                          'Jumlah penerimaan',
+                          'Amount received',
+                        )
+                      : tradeUiText(
+                          context,
+                          'Jumlah pembayaran',
+                          'Payment amount',
+                        ),
                   prefixText: 'Rp ',
                 ),
                 validator: (v) {
@@ -1193,7 +1491,13 @@ class _TradePaymentFormState extends State<_TradePaymentForm> {
               DropdownButtonFormField<String>(
                 initialValue: _method,
                 isExpanded: true,
-                decoration: InputDecoration(labelText: l.businessDetails),
+                decoration: InputDecoration(
+                  labelText: tradeUiText(
+                    context,
+                    'Metode pembayaran',
+                    'Payment method',
+                  ),
+                ),
                 items: [
                   DropdownMenuItem(
                     value: 'transfer',

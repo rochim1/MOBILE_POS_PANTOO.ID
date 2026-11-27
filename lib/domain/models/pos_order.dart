@@ -21,6 +21,12 @@ class PosOrder {
   // sumber order. Data baru tetap selalu mengisi fallback dari factory.
   final String? source;
   final List<Map<String, dynamic>> items;
+  final String? salesInvoiceId;
+  final String dueDate;
+  final String storeName;
+  final double? paidAmount;
+  final double? outstandingAmount;
+  final double creditedAmount;
 
   const PosOrder({
     required this.id,
@@ -43,6 +49,12 @@ class PosOrder {
     this.isInvoice = false,
     this.source = 'kasir',
     this.items = const [],
+    this.salesInvoiceId,
+    this.dueDate = '',
+    this.storeName = '',
+    this.paidAmount,
+    this.outstandingAmount,
+    this.creditedAmount = 0,
   }) : subtotal = subtotal ?? total;
 
   static DateTime parseDateValue(dynamic value) {
@@ -90,6 +102,15 @@ class PosOrder {
           json['status_pembayaran']?.toString() ??
           (json['metode_pembayaran'] == 'tempo' ? 'belum_bayar' : 'lunas'),
       isInvoice: false,
+      salesInvoiceId: json['sales_invoice_id']?.toString(),
+      dueDate: json['due_date']?.toString() ?? '',
+      storeName: json['toko_nama']?.toString() ?? '',
+      paidAmount: double.tryParse(json['paid_amount']?.toString() ?? ''),
+      outstandingAmount: double.tryParse(
+        json['outstanding_amount']?.toString() ?? '',
+      ),
+      creditedAmount:
+          double.tryParse(json['credited_amount']?.toString() ?? '') ?? 0,
       source: json['source']?.toString() ?? 'kasir',
       items: (json['items'] as List? ?? const [])
           .map((item) => Map<String, dynamic>.from(item as Map))
@@ -123,6 +144,10 @@ class PosOrder {
       status: json['status']?.toString() ?? 'Baru',
       paymentStatus: json['status_pembayaran']?.toString() ?? 'belum_bayar',
       isInvoice: true,
+      storeName:
+          (json['toko'] is Map ? json['toko']['nama_toko'] : null)
+              ?.toString() ??
+          '',
       source: json['source']?.toString() ?? 'kasir_mobile_invoice',
       items: (json['items'] as List? ?? const [])
           .map((item) => Map<String, dynamic>.from(item as Map))

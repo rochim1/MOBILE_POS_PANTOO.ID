@@ -13,12 +13,15 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos_product_management/pos_p
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_product_page.dart';
 
 class _Pos extends Cubit<PosState> implements PosBloc {
-  _Pos({List<PosProduct> products = const []})
+  _Pos({List<PosProduct> products = const [], bool canImport = false})
     : super(
         PosState(
           products: products,
           runtimeConfig: {
-            'permissions': {'manage_products': true},
+            'permissions': {
+              'manage_products': true,
+              'import_products': canImport,
+            },
           },
         ),
       );
@@ -44,6 +47,51 @@ class _Catalog extends Fake implements PosProductManagementRepository {
 }
 
 void main() {
+  for (final width in [320.0, 411.0, 760.0, 1200.0]) {
+    testWidgets('catalog import aligns with filter at width $width', (
+      tester,
+    ) async {
+      await sl.reset();
+      final pos = _Pos(canImport: true);
+      sl.registerFactory<PosProductManagementBloc>(
+        () => PosProductManagementBloc(_Catalog()),
+      );
+      addTearDown(() async {
+        await pos.close();
+        await sl.reset();
+      });
+      await tester.binding.setSurfaceSize(Size(width, 850));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        BlocProvider<PosBloc>.value(
+          value: pos,
+          child: MaterialApp(
+            locale: const Locale('id'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(body: PosProductPage()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final filter = find.byIcon(Icons.tune);
+      final importButton = find.byIcon(Icons.upload_file);
+      expect(importButton, findsOneWidget);
+      expect(tester.getCenter(importButton).dy, tester.getCenter(filter).dy);
+      expect(
+        tester.getCenter(importButton).dx,
+        greaterThan(tester.getCenter(filter).dx),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.tap(filter);
+      await tester.pumpAndSettle();
+      expect(find.text('Filter Produk'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    });
+  }
+
   for (final mode in [(411.0, true), (1200.0, true), (1200.0, false)]) {
     testWidgets('nonstock service shows unlimited in catalog $mode', (
       tester,

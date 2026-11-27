@@ -196,16 +196,26 @@ class _ReportViewState extends State<_ReportView> {
 
   Widget _loadingReport() => switch (_section) {
     _Section.summary => const _Skeleton(),
-    _Section.topReports => const Column(children: [
-      PosReportRowsSkeleton(),
-      SizedBox(height: 18),
-      PosReportRowsSkeleton(),
-    ]),
-    _Section.cash => Column(children: [
-      PosMetricGrid(children: List.generate(2, (_) => const PosMetricCardSkeleton())),
-      const SizedBox(height: 18),
-      const PosReportRowsSkeleton(),
-    ]),
+    _Section.topReports => const Column(
+      children: [
+        PosReportRowsSkeleton(),
+        SizedBox(height: 18),
+        PosReportRowsSkeleton(),
+      ],
+    ),
+    _Section.cash => Column(
+      children: [
+        PosMetricGrid(
+          compact: true,
+          children: List.generate(
+            2,
+            (_) => const PosMetricCardSkeleton(compact: true),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const PosReportRowsSkeleton(),
+      ],
+    ),
     _ => const PosReportRowsSkeleton(),
   };
 
@@ -384,6 +394,7 @@ class _ReportViewState extends State<_ReportView> {
     );
     final metrics = [
       PosMetricCard(
+        compact: true,
         title: 'Total Penjualan'.tr(context),
         value: _money.format(stats.todayRevenue ?? 0),
         icon: Icons.payments_outlined,
@@ -391,6 +402,7 @@ class _ReportViewState extends State<_ReportView> {
         growth: stats.revenueGrowth,
       ),
       PosMetricCard(
+        compact: true,
         title: 'Total Transaksi'.tr(context),
         value: NumberFormat.decimalPattern(
           'id_ID',
@@ -400,12 +412,14 @@ class _ReportViewState extends State<_ReportView> {
         growth: stats.transactionGrowth,
       ),
       PosMetricCard(
+        compact: true,
         title: 'Rata-rata / Transaksi'.tr(context),
         value: _money.format(stats.todayAvgOrder ?? 0),
         icon: Icons.analytics_outlined,
         description: posLocale(context).reportAverageTransaction,
       ),
       PosMetricCard(
+        compact: true,
         title: 'Item Produk Teratas'.tr(context),
         value: NumberFormat.decimalPattern('id_ID').format(topQty),
         icon: Icons.inventory_2_outlined,
@@ -414,7 +428,7 @@ class _ReportViewState extends State<_ReportView> {
     ];
     return Column(
       children: [
-        PosMetricGrid(children: metrics),
+        PosMetricGrid(compact: true, children: metrics),
         const SizedBox(height: 18),
         _chart(data.dailySales, period),
         const SizedBox(height: 18),
@@ -693,6 +707,7 @@ class _ReportViewState extends State<_ReportView> {
     return Column(
       children: [
         PosMetricGrid(
+          compact: true,
           children: [
             PosStatCard(
               label: ('Penerimaan Tunai').tr(context),
@@ -1094,7 +1109,11 @@ class _SkeletonState extends State<_Skeleton>
       return Column(
         children: [
           PosMetricGrid(
-            children: List.generate(4, (_) => const PosMetricCardSkeleton()),
+            compact: true,
+            children: List.generate(
+              4,
+              (_) => const PosMetricCardSkeleton(compact: true),
+            ),
           ),
           const SizedBox(height: 18),
           Container(

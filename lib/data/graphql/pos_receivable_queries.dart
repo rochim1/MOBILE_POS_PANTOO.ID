@@ -12,6 +12,11 @@ class PosReceivableQueries {
   }''';
   static const detail =
       '''query POSReceivable(\$_id: ID!) { GetPOSReceivable(_id: \$_id) { $fields } }''';
+  static const printDetail =
+      '''query POSInvoicePrint(\$_id: ID!) { GetPOSReceivable(_id: \$_id) { $fields
+      customer_address customer_tax_number currency notes net_amount tax_amount branch_name
+      lines { description quantity unit_price discount line_net }
+    } }''';
   static const options = r'''query POSReceiptOptions { GetSalesInvoiceOptions {
     cash_accounts { code name } banks { _id name account_number coa_code }
   } }''';

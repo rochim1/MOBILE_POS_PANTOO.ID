@@ -119,7 +119,10 @@ class PosPurchaseOrderDocument {
         footer: (context) => pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Text(
-            posCurrentLocale().pos61f7b0c13f15((context.pageNumber).toString(), (context.pagesCount).toString()),
+            posCurrentLocale().pos61f7b0c13f15(
+              (context.pageNumber).toString(),
+              (context.pagesCount).toString(),
+            ),
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
           ),
         ),
@@ -149,7 +152,16 @@ class PosPurchaseOrderDocument {
             spacing: 12,
             runSpacing: 5,
             children: [
-              _field('Pengiriman', _date(purchase['tanggal_pengiriman'])),
+              if (_string(purchase['required_by_date']).isNotEmpty)
+                _field(
+                  'Dibutuhkan paling lambat',
+                  _date(purchase['required_by_date']),
+                ),
+              if (_string(purchase['tanggal_pengiriman']).isNotEmpty)
+                _field(
+                  'Estimasi kirim dari pemasok',
+                  _date(purchase['tanggal_pengiriman']),
+                ),
               _field('Jatuh tempo', _date(purchase['due_date'])),
               _field('Status', _string(purchase['status']).toUpperCase()),
               _field('Dibuat oleh', creatorName),
@@ -249,7 +261,12 @@ class PosPurchaseOrderDocument {
             pw.SizedBox(height: 16),
             _block('Jadwal Termin Pembayaran', const []),
             pw.TableHelper.fromTextArray(
-              headers: ['Termin', 'Jatuh tempo', 'Jumlah', 'Status'].map((label) => label.trCurrent()).toList(),
+              headers: [
+                'Termin',
+                'Jatuh tempo',
+                'Jumlah',
+                'Status',
+              ].map((label) => label.trCurrent()).toList(),
               data: [
                 for (final raw
                     in (purchase['jadwal_termin'] as List).whereType<Map>())
@@ -274,7 +291,9 @@ class PosPurchaseOrderDocument {
           ],
           pw.SizedBox(height: 16),
           pw.Text(
-            posCurrentLocale().posa8f1911e24f6((_dateTime(DateTime.now())).toString()),
+            posCurrentLocale().posa8f1911e24f6(
+              (_dateTime(DateTime.now())).toString(),
+            ),
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
           ),
         ],
@@ -354,7 +373,10 @@ class PosPurchaseOrderDocument {
     final parsed = DateTime.tryParse(raw);
     return parsed == null
         ? raw
-        : DateFormat('dd MMM yyyy', AppLanguageController.instance.effectiveLocale.languageCode).format(parsed);
+        : DateFormat(
+            'dd MMM yyyy',
+            AppLanguageController.instance.effectiveLocale.languageCode,
+          ).format(parsed);
   }
 
   static String _dateTime(Object? value) {
@@ -362,6 +384,9 @@ class PosPurchaseOrderDocument {
     final parsed = DateTime.tryParse(raw);
     return parsed == null
         ? (raw.isEmpty ? '-' : raw)
-        : DateFormat('dd MMM yyyy, HH:mm', AppLanguageController.instance.effectiveLocale.languageCode).format(parsed.toLocal());
+        : DateFormat(
+            'dd MMM yyyy, HH:mm',
+            AppLanguageController.instance.effectiveLocale.languageCode,
+          ).format(parsed.toLocal());
   }
 }

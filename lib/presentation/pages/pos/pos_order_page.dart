@@ -20,9 +20,12 @@ import '../../widgets/pos_keyboard_stable_sheet.dart';
 import 'pos_payment_page.dart';
 import '../../widgets/pos_ui.dart';
 import '../../widgets/pos_category_navigation.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
+import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:printing/printing.dart';
+import '../../../../core/network/graphql_client_provider.dart';
+import 'utils/pos_invoice_source.dart';
+import 'utils/pos_customer_invoice_document.dart';
+import 'utils/pos_business_print_branding.dart';
 import '../../../../core/receipt/pos_receipt_document_builder.dart';
 import '../../../../core/receipt/pos_receipt_print_service.dart';
 
@@ -40,6 +43,7 @@ class PosOrderPage extends StatefulWidget {
 class _PosOrderPageState extends State<PosOrderPage> {
   final TextEditingController _searchController = TextEditingController();
   bool _filtersExpanded = false;
+  bool _printingInvoice = false;
   String _searchQuery = '';
   String _selectedStatus = 'Semua';
   String _selectedCashier = 'Semua';
@@ -123,13 +127,14 @@ class _PosOrderPageState extends State<PosOrderPage> {
             final compact = constraints.maxWidth < 760;
             final content = Column(
               children: [
-                _buildTransactionFilters(
-                  cashiers,
-                  compact: compact,
-                  maxPanelHeight: (constraints.maxHeight * .45 - 48)
-                      .clamp(0.0, 240.0)
-                      .toDouble(),
-                ),
+                if (!compact || _filtersExpanded)
+                  _buildTransactionFilters(
+                    cashiers,
+                    compact: compact,
+                    maxPanelHeight: (constraints.maxHeight * .45 - 48)
+                        .clamp(0.0, 240.0)
+                        .toDouble(),
+                  ),
                 const Divider(height: 1),
                 Expanded(
                   child: Padding(
@@ -183,12 +188,20 @@ class _PosOrderPageState extends State<PosOrderPage> {
                 Container(
                   color: Colors.white,
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-                  child: PosCategoryDropdown<_OrderCategory>(
-                    label: ('Kategori order').tr(context),
-                    items: categories,
-                    selected: _selectedCategory,
-                    onSelected: (value) =>
-                        setState(() => _selectedCategory = value),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: PosCategoryDropdown<_OrderCategory>(
+                          label: ('Kategori order').tr(context),
+                          items: categories,
+                          selected: _selectedCategory,
+                          onSelected: (value) =>
+                              setState(() => _selectedCategory = value),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _buildFilterToggle(),
+                    ],
                   ),
                 ),
                 Expanded(child: content),
@@ -235,70 +248,51 @@ class _PosOrderPageState extends State<PosOrderPage> {
         source.contains('ecommerce');
   }
 
-  Widget _buildTransactionFilters(
-    List<String> cashiers, {
-    required bool compact,
-    required double maxPanelHeight,
-  }) {
+  Widget _buildFilterToggle() {
     final count = [
       _searchQuery.isNotEmpty,
       _selectedStatus != 'Semua',
       _selectedCashier != 'Semua',
       _selectedPeriod != 'Semua',
     ].where((active) => active).length;
+    return Semantics(
+      expanded: _filtersExpanded,
+      child: IconButton.outlined(
+        key: const Key('transaction_filter_toggle'),
+        tooltip: ('Filter').tr(context),
+        isSelected: _filtersExpanded,
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: () {
+          if (_filtersExpanded) FocusScope.of(context).unfocus();
+          setState(() => _filtersExpanded = !_filtersExpanded);
+        },
+        icon: Badge(
+          isLabelVisible: count > 0,
+          label: Text('$count'),
+          child: const Icon(Icons.filter_list_rounded),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionFilters(
+    List<String> cashiers, {
+    required bool compact,
+    required double maxPanelHeight,
+  }) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(16),
       child: !compact
           ? _buildFilterPanel(cashiers)
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: Semantics(
-                    expanded: _filtersExpanded,
-                    child: OutlinedButton.icon(
-                      key: const Key('transaction_filter_toggle'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      onPressed: () {
-                        if (_filtersExpanded) {
-                          FocusScope.of(context).unfocus();
-                        }
-                        setState(() => _filtersExpanded = !_filtersExpanded);
-                      },
-                      icon: Badge(
-                        isLabelVisible: count > 0,
-                        label: Text('$count'),
-                        child: const Icon(Icons.filter_list_rounded),
-                      ),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const PosText('Filter'),
-                          const SizedBox(width: 8),
-                          Icon(
-                            _filtersExpanded
-                                ? Icons.expand_less
-                                : Icons.expand_more,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (_filtersExpanded) ...[
-                  const SizedBox(height: 12),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: maxPanelHeight),
-                    child: SingleChildScrollView(
-                      child: _buildFilterPanel(cashiers),
-                    ),
-                  ),
-                ],
-              ],
+          : ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxPanelHeight),
+              child: SingleChildScrollView(child: _buildFilterPanel(cashiers)),
             ),
     );
   }
@@ -1297,6 +1291,15 @@ class _PosOrderPageState extends State<PosOrderPage> {
                   icon: const Icon(Icons.description_outlined),
                   label: const PosText('Print Invoice'),
                 ),
+                OutlinedButton.icon(
+                  onPressed: () => _printInvoice(order, share: true),
+                  icon: const Icon(Icons.share_outlined),
+                  label: Text(
+                    posLocale(context).localeName.startsWith('en')
+                        ? 'Share Invoice PDF'
+                        : 'Bagikan Invoice PDF',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1344,7 +1347,7 @@ class _PosOrderPageState extends State<PosOrderPage> {
     }
   }
 
-  List<PopupMenuEntry<String>> _orderActionItems() => const [
+  List<PopupMenuEntry<String>> _orderActionItems() => [
     PopupMenuItem(
       value: 'detail',
       child: ListTile(
@@ -1369,6 +1372,18 @@ class _PosOrderPageState extends State<PosOrderPage> {
         title: PosText('Print Invoice'),
       ),
     ),
+    PopupMenuItem(
+      value: 'share_invoice',
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.share_outlined),
+        title: Text(
+          posLocale(context).localeName.startsWith('en')
+              ? 'Share Invoice PDF'
+              : 'Bagikan Invoice PDF',
+        ),
+      ),
+    ),
   ];
 
   void _handleOrderAction(String action, PosOrder order, bool isMobile) {
@@ -1378,6 +1393,9 @@ class _PosOrderPageState extends State<PosOrderPage> {
         return;
       case 'invoice':
         _printInvoice(order);
+        return;
+      case 'share_invoice':
+        _printInvoice(order, share: true);
         return;
       default:
         _showOrderDetailsDialog(context, order, isMobile);
@@ -1410,106 +1428,54 @@ class _PosOrderPageState extends State<PosOrderPage> {
   }
 
   Future<Uint8List> _buildInvoicePdf(PosOrder order) async {
-    final document = pw.Document(
-      title: posLocale(context).pos3818e7b1db75((order.invoice).toString()),
-      author: 'Pantoo POS',
-    );
-    final currency = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-    document.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (_) => [
-          pw.Text(
-            ('INVOICE').trCurrent(),
-            style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.Text(order.invoice),
-          pw.Divider(),
-          pw.Text(
-            posCurrentLocale().pos54ec6781af4f(
-              (_formatDate(order.date)).toString(),
+    final language = posLocale(context).localeName;
+    final provider = sl<GraphQLClientProvider>();
+    final scope = provider.subscriptionScope;
+    final client = provider.client;
+    final invoice = await PosInvoiceSource.load(order, (
+      query,
+      variables,
+    ) async {
+      final result = await client
+          .query(
+            QueryOptions(
+              document: gql(query),
+              variables: variables,
+              fetchPolicy: FetchPolicy.networkOnly,
             ),
-          ),
-          pw.Text(
-            posCurrentLocale().pose8576d8afa6c((order.customer).toString()),
-          ),
-          pw.Text(
-            posCurrentLocale().pos354df62f6aa3((order.cashierName).toString()),
-          ),
-          pw.Text(
-            posCurrentLocale().pos37949a5da433(
-              (order.paymentMethod).toString(),
-            ),
-          ),
-          pw.SizedBox(height: 18),
-          pw.TableHelper.fromTextArray(
-            headers: [
-              'Item',
-              'Qty',
-              'Harga',
-              'Subtotal',
-            ].map((label) => label.trCurrent()).toList(),
-            data: order.items.map((item) {
-              final name =
-                  item['nama_inventaris']?.toString() ??
-                  item['nama']?.toString() ??
-                  '-';
-              final qty = item['qty']?.toString() ?? '0';
-              final price =
-                  double.tryParse(
-                    (item['harga_jual'] ?? item['harga_satuan'] ?? 0)
-                        .toString(),
-                  ) ??
-                  0;
-              final subtotal =
-                  double.tryParse((item['subtotal'] ?? 0).toString()) ?? 0;
-              return [
-                name,
-                qty,
-                currency.format(price),
-                currency.format(subtotal),
-              ];
-            }).toList(),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-          ),
-          pw.SizedBox(height: 18),
-          _pdfTotalRow('Subtotal', currency.format(order.subtotal)),
-          if (order.discountAmount > 0)
-            _pdfTotalRow('Diskon', '-${currency.format(order.discountAmount)}'),
-          if (order.taxAmount > 0)
-            _pdfTotalRow('Pajak', currency.format(order.taxAmount)),
-          pw.Divider(),
-          _pdfTotalRow('Total', currency.format(order.total), bold: true),
-          if (order.note.trim().isNotEmpty) ...[
-            pw.SizedBox(height: 12),
-            pw.Text(
-              posCurrentLocale().posb0bf84cc5839((order.note).toString()),
-            ),
-          ],
-        ],
-      ),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (result.hasException) {
+        throw StateError(
+          'Saldo invoice belum dapat dimuat. Coba lagi saat terhubung.',
+        );
+      }
+      return result.data ?? {};
+    });
+    final companyResult = await sl<PosReceiptRepository>()
+        .getReceiptPrintData();
+    final company = companyResult.fold<Map<String, String>>(
+      (failure) => throw StateError(failure.message),
+      (data) => data.company,
     );
-    return document.save();
-  }
-
-  pw.Widget _pdfTotalRow(String label, String value, {bool bold = false}) {
-    final style = bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null;
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text((label).trCurrent(), style: style),
-          pw.Text(value, style: style),
-        ],
-      ),
+    final logo = await PosBusinessPrintBranding.loadCompanyLogo(
+      company['logo'] ?? '',
     );
+    if (scope != provider.subscriptionScope ||
+        !identical(client, provider.client)) {
+      throw StateError('Sesi kasir berubah. Buka invoice kembali.');
+    }
+    final bytes = await PosCustomerInvoiceDocument.build(
+      invoice: invoice,
+      company: company,
+      logoBytes: logo,
+      language: language,
+    );
+    if (scope != provider.subscriptionScope ||
+        !identical(client, provider.client)) {
+      throw StateError('Sesi kasir berubah. Buka invoice kembali.');
+    }
+    return bytes;
   }
 
   Future<void> _printReceipt(PosOrder order) async {
@@ -1548,17 +1514,36 @@ class _PosOrderPageState extends State<PosOrderPage> {
     }
   }
 
-  Future<void> _printInvoice(PosOrder order) async {
+  Future<void> _printInvoice(PosOrder order, {bool share = false}) async {
+    if (_printingInvoice) return;
+    setState(() => _printingInvoice = true);
     try {
       final bytes = await _buildInvoicePdf(order);
-      await Printing.layoutPdf(
-        name: 'Invoice-${order.invoice}',
-        onLayout: (_) async => bytes,
-      );
-    } catch (_) {
-      if (mounted) {
-        AppToast.error(context, 'Gagal membuka layanan print invoice');
+      if (!mounted) return;
+      if (share) {
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename:
+              'Invoice-${order.invoice.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '-')}.pdf',
+        );
+        return;
       }
+      await PosReceiptPrintService(sl()).printDocumentPdf(
+        bytes: bytes,
+        name:
+            'Invoice-${order.invoice.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '-')}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          error is StateError
+              ? error.message.toString()
+              : 'Gagal membuka layanan print invoice',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _printingInvoice = false);
     }
   }
 

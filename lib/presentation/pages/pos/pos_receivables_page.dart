@@ -11,6 +11,11 @@ import 'package:mobile_pos_pantoo/core/network/graphql_client_provider.dart';
 import 'package:mobile_pos_pantoo/core/network/pos_financial_request_store.dart';
 import 'package:mobile_pos_pantoo/data/graphql/pos_receivable_queries.dart';
 import 'package:mobile_pos_pantoo/injections.dart';
+import 'package:printing/printing.dart';
+import '../../../domain/repositories/pos_receipt_repository.dart';
+import '../../../core/receipt/pos_receipt_print_service.dart';
+import 'utils/pos_business_print_branding.dart';
+import 'utils/pos_customer_invoice_document.dart';
 
 class PosReceivablesPage extends StatefulWidget {
   const PosReceivablesPage({
@@ -39,6 +44,58 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
   Map<String, dynamic>? _invoice, _pending;
   String _error = '', _message = '', _method = 'cash', _destination = '';
   bool _loading = true, _sending = false, _settled = false;
+  bool _printingInvoice = false;
+
+  Future<void> _printInvoice({bool share = false}) async {
+    final id = _invoice?['_id']?.toString();
+    if (id == null || _printingInvoice || _sending) return;
+    final language = posLocale(context).localeName;
+    final session = _sessionIdentity;
+    setState(() => _printingInvoice = true);
+    try {
+      final data = await _query(PosReceivableQueries.printDetail, {'_id': id});
+      final invoice = data['GetPOSReceivable'];
+      if (invoice is! Map || invoice['_id']?.toString() != id) {
+        throw StateError('Invoice belum tersedia atau tidak sesuai.');
+      }
+      final branding = await sl<PosReceiptRepository>().getReceiptPrintData();
+      final company = branding.fold<Map<String, String>>(
+        (failure) => throw StateError(failure.message),
+        (value) => value.company,
+      );
+      final logo = await PosBusinessPrintBranding.loadCompanyLogo(
+        company['logo'] ?? '',
+      );
+      _assertSession(session);
+      final bytes = await PosCustomerInvoiceDocument.build(
+        invoice: Map<String, dynamic>.from(invoice),
+        company: company,
+        logoBytes: logo,
+        language: language,
+      );
+      _assertSession(session);
+      if (!mounted) return;
+      if (_invoice?['_id']?.toString() != id) {
+        throw StateError(
+          'Invoice yang dibuka sudah berubah. Cetak ulang dari detail terbaru.',
+        );
+      }
+      final filename =
+          'Invoice-${invoice['invoice_number'].toString().replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '-')}.pdf';
+      if (share) {
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+      } else {
+        await PosReceiptPrintService(
+          sl(),
+        ).printDocumentPdf(bytes: bytes, name: filename);
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = _errorMessage(error));
+    } finally {
+      if (mounted) setState(() => _printingInvoice = false);
+    }
+  }
+
   int _page = 1, _total = 0, _generation = 0;
   String get _requestOwner =>
       '${_provider.endpointUrl}:${_provider.sharedPreferences.getString('instansi_id')}:${_provider.sharedPreferences.getString('user_id')}:${widget.operatorId}';
@@ -451,6 +508,34 @@ class _PosReceivablesPageState extends State<PosReceivablesPage> {
                 ],
               ),
             ] else ...[
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _printingInvoice || _sending
+                        ? null
+                        : () => _printInvoice(),
+                    icon: _printingInvoice
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.description_outlined),
+                    label: const PosText('Print Invoice'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _printingInvoice || _sending
+                        ? null
+                        : () => _printInvoice(share: true),
+                    icon: const Icon(Icons.share_outlined),
+                    label: Text(
+                      posLocale(context).localeName.startsWith('en')
+                          ? 'Share Invoice PDF'
+                          : 'Bagikan Invoice PDF',
+                    ),
+                  ),
+                ],
+              ),
               Text(
                 invoice['customer_name'].toString(),
                 style: const TextStyle(

@@ -3,6 +3,39 @@ import 'generated/app_localizations.dart';
 import 'pos_translation_lookup.dart';
 import 'app_language_controller.dart';
 
+// Feature copy is kept outside the generated legacy lookup.
+const _purchasePaymentEnglish = {
+  'Dibutuhkan paling lambat (opsional)': 'Required by (optional)',
+  'Dibutuhkan paling lambat': 'Required by',
+  'Estimasi kirim dari pemasok': 'Supplier shipping estimate',
+  'Estimasi tanggal kirim dari pemasok (opsional)':
+      'Supplier shipping estimate (optional)',
+  'Estimasi tanggal tiba dari pemasok (opsional)':
+      'Supplier arrival estimate (optional)',
+  'Pengaturan lanjutan: pembayaran dan informasi tambahan':
+      'Advanced: payment and additional information',
+  'Jumlah cicilan (2–12)': 'Installment count (2–12)',
+  'Cicilan': 'Installment',
+  'Buat ulang jadwal cicilan': 'Regenerate installment schedule',
+  'Jumlah cicilan harus 2 sampai 12':
+      'Installment count must be between 2 and 12',
+  'Jumlah cicilan harus 2 sampai 12 dan sesuai jadwal':
+      'Installment count must be between 2 and 12 and match the schedule',
+  'Isi nominal positif dan tanggal setiap cicilan':
+      'Enter a positive amount and a valid date for each installment',
+  'Total pembayaran cicilan harus sama dengan total PO':
+      'Installment amounts must add up to the PO total',
+  'Isi tanggal jatuh tempo': 'Enter the due date',
+};
+
+String _translatePosCopy(String source, AppLocalizations locale) {
+  final paymentCopy = _purchasePaymentEnglish[source];
+  if (paymentCopy != null) {
+    return locale.localeName.startsWith('en') ? paymentCopy : source;
+  }
+  return translatePosText(source, locale);
+}
+
 // Legacy standalone widgets without app delegates keep their Indonesian default.
 AppLocalizations posLocale(BuildContext context) =>
     AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('id'));
@@ -13,10 +46,10 @@ AppLocalizations posCurrentLocale() =>
 extension PosLocalizedString on String {
   String tr(BuildContext context) => this == 'Utang & Piutang'
       ? posLocale(context).tradeTitle
-      : translatePosText(this, posLocale(context));
+      : _translatePosCopy(this, posLocale(context));
 
   /// Global toasts can outlive their originating page after an async operation.
-  String trCurrent() => translatePosText(
+  String trCurrent() => _translatePosCopy(
     this,
     lookupAppLocalizations(AppLanguageController.instance.effectiveLocale),
   );
@@ -124,7 +157,7 @@ class PosText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = posLocale(context);
-    final translated = translatePosText(data, l);
+    final translated = _translatePosCopy(data, l);
     return Text(
       translated,
       style: style,

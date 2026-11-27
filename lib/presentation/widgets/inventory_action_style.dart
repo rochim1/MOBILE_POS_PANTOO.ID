@@ -7,13 +7,19 @@ abstract final class InventoryActionStyle {
   static const double radius = 10;
 
   static ButtonStyle primary({
+    BuildContext? context,
     double horizontalPadding = 16,
     double controlHeight = height,
   }) => FilledButton.styleFrom(
     minimumSize: Size(0, controlHeight),
     padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
-    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    textStyle: context == null
+        ? const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)
+        : Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
   );
 
   static ButtonStyle outlined({double controlHeight = height}) =>

@@ -1,5 +1,6 @@
 import '../../widgets/pos_record_skeletons.dart';
-import '../../widgets/pos_collapsible_filters.dart';
+import '../../widgets/pos_operational_toolbar.dart';
+import '../../widgets/inventory_action_style.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 
@@ -89,7 +90,7 @@ class _PosReturnViewState extends State<PosReturnView> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final search = SizedBox(
-                  height: 56,
+                  height: 48,
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
@@ -124,7 +125,7 @@ class _PosReturnViewState extends State<PosReturnView> {
                   ),
                 );
                 final filter = SizedBox(
-                  height: 56,
+                  height: 48,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedStatus,
                     isExpanded: true,
@@ -170,53 +171,20 @@ class _PosReturnViewState extends State<PosReturnView> {
                   ),
                 );
                 final addButton = SizedBox(
-                  height: 56,
-                  child: ElevatedButton.icon(
+                  height: 48,
+                  child: FilledButton.icon(
+                    style: InventoryActionStyle.primary(context: context),
                     onPressed: _openAddReturn,
                     icon: const Icon(Icons.add),
                     label: const PosText('Tambah Retur'),
                   ),
                 );
-                if (compact) {
-                  return PosCollapsibleFilters(
-                    toggleKey: const Key('return_filter_toggle'),
-                    activeCount: [
-                      _searchController.text.trim().isNotEmpty,
-                      _selectedStatus.isNotEmpty,
-                    ].where((active) => active).length,
-                    actions: [if (_can('create_returns')) addButton],
-                    child: Column(
-                      children: [search, const SizedBox(height: 8), filter],
-                    ),
-                  );
-                }
-                if (constraints.maxWidth >= 680) {
-                  return Row(
-                    children: [
-                      Expanded(child: search),
-                      const SizedBox(width: 10),
-                      SizedBox(width: 190, child: filter),
-                      if (_can('create_returns')) ...[
-                        const SizedBox(width: 10),
-                        addButton,
-                      ],
-                    ],
-                  );
-                }
-                return Column(
-                  children: [
-                    search,
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: filter),
-                        if (_can('create_returns')) ...[
-                          const SizedBox(width: 8),
-                          addButton,
-                        ],
-                      ],
-                    ),
-                  ],
+                return PosOperationalToolbar(
+                  search: search,
+                  filters: filter,
+                  filterToggleKey: const Key('return_filter_toggle'),
+                  activeCount: _selectedStatus.isNotEmpty ? 1 : 0,
+                  primaryAction: _can('create_returns') ? addButton : null,
                 );
               },
             ),
@@ -270,26 +238,30 @@ class _PosReturnViewState extends State<PosReturnView> {
                     final item = state.returns[index];
                     final status = item['status'] ?? 'draft';
                     return Card(
+                      color: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Color(0xFFE1E5E9)),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  item['no_retur'] ?? '-',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                Expanded(
+                                  child: Text(
+                                    item['no_retur'] ?? '-',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
@@ -316,8 +288,10 @@ class _PosReturnViewState extends State<PosReturnView> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              spacing: 12,
+                              runSpacing: 10,
                               children: [
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

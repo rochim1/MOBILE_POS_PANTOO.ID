@@ -1,5 +1,6 @@
 import 'package:mobile_pos_pantoo/injections.dart';
-import '../../widgets/pos_collapsible_filters.dart';
+import '../../widgets/pos_operational_toolbar.dart';
+import '../../widgets/pos_category_navigation.dart';
 import 'package:mobile_pos_pantoo/domain/repositories/pos_inventory_repository.dart';
 import 'pos_receivables_page.dart';
 import 'pos_purchase_payable_page.dart';
@@ -131,43 +132,67 @@ class _BusinessViewState extends State<_BusinessView> {
             ),
             const SizedBox(height: 14),
             if (tabs.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final tab in tabs)
-                    ChoiceChip(
-                      label: Text(businessReportLabel(l, tab.code)),
-                      selected: tab == kind,
-                      onSelected: state.options == null
-                          ? null
-                          : (_) {
-                              _search.clear();
-                              cubit.changeKind(tab);
-                            },
-                    ),
-                ],
+              AbsorbPointer(
+                absorbing: state.options == null,
+                child: PosCategoryDropdown<PosBusinessReportKind>(
+                  key: ValueKey(kind),
+                  label: posLocale(context).localeName.startsWith('en')
+                      ? 'Report type'
+                      : 'Jenis laporan',
+                  items: tabs
+                      .map(
+                        (tab) => PosCategoryItem(
+                          value: tab,
+                          icon: Icons.assessment_outlined,
+                          label: businessReportLabel(l, tab.code),
+                        ),
+                      )
+                      .toList(),
+                  selected: kind,
+                  onSelected: (tab) {
+                    _search.clear();
+                    cubit.changeKind(tab);
+                  },
+                ),
               ),
             if (state.options != null) ...[
               const SizedBox(height: 14),
-              _note(l.financialScope, l.financialScopeNote),
+              PosOperationalHelp(
+                title: l.financialScope,
+                message: l.financialScopeNote,
+              ),
               const SizedBox(height: 14),
-              PosCollapsibleFilters(
-                toggleKey: const Key('business_report_filter_toggle'),
-                activeCount: [
-                  state.filter!.search.isNotEmpty,
-                  state.filter!.sourceScope != 'all',
-                ].where((active) => active).length,
-                child: _filters(context, state),
+              if (state.filter!.kind.searchable)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    _rangeLabel(context, state),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF475467),
+                    ),
+                  ),
+                ),
+              PosOperationalToolbar(
+                filterToggleKey: const Key('business_report_filter_toggle'),
+                activeCount: state.filter!.sourceScope != 'all' ? 1 : 0,
+                search: state.filter!.kind.searchable
+                    ? _searchField(context, state)
+                    : Text(
+                        _rangeLabel(context, state),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                filters: _filters(context, state),
               ),
               const SizedBox(height: 16),
             ],
             if (state.status == FinancialReportStatus.initial ||
                 state.status == FinancialReportStatus.loading)
               PosMetricGrid(
+                compact: true,
                 children: List.generate(
                   4,
-                  (_) => const PosMetricCardSkeleton(),
+                  (_) => const PosMetricCardSkeleton(compact: true),
                 ),
               )
             else if (state.status == FinancialReportStatus.denied)
@@ -183,9 +208,11 @@ class _BusinessViewState extends State<_BusinessView> {
               ),
               const SizedBox(height: 14),
               PosMetricGrid(
+                compact: true,
                 children: report.metrics
                     .map(
                       (metric) => PosMetricCard(
+                        compact: true,
                         title: businessReportLabel(l, metric.key),
                         value: businessReportNumber(
                           metric.value,
@@ -384,6 +411,34 @@ class _BusinessViewState extends State<_BusinessView> {
     );
   }
 
+  String _rangeLabel(BuildContext context, PosBusinessReportState state) {
+    final l = posLocale(context), filter = state.filter!;
+    return filter.kind.cutoff || filter.kind == PosBusinessReportKind.restock
+        ? '${l.businessCutoff}: ${_date(filter.range.end)}'
+        : '${l.businessRange}: ${_date(filter.range.start)} – ${_date(filter.range.end)}';
+  }
+
+  Widget _searchField(BuildContext context, PosBusinessReportState state) {
+    final l = posLocale(context),
+        cubit = context.read<PosBusinessReportCubit>(),
+        filter = state.filter!;
+    return TextField(
+      controller: _search,
+      maxLength: 120,
+      decoration: InputDecoration(
+        labelText: l.businessSearch,
+        counterText: '',
+        suffixIcon: IconButton(
+          tooltip: l.businessSearch,
+          icon: const Icon(Icons.search),
+          onPressed: () =>
+              cubit.load(filter.copyWith(search: _search.text.trim())),
+        ),
+      ),
+      onSubmitted: (value) => cubit.load(filter.copyWith(search: value.trim())),
+    );
+  }
+
   Widget _filters(BuildContext context, PosBusinessReportState state) {
     final l = posLocale(context),
         cubit = context.read<PosBusinessReportCubit>(),
@@ -517,26 +572,6 @@ class _BusinessViewState extends State<_BusinessView> {
                 cubit.load(filter.copyWith(sourceScope: source));
               }
             },
-          ),
-        ],
-        if (filter.kind.searchable) ...[
-          const SizedBox(height: 12),
-          TextField(
-            controller: _search,
-            decoration: InputDecoration(
-              labelText: l.businessSearch,
-              suffixIcon: IconButton(
-                tooltip: l.businessSearch,
-                icon: const Icon(Icons.search),
-                onPressed: () =>
-                    cubit.load(filter.copyWith(search: _search.text.trim())),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onSubmitted: (value) =>
-                cubit.load(filter.copyWith(search: value.trim())),
           ),
         ],
       ],

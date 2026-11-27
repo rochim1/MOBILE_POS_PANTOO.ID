@@ -1,5 +1,7 @@
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/pos_operational_toolbar.dart';
+import '../../widgets/inventory_action_style.dart';
 import 'package:mobile_pos_pantoo/core/_core.dart';
 import '../../widgets/pos_ui.dart';
 import 'package:mobile_pos_pantoo/domain/models/pos_customer.dart';
@@ -76,91 +78,77 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
         child: ListView(
           padding: EdgeInsets.all(compact ? 12 : 16),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 56,
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        labelText: ('Cari pelanggan').tr(context),
-                        hintText: ('Cari nama atau telepon...').tr(context),
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
+            PosOperationalToolbar(
+              search: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: ('Cari pelanggan').tr(context),
+                  hintText: ('Cari nama atau telepon...').tr(context),
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+              filterAction: PopupMenuButton<String>(
+                tooltip: ('Filter pelanggan').tr(context),
+                initialValue: _priceLevelFilter,
+                onSelected: (value) =>
+                    setState(() => _priceLevelFilter = value),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'all',
+                    child: PosText('Semua Level Harga'),
+                  ),
+                  ..._customers
+                      .map((item) => item.priceLevel)
+                      .where((level) => level.isNotEmpty)
+                      .toSet()
+                      .map(
+                        (level) =>
+                            PopupMenuItem(value: level, child: Text(level)),
                       ),
-                    ),
+                ],
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: _priceLevelFilter == 'all'
+                        ? Colors.white
+                        : AppColors.primary.withValues(alpha: 0.1),
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(Icons.filter_list_rounded),
                 ),
-                const SizedBox(width: 8),
-                PopupMenuButton<String>(
-                  tooltip: ('Filter pelanggan').tr(context),
-                  initialValue: _priceLevelFilter,
-                  onSelected: (value) =>
-                      setState(() => _priceLevelFilter = value),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'all',
-                      child: PosText('Semua Level Harga'),
-                    ),
-                    ..._customers
-                        .map((item) => item.priceLevel)
-                        .where((level) => level.isNotEmpty)
-                        .toSet()
-                        .map(
-                          (level) =>
-                              PopupMenuItem(value: level, child: Text(level)),
-                        ),
-                  ],
-                  child: Container(
-                    width: compact ? 40 : 48,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: _priceLevelFilter == 'all'
-                          ? Colors.white
-                          : AppColors.primary.withValues(alpha: 0.1),
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.filter_list_rounded),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: _loading || _openingForm
-                        ? null
-                        : () async {
-                            setState(() => _openingForm = true);
-                            try {
-                              await _showForm();
-                            } finally {
-                              if (mounted) {
-                                setState(() => _openingForm = false);
-                              }
-                            }
-                          },
-                    icon: _openingForm
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.person_add_alt_1),
-                    label: const PosText('Tambah'),
-                  ),
-                ),
-              ],
+              ),
+              primaryAction: FilledButton.icon(
+                style: InventoryActionStyle.primary(context: context),
+                onPressed: _loading || _openingForm
+                    ? null
+                    : () async {
+                        setState(() => _openingForm = true);
+                        try {
+                          await _showForm();
+                        } finally {
+                          if (mounted) {
+                            setState(() => _openingForm = false);
+                          }
+                        }
+                      },
+                // The customer sheet owns loading/saving feedback. Keep the
+                // underlying page still while its modal is open.
+                icon: const Icon(Icons.person_add_alt_1),
+                label: const PosText('Tambah'),
+              ),
             ),
             const SizedBox(height: 16),
             if (_loading)
@@ -185,6 +173,12 @@ class _PosCustomerPageState extends State<PosCustomerPage> {
   }
 
   Widget _customerCard(PosCustomer customer) => Card(
+    color: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: const BorderSide(color: Color(0xFFE1E5E9)),
+    ),
     margin: const EdgeInsets.only(bottom: 10),
     child: ListTile(
       leading: CircleAvatar(

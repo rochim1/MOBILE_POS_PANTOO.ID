@@ -18,6 +18,8 @@ import 'pos_barcode_scanner_page.dart';
 import 'utils/pos_inventory_barcode_match.dart';
 import 'utils/pos_purchase_amount.dart';
 import 'widgets/pos_opname_batch_fields.dart';
+import 'widgets/pos_purchase_payment_plan_fields.dart';
+import 'utils/pos_purchase_payment_plan.dart';
 import 'pos_transfer_editor_page.dart';
 
 class PosInventoryEditorPage extends StatefulWidget {
@@ -67,6 +69,28 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   late DateTime _purchaseDate;
   DateTime? _deliveryDate;
   DateTime? _estimatedArrivalDate;
+  DateTime? _requiredByDate;
+  static const _purchaseNetDays = {
+    'net7': 7,
+    'net14': 14,
+    'net30': 30,
+    'net45': 45,
+    'net60': 60,
+    'net90': 90,
+  };
+  void _updatePurchaseInstallment(int index, String field, dynamic value) {
+    if (_savedInstallmentSchedule.isEmpty) {
+      _savedInstallmentSchedule.addAll(_generatedInstallmentSchedule);
+    }
+    _savedInstallmentSchedule[index][field] = value;
+  }
+
+  final List<Map<String, dynamic>> _savedInstallmentSchedule = [];
+  String _originalPaymentTermType = '';
+  bool _paymentPlanChanged = false;
+  int _installmentRevision = 0;
+  bool _installmentCountInputValid = true;
+  double _downPaymentPercent = 0;
   DateTime? _dueDate;
   String _deliveryAddress = '';
   String _deliveryAddressMode = 'manual';
@@ -153,6 +177,24 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     _estimatedArrivalDate = DateTime.tryParse(
       widget.existing?['estimated_arrival_date']?.toString() ?? '',
     );
+    _requiredByDate = DateTime.tryParse(
+      widget.existing?['required_by_date']?.toString() ?? '',
+    );
+    _originalPaymentTermType =
+        widget.existing?['payment_term_type']?.toString() ?? '';
+    _downPaymentPercent =
+        (widget.existing?['down_payment_percent'] as num?)?.toDouble() ?? 0;
+    _savedInstallmentSchedule.addAll(
+      (widget.existing?['jadwal_termin'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (row) => {
+              'no_termin': row['no_termin'],
+              'amount': row['amount'],
+              'due_date': row['due_date'],
+            },
+          ),
+    );
     _dueDate = DateTime.tryParse(
       widget.existing?['due_date']?.toString() ?? '',
     );
@@ -176,6 +218,8 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
           _ => 'bank_transfer',
         };
     final legacyCreditTerms = <String>{
+      'net7',
+      'net14',
       'net30',
       'net45',
       'net60',
@@ -193,6 +237,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
             : (legacyCreditTerms.contains(legacyPaymentMethod)
                   ? legacyPaymentMethod
                   : 'net30'));
+    if (_creditType.isEmpty) _creditType = 'net30';
     _priority = widget.existing?['prioritas']?.toString() ?? 'normal';
     _discountType = widget.existing?['diskon_type']?.toString() ?? 'persen';
     _ppnSource = widget.existing?['ppn_source']?.toString() ?? 'none';
@@ -248,7 +293,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         DateTime.now();
     _incidentLocation =
         widget.existing?['lokasi_kejadian']?.toString() ?? 'gudang';
-    _showPurchaseAdvanced = _editing;
     if (widget.type != PosInventoryDocumentType.transfer) _load();
   }
 
@@ -1149,6 +1193,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     return true;
   }
 
+  void _showPurchasePlanError(String message) {
+    setState(() {
+      _showPurchaseAdvanced = true;
+      _purchaseStep = 0;
+    });
+    AppToast.error(context, message);
+  }
+
   Future<void> _save() async {
     if (_loading) return;
     if (widget.type == PosInventoryDocumentType.opname &&
@@ -1165,15 +1217,14 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         _deliveryDate != null &&
         _estimatedArrivalDate != null &&
         _estimatedArrivalDate!.isBefore(_deliveryDate!)) {
-      AppToast.error(
-        context,
+      _showPurchasePlanError(
         'Estimasi tanggal tiba tidak boleh sebelum tanggal kirim',
       );
       return;
     }
     if (widget.type == PosInventoryDocumentType.purchase &&
         (_downPaymentAmount < 0 || _downPaymentAmount > _purchaseGrandTotal)) {
-      AppToast.error(context, 'Uang muka tidak boleh melebihi total PO');
+      _showPurchasePlanError('Uang muka tidak boleh melebihi total PO');
       return;
     }
     if (widget.type == PosInventoryDocumentType.purchase &&
@@ -1230,8 +1281,26 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         (_termDays < 0 ||
             (_creditType == 'termin' &&
                 (_installmentCount < 2 || _installmentCount > 12)))) {
-      AppToast.error(context, 'Jangka waktu kredit tidak valid');
+      _showPurchasePlanError('Jangka waktu kredit tidak valid');
       return;
+    }
+    if (widget.type == PosInventoryDocumentType.purchase &&
+        _paymentTerms == 'kredit') {
+      final error = _creditType == 'custom' && _dueDate == null
+          ? 'Isi tanggal jatuh tempo'
+          : _creditType == 'termin'
+          ? (!_installmentCountInputValid
+                ? 'Jumlah cicilan harus 2 sampai 12'
+                : validatePurchaseInstallments(
+                    _generatedInstallmentSchedule,
+                    _installmentCount,
+                    _purchaseGrandTotal,
+                  ))
+          : null;
+      if (error != null) {
+        _showPurchasePlanError(error);
+        return;
+      }
     }
     if (_usesLocation && _sourceId.isEmpty) {
       AppToast.error(context, 'Pilih lokasi sumber');
@@ -1383,6 +1452,9 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         'estimated_arrival_date': _estimatedArrivalDate == null
             ? ''
             : _dateValue(_estimatedArrivalDate!),
+        'required_by_date': _requiredByDate == null
+            ? ''
+            : _dateValue(_requiredByDate!),
         'alamat_pengiriman': _deliveryAddress.trim(),
         'receiving_location_id': _deliveryWarehouseId.isNotEmpty
             ? _deliveryWarehouseId
@@ -1391,18 +1463,30 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
         'payment_method': _paymentMethod,
         'syarat_pembayaran': _paymentTerms,
         'tipe_kredit': _paymentTerms == 'kredit' ? _creditType : '',
-        'payment_term_type': _paymentTerms == 'kredit'
-            ? (_creditType == 'termin' ? 'termin' : 'net')
+        'payment_term_type':
+            !_paymentPlanChanged && _originalPaymentTermType.isNotEmpty
+            ? _originalPaymentTermType
+            : _paymentTerms == 'kredit'
+            ? (_creditType == 'termin'
+                  ? 'termin'
+                  : _creditType == 'custom'
+                  ? 'custom'
+                  : 'net')
             : (_paymentTerms == 'saat_penerimaan' ? 'on_receipt' : 'immediate'),
         'term_days': _paymentTerms == 'kredit' ? _termDays : 0,
         'due_date': _dueDate == null ? '' : _dateValue(_dueDate!),
-        'due_date_basis': _paymentTerms == 'saat_penerimaan'
+        'due_date_basis': !_paymentPlanChanged && widget.existing != null
+            ? _dueDateBasis
+            : _paymentTerms == 'saat_penerimaan'
             ? 'receiving_date'
             : (_paymentTerms == 'tunai' ? 'po_date' : _dueDateBasis),
         'payment_term_note': _paymentTermNote.trim(),
         'down_payment_amount': _downPaymentAmount,
-        'jumlah_termin': _creditType == 'termin' ? _installmentCount : 1,
-        if (_creditType == 'termin')
+        'down_payment_percent': _downPaymentPercent,
+        'jumlah_termin': _paymentTerms == 'kredit' && _creditType == 'termin'
+            ? _installmentCount
+            : 1,
+        if (_paymentTerms == 'kredit' && _creditType == 'termin')
           'jadwal_termin': _generatedInstallmentSchedule,
         'prioritas': _priority,
         'diskon_persen': _discountPercent,
@@ -1956,18 +2040,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
 
   List<Map<String, dynamic>> get _generatedInstallmentSchedule {
     if (_creditType != 'termin') return const [];
-    final count = _installmentCount.clamp(2, 12);
-    final amount = (_purchaseGrandTotal / count).floorToDouble();
-    final start = _purchaseDate;
-    return List.generate(
-      count,
-      (index) => {
-        'no_termin': index + 1,
-        'amount': index == count - 1
-            ? _purchaseGrandTotal - (amount * (count - 1))
-            : amount,
-        'due_date': _dateValue(start.add(Duration(days: (index + 1) * 30))),
-      },
+    return purchaseInstallmentSchedule(
+      saved: _savedInstallmentSchedule,
+      count: _installmentCount,
+      total: _purchaseGrandTotal,
+      date: _purchaseDate,
     );
   }
 
@@ -2555,6 +2632,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
     required DateTime? value,
     required ValueChanged<DateTime> onChanged,
     bool optional = false,
+    VoidCallback? onClear,
   }) => InkWell(
     onTap: () async {
       final picked = await showDatePicker(
@@ -2569,6 +2647,13 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
       decoration: InputDecoration(
         labelText: (label).tr(context),
         prefixIcon: const Icon(Icons.calendar_today_outlined),
+        suffixIcon: optional && value != null && onClear != null
+            ? IconButton(
+                tooltip: ('Hapus tanggal').tr(context),
+                onPressed: onClear,
+                icon: const Icon(Icons.clear),
+              )
+            : null,
         border: const OutlineInputBorder(),
       ),
       child: Text(
@@ -2580,7 +2665,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
   );
 
   Widget _buildPurchaseSetupCard() {
-    final isMobile = MediaQuery.sizeOf(context).width < 1280;
     Widget responsive(List<Widget> fields, {double breakpoint = 720}) =>
         LayoutBuilder(
           builder: (context, constraints) => constraints.maxWidth >= breakpoint
@@ -2644,44 +2728,11 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                   ),
                 ),
                 _purchaseDateField(
-                  label: ('Tanggal pembelian *').tr(context),
-                  value: _purchaseDate,
-                  onChanged: (value) => setState(() => _purchaseDate = value),
-                ),
-                if (!isMobile)
-                  _purchaseDateField(
-                    label: ('Tanggal pengiriman').tr(context),
-                    value: _deliveryDate,
-                    optional: true,
-                    onChanged: (value) => setState(() => _deliveryDate = value),
-                  ),
-              ]),
-              if (isMobile) ...[
-                const SizedBox(height: 12),
-                _purchaseDateField(
-                  label: ('Tanggal pengiriman').tr(context),
-                  value: _deliveryDate,
+                  label: ('Dibutuhkan paling lambat (opsional)').tr(context),
+                  value: _requiredByDate,
                   optional: true,
-                  onChanged: (value) => setState(() => _deliveryDate = value),
-                ),
-              ],
-              const SizedBox(height: 12),
-              responsive([
-                _purchaseDateField(
-                  label: ('Estimasi tanggal tiba').tr(context),
-                  value: _estimatedArrivalDate,
-                  optional: true,
-                  onChanged: (value) =>
-                      setState(() => _estimatedArrivalDate = value),
-                ),
-                TextFormField(
-                  initialValue: _supplierContact,
-                  decoration: InputDecoration(
-                    labelText: ('Kontak tujuan supplier').tr(context),
-                    hintText: ('Email atau nomor WhatsApp').tr(context),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => _supplierContact = value,
+                  onChanged: (value) => setState(() => _requiredByDate = value),
+                  onClear: () => setState(() => _requiredByDate = null),
                 ),
               ]),
               const SizedBox(height: 12),
@@ -2691,6 +2742,55 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
               ),
               const SizedBox(height: 8),
               _buildPurchaseDeliveryFields(),
+              const SizedBox(height: 16),
+              PosPurchasePaymentPlanFields(
+                plan: _paymentTerms == 'kredit' && _creditType == 'termin'
+                    ? 'termin'
+                    : _paymentTerms,
+                creditType: _creditType,
+                onPlanChanged: (value) => setState(() {
+                  _paymentPlanChanged = true;
+                  _paymentTerms = value == 'termin' ? 'kredit' : value;
+                  if (value == 'termin') {
+                    _creditType = 'termin';
+                    _dueDateBasis = 'fixed_date';
+                    if (_installmentCount < 2) _installmentCount = 2;
+                    _showPurchaseAdvanced = true;
+                  } else if (value == 'kredit' &&
+                      (_creditType == 'termin' || _creditType.isEmpty)) {
+                    _creditType = 'net30';
+                    _termDays = 30;
+                  }
+                  if (value == 'kredit' && _termDays == 0) {
+                    _termDays = _purchaseNetDays[_creditType] ?? 30;
+                  }
+                  if (value == 'kredit') {
+                    _dueDateBasis = _creditType == 'custom'
+                        ? 'fixed_date'
+                        : 'invoice_date';
+                  }
+                  if (value == 'tunai' || value == 'saat_penerimaan') {
+                    _dueDate = null;
+                  }
+                }),
+                onCreditTypeChanged: (value) => setState(() {
+                  _paymentPlanChanged = true;
+                  _creditType = value;
+                  _termDays = _purchaseNetDays[value] ?? 0;
+                  if (value == 'custom') {
+                    _dueDateBasis = 'fixed_date';
+                    _dueDate ??= _purchaseDate;
+                  } else if (_dueDateBasis == 'fixed_date') {
+                    _dueDateBasis = 'invoice_date';
+                  }
+                }),
+                dueDateField: _purchaseDateField(
+                  label: ('Tanggal jatuh tempo *').tr(context),
+                  value: _dueDate,
+                  optional: true,
+                  onChanged: (value) => setState(() => _dueDate = value),
+                ),
+              ),
               const SizedBox(height: 10),
               TextButton.icon(
                 onPressed: () => setState(
@@ -2702,10 +2802,46 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                 label: Text(
                   _showPurchaseAdvanced
                       ? ('Sembunyikan opsi lanjutan').tr(context)
-                      : ('Opsi lain: pembayaran, diskon & biaya').tr(context),
+                      : ('Pengaturan lanjutan: pembayaran dan informasi tambahan')
+                            .tr(context),
                 ),
               ),
               if (_showPurchaseAdvanced) ...[
+                const SizedBox(height: 12),
+                responsive([
+                  _purchaseDateField(
+                    label: ('Tanggal PO').tr(context),
+                    value: _purchaseDate,
+                    onChanged: (value) => setState(() => _purchaseDate = value),
+                  ),
+                  _purchaseDateField(
+                    label: ('Estimasi tanggal kirim dari pemasok (opsional)')
+                        .tr(context),
+                    value: _deliveryDate,
+                    optional: true,
+                    onChanged: (value) => setState(() => _deliveryDate = value),
+                    onClear: () => setState(() => _deliveryDate = null),
+                  ),
+                  _purchaseDateField(
+                    label: ('Estimasi tanggal tiba dari pemasok (opsional)').tr(
+                      context,
+                    ),
+                    value: _estimatedArrivalDate,
+                    optional: true,
+                    onChanged: (value) =>
+                        setState(() => _estimatedArrivalDate = value),
+                    onClear: () => setState(() => _estimatedArrivalDate = null),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: _supplierContact,
+                  decoration: InputDecoration(
+                    labelText: ('Kontak tujuan supplier').tr(context),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => _supplierContact = value,
+                ),
                 const SizedBox(height: 12),
                 PosText(
                   'Kesepakatan pembayaran dan prioritas',
@@ -2742,35 +2878,6 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     ),
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: _paymentTerms,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: ('Termin pembayaran').tr(context),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'tunai',
-                        child: PosText('Jatuh tempo segera'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'saat_penerimaan',
-                        child: PosText('Saat diterima'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'kredit',
-                        child: PosText('Kredit'),
-                      ),
-                    ],
-                    onChanged: (value) => setState(() {
-                      _paymentTerms = value ?? 'tunai';
-                      if (_paymentTerms == 'saat_penerimaan' ||
-                          _paymentTerms == 'tunai') {
-                        _dueDate = null;
-                      }
-                    }),
-                  ),
-                  DropdownButtonFormField<String>(
                     initialValue: _priority,
                     decoration: InputDecoration(
                       labelText: ('Prioritas').tr(context),
@@ -2805,84 +2912,73 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                     style: TextStyle(color: Colors.black54, fontSize: 12),
                   ),
                 ],
-                if (_paymentTerms == 'kredit') ...[
+                if (_paymentTerms == 'kredit' && _creditType == 'termin') ...[
                   const SizedBox(height: 12),
-                  responsive([
-                    DropdownButtonFormField<String>(
-                      initialValue: _creditType,
-                      decoration: InputDecoration(
-                        labelText: ('Tipe kredit').tr(context),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'net30',
-                          child: PosText('Net 30'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'net45',
-                          child: PosText('Net 45'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'net60',
-                          child: PosText('Net 60'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'net90',
-                          child: PosText('Net 90'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'termin',
-                          child: PosText('Termin'),
-                        ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _creditType = value ?? 'net30';
-                        _termDays = switch (_creditType) {
-                          'net45' => 45,
-                          'net60' => 60,
-                          'net90' => 90,
-                          _ => 30,
-                        };
-                        if (_creditType != 'termin') {
-                          _dueDate = _purchaseDate.add(
-                            Duration(days: _termDays),
-                          );
-                        }
-                      }),
+                  TextFormField(
+                    key: const ValueKey('po-installment-count'),
+                    initialValue: _installmentCount.toString(),
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: ('Jumlah cicilan (2–12)').tr(context),
+                      border: const OutlineInputBorder(),
                     ),
-                    TextFormField(
-                      key: ValueKey('credit-detail-$_creditType'),
-                      initialValue:
-                          (_creditType == 'termin'
-                                  ? _installmentCount
-                                  : _termDays)
-                              .toString(),
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: _creditType == 'termin'
-                            ? ('Jumlah termin (2–12)').tr(context)
-                            : ('Jatuh tempo (hari)').tr(context),
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        if (_creditType == 'termin') {
-                          _installmentCount = (int.tryParse(value) ?? 2).clamp(
-                            2,
-                            12,
-                          );
-                        } else {
-                          _termDays = int.tryParse(value) ?? 0;
-                        }
-                      },
+                    onChanged: (value) => setState(() {
+                      final count = int.tryParse(value);
+                      _installmentCountInputValid =
+                          count != null && count >= 2 && count <= 12;
+                      if (count != null && count >= 2 && count <= 12) {
+                        _installmentCount = count;
+                        _savedInstallmentSchedule.clear();
+                        _installmentRevision++;
+                      }
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final entry in _generatedInstallmentSchedule.indexed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: responsive([
+                        TextFormField(
+                          key: ValueKey(
+                            'po-installment-${entry.$1}-$_installmentCount-$_installmentRevision-$_purchaseGrandTotal',
+                          ),
+                          initialValue: entry.$2['amount'].toString(),
+                          decoration: InputDecoration(
+                            labelText:
+                                '${('Cicilan').tr(context)} ${entry.$1 + 1} (Rp)',
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (value) => _updatePurchaseInstallment(
+                            entry.$1,
+                            'amount',
+                            double.tryParse(value) ?? 0,
+                          ),
+                        ),
+                        _purchaseDateField(
+                          label: ('Tanggal jatuh tempo').tr(context),
+                          value: DateTime.tryParse(
+                            entry.$2['due_date'].toString(),
+                          ),
+                          onChanged: (value) => setState(
+                            () => _updatePurchaseInstallment(
+                              entry.$1,
+                              'due_date',
+                              _dateValue(value),
+                            ),
+                          ),
+                        ),
+                      ]),
                     ),
-                    _purchaseDateField(
-                      label: ('Tanggal jatuh tempo').tr(context),
-                      value: _dueDate,
-                      optional: true,
-                      onChanged: (value) => setState(() => _dueDate = value),
-                    ),
-                  ]),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _savedInstallmentSchedule.clear();
+                      _installmentRevision++;
+                    }),
+                    child: PosText('Buat ulang jadwal cicilan'),
+                  ),
                 ],
                 const SizedBox(height: 12),
                 responsive([
@@ -2893,7 +2989,7 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                       labelText: ('Dasar jatuh tempo').tr(context),
                       border: OutlineInputBorder(),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'invoice_date',
                         child: PosText('Tanggal invoice supplier'),
@@ -2906,12 +3002,17 @@ class _PosInventoryEditorPageState extends State<PosInventoryEditorPage> {
                         value: 'po_date',
                         child: PosText('Tanggal PO'),
                       ),
-                      DropdownMenuItem(
-                        value: 'fixed_date',
-                        child: PosText('Tanggal tetap'),
-                      ),
+                      if (_creditType == 'custom' ||
+                          _creditType == 'termin' ||
+                          _dueDateBasis == 'fixed_date')
+                        DropdownMenuItem(
+                          value: 'fixed_date',
+                          child: PosText('Tanggal tetap'),
+                        ),
                     ],
-                    onChanged: _paymentTerms == 'kredit'
+                    onChanged:
+                        _paymentTerms == 'kredit' &&
+                            _purchaseNetDays.containsKey(_creditType)
                         ? (value) => setState(
                             () => _dueDateBasis = value ?? 'invoice_date',
                           )

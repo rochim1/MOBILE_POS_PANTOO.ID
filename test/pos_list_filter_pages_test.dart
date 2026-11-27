@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -103,9 +104,20 @@ class _Tables extends Fake implements PosTableRepository {
 
 class _PurchaseReturns extends Fake implements PurchaseReturnRepository {
   int reads = 0;
+  final requests = <Map<String, String>>[];
+  final pending =
+      <String, Completer<Either<Failure, PurchaseReturnPageResult>>>{};
+  final pages = <String, PurchaseReturnPageResult>{};
   @override
   Future<Either<Failure, Map<String, List<Map<String, dynamic>>>>>
-  getTransactionOptions() async => const Right({});
+  getTransactionOptions() async => const Right({
+    'reasons': [
+      {'value': 'damaged', 'label': 'Barang rusak'},
+    ],
+    'methods': [
+      {'value': 'credit_note', 'label': 'Nota kredit'},
+    ],
+  });
   @override
   Future<Either<Failure, PurchaseReturnPageResult>> getAll({
     String search = '',
@@ -118,7 +130,14 @@ class _PurchaseReturns extends Fake implements PurchaseReturnRepository {
     int limit = 20,
   }) async {
     reads++;
-    return const Right(PurchaseReturnPageResult([], 0));
+    requests.add({
+      'search': search,
+      'status': status,
+      'reason': reason,
+      'method': method,
+    });
+    if (pending[search] != null) return pending[search]!.future;
+    return Right(pages[search] ?? const PurchaseReturnPageResult([], 0));
   }
 }
 
@@ -126,6 +145,117 @@ void main() {
   setUpAll(initializeDateFormatting);
   setUp(() => sl.pushNewScope());
   tearDown(() => sl.popScope());
+  Future<void> openPurchaseReturns(
+    WidgetTester tester,
+    _PurchaseReturns repository,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    sl.registerSingleton<PurchaseReturnRepository>(repository);
+    final pos = _Pos();
+    addTearDown(pos.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('id'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: BlocProvider<PosBloc>.value(
+            value: pos,
+            child: const PosPurchaseReturnPage(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'supplier return filter cancel does not query, Apply commits one coherent filter',
+    (tester) async {
+      final repository = _PurchaseReturns();
+      await openPurchaseReturns(tester, repository);
+      await tester.enterText(find.byType(TextField), 'INV-QA');
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
+      final reads = repository.reads;
+      final toggle = find.byKey(const Key('purchase_return_filter_toggle'));
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      var choices = find.byType(DropdownButtonFormField<String>);
+      tester.widget<DropdownButtonFormField<String>>(choices.at(0)).onChanged!(
+        'approved',
+      );
+      await tester.pumpAndSettle();
+      expect(repository.reads, reads);
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      choices = find.byType(DropdownButtonFormField<String>);
+      expect(
+        tester
+            .widget<DropdownButtonFormField<String>>(choices.at(0))
+            .initialValue,
+        '',
+      );
+      tester.widget<DropdownButtonFormField<String>>(choices.at(0)).onChanged!(
+        'approved',
+      );
+      tester.widget<DropdownButtonFormField<String>>(choices.at(1)).onChanged!(
+        'damaged',
+      );
+      tester.widget<DropdownButtonFormField<String>>(choices.at(2)).onChanged!(
+        'credit_note',
+      );
+      await tester.pumpAndSettle();
+      final apply = find.text('Terapkan');
+      await tester.ensureVisible(apply);
+      await tester.tap(apply);
+      await tester.pumpAndSettle();
+      expect(repository.reads, reads + 1);
+      expect(repository.requests.last, {
+        'search': 'INV-QA',
+        'status': 'approved',
+        'reason': 'damaged',
+        'method': 'credit_note',
+      });
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('late supplier return search cannot replace newer results', (
+    tester,
+  ) async {
+    final repository = _PurchaseReturns();
+    repository.pending['old'] = Completer();
+    repository.pages['new'] = const PurchaseReturnPageResult([
+      {
+        '_id': 'new',
+        'no_return': 'NEW-QA',
+        'approval_status': 'draft',
+        'supplier_name': 'Vendor QA',
+      },
+    ], 1);
+    await openPurchaseReturns(tester, repository);
+    await tester.enterText(find.byType(TextField), 'old');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.enterText(find.byType(TextField), 'new');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    repository.pending['old']!.complete(
+      const Right(
+        PurchaseReturnPageResult([
+          {'_id': 'old', 'no_return': 'OLD-QA', 'approval_status': 'draft'},
+        ], 1),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('NEW-QA'), findsOneWidget);
+    expect(find.text('OLD-QA'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   for (final page in [
     'promo',
     'return',
@@ -175,7 +305,33 @@ void main() {
         );
         await tester.pumpAndSettle();
         final toggle = find.byKey(Key('${page}_filter_toggle'));
-        if (width < 600) {
+        if (['return', 'purchase_return', 'shift_history'].contains(page)) {
+          expect(toggle, findsOneWidget);
+          expect(find.byType(TextField), findsOneWidget);
+          await tester.enterText(find.byType(TextField), 'QA');
+          await tester.pump(const Duration(milliseconds: 600));
+          await tester.pumpAndSettle();
+          final reads = purchaseReturns.reads;
+          await tester.tap(toggle);
+          await tester.pumpAndSettle();
+          if (page == 'purchase_return') {
+            expect(find.byType(BottomSheet), findsOneWidget);
+            expect(
+              find.byType(DropdownButtonFormField<String>),
+              findsNWidgets(3),
+            );
+            await tester.tapAt(const Offset(8, 8));
+          } else {
+            expect(
+              find.byType(DropdownButtonFormField<String>),
+              findsOneWidget,
+            );
+            await tester.tap(toggle);
+          }
+          await tester.pumpAndSettle();
+          expect(find.text('QA'), findsOneWidget);
+          expect(purchaseReturns.reads, reads);
+        } else if (width < 600) {
           expect(toggle, findsOneWidget);
           expect(find.byType(TextField), findsNothing);
           if (page == 'table') {

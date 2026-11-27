@@ -2066,8 +2066,8 @@
   {
     "key": "pos1a266eba7d88",
     "source": "Transit: {arg1}",
-    "id": "Transit: {arg1}",
-    "en": "Transit: {arg1}"
+    "id": "Barang dalam perjalanan: {arg1}",
+    "en": "Goods in transit: {arg1}"
   },
   {
     "key": "pos6c74f030d8e7",

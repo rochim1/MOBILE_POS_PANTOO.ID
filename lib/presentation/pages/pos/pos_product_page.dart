@@ -106,7 +106,8 @@ class _PosProductPageState extends State<PosProductPage> {
           ? true
           : switch (_stockFilter) {
               'available' => !product.tracksStock || product.stock > 0,
-              'low' => product.tracksStock && product.stock > 0 && product.stock <= 10,
+              'low' =>
+                product.tracksStock && product.stock > 0 && product.stock <= 10,
               'empty' => product.tracksStock && product.stock <= 0,
               _ => true,
             };
@@ -162,79 +163,84 @@ class _PosProductPageState extends State<PosProductPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 760;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 760;
 
-    return BlocProvider(
-      create: (context) => sl<PosProductManagementBloc>(),
-      child: BlocConsumer<PosProductManagementBloc, PosProductManagementState>(
-        listener: (context, mgmtState) {
-          if (mgmtState.status == PosProductManagementStatus.success) {
-            AppToast.success(context, mgmtState.successMessage);
-            // Urutan katalog ditentukan oleh backend. Menyisipkan hasil
-            // mutation di posisi pertama membuat daftar meloncat saat refetch
-            // kembali dengan urutan alfabetis.
-            setState(() => _waitingForCatalogRefresh = true);
-            context.read<PosBloc>().add(RefreshProducts());
-          } else if (mgmtState.status == PosProductManagementStatus.failure) {
-            AppToast.error(context, mgmtState.errorMessage);
-          }
-        },
-        builder: (context, mgmtState) {
-          // Simpan context yang berada di bawah BlocProvider. Callback tour
-          // berasal dari shell, sehingga State.context sendiri berada di atas
-          // provider dan tidak boleh dipakai untuk membuka form katalog.
-          _catalogProviderContext = context;
-          return BlocConsumer<PosBloc, PosState>(
-            listenWhen: (previous, current) =>
-                previous.productsRefreshing && !current.productsRefreshing,
-            listener: (context, state) {
-              if (_waitingForCatalogRefresh) {
-                setState(() => _waitingForCatalogRefresh = false);
-              }
-              if (state.errorMessage == 'Katalog gagal dimuat ulang') {
-                AppToast.error(context, state.errorMessage);
+        return BlocProvider(
+          create: (context) => sl<PosProductManagementBloc>(),
+          child: BlocConsumer<PosProductManagementBloc, PosProductManagementState>(
+            listener: (context, mgmtState) {
+              if (mgmtState.status == PosProductManagementStatus.success) {
+                AppToast.success(context, mgmtState.successMessage);
+                // Urutan katalog ditentukan oleh backend. Menyisipkan hasil
+                // mutation di posisi pertama membuat daftar meloncat saat refetch
+                // kembali dengan urutan alfabetis.
+                setState(() => _waitingForCatalogRefresh = true);
+                context.read<PosBloc>().add(RefreshProducts());
+              } else if (mgmtState.status ==
+                  PosProductManagementStatus.failure) {
+                AppToast.error(context, mgmtState.errorMessage);
               }
             },
-            builder: (context, state) {
-              final trackStock = _tracksStock(context);
-              final filteredProducts = _getFilteredProducts(
-                state.products,
-                trackStock: trackStock,
-              );
+            builder: (context, mgmtState) {
+              // Simpan context yang berada di bawah BlocProvider. Callback tour
+              // berasal dari shell, sehingga State.context sendiri berada di atas
+              // provider dan tidak boleh dipakai untuk membuka form katalog.
+              _catalogProviderContext = context;
+              return BlocConsumer<PosBloc, PosState>(
+                listenWhen: (previous, current) =>
+                    previous.productsRefreshing && !current.productsRefreshing,
+                listener: (context, state) {
+                  if (_waitingForCatalogRefresh) {
+                    setState(() => _waitingForCatalogRefresh = false);
+                  }
+                  if (state.errorMessage == 'Katalog gagal dimuat ulang') {
+                    AppToast.error(context, state.errorMessage);
+                  }
+                },
+                builder: (context, state) {
+                  final trackStock = _tracksStock(context);
+                  final filteredProducts = _getFilteredProducts(
+                    state.products,
+                    trackStock: trackStock,
+                  );
 
-              return Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCatalogSourceNotice(),
-                    const SizedBox(height: 12),
-                    _buildActionRow(
-                      isMobile,
-                      context,
-                      state.products,
-                      trackStock,
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildCatalogSourceNotice(),
+                        const SizedBox(height: 12),
+                        _buildActionRow(
+                          isMobile,
+                          context,
+                          state.products,
+                          trackStock,
+                        ),
+                        const SizedBox(height: 16),
+                        if (mgmtState.status ==
+                            PosProductManagementStatus.loading)
+                          const LinearProgressIndicator(),
+                        Expanded(
+                          child:
+                              (_waitingForCatalogRefresh ||
+                                  state.productsRefreshing)
+                              ? _buildCatalogSkeleton(isMobile)
+                              : widget.isGridView
+                              ? _buildProductCards(isMobile, filteredProducts)
+                              : _buildProductTable(filteredProducts),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    if (mgmtState.status == PosProductManagementStatus.loading)
-                      const LinearProgressIndicator(),
-                    Expanded(
-                      child:
-                          (_waitingForCatalogRefresh ||
-                              state.productsRefreshing)
-                          ? _buildCatalogSkeleton(isMobile)
-                          : widget.isGridView
-                          ? _buildProductCards(isMobile, filteredProducts)
-                          : _buildProductTable(filteredProducts),
-                    ),
-                  ],
-                ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -289,15 +295,13 @@ class _PosProductPageState extends State<PosProductPage> {
                       trackStock,
                       compact: true,
                     ),
+                    if (_canImportProducts(context)) ...[
+                      const SizedBox(width: 8),
+                      _buildImportButton(context, compact: true),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
-                if (_canImportProducts(context))
-                  OutlinedButton.icon(
-                    onPressed: () => _openImport(context),
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text('Import Excel / CSV'),
-                  ),
                 if (_canManageProducts(context))
                   SizedBox(
                     width: double.infinity,
@@ -351,6 +355,20 @@ class _PosProductPageState extends State<PosProductPage> {
                   ),
               ],
             ),
+    );
+  }
+
+  Widget _buildImportButton(BuildContext context, {bool compact = false}) {
+    return IconButton.outlined(
+      tooltip: ('Import Excel / CSV').tr(context),
+      onPressed: () => _openImport(context),
+      icon: const Icon(Icons.upload_file),
+      style: IconButton.styleFrom(
+        minimumSize: Size.square(compact ? 40 : 52),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(compact ? 10 : 14),
+        ),
+      ),
     );
   }
 
@@ -410,6 +428,7 @@ class _PosProductPageState extends State<PosProductPage> {
                 ),
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String?>(
+                  isExpanded: true,
                   initialValue: selectedCategory,
                   decoration: InputDecoration(
                     labelText: ('Kategori').tr(context),
@@ -433,6 +452,7 @@ class _PosProductPageState extends State<PosProductPage> {
                 if (trackStock) ...[
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     initialValue: selectedStock,
                     decoration: InputDecoration(
                       labelText: ('Kondisi stok').tr(context),
@@ -1035,7 +1055,10 @@ class _PosProductPageState extends State<PosProductPage> {
               ).pos70272f418def((formatRupiahAmount(product.price)).toString()),
             ),
             if (_tracksStock(context))
-              _DetailRow(('Stok Tersedia').tr(context), _stockLabel(context, product)),
+              _DetailRow(
+                ('Stok Tersedia').tr(context),
+                _stockLabel(context, product),
+              ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

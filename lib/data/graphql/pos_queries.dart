@@ -708,6 +708,7 @@ class PosQueries {
           status_pembayaran
           sales_invoice_id
           paid_amount
+          due_date
           outstanding_amount
           credited_amount
           subtotal

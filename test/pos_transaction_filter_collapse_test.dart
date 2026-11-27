@@ -8,6 +8,7 @@ import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_bloc.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_event.dart';
 import 'package:mobile_pos_pantoo/presentation/bloc/pos/pos_state.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_order_page.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_category_navigation.dart';
 
 class _Repo extends Fake implements PosRepository {}
 
@@ -100,8 +101,20 @@ void main() {
         await open(tester, size: size, language: language);
         if (size.width < 760) {
           expect(find.byKey(_toggle), findsOneWidget);
+          final category = find.byWidgetPredicate(
+            (widget) => widget is PosCategoryDropdown,
+          );
+          expect(category, findsOneWidget);
+          expect(
+            tester.getCenter(find.byKey(_toggle)).dy,
+            closeTo(tester.getCenter(category).dy, 1),
+          );
+          expect(
+            tester.getRect(find.byKey(_toggle)).left,
+            greaterThan(tester.getRect(category).right),
+          );
           expect(find.byType(TextField), findsNothing);
-          expect(tester.getTopLeft(find.text('INV-A')).dy, lessThan(230));
+          expect(tester.getTopLeft(find.text('INV-A')).dy, lessThan(160));
         } else {
           expect(find.byKey(_toggle), findsNothing);
           expect(find.byType(TextField), findsOneWidget);

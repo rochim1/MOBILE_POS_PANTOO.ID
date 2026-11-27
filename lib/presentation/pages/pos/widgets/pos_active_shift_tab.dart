@@ -458,6 +458,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
               ),
               const SizedBox(height: 18),
               PosMetricGrid(
+                compact: true,
                 children: [
                   _buildShiftMetric(
                     ('Kas seharusnya').tr(context),
@@ -550,6 +551,7 @@ class _PosActiveShiftTabState extends State<PosActiveShiftTab> {
   }
 
   Widget _buildShiftMetric(String label, String value) => PosMetricCard(
+    compact: true,
     title: label,
     value: value,
     icon: Icons.account_balance_wallet_outlined,

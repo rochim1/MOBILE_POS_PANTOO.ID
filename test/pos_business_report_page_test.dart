@@ -12,6 +12,7 @@ import 'package:mobile_pos_pantoo/domain/models/pos_financial_report.dart';
 import 'package:mobile_pos_pantoo/l10n/generated/app_localizations.dart';
 import 'package:mobile_pos_pantoo/presentation/pages/pos/pos_business_report_page.dart';
 import 'package:mobile_pos_pantoo/presentation/widgets/financial_report_export_button.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_category_navigation.dart';
 import 'pos_business_report_test.dart' show BusinessRepository;
 
 Widget app(
@@ -72,9 +73,13 @@ void main() {
           image.dispose();
         });
       }
-      await tester.tap(find.byType(ChoiceChip).last);
+      tester
+          .widget<PosCategoryDropdown<PosBusinessReportKind>>(
+            find.byType(PosCategoryDropdown<PosBusinessReportKind>),
+          )
+          .onSelected(PosBusinessReportKind.restock);
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
       await tester.tap(find.byKey(const Key('business_report_filter_toggle')));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsOneWidget);
@@ -110,9 +115,21 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(FinancialReportExportButton), findsOneWidget);
-      expect(find.byType(ChoiceChip), findsNWidgets(2));
+      expect(
+        tester
+            .widget<PosCategoryDropdown<PosBusinessReportKind>>(
+              find.byType(PosCategoryDropdown<PosBusinessReportKind>),
+            )
+            .items
+            .length,
+        2,
+      );
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byType(ChoiceChip).last);
+      tester
+          .widget<PosCategoryDropdown<PosBusinessReportKind>>(
+            find.byType(PosCategoryDropdown<PosBusinessReportKind>),
+          )
+          .onSelected(PosBusinessReportKind.payables);
       await tester.pumpAndSettle();
       expect(find.byType(DropdownButtonFormField<String>), findsNothing);
       expect(tester.takeException(), isNull);

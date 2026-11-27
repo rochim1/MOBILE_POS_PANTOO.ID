@@ -167,31 +167,35 @@ class PosMetricGrid extends StatelessWidget {
 }
 
 class PosMetricCardSkeleton extends StatelessWidget {
-  const PosMetricCardSkeleton({super.key});
+  const PosMetricCardSkeleton({super.key, this.compact = false});
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 180),
-    padding: const EdgeInsets.all(18),
+    constraints: BoxConstraints(minHeight: compact ? 92 : 180),
+    padding: EdgeInsets.all(compact ? 12 : 18),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: const Color(0xFFE4E7EC)),
     ),
-    child: const Column(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        const Row(
           children: [
             Expanded(child: _MetricPlaceholder(height: 12)),
             SizedBox(width: 16),
             _MetricPlaceholder(width: 18, height: 18),
           ],
         ),
-        SizedBox(height: 16),
-        _MetricPlaceholder(width: 100, height: 26),
-        SizedBox(height: 14),
-        _MetricPlaceholder(width: 80, height: 12),
+        SizedBox(height: compact ? 8 : 16),
+        const _MetricPlaceholder(width: 100, height: 26),
+        if (!compact) ...[
+          const SizedBox(height: 14),
+          const _MetricPlaceholder(width: 80, height: 12),
+        ],
       ],
     ),
   );

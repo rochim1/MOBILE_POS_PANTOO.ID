@@ -11,6 +11,7 @@ void main() {
     'no_po': 'PO-001',
     'supplier_name': 'Supplier Utama',
     'tanggal_po': '2026-10-10',
+    'required_by_date': '2026-10-15',
     'status': status,
     'created_by': {'name': 'Admin Pembelian'},
     'catatan': 'Kirim sebelum akhir minggu',

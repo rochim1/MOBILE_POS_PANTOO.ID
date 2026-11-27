@@ -101,7 +101,7 @@ class PosInventoryQueries {
       GetAllInventoryPurchases(filter: $filter, pagination: $pagination) {
         totalCount
         items {
-          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman receiving_location_id supplier_contact
+          _id no_po supplier_id supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date required_by_date alamat_pengiriman receiving_location_id supplier_contact
           metode_pembayaran payment_method syarat_pembayaran tipe_kredit payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent
           jumlah_termin jadwal_termin { no_termin amount due_date status paid_date paid_amount }
           prioritas status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close payable_status payable_outstanding_amount catatan alasan_penolakan total_amount
@@ -127,7 +127,7 @@ class PosInventoryQueries {
     query GetOneInventoryPurchaseForPrint($id: ID!) {
       GetOneInventoryPurchase(_id: $id) {
         _id no_po supplier_name tanggal_po tanggal_pengiriman estimated_arrival_date alamat_pengiriman receiving_location_id
-        metode_pembayaran payment_method syarat_pembayaran payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close catatan total_amount grand_total
+        metode_pembayaran payment_method syarat_pembayaran tipe_kredit jumlah_termin payment_term_type term_days due_date due_date_basis payment_term_note down_payment_amount down_payment_percent required_by_date status receiving_status supplier_status supplier_contact sent_channel sent_at supplier_ack_status supplier_ack_note supplier_ack_at closed_with_variance close_variance_reason closed_at remaining_qty_at_close catatan total_amount grand_total
         diskon_persen diskon_type diskon_fixed ppn_persen ppn_amount
         biaya_pengiriman biaya_tambahan { jenis_biaya deskripsi nominal }
         estimasi_biaya_tambahan { jenis_biaya deskripsi nominal } total_estimasi_biaya estimasi_total

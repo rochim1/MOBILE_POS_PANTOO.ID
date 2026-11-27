@@ -1,5 +1,5 @@
 import '../../widgets/pos_record_skeletons.dart';
-import '../../widgets/pos_collapsible_filters.dart';
+import '../../widgets/pos_operational_toolbar.dart';
 import 'package:mobile_pos_pantoo/l10n/app_language_controller.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
@@ -38,6 +38,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
   DateTime? _dateTo;
   int _page = 1;
   int _total = 0;
+  int _loadGeneration = 0;
   List<Map<String, dynamic>> _reasonOptions = const [];
   List<Map<String, dynamic>> _methodOptions = const [];
   static const _limit = 20;
@@ -63,12 +64,14 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
 
   @override
   void dispose() {
+    _loadGeneration++;
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _load({int? page}) async {
+    final generation = ++_loadGeneration;
     setState(() => _loading = true);
     final nextPage = page ?? _page;
     final result = await _repository.getAll(
@@ -81,7 +84,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
       page: nextPage,
       limit: _limit,
     );
-    if (!mounted) return;
+    if (!mounted || generation != _loadGeneration) return;
     result.fold(
       (failure) => AppToast.error(context, failure.message),
       (data) => setState(() {
@@ -99,6 +102,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
   }
 
   Future<void> _showFilters() async {
+    var status = _status;
     var reason = _reason;
     var method = _method;
     var from = _dateFrom;
@@ -109,7 +113,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
       showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -121,7 +125,39 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
+                  initialValue: status,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: ('Status').tr(context),
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: PosText('Semua')),
+                    DropdownMenuItem(value: 'draft', child: PosText('Draft')),
+                    DropdownMenuItem(
+                      value: 'pending_approval',
+                      child: PosText('Menunggu'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'approved',
+                      child: PosText('Disetujui'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rejected',
+                      child: PosText('Ditolak'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'processed',
+                      child: PosText('Diproses'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => status = value ?? ''),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
                   initialValue: reason,
+                  isExpanded: true,
                   decoration: InputDecoration(
                     labelText: ('Alasan retur').tr(context),
                     border: OutlineInputBorder(),
@@ -133,6 +169,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: method,
+                  isExpanded: true,
                   decoration: InputDecoration(
                     labelText: ('Penyelesaian').tr(context),
                     border: OutlineInputBorder(),
@@ -146,30 +183,42 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                       setSheetState(() => method = value ?? ''),
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ReturnDateField(
-                        label: ('Dari tanggal').tr(context),
-                        value: from,
-                        onChanged: (value) => setSheetState(() => from = value),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _ReturnDateField(
-                        label: ('Sampai tanggal').tr(context),
-                        value: to,
-                        onChanged: (value) => setSheetState(() => to = value),
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final fromField = _ReturnDateField(
+                      label: ('Dari tanggal').tr(context),
+                      value: from,
+                      onChanged: (value) => setSheetState(() => from = value),
+                    );
+                    final toField = _ReturnDateField(
+                      label: ('Sampai tanggal').tr(context),
+                      value: to,
+                      onChanged: (value) => setSheetState(() => to = value),
+                    );
+                    if (constraints.maxWidth < 500) {
+                      return Column(
+                        children: [
+                          fromField,
+                          const SizedBox(height: 12),
+                          toField,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: fromField),
+                        const SizedBox(width: 12),
+                        Expanded(child: toField),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
                     TextButton(
                       onPressed: () => setSheetState(() {
+                        status = '';
                         reason = '';
                         method = '';
                         from = null;
@@ -179,7 +228,18 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     ),
                     const Spacer(),
                     FilledButton(
-                      onPressed: () => Navigator.pop(sheetContext, true),
+                      onPressed: () {
+                        if (from != null && to != null && from!.isAfter(to!)) {
+                          AppToast.error(
+                            sheetContext,
+                            posLocale(context).localeName.startsWith('en')
+                                ? 'End date must not be before start date'
+                                : 'Tanggal akhir tidak boleh sebelum tanggal awal',
+                          );
+                          return;
+                        }
+                        Navigator.pop(sheetContext, true);
+                      },
                       child: const PosText('Terapkan'),
                     ),
                   ],
@@ -192,6 +252,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
     );
     if (applied != true || !mounted) return;
     setState(() {
+      _status = status;
       _reason = reason;
       _method = method;
       _dateFrom = from;
@@ -265,7 +326,7 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const controlHeight = 56.0;
+                const controlHeight = 48.0;
                 final search = SizedBox(
                   height: controlHeight,
                   child: TextField(
@@ -278,127 +339,33 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                     ),
                   ),
                 );
-                final status = SizedBox(
-                  height: controlHeight,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isDense: true,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: ('Status').tr(context),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: '', child: PosText('Semua')),
-                      DropdownMenuItem(value: 'draft', child: PosText('Draft')),
-                      DropdownMenuItem(
-                        value: 'pending_approval',
-                        child: PosText('Menunggu'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'approved',
-                        child: PosText('Disetujui'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'rejected',
-                        child: PosText('Ditolak'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'processed',
-                        child: PosText('Diproses'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _status = value ?? '');
-                      _load(page: 1);
-                    },
-                  ),
-                );
                 final button = FilledButton.icon(
                   onPressed: canCreate ? _openCreate : null,
                   style: InventoryActionStyle.primary(
+                    context: context,
                     controlHeight: controlHeight,
                   ),
                   icon: const Icon(Icons.add, size: 18),
                   label: const PosText('Retur ke Supplier'),
                 );
-                final hasFilter =
-                    _reason.isNotEmpty ||
-                    _method.isNotEmpty ||
-                    _dateFrom != null ||
-                    _dateTo != null;
-                final filter = IconButton.filledTonal(
-                  onPressed: _showFilters,
-                  tooltip: ('Filter retur').tr(context),
-                  style: InventoryActionStyle.filter(
-                    controlHeight: controlHeight,
-                  ),
-                  icon: Badge(
-                    isLabelVisible: hasFilter,
-                    child: const Icon(Icons.tune_rounded),
-                  ),
-                );
-                if (MediaQuery.sizeOf(context).width < 600) {
-                  return PosCollapsibleFilters(
-                    toggleKey: const Key('purchase_return_filter_toggle'),
-                    activeCount: [
-                      _searchController.text.trim().isNotEmpty,
-                      _status.isNotEmpty,
-                      _reason.isNotEmpty,
-                      _method.isNotEmpty,
-                      _dateFrom != null,
-                      _dateTo != null,
-                    ].where((active) => active).length,
-                    actions: [button],
-                    child: Column(
-                      children: [
-                        search,
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(child: status),
-                            const SizedBox(width: 8),
-                            filter,
-                          ],
-                        ),
-                      ],
+                return PosOperationalToolbar(
+                  search: search,
+                  primaryAction: canCreate ? button : null,
+                  filterAction: IconButton.filledTonal(
+                    key: const Key('purchase_return_filter_toggle'),
+                    onPressed: _showFilters,
+                    tooltip: ('Filter retur').tr(context),
+                    style: InventoryActionStyle.filter(),
+                    icon: Badge(
+                      isLabelVisible:
+                          _status.isNotEmpty ||
+                          _reason.isNotEmpty ||
+                          _method.isNotEmpty ||
+                          _dateFrom != null ||
+                          _dateTo != null,
+                      child: const Icon(Icons.tune_rounded),
                     ),
-                  );
-                }
-                if (constraints.maxWidth >= 720) {
-                  return Row(
-                    children: [
-                      Expanded(child: search),
-                      const SizedBox(width: 12),
-                      SizedBox(width: 190, child: status),
-                      const SizedBox(width: 8),
-                      filter,
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        height: InventoryActionStyle.height,
-                        child: button,
-                      ),
-                    ],
-                  );
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    search,
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(child: status),
-                        const SizedBox(width: 8),
-                        filter,
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          height: InventoryActionStyle.height,
-                          child: button,
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 );
               },
             ),
@@ -431,6 +398,12 @@ class _PosPurchaseReturnPageState extends State<PosPurchaseReturnPage> {
                       itemBuilder: (context, index) {
                         final item = _items[index];
                         return Card(
+                          color: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color(0xFFE1E5E9)),
+                          ),
                           child: ListTile(
                             onTap: () => _openDetail(item['_id'].toString()),
                             leading: CircleAvatar(
