@@ -1021,7 +1021,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         requestedState.selectedCustomer?.id != state.selectedCustomer?.id ||
         requestedState.manualDiscountPercent != state.manualDiscountPercent ||
         requestedState.promoCode != state.promoCode ||
-        requestedState.effectiveDiscountPolicy != state.effectiveDiscountPolicy ||
+        requestedState.effectiveDiscountPolicy !=
+            state.effectiveDiscountPolicy ||
         requestedState.salesChannel != state.salesChannel ||
         requestedState.customerSegment != state.customerSegment ||
         requestedState.priceLevel != state.priceLevel) {
@@ -1099,7 +1100,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           cart: event.order.cart,
           manualUnitPrices: event.order.manualUnitPrices,
           selectedUnits: event.order.selectedUnits,
-          manualDiscountPercent: state.manualDiscountAllowed ? event.order.manualDiscountPercent : 0,
+          manualDiscountPercent: state.manualDiscountAllowed
+              ? event.order.manualDiscountPercent
+              : 0,
           promoCode: state.promoCodeAllowed ? event.order.promoCode : '',
           discountPolicy: state.effectiveDiscountPolicy,
           orderType: event.order.orderType,
@@ -1149,16 +1152,29 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
   void _onUpdateDiscount(UpdateDiscount event, Emitter<PosState> emit) {
     if (_paymentInFlight || _cartDraftInFlight) return;
-    final canEdit = (state.runtimeConfig['permissions'] as Map?)?['manage_settings'] == true;
-    final manual = !state.manualDiscountAllowed ? 0.0 : canEdit ? event.manualDiscountPercent : state.effectiveManualDiscountPercent;
+    final canEdit =
+        (state.runtimeConfig['permissions'] as Map?)?['manage_settings'] ==
+        true;
+    final manual = !state.manualDiscountAllowed
+        ? 0.0
+        : canEdit
+        ? event.manualDiscountPercent
+        : state.effectiveManualDiscountPercent;
     if (!manual.isFinite || manual < 0 || manual > 100) {
-      emit(state.copyWith(status: PosStatus.failure, errorMessage: 'Diskon harus antara 0–100%'));
+      emit(
+        state.copyWith(
+          status: PosStatus.failure,
+          errorMessage: 'Diskon harus antara 0–100%',
+        ),
+      );
       return;
     }
     emit(
       state.copyWith(
         manualDiscountPercent: manual,
-        promoCode: state.promoCodeAllowed ? event.promoCode.trim().toUpperCase() : '',
+        promoCode: state.promoCodeAllowed
+            ? event.promoCode.trim().toUpperCase()
+            : '',
         discountPolicy: state.effectiveDiscountPolicy,
         status: PosStatus.success,
         clearPricingPreview: true,
@@ -1172,6 +1188,17 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     SubmitPayment event,
     Emitter<PosState> emit,
   ) async {
+    if (state.runtimeConfig['business_profile'] == 'travel') {
+      emit(
+        state.copyWith(
+          status: PosStatus.failure,
+          paymentInProgress: false,
+          errorMessage:
+              'Gunakan Booking Travel di POS Web. Pembayaran Travel belum diaktifkan.',
+        ),
+      );
+      return;
+    }
     if (_cartDraftInFlight) {
       emit(
         state.copyWith(
@@ -1262,7 +1289,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         // floating-point artefacts from discounts/tax calculations.
         cashReceived: event.cashReceived.roundToDouble(),
         payments: event.payments,
-        promoCode: state.effectivePromoCode.isNotEmpty ? state.effectivePromoCode : null,
+        promoCode: state.effectivePromoCode.isNotEmpty
+            ? state.effectivePromoCode
+            : null,
         discountPolicy: state.effectiveDiscountPolicy,
         diskon: state.manualDiscount,
         catatan: event.note.trim().isEmpty

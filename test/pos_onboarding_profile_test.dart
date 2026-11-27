@@ -152,10 +152,26 @@ void main() {
 
   for (final profile in posProfileIds) {
     testWidgets(
-      '$profile saves presets and preserves transaction defaults in one action',
+      profile == 'travel'
+          ? 'travel activation remains unavailable until Mobile supports booking'
+          : '$profile saves presets and preserves transaction defaults in one action',
       (tester) async {
         final settings = _Settings();
         await _open(tester, settings);
+        if (profile == 'travel') {
+          final dropdown = tester.widget<DropdownButton<String>>(
+            find.byType(DropdownButton<String>).first,
+          );
+          expect(
+            dropdown.items!
+                .firstWhere((item) => item.value == 'travel')
+                .enabled,
+            isFalse,
+          );
+          expect(settings.saves, 0);
+          expect(tester.takeException(), isNull);
+          return;
+        }
         await _choose(
           tester,
           profile == 'custom' ? 'Kustom' : posProfileLabels[profile]!,
@@ -178,6 +194,16 @@ void main() {
       },
     );
   }
+
+  testWidgets('pending Travel never auto-activates through Mobile onboarding', (
+    tester,
+  ) async {
+    final settings = _Settings();
+    await _open(tester, settings, pending: 'travel');
+    expect(settings.saves, 0);
+    expect(find.textContaining('Aktivasi Travel dan booking'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'backend-only profile still appears and saves reservation default',

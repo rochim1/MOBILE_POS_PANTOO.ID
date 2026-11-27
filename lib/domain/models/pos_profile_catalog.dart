@@ -6,6 +6,7 @@ const posProfileIds = <String>[
   "bengkel",
   "salon",
   "jasa",
+  "travel",
   "custom"
 ];
 const posProfileLabels = <String, String>{
@@ -15,6 +16,7 @@ const posProfileLabels = <String, String>{
   "bengkel": "Bengkel",
   "salon": "Salon / Barbershop",
   "jasa": "Jasa",
+  "travel": "Travel",
   "custom": "Custom"
 };
 const posProfileDescriptions = <String, String>{
@@ -24,6 +26,7 @@ const posProfileDescriptions = <String, String>{
   "bengkel": "Service order, teknisi, kendaraan",
   "salon": "Layanan kecantikan, reservasi, staf, dan produk perawatan",
   "jasa": "Reservasi dan layanan pelanggan",
+  "travel": "Booking dan kuota perjalanan; pembayaran Travel belum diaktifkan",
   "custom": "Susun alur operasional sendiri"
 };
 const posProfilePresets = <String, Map<String, bool>>{
@@ -93,6 +96,18 @@ const posProfilePresets = <String, Map<String, bool>>{
     "use_service_order": true,
     "use_appointments": true,
     "use_technicians": true,
+    "use_vehicle_data": false,
+    "use_delivery": false,
+    "require_customer": true,
+    "track_stock": true,
+    "use_order_queue": false
+  },
+  "travel": {
+    "use_tables": false,
+    "use_kitchen_flow": false,
+    "use_service_order": false,
+    "use_appointments": false,
+    "use_technicians": false,
     "use_vehicle_data": false,
     "use_delivery": false,
     "require_customer": true,

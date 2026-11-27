@@ -74,7 +74,7 @@ void main() {
         jsonDecode(
           prefs.getString('pos_profile_catalog_v1:tenant-test')!,
         )['profiles'],
-        hasLength(8),
+        hasLength((payload['profiles'] as List).length),
       );
     },
   );

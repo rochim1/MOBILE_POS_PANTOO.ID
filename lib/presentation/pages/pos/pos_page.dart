@@ -466,6 +466,16 @@ class _PosPageViewState extends State<PosPageView> {
                 notificationPredicate: (_) => true,
                 child: BlocBuilder<PosBloc, PosState>(
                   builder: (context, state) {
+                    if (state.runtimeConfig['business_profile'] == 'travel') {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: PosText(
+                            'Gunakan Booking Travel di POS Web untuk mengelola paket, keberangkatan dan kuota. Pembayaran Travel belum diaktifkan.',
+                          ),
+                        ),
+                      );
+                    }
                     _cashierTabs = null;
                     Map<String, dynamic>? pendingCheckout;
                     String? invalidCheckout;

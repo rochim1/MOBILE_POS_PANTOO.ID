@@ -4,6 +4,7 @@ import 'package:mobile_pos_pantoo/injections.dart';
 import 'package:mobile_pos_pantoo/core/subscription/pos_subscription_service.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:mobile_pos_pantoo/presentation/widgets/pos_keyboard_visibility.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -106,6 +107,7 @@ Widget _app(
 }) => BlocProvider<PosBloc>.value(
   value: bloc,
   child: MaterialApp(
+    scrollBehavior: const PosKeyboardScrollBehavior(),
     locale: locale,
     supportedLocales: AppLocalizations.supportedLocales,
     localizationsDelegates: [
@@ -123,7 +125,7 @@ Widget _app(
       data: MediaQuery.of(
         context,
       ).copyWith(textScaler: TextScaler.linear(scale)),
-      child: child!,
+      child: PosKeyboardVisibility(child: child!),
     ),
     home: RepaintBoundary(
       key: const Key('payment_preview'),

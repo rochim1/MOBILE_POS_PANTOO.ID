@@ -1,6 +1,7 @@
 import 'core/subscription/pos_subscription_service.dart';
 import 'presentation/widgets/pos_subscription_boundary.dart';
 import 'presentation/widgets/pos_system_safe_area.dart';
+import 'presentation/widgets/pos_keyboard_visibility.dart';
 import 'package:mobile_pos_pantoo/l10n/pos_localization.dart';
 import 'dart:async';
 import 'core/notifications/pos_push_service.dart';
@@ -67,6 +68,7 @@ class App extends StatelessWidget {
       child: ValueListenableBuilder<Locale?>(
         valueListenable: AppLanguageController.instance,
         builder: (_, selectedLocale, _) => MaterialApp(
+          scrollBehavior: const PosKeyboardScrollBehavior(),
           locale: selectedLocale,
           supportedLocales: const [Locale('id'), Locale('en')],
           localizationsDelegates: const [
@@ -163,7 +165,9 @@ class App extends StatelessWidget {
                 ),
               ),
             );
-            final safeApp = PosSystemSafeArea(child: app);
+            final safeApp = PosKeyboardVisibility(
+              child: PosSystemSafeArea(child: app),
+            );
             if (!compactMobile) return safeApp;
             return MediaQuery(
               data: mediaQuery.copyWith(

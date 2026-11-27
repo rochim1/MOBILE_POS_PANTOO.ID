@@ -201,6 +201,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                       'Status keanggotaan',
                       DropdownButtonFormField<String>(
                         initialValue: membershipStatus,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.card_membership_outlined),
                         ),
@@ -230,6 +231,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                       'Level harga',
                       DropdownButtonFormField<String>(
                         initialValue: priceLevel,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           helperText:
                               ('Menentukan daftar harga produk pelanggan ini')
@@ -265,6 +267,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                       DropdownButtonFormField<String>(
                         key: ValueKey('tier:$membershipStatus:$membershipTier'),
                         initialValue: membershipTier,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           helperText: membershipStatus == 'member'
                               ? null
@@ -299,6 +302,7 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                       'Tipe pelanggan',
                       DropdownButtonFormField<String>(
                         initialValue: customerType,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.business_center_outlined),
                         ),
@@ -448,8 +452,10 @@ Future<PosCustomer?> showPosQuickCustomerDialog(
                   const SizedBox(height: 8),
                   Expanded(child: content),
                   const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: actions,
                   ),
                 ],

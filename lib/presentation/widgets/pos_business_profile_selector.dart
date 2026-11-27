@@ -23,12 +23,16 @@ class PosBusinessProfileSelector extends StatelessWidget {
       labelText: 'Profil usaha'.tr(context),
       floatingLabelBehavior: FloatingLabelBehavior.always,
       prefixIcon: const Icon(Icons.category_outlined),
+      helperText: value == 'travel'
+          ? 'Booking Travel tersedia melalui POS Web. Pembayaran belum diaktifkan.'
+          : null,
     ),
     items: catalog
         .ids(current: value)
         .map(
           (id) => DropdownMenuItem(
             value: id,
+            enabled: id != 'travel',
             child: PosText(
               catalog.profile(id)?.label ?? id,
               maxLines: 1,
