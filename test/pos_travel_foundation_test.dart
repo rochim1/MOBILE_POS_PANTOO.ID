@@ -47,7 +47,7 @@ void main() {
       expect(travel.features['require_customer'], isTrue);
       expect(travel.features['use_service_order'], isFalse);
       expect(travel.features['use_appointments'], isFalse);
-      expect(travel.description, contains('belum diaktifkan'));
+      expect(travel.description, contains('DP dan pelunasan'));
       expect(PosProfileDefinition.fromJson(travel.toJson()).value, 'travel');
     },
   );
@@ -68,7 +68,7 @@ void main() {
     },
   );
   testWidgets(
-    'TEST-TRAVEL-018 Mobile selector labels current Travel and prevents premature activation',
+    'TEST-TRAVEL-018 Mobile selector exposes Travel booking with deposits',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -76,17 +76,12 @@ void main() {
             body: PosBusinessProfileSelector(
               value: 'travel',
               catalog: PosRemoteProfileCatalog.bundled(),
-              onChanged: (_) {
-                fail('Travel is not activated through Mobile in this phase');
-              },
+              onChanged: (_) {},
             ),
           ),
         ),
       );
-      expect(
-        find.textContaining('Pembayaran belum diaktifkan'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('DP dan pelunasan'), findsOneWidget);
       final field = tester.widget<DropdownButtonFormField<String>>(
         find.byType(DropdownButtonFormField<String>),
       );

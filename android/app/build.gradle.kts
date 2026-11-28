@@ -93,6 +93,12 @@ android {
             dimension = "flavor-type"
             resValue("string", "app_name", "Pantoo POS")
         }
+        // Dedicated native Travel GUI storage; never clear or replace older QA.
+        create("qaTravel") {
+            dimension = "flavor-type"
+            applicationIdSuffix = ".qa.travel"
+            resValue("string", "app_name", "Pantoo POS QA Travel")
+        }
     }
 }
 
@@ -106,6 +112,9 @@ flutter {
 
 // Local service-intake QA is isolated from Firebase/production push enrollment.
 tasks.matching { it.name.startsWith("processQaService") && it.name.endsWith("GoogleServices") }.configureEach {
+    enabled = false
+}
+tasks.matching { it.name.startsWith("processQaTravel") && it.name.endsWith("GoogleServices") }.configureEach {
     enabled = false
 }
 

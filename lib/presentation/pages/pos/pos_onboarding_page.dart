@@ -341,13 +341,8 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
       final pending = sl<SharedPreferences>().getString(_scope);
       final shouldComplete =
           pending != null &&
-          pending != 'travel' &&
           catalog.profile(pending) != null &&
           _canManage;
-      if (pending == 'travel') {
-        _error =
-            'Aktivasi Travel dan booking tersedia melalui POS Web. Pembayaran Travel belum diaktifkan.';
-      }
       // A committed setup wins over a pending selection after a lost response.
       if (settings.onboardingCompleted == true) {
         await sl<SharedPreferences>().remove(_scope);
@@ -378,13 +373,6 @@ class _PosOnboardingPageState extends State<PosOnboardingPage> {
   }
 
   Future<void> _save() async {
-    if (_profile == 'travel') {
-      setState(
-        () => _error =
-            'Aktivasi Travel dan booking tersedia melalui POS Web. Pembayaran Travel belum diaktifkan.',
-      );
-      return;
-    }
     final settings = _settings;
     if (_saving ||
         _loading ||

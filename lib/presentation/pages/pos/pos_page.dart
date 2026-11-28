@@ -22,6 +22,7 @@ import 'widgets/pos_product_panel.dart';
 import 'widgets/pos_cart_panel.dart';
 import 'widgets/pos_checkout_resolution_dialog.dart';
 import 'pos_payment_page.dart';
+import 'pos_travel_page.dart';
 import 'pos_success_page.dart';
 import 'widgets/pos_checkout_recovery_panel.dart';
 import 'widgets/pos_category_sidebar.dart';
@@ -463,17 +464,18 @@ class _PosPageViewState extends State<PosPageView> {
             child: SafeArea(
               child: RefreshIndicator(
                 onRefresh: _onRefresh,
-                notificationPredicate: (_) => true,
+                notificationPredicate: (_) =>
+                    context
+                        .read<PosBloc>()
+                        .state
+                        .runtimeConfig['business_profile'] !=
+                    'travel',
                 child: BlocBuilder<PosBloc, PosState>(
                   builder: (context, state) {
                     if (state.runtimeConfig['business_profile'] == 'travel') {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: PosText(
-                            'Gunakan Booking Travel di POS Web untuk mengelola paket, keberangkatan dan kuota. Pembayaran Travel belum diaktifkan.',
-                          ),
-                        ),
+                      return PosTravelPage(
+                        initialStoreId: state.activeShift?['toko_id']
+                            ?.toString(),
                       );
                     }
                     _cashierTabs = null;

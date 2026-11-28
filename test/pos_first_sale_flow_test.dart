@@ -25,6 +25,13 @@ void main() {
   };
   test('new owner goes product then opening stock then own shift', () {
     expect(
+      mobilePosFirstSaleDestination({
+        ...fresh('product'),
+        'business_profile': 'travel',
+      }),
+      null,
+    );
+    expect(
       mobilePosUnlockDestination(
         fresh('product'),
         hasStore: true,

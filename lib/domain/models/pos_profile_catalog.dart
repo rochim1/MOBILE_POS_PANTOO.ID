@@ -26,7 +26,7 @@ const posProfileDescriptions = <String, String>{
   "bengkel": "Service order, teknisi, kendaraan",
   "salon": "Layanan kecantikan, reservasi, staf, dan produk perawatan",
   "jasa": "Reservasi dan layanan pelanggan",
-  "travel": "Booking dan kuota perjalanan; pembayaran Travel belum diaktifkan",
+  "travel": "Paket, jadwal, kuota, DP dan pelunasan perjalanan",
   "custom": "Susun alur operasional sendiri"
 };
 const posProfilePresets = <String, Map<String, bool>>{

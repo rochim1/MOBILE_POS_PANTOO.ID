@@ -37,6 +37,8 @@ int? mobilePosFirstSaleDestination(
   Map<String, dynamic> runtime, {
   bool offline = false,
 }) {
+  // Travel sells departure bookings, not a merchandise product/stock setup.
+  if (runtime['business_profile'] == 'travel') return null;
   final setup = runtime['initial_setup'] as Map? ?? const {};
   final ready = runtime['operational_readiness'] as Map? ?? const {};
   final p = runtime['permissions'] as Map? ?? const {};

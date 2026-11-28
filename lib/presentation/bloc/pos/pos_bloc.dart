@@ -1194,7 +1194,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
           status: PosStatus.failure,
           paymentInProgress: false,
           errorMessage:
-              'Gunakan Booking Travel di POS Web. Pembayaran Travel belum diaktifkan.',
+              'Gunakan Booking Travel untuk DP dan pelunasan pada pesanan yang sama.',
         ),
       );
       return;

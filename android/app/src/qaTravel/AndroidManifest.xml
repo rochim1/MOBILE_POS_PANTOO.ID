@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Local-only travel GUI test. Production policy is not changed. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>
